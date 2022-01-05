@@ -1,0 +1,11 @@
+{
+    "tasks": [
+        {
+            "label" : "target-upload",
+            "command" : "bash",
+            "args" : ["bin/upload.sh"],
+            "type" : "process"
+        },
+    ],
+    "version": "2.0.0"
+}
