@@ -22,14 +22,24 @@ add_compile_options(-Wall
         -Wno-maybe-uninitialized
         )
 
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
+
+
 file(GLOB_RECURSE SRC "src/*.cpp" "src/*.h")
 
+
+
 add_executable(picoboy ${SRC})
+
+pico_generate_pio_header(picoboy ${CMAKE_SOURCE_DIR}/src/peripherals/ili9341.pio)
 
 # pull in common dependencies
 target_link_libraries(picoboy
     pico_stdlib
     hardware_i2c
+    hardware_pio
+    hardware_spi
 )
 
 # create map/bin/hex file etc.
