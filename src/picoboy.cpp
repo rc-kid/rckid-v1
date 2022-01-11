@@ -47,11 +47,26 @@ int main() {
 
 
     radio_.initialize("TEST1", "TEST2", 32, 95);
+    radio_.standby();
+    uint8_t i = 0;
+    uint8_t buffer[32];
+    while (true) {
+        cpu::delay_ms(10);
+        for (int j = 0; j < 32; ++j)
+            buffer[j] = i;
+        ++i;
+        radio_.flushTX();
+        gpio::high(LED_PIN);
+        radio_.transmit(buffer);
+        gpio::low(LED_PIN);
+    }
+    /*
     radio_.enableReceiver();
     gpio_put(LED_PIN, 1);
     printf("Config: %u\n", radio_.config());
     printf("Status: %u\n", radio_.status());
     printf("Channel: %u\n", radio_.channel());
+    */
 
 
     //display_.initialize();

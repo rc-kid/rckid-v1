@@ -29,8 +29,7 @@ public:
 
 	/** Initializes the control pins of the module. 
 	 */
-    NRF24L01():
-     	transmitting_(false) {
+    NRF24L01() {
         gpio::output(CS);
         gpio::output(RXTX);
         gpio::input(IRQ);
@@ -70,7 +69,13 @@ public:
 		w_register(SETUP_AW, 3); // address width set to 5 bytes
 		//w_register(SETUP_RETR, 0); // disable auto retransmit
 		setChannel(channel);
-		w_register(RF_SETUP, 0b00001110); // 2mbps, maximum power
+		//w_register(RF_SETUP, 0b00001110); // 2mbps, maximum power
+        w_register(RF_SETUP, 0b00100110); // 250kbps, maximum power
+        // disable auto acknowledge, dynamic payload, retransmit, etc. 
+        w_register(EN_AA, 0);
+        w_register(FEATURE, 0);
+        w_register(DYNPD, 0);
+        w_register(SETUP_RETR, 0);
 		clearStatusFlags();
 		setRxAddress(rxAddr);
 		setTxAddress(txAddr);
@@ -254,26 +259,32 @@ public:
 		receive(buffer, payloadLength_);
 		spi::setCs(CS, false);
 	}
+
+    void receiveAndCheck(uint8_t * buffer) {
+        receive(buffer);
+        if (fifoStatus() || RX_EMPTY)
+            w_register(STATUS, STATUS_RX_DR);
+    }
 	
 	/** Transmits the given payload. 
 	
 	Does not wait for the transmission to succeed. 
 	 */
 	void transmit(uint8_t const * payload) {
-	    spi::setCs(CS, true);
-		spi::transfer(W_TX_PAYLOAD);
-		send(payload, payloadLength_);
-		spi::setCs(CS, false);
 		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
 		// set mode to standby, enable transmitter
 		config_ &= ~PRIM_RX;
 		config_ |= PWR_UP;
 		w_register(CONFIG, config_);
+        // transfer the payload
+	    spi::setCs(CS, true);
+		spi::transfer(W_TX_PAYLOAD);
+		send(payload, payloadLength_);
+		spi::setCs(CS, false);
 		// send RXTX pulse to initiate the transmission, datasheet requires 10us delay
 		gpio::high(RXTX);
 		cpu::delay_us(20);
 		gpio::low(RXTX);
-		transmitting_ = true;
 	}
 	
 	/** Sends given payload as next ack's payload. 
@@ -367,20 +378,28 @@ private:
 	static constexpr uint8_t PWR_UP = 1 << 1;
 	static constexpr uint8_t PRIM_RX = 1 << 0;
 	
-	static constexpr uint8_t RX_DR = 1 << 6;
-	static constexpr uint8_t TX_DS = 1 << 5;
-	static constexpr uint8_t MAX_RT = 1 << 4;
-	static constexpr uint8_t TX_FULL = 1 << 0;
+    // status register values
+	static constexpr uint8_t STATUS_RX_DR = 1 << 6;
+	static constexpr uint8_t STATUS_TX_DS = 1 << 5;
+	static constexpr uint8_t STATUS_MAX_RT = 1 << 4;
+	static constexpr uint8_t STATUS_TX_FULL = 1 << 0;
 	
 	static constexpr uint8_t EN_DPL = 1 << 2;
 	static constexpr uint8_t EN_ACK_PAY = 1 << 1;
+
+    // fifo status register values
+    static constexpr uint8_t TX_REUSE = 1 << 6;
+    static constexpr uint8_t TX_FULL = 1 << 5;
+    static constexpr uint8_t TX_EMPTY = 1 << 4;
+    static constexpr uint8_t RX_FULL = 1 << 1;
+    static constexpr uint8_t RX_EMPTY = 1 << 0;
+
+    
 	
 	
 	uint8_t payloadLength_;
 	
 	uint8_t config_;
-	
-	bool transmitting_;
 	
 };
 

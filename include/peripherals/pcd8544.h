@@ -1,33 +1,35 @@
 #pragma once
 
-#include "avr.h"
+#include "platform/platform.h"
+#include "platform/gpio.h"
+#include "platform/spi.h"
 
 /** PCD8544 aka the nokia 5110 display. 
  
     RST connection is not absolutely necessary. When not used it should be held high. 
  */
 
-template<uint8_t RST, uint8_t SCE, uint8_t DC>
+template<gpio::Pin RST, gpio::Pin SCE, gpio::Pin DC>
 class PCD8544 {
 public:
     PCD8544() {
-        output<RST>();
-        output<SCE>();
-        output<DC>();
-        high<RST>();
-        high<SCE>();
-        high<DC>();
+        gpio::output(RST);
+        gpio::output(SCE);
+        gpio::output(DC);
+        gpio::high(RST);
+        gpio::high(SCE);
+        gpio::high(DC);
 	}
 	
 	void reset() {
-        low<RST>();
-        delay(10);
-        high<RST>();
+        gpio::low(RST);
+        cpu::delay_ms(10);
+        gpio::high(RST);
 	}
 	
 	void enable() {
         reset();
-        begin();
+        spi::setCs(SCE, true);
 		writeCommand(0x21); // extended commands, power on
 		writeCommand(0xbf); // VOP (contrast)
 		writeCommand(0x04); // temp coef 
@@ -36,71 +38,71 @@ public:
 		normalMode();
         gotoXY(0,0);
 		clear();
-        end();
+        spi::setCs(SCE, false);
 	}
 	
 	void disable() {
-        begin();
+        spi::setCs(SCE, true);
 		writeCommand(0b00100100);
-        end();
+        spi::setCs(SCE, false);
 	}
 	
 	void normalMode() {
-        begin();
+        spi::setCs(SCE, true);
 		writeCommand(0x0c); // normal mode
-        end();
+        spi::setCs(SCE, false);
 	}
 	
 	void inverseMode() {
-        begin();
+        spi::setCs(SCE, true);
 		writeCommand(0x0d); // inverse mode
-        end();
+        spi::setCs(SCE, false);
 	}
 	
 	void clear() {
-        begin();
+        spi::setCs(SCE, true);
 	    for (int i = 0; i < 84 * 48 / 8; ++i)
 		    writeData(0);	
-        end();
+        spi::setCs(SCE, false);
 	}
 	
 	void gotoXY(uint8_t col, uint8_t row) {
-        begin();
+        spi::setCs(SCE, true);
 	    writeCommand(0x80 | col);
 		writeCommand(0x40 | row);	
-        end();
+        spi::setCs(SCE, false);
 	}
 	
     /** Displays a single character.
      */
 	void write(char x) {
-        begin();
+        spi::setCs(SCE, true);
         writeChar(x);
-        end();
+        spi::setCs(SCE, false);
 	}
 	
     /** Writes a null-terminated string. 
      */
 	void write(char const * x) {
-        begin();
+        spi::setCs(SCE, true);
 	    while (*x != 0) {
             writeChar(*x);
             ++x;
         }
-        end();
+        spi::setCs(SCE, false);
 	}
 
     /** Writes a null-terminated string to a given position. 
      */
     void write(uint8_t col, uint8_t row, char const * x) {
-        begin();
+        spi::setCs(SCE, true);
 	    writeCommand(0x80 | col);
 		writeCommand(0x40 | row);	
         while (*x != 0) {
             writeChar(*x);
             ++x;
         }
-        end();
+        spi::setCs(SCE, false);
     }
 
     /** Writes a null-terminated string to a given position, using scaled font (2x larger) to a given position. 
@@ -108,7 +110,7 @@ public:
         The large text uses the same font, but doubles each pixel, i.e. a cell size will become 10x16.
      */
     void writeLarge(uint8_t col, uint8_t row, char const * x) {
-        begin();
+        spi::setCs(SCE, true);
 	    writeCommand(0x80 | col);
 		writeCommand(0x40 | row);	
         char const * xx = x;
@@ -136,7 +138,7 @@ public:
             writeData(0);
             ++x;
         }
-        end();
+        spi::setCs(SCE, false);
     }
 	
     /** Writes an unsigned 16bit integer. 
@@ -144,7 +146,7 @@ public:
         If the fill character is '\0' (default), the number will be left-justified, if ' ' it will be right justified, '0' will print all leading zeros as well. 
      */
 	void write(uint16_t x, char fill = '\0') {
-        begin();
+        spi::setCs(SCE, true);
         for (uint16_t i = 10000; i > 0; i = i / 10) {
             if (x > i || i == 1) {
                 writeChar((x / i) + '0');
@@ -154,31 +156,16 @@ public:
                 writeChar(fill);
             }
         }
-        end();
+        spi::setCs(SCE, false);
 	}
 
-    /** Displays a horizontal bar. 
-     */
-    void horizontalBar(uint8_t col, uint8_t row, uint8_t size, uint8_t value) {
-
-    }
 	
 private:
 
-    void begin() {
-        spi::begin();
-        low<SCE>();
-    }
-
-    void end() {
-        high<SCE>();
-        spi::end();
-    }
-
     void writeCommand(uint8_t cmd) {
-        low<DC>();
+        gpio::low(DC);
         spi::transfer(cmd);
-        high<DC>();
+        gpio::high(DC);
 	}
 	
 	void writeData(uint8_t data) {

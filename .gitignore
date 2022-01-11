@@ -1,2 +1,4 @@
 build
 sdk
+*/.vscode/*
+*/.pio/*
