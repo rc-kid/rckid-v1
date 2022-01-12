@@ -29,7 +29,8 @@ public:
 
 	/** Initializes the control pins of the module. 
 	 */
-    NRF24L01() {
+    NRF24L01():
+        config_{ CONFIG_EN_CRC | CONFIG_CRCO } {
         gpio::output(CS);
         gpio::output(RXTX);
         gpio::input(IRQ);
@@ -37,30 +38,107 @@ public:
         gpio::low(RXTX);
 	}
 
-    void initialize(const char * rxAddr, uint8_t channel, Speed speed = Speed::kb250, Power power = Power::dbm0) {
-        // enable interrupt when received, crc 2 bytes, power down
-        config_ = MASK_RX_DR | EN_CRC | CRCO;
+    void initialize(const char * txAddr, uint8_t channel, Speed speed = Speed::kb250, Power power = Power::dbm0) {
+        // power down
+        config_ &= ~ (CONFIG_PWR_UP | CONFIG_PRIM_RX);
         w_register(CONFIG, config_);
-		w_register(EN_RXADDR, 3); // enable receiver pipes 0 and 1
 		w_register(SETUP_AW, 3); // address width set to 5 bytes
+		w_register(EN_RXADDR, 0); // disable all read pipes
         setChannel(channel);
-        setRxAddress(rxAddr);
-        // enable auto acknowledge
-	    w_register(EN_AA, 3); // enable auto ack for data pipe 1
-		w_register(FEATURE, EN_DPL | EN_ACK_PAY); // enable dynamic payload length and ack payload features
-		w_register(DYNPD, 3); // enable dynamic payloads for data pipe 0 	
-		w_register(SETUP_RETR, 0b00111111); // enable auto retransmit after 1000us, 15x max
+        setTxAddress(txAddr);
+        // disable auto acknowledge, extra features and dynamic payload length
+        w_register(EN_AA, 0);
+        w_register(FEATURE, 0);
+        w_register(DYNPD, 0);
+        // disable retransmit
+        w_register(SETUP_RETR, 0);
         // chip reset
         clearStatusFlags();
         flushTX();
         flushRX();
     }
 
+	/** Sets the channel. 
+	 */
+	void setChannel(uint8_t value) {
+		w_register(RF_CH, value);
+	}
+	
+	/** Returns the current channel. 
+	 */
+	uint8_t channel() {
+		return r_register(RF_CH & 0x7f);
+	}
+
+    /** Enters the power down mode. 
+     */
+    void powerDown() {
+        gpio::low(RXTX);
+		config_ &= ~CONFIG_PWR_UP;
+        config_ |= CONFIG_MASK_RX_DR | CONFIG_MASK_TX_DR | CONFIG_MASK_RT_DR;
+		w_register(CONFIG, config_);
+    }
+
+	/** Enters the standby mode
+	 */
+    void standby() {
+		gpio::low(RXTX);
+        config_ |= CONFIG_PWR_UP | CONFIG_PRIM_RX;
+        config_ |= CONFIG_MASK_RX_DR | CONFIG_MASK_TX_DR | CONFIG_MASK_RT_DR;
+ 		w_register(CONFIG, config_);
+    }
+
+    /** Starts the receiver. 
+     
+        Also enables the received message IRQ. To stop the receiver, call either standby() or powerDown(). 
+     */
+    void startReceiver() {
+        config_ |= CONFIG_PWR_UP | CONFIG_PRIM_RX;
+        config_ &= ~ CONFIG_MASK_RX_DR;
+		w_register(CONFIG, config_);
+		gpio::high(RXTX);
+    }
+
+    // TODO add fifos management...
+
+    void transmitNoAck(uint8_t * buffer, uint8_t size, bool enableIrq = false) {
+		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
+        config_ &= (CONFIG_PRIM_RX);
+        config_ |= CONFIG_PWR_UP | CONFIG_MASK_RT_DR | CONFIG_MASK_RX_DR; 
+        if (enableIrq)
+            config_ &= ~CONFIG_MASK_TX_DR;
+        else
+            config_ |= CONFIG_MASK_TX_DR;
+        w_register(CONFIG, config_);
+        // transmit the payload
+	    spi::setCs(CS, true);
+		spi::transfer(W_TX_PAYLOAD_NO_ACK);
+		send(buffer, size);
+		spi::setCs(CS, false);
+        // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
+		gpio::high(RXTX);
+		cpu::delay_us(15); // some margin
+		gpio::low(RXTX);
+    }
+
+    void transmit(uint8_t * buffer, uint8_t size) {
+        /*
+		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
+		// set mode to standby, enable transmitter, enable receive and transmit 
+		config_ &= ~( CONFIG_PRIM_RX | CONFIG_MASK_RX_DR);
+		config_ |= PWR_UP | CONFIG_MASK_RT_DR | CONFIG_MASK_TX_DR;
+		w_register(CONFIG, config_);
+        */
+
+    }
+
+
 	
 	/** Initializes the chip with given RX and TX addresses, payload length and channel (defaults to 2). 
 	
 	Disables the auto ack feature, sets power to maximum and speed to 2mbps. Enables pipes 0 and 1 (0 for potential ack packages, 1 for general receiver). 
 	*/
+/*
 	void initialize(const char * rxAddr, const char * txAddr, uint8_t payloadLength, uint8_t channel = 2) {
         config_ = 0b00111100; // RX_DR interrupt enabled, CRC 2 bytes, power down
 		w_register(CONFIG, config_);
@@ -85,6 +163,7 @@ public:
 		flushTX();
 		flushRX();
 	} 
+    */
 	
 	/** Returns the contents of the config register on the device. This is for debugging purposes only. 
 	 */
@@ -153,17 +232,6 @@ public:
 		spi::setCs(CS, false);
 	}
 
-	/** Sets the channel. 
-	 */
-	void setChannel(uint8_t value) {
-		w_register(RF_CH, value);
-	}
-	
-	/** Returns the current channel. 
-	 */
-	uint8_t channel() {
-		return r_register(RF_CH & 0x7f);
-	}
 	
 	/** Sets the payload length. 
 	 */
@@ -221,27 +289,30 @@ public:
 
 	/** Enters power down mode. 
 	 */	
+    /*
 	void powerDown() {
         gpio::low(RXTX);
 		config_ &= ~PWR_UP;
 		w_register(CONFIG, config_);
 	}
+    */
 
 	/** Enters the standby mode. 
 	 */
-	void standby() {
+	/*void standby() {
 		gpio::low(RXTX);
         config_ |= PWR_UP | PRIM_RX;
 		w_register(CONFIG, config_);
 	}
+    */
 	
 	/** Enables the receiver. Use standby() to disable the receiver. 
 	 */
-	void enableReceiver() {
-        config_ |= PWR_UP | PRIM_RX;
+	/*void enableReceiver() {
+        config_ |= PWR_UP | PRIM_RX | MASK_TX_DR;
 		w_register(CONFIG, config_);
 		gpio::high(RXTX);
-	}
+	} */
 	
 	/** Clears the status flags for interrupt events. 
 	 */
@@ -270,7 +341,7 @@ public:
 	
 	Does not wait for the transmission to succeed. 
 	 */
-	void transmit(uint8_t const * payload) {
+	/*void transmit(uint8_t const * payload) {
 		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
 		// set mode to standby, enable transmitter
 		config_ &= ~PRIM_RX;
@@ -285,7 +356,7 @@ public:
 		gpio::high(RXTX);
 		cpu::delay_us(20);
 		gpio::low(RXTX);
-	}
+	} */
 	
 	/** Sends given payload as next ack's payload. 
 	
@@ -370,13 +441,13 @@ private:
 	static constexpr uint8_t FEATURE = 0x1d;
 	
     // config register values
-	static constexpr uint8_t MASK_RX_DR = 1 << 6;
-	static constexpr uint8_t MASK_TX_DR = 1 << 5;
-	static constexpr uint8_t MASK_RT_DR = 1 << 4;
-	static constexpr uint8_t EN_CRC = 1 << 3;
-	static constexpr uint8_t CRCO = 1 << 2;
-	static constexpr uint8_t PWR_UP = 1 << 1;
-	static constexpr uint8_t PRIM_RX = 1 << 0;
+	static constexpr uint8_t CONFIG_MASK_RX_DR = 1 << 6;
+	static constexpr uint8_t CONFIG_MASK_TX_DR = 1 << 5;
+	static constexpr uint8_t CONFIG_MASK_RT_DR = 1 << 4;
+	static constexpr uint8_t CONFIG_EN_CRC = 1 << 3;
+	static constexpr uint8_t CONFIG_CRCO = 1 << 2;
+	static constexpr uint8_t CONFIG_PWR_UP = 1 << 1;
+	static constexpr uint8_t CONFIG_PRIM_RX = 1 << 0;
 	
     // status register values
 	static constexpr uint8_t STATUS_RX_DR = 1 << 6;

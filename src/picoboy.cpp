@@ -46,18 +46,25 @@ int main() {
     spi::initialize(SPI_MISO, SPI_MOSI, SPI_SCK);
 
 
-    radio_.initialize("TEST1", "TEST2", 32, 95);
+    radio_.initialize("TEST2", 95);
+    //radio_.setPayloadLength(32);
     radio_.standby();
     uint8_t i = 0;
     uint8_t buffer[32];
     while (true) {
+        if (i == 0) {
+            printf("--------------------\n");
+            printf("Status:      %u\n", radio_.status());
+            printf("FIFO Status: %u\n", radio_.fifoStatus());
+            printf("Config:      %u\n", radio_.config());
+            printf("Observe TX:  %u\n", radio_.observeTX());
+        }
         cpu::delay_ms(10);
         for (int j = 0; j < 32; ++j)
             buffer[j] = i;
         ++i;
-        radio_.flushTX();
         gpio::high(LED_PIN);
-        radio_.transmit(buffer);
+        radio_.transmitNoAck(buffer, 32, true);
         gpio::low(LED_PIN);
     }
     /*
