@@ -10,9 +10,54 @@
      SCK MOSI
     MISO IRQ
  */
-template<gpio::Pin CS, gpio::Pin RXTX, gpio::Pin IRQ>
+template<gpio::Pin CS, gpio::Pin RXTX>
 class NRF24L01 {
 public:
+
+    struct Config {
+        bool disableDataReadyIRQ() const { return raw_ & CONFIG_MASK_RT_DR; }
+        bool disableDataSentIRQ() const { return raw_ & CONFIG_MASK_TX_DS; }
+        bool disableMaxRetransmitsIRQ() const { return raw_ & CONFIG_MASK_MAX_RT; }
+        uint8_t crcSize() const {
+            if (raw_ | CONFIG_EN_CRC)
+                return (raw_ | CONFIG_CRCO) ? 2 : 1;
+            else
+                return 0;
+        }
+        bool powerUp() const { return raw_ & CONFIG_PWR_UP; }
+        bool transmitReady() const { return raw_ & CONFIG_PRIM_RX == 0; }
+        bool receiveReady() const { return raw_ & CONFIG_PRIM_RX; }
+    private:
+        friend class NRF24L01;
+        Config(uint8_t raw): raw_{raw} {};
+        uint8_t raw_;
+    }; 
+
+    struct Status {
+        bool dataReady() const { return raw_ & STATUS_RX_DR; }
+        bool dataSent() const { return raw_ & STATUS_TX_DS; }
+        bool maxRetransmits() const { return raw_ & STATUS_MAX_RT; }
+        bool txFull() const { return raw_ & STATUS_TX_FULL; }
+        bool rxEmpty() const { return dataReadyPipe() == 7; }
+        /** Returns the data pipe from which the data is ready. 
+         
+            0..5 are valid pipe values, 7 is returned when rx pipe is empty. 
+         */
+        uint8_t dataReadyPipe() const { return (raw_ > 1) & 7; }
+    private:
+        friend class NRF24L01;
+        Status(uint8_t raw): raw_{raw} {};
+        uint8_t raw_;
+    }; // NRF24L01::Status
+
+    struct TxStats {
+        uint8_t lostPackets() const { return raw_ >> 4; }
+        uint8_t lastRetransmissions() const { return raw_ & 0xf; }
+    private:
+        friend class NRF24L01;
+        TxStats(uint8_t raw): raw_{raw} {};
+        uint8_t raw_;
+    }; // NRF24L01::TxStats
 
     enum class Speed : uint8_t {
         kb250 = 0b00100000,
@@ -29,51 +74,64 @@ public:
 
 	/** Initializes the control pins of the module. 
 	 */
-    NRF24L01():
-        config_{ CONFIG_EN_CRC | CONFIG_CRCO | CONFIG_MASK_TX_DR | CONFIG_MASK_RX_DR | CONFIG_MASK_RT_DR } {
+    NRF24L01() {
         gpio::output(CS);
         gpio::output(RXTX);
-        gpio::input(IRQ);
         spi::setCs(CS, false);
         gpio::low(RXTX);
 	}
 
-    void initialize(const char * rxAddr, const char * txAddr,  uint8_t channel, Speed speed = Speed::kb250, Power power = Power::dbm0) {
-        // power down
-        config_ &= ~ (CONFIG_PWR_UP | CONFIG_PRIM_RX);
-        w_register(CONFIG, config_);
-		w_register(SETUP_AW, 3); // address width set to 5 bytes
-		w_register(EN_RXADDR, 3); // enable read pipes 0 and 1
+    void initialize(const char * rxAddr, const char * txAddr,  uint8_t channel = 76, Speed speed = Speed::kb250, Power power = Power::dbm0, uint8_t payloadSize = 32) {
+        // set the desired speed and output power
+        w_register(RF_SETUP, static_cast<uint8_t>(power) | static_cast<uint8_t>(speed));
+        // set the channel and tx and rx addresses
         setChannel(channel);
         setTxAddress(txAddr);
         setRxAddress(rxAddr);
-        // disable auto acknowledge, extra features and dynamic payload length, disable retransmit
-        // note that this also disables enhanced shock burst completely, changing the package format
+        // enable auto ack and enhanced shock-burst
         enableAutoAck();
-        // chip reset
-        clearStatusFlags();
-        flushTX();
-        flushRX();
+        // enable read pipes 0 and 1
+        w_register(EN_RXADDR, 3);
+        // set the payload size
+        setPayloadSize(payloadSize);
+        // reset the chip's status
+        w_register(STATUS, STATUS_MAX_RT | STATUS_RX_DR | STATUS_TX_DS);
+        // flush the tx and rx fifos
+        flushTx();
+        flushRx();
+        // set configuration to powered down, ready to receive, crc to 2 bytes
+        // all events will appear on the interrupt pin
+        config_ = CONFIG_CRCO | CONFIG_EN_CRC;
+        w_register(CONFIG, config_);
     }
 
-	/** Enables the auto acknowledgement feature. 
+    /** Sets static payload size for all receiving pipes. 
+     */
+    void setPayloadSize(uint8_t value) {
+        for (uint8_t i = 0; i < 6; ++i)
+            w_register(RX_PW_P0 + i, value);        
+    }
+
+	/** Enables or disables the auto acknowledgement feature. 
 	
-	Also enables the dynamic payload length and ack payload features so that ack packages can return non critical data. 
+    	Also enables the dynamic payload length and ack payload features so that ack packages can return non critical data. 
 	 */
-    void enableAutoAck() {
-	    w_register(EN_AA, 2); // enable auto ack for data pipe 1
-		w_register(FEATURE, EN_DPL | EN_ACK_PAY); // enable dynamic payload length and ack payload features
-		w_register(DYNPD, 1); // enable dynamic payloads for data pipe 0 	
-		w_register(SETUP_RETR, 0b00111111); // enable auto retransmit after 1000us, 15x max
-    }
-
-	/** Disables the automatic acknowledgement features. 
-	 */
-    void disableAutoAck() {
-	    w_register(EN_AA, 0); // disable auto ack
-		w_register(FEATURE, 0); // disable dynamic payload and ack payload features
-		w_register(DYNPD, 0); // disable dynamic payload on all pipes
-		w_register(SETUP_RETR, 0); // disable auto retransmit
+    void enableAutoAck(bool enable = true) {
+        if (enable) {
+            // enable automatic acknowledge on all input pipes
+            w_register(EN_AA, 0x3f);
+            // enables the enhanced shock-burst features, dynamic payload size and transmit of packages without ACKs
+            w_register(FEATURE, EN_DPL | EN_ACK_PAY | EN_DYN_ACK);
+            // disable dynamic payloads on all input pipes except pipe 0 used for ack payloads
+            w_register(DYNPD, 1);
+            // auto retransmit count to 15, auto retransmit delay to 1500us, which is the minimum for the worst case of 32bytes long payload and 250kbps speed
+            w_register(SETUP_RETR, 0x5f);
+        } else {
+            w_register(EN_AA, 0); // disable auto ack
+            w_register(FEATURE, 0); // disable dynamic payload and ack payload features
+            w_register(DYNPD, 0); // disable dynamic payload on all pipes
+            w_register(SETUP_RETR, 0); // disable auto retransmit
+        }
     }
 
 	/** Sets the channel. 
@@ -86,6 +144,22 @@ public:
 	 */
 	uint8_t channel() {
 		return r_register(RF_CH & 0x7f);
+	}
+
+	/** Flushes the trasmitter's buffer. 
+	 */
+	void flushTx() {
+		spi::setCs(CS, true);
+		spi::transfer(FLUSH_TX);
+		spi::setCs(CS, false);
+	}
+	
+	/** Flushes the receiver's buffer. 
+	 */
+	void flushRx() {
+		spi::setCs(CS, true);
+		spi::transfer(FLUSH_RX);
+		spi::setCs(CS, false);
 	}
 
 	/** Reads the transmitter's address into the given buffer. The buffer must be at least 5 bytes long. 
@@ -132,21 +206,11 @@ public:
         spi::setCs(CS, false);
 	}
 
-
-    // TODO how to deal with payload length in pipe0 for acks?????
-    void setRxPayloadLength(uint8_t payloadLength) {
-        payloadLength_ = payloadLength;
-		w_register(RX_PW_P0, payloadLength);
-		w_register(RX_PW_P1, payloadLength);
-    }
-
-
     /** Enters the power down mode. 
      */
     void powerDown() {
         gpio::low(RXTX);
 		config_ &= ~CONFIG_PWR_UP;
-        config_ |= CONFIG_MASK_RX_DR | CONFIG_MASK_TX_DR | CONFIG_MASK_RT_DR;
 		w_register(CONFIG, config_);
     }
 
@@ -157,6 +221,7 @@ public:
         config_ |= CONFIG_PWR_UP | CONFIG_PRIM_RX;
         config_ |= CONFIG_MASK_RX_DR | CONFIG_MASK_TX_DR | CONFIG_MASK_RT_DR;
  		w_register(CONFIG, config_);
+        cpu::delay_ms(3); // startup time by the datasheet is 1.5ms
     }
 
     /** Starts the receiver. 
@@ -165,25 +230,50 @@ public:
      */
     void startReceiver() {
         config_ |= (CONFIG_PWR_UP | CONFIG_PRIM_RX);
-        config_ &= ~ CONFIG_MASK_RX_DR;
 		w_register(CONFIG, config_);
 		gpio::high(RXTX);
     }
 
-    // TODO add fifos management...
+    /** Receives a single message from the TX FIFO.
+     
+        The caller must make sure that the message is of the specified size, otherwise the protocol will stop working. 
+     */
+    void receive(uint8_t * buffer, uint8_t size) {
+	    spi::setCs(CS, true);
+		spi::transfer(R_RX_PAYLOAD);
+		receive(buffer, size);
+		spi::setCs(CS, false);
+    }
+
+    /* TODO
+    uint8_t receive(uint8_t * buffer) {
+
+    } */
+
+    void transmit(uint8_t * buffer, uint8_t size) {
+		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
+        config_ &= CONFIG_PRIM_RX;
+        config_ |= CONFIG_PWR_UP; 
+        w_register(CONFIG, config_);
+        // transmit the payload
+	    spi::setCs(CS, true);
+		spi::transfer(W_TX_PAYLOAD);
+		send(buffer, size);
+		spi::setCs(CS, false);
+        // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
+		gpio::high(RXTX);
+		cpu::delay_us(15); // some margin to 10us required by the datasheet
+		gpio::low(RXTX);
+    }
 
     /** Transmits the given payload not requiring an ACK from the receiver. 
      
         Disables all interrupts from NRF but if enableIrq is true, enables the transmit finished interrupt (active low). 
      */
-    void transmitNoAck(uint8_t * buffer, uint8_t size, bool enableIrq = false) {
+    void transmitNoAck(uint8_t * buffer, uint8_t size) {
 		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
-        config_ &= (CONFIG_PRIM_RX);
-        config_ |= CONFIG_PWR_UP | CONFIG_MASK_RT_DR | CONFIG_MASK_RX_DR; 
-        if (enableIrq)
-            config_ &= ~CONFIG_MASK_TX_DR;
-        else
-            config_ |= CONFIG_MASK_TX_DR;
+        config_ &= CONFIG_PRIM_RX;
+        config_ |= CONFIG_PWR_UP; 
         w_register(CONFIG, config_);
         // transmit the payload
 	    spi::setCs(CS, true);
@@ -196,152 +286,47 @@ public:
 		gpio::low(RXTX);
     }
 
-    void transmit(uint8_t * buffer, uint8_t size, bool enableIrq = false) {
-		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
-        config_ &= (CONFIG_PRIM_RX | CONFIG_MASK_RX_DR);
-        config_ |= CONFIG_PWR_UP | CONFIG_MASK_RT_DR; 
-        if (enableIrq)
-            config_ &= ~CONFIG_MASK_TX_DR;
-        else
-            config_ |= CONFIG_MASK_TX_DR;
-        w_register(CONFIG, config_);
-        // transmit the payload
-	    spi::setCs(CS, true);
-		spi::transfer(W_TX_PAYLOAD);
-		send(buffer, size);
-		spi::setCs(CS, false);
-        // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
-		gpio::high(RXTX);
-		cpu::delay_us(15); // some margin
-		gpio::low(RXTX);
-    }
-
-
-	
-	/** Initializes the chip with given RX and TX addresses, payload length and channel (defaults to 2). 
-	
-	Disables the auto ack feature, sets power to maximum and speed to 2mbps. Enables pipes 0 and 1 (0 for potential ack packages, 1 for general receiver). 
-	*/
-/*
-	void initialize(const char * rxAddr, const char * txAddr, uint8_t payloadLength, uint8_t channel = 2) {
-        config_ = 0b00111100; // RX_DR interrupt enabled, CRC 2 bytes, power down
-		w_register(CONFIG, config_);
-	    //w_register(EN_AA, 0); // disable auto ack
-		w_register(EN_RXADDR, 3); // enable receiver pipes 0 and 1
-		w_register(SETUP_AW, 3); // address width set to 5 bytes
-		//w_register(SETUP_RETR, 0); // disable auto retransmit
-		setChannel(channel);
-		//w_register(RF_SETUP, 0b00001110); // 2mbps, maximum power
-        w_register(RF_SETUP, 0b00100110); // 250kbps, maximum power
-        // disable auto acknowledge, dynamic payload, retransmit, etc. 
-        w_register(EN_AA, 0);
-        w_register(FEATURE, 0);
-        w_register(DYNPD, 0);
-        w_register(SETUP_RETR, 0);
-		clearStatusFlags();
-		setRxAddress(rxAddr);
-		setTxAddress(txAddr);
-		setPayloadLength(payloadLength);
-		//w_register(FEATURE, 0); // disable dynamic payload and ack payload features
-		//w_register(DYNPD, 0); // disable dynamic payload on all pipes
-		flushTX();
-		flushRX();
-	} 
-    */
-	
 	/** Returns the contents of the config register on the device. This is for debugging purposes only. 
 	 */
-	uint8_t config() {
-		return r_register(CONFIG);
+	Config config() {
+		return Config{r_register(CONFIG)};
 	}
 	
 	/** Returns the contents of the status register. For debugging purposes only. 
 	 */
-	uint8_t status() {
+	Status status() {
 		spi::setCs(CS, true);
-		uint8_t result = spi::transfer(NOP);
+        Status result{spi::transfer(NOP)};
 		spi::setCs(CS, false);
 		return result;
 	}
 	
+	/** Returns the observe TX register. For debugging purposes only. 
+	 */
+	TxStats observeTX() {
+		return TxStats{r_register(OBSERVE_TX)};
+	}
+	
+	/** Clears the status flags for interrupt events. 
+	 */
+	void clearIRQ() {
+		w_register(STATUS, STATUS_RX_DR | STATUS_TX_DS | STATUS_MAX_RT); // clear interrupt flags
+	}
+
+
+
+
+
+
+
+
 	/** Returns the fifo status register. For debugging purposes only. 
 	 */
 	uint8_t fifoStatus() {
 		return r_register(FIFO_STATUS);
 	}
-	
-	/** Returns the observe TX register. For debugging purposes only. 
-	 */
-	uint8_t observeTX() {
-		return r_register(OBSERVE_TX);
-	}
-	
-	/** Flushes the trasmitter's buffer. 
-	 */
-	void flushTX() {
-		spi::setCs(CS, true);
-		spi::transfer(FLUSH_TX);
-		spi::setCs(CS, false);
-	}
-	
-	/** Flushes the receiver's buffer. 
-	 */
-	void flushRX() {
-		spi::setCs(CS, true);
-		spi::transfer(FLUSH_RX);
-		spi::setCs(CS, false);
-	}
 
-	
-	/** Sets the payload length. 
-	 */
-	/*void setPayloadLength(uint8_t payloadLength) {
-		payloadLength_ = payloadLength;
-		w_register(RX_PW_P0, payloadLength);
-		w_register(RX_PW_P1, payloadLength);
-	} */
-	
-	/** Returns the payload length. 
-	 */
-	/*uint8_t payloadLength() {
-		return payloadLength_;
-	} */
-	
-	
 
-	/** Enters power down mode. 
-	 */	
-    /*
-	void powerDown() {
-        gpio::low(RXTX);
-		config_ &= ~PWR_UP;
-		w_register(CONFIG, config_);
-	}
-    */
-
-	/** Enters the standby mode. 
-	 */
-	/*void standby() {
-		gpio::low(RXTX);
-        config_ |= PWR_UP | PRIM_RX;
-		w_register(CONFIG, config_);
-	}
-    */
-	
-	/** Enables the receiver. Use standby() to disable the receiver. 
-	 */
-	/*void enableReceiver() {
-        config_ |= PWR_UP | PRIM_RX | MASK_TX_DR;
-		w_register(CONFIG, config_);
-		gpio::high(RXTX);
-	} */
-	
-	/** Clears the status flags for interrupt events. 
-	 */
-	void clearStatusFlags() {
-		w_register(STATUS, 0b01111110); // clear interrupt flags
-	}
-	
 	/** Loads the received package into the given buffer. The buffer must be at least as long as is the payload length.
 	
 	This method is supposed to be called only when RX queue is not empty.  
@@ -479,6 +464,7 @@ private:
 	
 	static constexpr uint8_t EN_DPL = 1 << 2;
 	static constexpr uint8_t EN_ACK_PAY = 1 << 1;
+    static constexpr uint8_t EN_DYN_ACK = 1 << 0;
 
     // fifo status register values
     static constexpr uint8_t TX_REUSE = 1 << 6;

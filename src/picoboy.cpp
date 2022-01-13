@@ -30,11 +30,12 @@
 
 
 ILI9341 display_;
-NRF24L01<NRF_CS, NRF_RXTX, NRF_IRQ> radio_;
+NRF24L01<NRF_CS, NRF_RXTX> radio_;
 
 
 
 int main() {
+    cpu::delay_ms(100);
     stdio_init_all();
     printf("Initializing...\n");
     const uint LED_PIN = PICO_DEFAULT_LED_PIN;
@@ -42,10 +43,13 @@ int main() {
     gpio_set_dir(LED_PIN, GPIO_OUT);
 
 
+
+
     i2c::initialize(I2C_SDA, I2C_SCL);
     spi::initialize(SPI_MISO, SPI_MOSI, SPI_SCK);
 
 
+    gpio::input(NRF_IRQ);
     radio_.initialize("TEST1", "TEST2", 95);
     //radio_.setPayloadLength(32);
     radio_.standby();
@@ -64,7 +68,7 @@ int main() {
             buffer[j] = i;
         ++i;
         gpio::high(LED_PIN);
-        radio_.transmitNoAck(buffer, 32, true);
+        radio_.transmitNoAck(buffer, 32);
         gpio::low(LED_PIN);
     }
     /*

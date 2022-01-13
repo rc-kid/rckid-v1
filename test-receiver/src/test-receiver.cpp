@@ -25,7 +25,7 @@ static constexpr gpio::Pin NRF_CS = 12;
 static constexpr gpio::Pin NRF_IRQ = 11;
 
 PCD8544<DISPLAY_RST, DISPLAY_CE, DISPLAY_DC> display_;
-NRF24L01<NRF_CS, NRF_RXTX, NRF_IRQ> radio_;
+NRF24L01<NRF_CS, NRF_RXTX> radio_;
 
 uint8_t expectedMsg = 0;
 uint16_t received = 0;
@@ -38,8 +38,9 @@ void setup() {
     display_.enable();
     display_.clear();
     display_.write(0,0,"Hello...");
+    gpio::input(NRF_IRQ);
     radio_.initialize("TEST2", "TEST1", 95);
-    radio_.setRxPayloadLength(32);
+    radio_.standby();
     radio_.startReceiver();
     time = millis();
 }
