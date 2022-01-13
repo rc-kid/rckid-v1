@@ -46,7 +46,7 @@ int main() {
     spi::initialize(SPI_MISO, SPI_MOSI, SPI_SCK);
 
 
-    radio_.initialize("TEST2", 95);
+    radio_.initialize("TEST1", "TEST2", 95);
     //radio_.setPayloadLength(32);
     radio_.standby();
     uint8_t i = 0;
@@ -59,7 +59,7 @@ int main() {
             printf("Config:      %u\n", radio_.config());
             printf("Observe TX:  %u\n", radio_.observeTX());
         }
-        cpu::delay_ms(10);
+        cpu::delay_ms(100);
         for (int j = 0; j < 32; ++j)
             buffer[j] = i;
         ++i;

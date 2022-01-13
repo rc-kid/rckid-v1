@@ -30,7 +30,7 @@ public:
 	/** Initializes the control pins of the module. 
 	 */
     NRF24L01():
-        config_{ CONFIG_EN_CRC | CONFIG_CRCO } {
+        config_{ CONFIG_EN_CRC | CONFIG_CRCO | CONFIG_MASK_TX_DR | CONFIG_MASK_RX_DR | CONFIG_MASK_RT_DR } {
         gpio::output(CS);
         gpio::output(RXTX);
         gpio::input(IRQ);
@@ -38,24 +38,42 @@ public:
         gpio::low(RXTX);
 	}
 
-    void initialize(const char * txAddr, uint8_t channel, Speed speed = Speed::kb250, Power power = Power::dbm0) {
+    void initialize(const char * rxAddr, const char * txAddr,  uint8_t channel, Speed speed = Speed::kb250, Power power = Power::dbm0) {
         // power down
         config_ &= ~ (CONFIG_PWR_UP | CONFIG_PRIM_RX);
         w_register(CONFIG, config_);
 		w_register(SETUP_AW, 3); // address width set to 5 bytes
-		w_register(EN_RXADDR, 0); // disable all read pipes
+		w_register(EN_RXADDR, 3); // enable read pipes 0 and 1
         setChannel(channel);
         setTxAddress(txAddr);
-        // disable auto acknowledge, extra features and dynamic payload length
-        w_register(EN_AA, 0);
-        w_register(FEATURE, 0);
-        w_register(DYNPD, 0);
-        // disable retransmit
-        w_register(SETUP_RETR, 0);
+        setRxAddress(rxAddr);
+        // disable auto acknowledge, extra features and dynamic payload length, disable retransmit
+        // note that this also disables enhanced shock burst completely, changing the package format
+        enableAutoAck();
         // chip reset
         clearStatusFlags();
         flushTX();
         flushRX();
+    }
+
+	/** Enables the auto acknowledgement feature. 
+	
+	Also enables the dynamic payload length and ack payload features so that ack packages can return non critical data. 
+	 */
+    void enableAutoAck() {
+	    w_register(EN_AA, 2); // enable auto ack for data pipe 1
+		w_register(FEATURE, EN_DPL | EN_ACK_PAY); // enable dynamic payload length and ack payload features
+		w_register(DYNPD, 1); // enable dynamic payloads for data pipe 0 	
+		w_register(SETUP_RETR, 0b00111111); // enable auto retransmit after 1000us, 15x max
+    }
+
+	/** Disables the automatic acknowledgement features. 
+	 */
+    void disableAutoAck() {
+	    w_register(EN_AA, 0); // disable auto ack
+		w_register(FEATURE, 0); // disable dynamic payload and ack payload features
+		w_register(DYNPD, 0); // disable dynamic payload on all pipes
+		w_register(SETUP_RETR, 0); // disable auto retransmit
     }
 
 	/** Sets the channel. 
@@ -69,6 +87,59 @@ public:
 	uint8_t channel() {
 		return r_register(RF_CH & 0x7f);
 	}
+
+	/** Reads the transmitter's address into the given buffer. The buffer must be at least 5 bytes long. 
+	 */
+	void txAddress(char * addr) {
+        spi::setCs(CS, true);
+		spi::transfer(R_REGISTER + TX_ADDR);
+		receive(reinterpret_cast<uint8_t*>(addr), 5);
+        spi::setCs(CS, false);
+	}
+
+	/** Sets the transmitter's address (package target). The address must be 5 bytes long. 
+     
+        The address is also set 
+	 */
+	void setTxAddress(const char * addr) {
+        spi::setCs(CS, true);
+        spi::transfer(W_REGISTER + RX_ADDR_P0);
+        send(reinterpret_cast<uint8_t const*>(addr), 5);
+        spi::setCs(CS, false);
+        spi::setCs(CS, true);
+		spi::transfer(W_REGISTER + TX_ADDR);
+		send(reinterpret_cast<uint8_t const*>(addr), 5);
+        spi::setCs(CS, false);
+	}
+	
+	/** Reads the receiver's address into the given buffer. The buffer must be at least 5 bytes long. 
+	 */
+	void rxAddress(char * addr) {
+        spi::setCs(CS, true);
+		spi::transfer(R_REGISTER + RX_ADDR_P1);
+		receive(reinterpret_cast<uint8_t*>(addr), 5);
+        spi::setCs(CS, false);
+	}
+
+	/** Sets the receiver's address. The address must be 5 bytes long. 
+
+        For now only pipe 1 is supported as pipe 1 can have a full address specified, the other pipes differ only it the last byte. Also, as of now, I can't imagine a situation where I would like to receive on two addresses. 
+	 */
+	void setRxAddress(const char * addr) {
+		spi::setCs(CS, true);
+		spi::transfer(W_REGISTER + RX_ADDR_P1);
+		send(reinterpret_cast<uint8_t const*>(addr), 5);
+        spi::setCs(CS, false);
+	}
+
+
+    // TODO how to deal with payload length in pipe0 for acks?????
+    void setRxPayloadLength(uint8_t payloadLength) {
+        payloadLength_ = payloadLength;
+		w_register(RX_PW_P0, payloadLength);
+		w_register(RX_PW_P1, payloadLength);
+    }
+
 
     /** Enters the power down mode. 
      */
@@ -93,7 +164,7 @@ public:
         Also enables the received message IRQ. To stop the receiver, call either standby() or powerDown(). 
      */
     void startReceiver() {
-        config_ |= CONFIG_PWR_UP | CONFIG_PRIM_RX;
+        config_ |= (CONFIG_PWR_UP | CONFIG_PRIM_RX);
         config_ &= ~ CONFIG_MASK_RX_DR;
 		w_register(CONFIG, config_);
 		gpio::high(RXTX);
@@ -101,6 +172,10 @@ public:
 
     // TODO add fifos management...
 
+    /** Transmits the given payload not requiring an ACK from the receiver. 
+     
+        Disables all interrupts from NRF but if enableIrq is true, enables the transmit finished interrupt (active low). 
+     */
     void transmitNoAck(uint8_t * buffer, uint8_t size, bool enableIrq = false) {
 		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
         config_ &= (CONFIG_PRIM_RX);
@@ -121,15 +196,24 @@ public:
 		gpio::low(RXTX);
     }
 
-    void transmit(uint8_t * buffer, uint8_t size) {
-        /*
+    void transmit(uint8_t * buffer, uint8_t size, bool enableIrq = false) {
 		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
-		// set mode to standby, enable transmitter, enable receive and transmit 
-		config_ &= ~( CONFIG_PRIM_RX | CONFIG_MASK_RX_DR);
-		config_ |= PWR_UP | CONFIG_MASK_RT_DR | CONFIG_MASK_TX_DR;
-		w_register(CONFIG, config_);
-        */
-
+        config_ &= (CONFIG_PRIM_RX | CONFIG_MASK_RX_DR);
+        config_ |= CONFIG_PWR_UP | CONFIG_MASK_RT_DR; 
+        if (enableIrq)
+            config_ &= ~CONFIG_MASK_TX_DR;
+        else
+            config_ |= CONFIG_MASK_TX_DR;
+        w_register(CONFIG, config_);
+        // transmit the payload
+	    spi::setCs(CS, true);
+		spi::transfer(W_TX_PAYLOAD);
+		send(buffer, size);
+		spi::setCs(CS, false);
+        // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
+		gpio::high(RXTX);
+		cpu::delay_us(15); // some margin
+		gpio::low(RXTX);
     }
 
 
@@ -192,30 +276,6 @@ public:
 		return r_register(OBSERVE_TX);
 	}
 	
-	/** Enables the auto acknowledgement feature. 
-	
-	Also enables the dynamic payload length and ack payload features so that ack packages can return non critical data. 
-	 */
-    /*
-	void enableAutoAck() {
-	    w_register(EN_AA, 3); // enable auto ack for data pipe 1
-		w_register(FEATURE, EN_DPL | EN_ACK_PAY); // enable dynamic payload length and ack payload features
-		w_register(DYNPD, 3); // enable dynamic payloads for data pipe 0 	
-		w_register(SETUP_RETR, 0b00111111); // enable auto retransmit after 1000us, 15x max
-	}
-    */
-	
-	/** Disables the automatic acknowledgement features. 
-	 */
-    /*
-	void disableAutoAck() {
-	    w_register(EN_AA, 0); // disable auto ack
-		w_register(FEATURE, 0); // disable dynamic payload and ack payload features
-		w_register(DYNPD, 0); // disable dynamic payload on all pipes
-		w_register(SETUP_RETR, 0); // disable auto retransmit
-	}
-    */
-
 	/** Flushes the trasmitter's buffer. 
 	 */
 	void flushTX() {
@@ -235,57 +295,19 @@ public:
 	
 	/** Sets the payload length. 
 	 */
-	void setPayloadLength(uint8_t payloadLength) {
+	/*void setPayloadLength(uint8_t payloadLength) {
 		payloadLength_ = payloadLength;
 		w_register(RX_PW_P0, payloadLength);
 		w_register(RX_PW_P1, payloadLength);
-	}
+	} */
 	
 	/** Returns the payload length. 
 	 */
-	uint8_t payloadLength() {
+	/*uint8_t payloadLength() {
 		return payloadLength_;
-	}
+	} */
 	
-	/** Sets the receiver's address. The address must be 5 bytes long. 
-	 */
-	void setRxAddress(const char * addr) {
-		spi::setCs(CS, true);
-		spi::transfer(W_REGISTER + RX_ADDR_P1);
-		send(reinterpret_cast<uint8_t const*>(addr), 5);
-        spi::setCs(CS, false);
-	}
 	
-	/** Reads the receiver's address into the given buffer. The buffer must be at least 5 bytes long. 
-	 */
-	void rxAddress(char * addr) {
-        spi::setCs(CS, true);
-		spi::transfer(R_REGISTER + RX_ADDR_P1);
-		receive(reinterpret_cast<uint8_t*>(addr), 5);
-        spi::setCs(CS, false);
-	}
-	
-	/** Sets the transmitter's address (package target). The address must be 5 bytes long. 
-	 */
-	void setTxAddress(const char * addr) {
-        spi::setCs(CS, true);
-		spi::transfer(W_REGISTER + RX_ADDR_P0);
-		send(reinterpret_cast<uint8_t const*>(addr), 5);
-        spi::setCs(CS, false);
-        spi::setCs(CS, true);
-		spi::transfer(W_REGISTER + TX_ADDR);
-		send(reinterpret_cast<uint8_t const*>(addr), 5);
-        spi::setCs(CS, false);
-	}
-	
-	/** Reads the transmitter's address into the given buffer. The buffer must be at least 5 bytes long. 
-	 */
-	void txAddress(char * addr) {
-        spi::setCs(CS, true);
-		spi::transfer(R_REGISTER + TX_ADDR);
-		receive(reinterpret_cast<uint8_t*>(addr), 5);
-        spi::setCs(CS, false);
-	}
 
 	/** Enters power down mode. 
 	 */	

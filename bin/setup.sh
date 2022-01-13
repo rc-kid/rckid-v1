@@ -7,4 +7,12 @@ cd sdk
 git submodule update --init
 cd ..
 
+sudo groupadd --system usb
+sudo usermod -a -G usb peta
+sudo usermod -a -G tty peta
+sudo usermod -a -G dialout peta
+
+sudo apt-get install python3-pip
+sudo pip3 install https://github.com/mraardvark/pyupdi/archive/master.zip
+
 

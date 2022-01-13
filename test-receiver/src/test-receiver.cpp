@@ -38,8 +38,9 @@ void setup() {
     display_.enable();
     display_.clear();
     display_.write(0,0,"Hello...");
-    radio_.initialize("TEST2", "TEST1", 32, 95);
-    radio_.enableReceiver();
+    radio_.initialize("TEST2", "TEST1", 95);
+    radio_.setRxPayloadLength(32);
+    radio_.startReceiver();
     time = millis();
 }
 
@@ -59,10 +60,16 @@ void loop() {
         display_.gotoXY(0,2);
         display_.write(valid, ' ');
         if (received == 0) {
+            display_.gotoXY(8,3);
+            display_.write(radio_.config(), ' ');
+            display_.gotoXY(8,4);
+            display_.write(radio_.fifoStatus(), ' ');
+            /*
             radio_.powerDown();
             delay(10);
             radio_.initialize("TEST2", "TEST1", 32, 95);
-            radio_.enableReceiver();
+            radio_.startReceiver();
+            */
         }
         received = 0;
         valid = 0;
