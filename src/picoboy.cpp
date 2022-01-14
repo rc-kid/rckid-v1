@@ -51,8 +51,10 @@ int main() {
 
     gpio::input(NRF_IRQ);
     radio_.initialize("TEST1", "TEST2", 95);
-    //radio_.setPayloadLength(32);
+    cpu::delay_ms(10);
     radio_.standby();
+    cpu::delay_ms(10);
+
     uint8_t i = 0;
     uint8_t buffer[32];
     while (true) {
@@ -68,7 +70,8 @@ int main() {
             buffer[j] = i;
         ++i;
         gpio::high(LED_PIN);
-        radio_.transmitNoAck(buffer, 32);
+        radio_.clearIRQ();
+        radio_.transmit(buffer, 32);
         gpio::low(LED_PIN);
     }
     /*

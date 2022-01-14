@@ -1,17 +1,42 @@
 {
     "tasks": [
         {
-            "label" : "target-upload",
-            "command" : "bash",
-            "args" : ["bin/upload.sh"],
-            "type" : "process"
+            "label": "picoboy-local",
+            "command": "bash",
+            "args": [
+                "bin/upload.sh"
+            ],
+            "type": "process"
         },
         {
-            "label" : "target-upload-rpi",
-            "command" : "bash",
-            "args" : ["bin/upload-rpi.sh"],
-            "type" : "process"
+            "label": "picoboy-rpi",
+            "command": "bash",
+            "args": [
+                "bin/upload-rpi.sh"
+            ],
+            "type": "process"
         },
+        {
+            "label": "test-receiver-rpi",
+            "type": "shell",
+            "command": "~/.platformio/penv/bin/pio",
+            "args": [
+                "remote",
+                "run",
+                "--target",
+                "upload"
+            ],
+            "options": {
+                "cwd": "test-receiver",
+                "shell": {
+                    "executable" : "/bin/zsh",
+                    "args": ["-c"]
+                }
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
+        }
     ],
     "version": "2.0.0"
 }

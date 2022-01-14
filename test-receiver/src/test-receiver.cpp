@@ -37,10 +37,12 @@ void setup() {
     spi::initialize();
     display_.enable();
     display_.clear();
-    display_.write(0,0,"Hello...");
+    display_.write(0,0,"Hello!!!");
     gpio::input(NRF_IRQ);
     radio_.initialize("TEST2", "TEST1", 95);
+    cpu::delay_ms(10);
     radio_.standby();
+    cpu::delay_ms(10);
     radio_.startReceiver();
     time = millis();
 }
@@ -48,14 +50,14 @@ void setup() {
 void loop() {
     if (digitalRead(NRF_IRQ) == false) {
         radio_.clearIRQ();
-        while (! radio_.status().rxEmpty()) {
+        //while (! radio_.status().rxEmpty()) {
             uint8_t buffer[32];
             radio_.receive(buffer,32);
             ++received;
             if (expectedMsg == buffer[0])
                 ++valid;
             expectedMsg = buffer[0] + 1;
-        }
+        //}
     }
     if (millis() - time > 500) {
         time = millis();
@@ -65,7 +67,7 @@ void loop() {
         display_.write(valid, ' ');
         if (received == 0) {
             display_.gotoXY(8,3);
-            display_.write(radio_.config().raw, ' ');
+            display_.write(radio_.status().raw, ' ');
             display_.gotoXY(8,4);
             display_.write(radio_.fifoStatus(), ' ');
             /*
