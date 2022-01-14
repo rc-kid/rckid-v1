@@ -46,13 +46,16 @@ void setup() {
 }
 
 void loop() {
-    while (digitalRead(NRF_IRQ) == false) {
-        uint8_t buffer[32];
-        radio_.receiveAndCheck(buffer);
-        ++received;
-        if (expectedMsg == buffer[0])
-            ++valid;
-        expectedMsg = buffer[0] + 1;
+    if (digitalRead(NRF_IRQ) == false) {
+        radio_.clearIRQ();
+        while (! radio_.status().rxEmpty()) {
+            uint8_t buffer[32];
+            radio_.receive(buffer,32);
+            ++received;
+            if (expectedMsg == buffer[0])
+                ++valid;
+            expectedMsg = buffer[0] + 1;
+        }
     }
     if (millis() - time > 500) {
         time = millis();
@@ -62,7 +65,7 @@ void loop() {
         display_.write(valid, ' ');
         if (received == 0) {
             display_.gotoXY(8,3);
-            display_.write(radio_.config(), ' ');
+            display_.write(radio_.config().raw, ' ');
             display_.gotoXY(8,4);
             display_.write(radio_.fifoStatus(), ' ');
             /*

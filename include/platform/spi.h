@@ -75,9 +75,15 @@ namespace spi {
 #endif
     }
 
-    inline void transfer(uint8_t * data, size_t size) {
-        for (uint8_t * end = data + size; data != end; ++data)
+    inline void send(uint8_t const * data, size_t size) {
+        for (uint8_t const * end = data + size; data != end; ++data)
             spi::transfer(*data);
     }
+
+    inline void receive(uint8_t * data, size_t size, uint8_t sendValue = 0) {
+        while (size-- > 0)
+            *(data++) = spi::transfer(sendValue);
+    }
+
 
 } // namespace spi

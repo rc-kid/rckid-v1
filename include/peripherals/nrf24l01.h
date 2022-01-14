@@ -15,48 +15,40 @@ class NRF24L01 {
 public:
 
     struct Config {
-        bool disableDataReadyIRQ() const { return raw_ & CONFIG_MASK_RT_DR; }
-        bool disableDataSentIRQ() const { return raw_ & CONFIG_MASK_TX_DS; }
-        bool disableMaxRetransmitsIRQ() const { return raw_ & CONFIG_MASK_MAX_RT; }
+        bool disableDataReadyIRQ() const { return raw & CONFIG_MASK_RX_DR; }
+        bool disableDataSentIRQ() const { return raw & CONFIG_MASK_TX_DS; }
+        bool disableMaxRetransmitsIRQ() const { return raw & CONFIG_MASK_MAX_RT; }
         uint8_t crcSize() const {
-            if (raw_ | CONFIG_EN_CRC)
-                return (raw_ | CONFIG_CRCO) ? 2 : 1;
+            if (raw | CONFIG_EN_CRC)
+                return (raw | CONFIG_CRCO) ? 2 : 1;
             else
                 return 0;
         }
-        bool powerUp() const { return raw_ & CONFIG_PWR_UP; }
-        bool transmitReady() const { return raw_ & CONFIG_PRIM_RX == 0; }
-        bool receiveReady() const { return raw_ & CONFIG_PRIM_RX; }
-    private:
-        friend class NRF24L01;
-        Config(uint8_t raw): raw_{raw} {};
-        uint8_t raw_;
+        bool powerUp() const { return raw & CONFIG_PWR_UP; }
+        bool transmitReady() const { return raw & CONFIG_PRIM_RX == 0; }
+        bool receiveReady() const { return raw & CONFIG_PRIM_RX; }
+        uint8_t const raw;
     }; 
 
     struct Status {
-        bool dataReady() const { return raw_ & STATUS_RX_DR; }
-        bool dataSent() const { return raw_ & STATUS_TX_DS; }
-        bool maxRetransmits() const { return raw_ & STATUS_MAX_RT; }
-        bool txFull() const { return raw_ & STATUS_TX_FULL; }
+        bool dataReady() const { return raw & STATUS_RX_DR; }
+        bool dataSent() const { return raw & STATUS_TX_DS; }
+        bool maxRetransmits() const { return raw & STATUS_MAX_RT; }
+        bool txFull() const { return raw & STATUS_TX_FULL; }
         bool rxEmpty() const { return dataReadyPipe() == 7; }
         /** Returns the data pipe from which the data is ready. 
          
             0..5 are valid pipe values, 7 is returned when rx pipe is empty. 
          */
-        uint8_t dataReadyPipe() const { return (raw_ > 1) & 7; }
-    private:
-        friend class NRF24L01;
-        Status(uint8_t raw): raw_{raw} {};
-        uint8_t raw_;
+        uint8_t dataReadyPipe() const { return (raw > 1) & 7; }
+
+        uint8_t const raw;
     }; // NRF24L01::Status
 
     struct TxStats {
-        uint8_t lostPackets() const { return raw_ >> 4; }
-        uint8_t lastRetransmissions() const { return raw_ & 0xf; }
-    private:
-        friend class NRF24L01;
-        TxStats(uint8_t raw): raw_{raw} {};
-        uint8_t raw_;
+        uint8_t lostPackets() const { return raw >> 4; }
+        uint8_t lastRetransmissions() const { return raw & 0xf; }
+        uint8_t const raw;
     }; // NRF24L01::TxStats
 
     enum class Speed : uint8_t {
@@ -146,6 +138,13 @@ public:
 		return r_register(RF_CH & 0x7f);
 	}
 
+
+	/** Clears the status flags for interrupt events. 
+	 */
+	void clearIRQ() {
+		w_register(STATUS, STATUS_RX_DR | STATUS_TX_DS | STATUS_MAX_RT); // clear interrupt flags
+	}
+
 	/** Flushes the trasmitter's buffer. 
 	 */
 	void flushTx() {
@@ -178,11 +177,11 @@ public:
 	void setTxAddress(const char * addr) {
         spi::setCs(CS, true);
         spi::transfer(W_REGISTER + RX_ADDR_P0);
-        send(reinterpret_cast<uint8_t const*>(addr), 5);
+        spi::send(reinterpret_cast<uint8_t const*>(addr), 5);
         spi::setCs(CS, false);
         spi::setCs(CS, true);
 		spi::transfer(W_REGISTER + TX_ADDR);
-		send(reinterpret_cast<uint8_t const*>(addr), 5);
+		spi::send(reinterpret_cast<uint8_t const*>(addr), 5);
         spi::setCs(CS, false);
 	}
 	
@@ -202,7 +201,7 @@ public:
 	void setRxAddress(const char * addr) {
 		spi::setCs(CS, true);
 		spi::transfer(W_REGISTER + RX_ADDR_P1);
-		send(reinterpret_cast<uint8_t const*>(addr), 5);
+		spi::send(reinterpret_cast<uint8_t const*>(addr), 5);
         spi::setCs(CS, false);
 	}
 
@@ -219,7 +218,6 @@ public:
     void standby() {
 		gpio::low(RXTX);
         config_ |= CONFIG_PWR_UP | CONFIG_PRIM_RX;
-        config_ |= CONFIG_MASK_RX_DR | CONFIG_MASK_TX_DR | CONFIG_MASK_RT_DR;
  		w_register(CONFIG, config_);
         cpu::delay_ms(3); // startup time by the datasheet is 1.5ms
     }
@@ -245,10 +243,24 @@ public:
 		spi::setCs(CS, false);
     }
 
-    /* TODO
-    uint8_t receive(uint8_t * buffer) {
+    /** Downloads a variable length message returning its length. 
+     
+        Returns 0 if there is no new message. 
 
-    } */
+        TODO check that I can do this in a single cs
+     */
+    uint8_t receive(uint8_t * buffer) {
+        spi::setCs(CS, true);
+        Status status{spi::transfer(R_RX_PL_WID)};
+        uint8_t len = 0;
+        if (status) {
+            len = spi::transfer(0);
+            spi::transfer(R_RX_PAYLOAD);
+            spi::receive(buffer, len);
+        }
+        spi::setCs(CS, false);
+        return len;
+    }
 
     void transmit(uint8_t * buffer, uint8_t size) {
 		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
@@ -258,7 +270,7 @@ public:
         // transmit the payload
 	    spi::setCs(CS, true);
 		spi::transfer(W_TX_PAYLOAD);
-		send(buffer, size);
+		spi::send(buffer, size);
 		spi::setCs(CS, false);
         // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
 		gpio::high(RXTX);
@@ -278,13 +290,23 @@ public:
         // transmit the payload
 	    spi::setCs(CS, true);
 		spi::transfer(W_TX_PAYLOAD_NO_ACK);
-		send(buffer, size);
+		spi::send(buffer, size);
 		spi::setCs(CS, false);
         // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
 		gpio::high(RXTX);
 		cpu::delay_us(15); // some margin
 		gpio::low(RXTX);
     }
+
+	/** Sends given payload as next ack's payload. 
+	
+	 */
+	void transmitAckPayload(uint8_t const * payload, uint8_t size) {
+		spi::setCs(CS, true);
+		spi::transfer(W_ACK_PAYLOAD | 1); // for pipe 1, since we do not use other pipes
+		spi::send(payload, size);
+        spi::setCs(CS, false);
+	}
 
 	/** Returns the contents of the config register on the device. This is for debugging purposes only. 
 	 */
@@ -306,18 +328,6 @@ public:
 	TxStats observeTX() {
 		return TxStats{r_register(OBSERVE_TX)};
 	}
-	
-	/** Clears the status flags for interrupt events. 
-	 */
-	void clearIRQ() {
-		w_register(STATUS, STATUS_RX_DR | STATUS_TX_DS | STATUS_MAX_RT); // clear interrupt flags
-	}
-
-
-
-
-
-
 
 
 	/** Returns the fifo status register. For debugging purposes only. 
@@ -327,65 +337,8 @@ public:
 	}
 
 
-	/** Loads the received package into the given buffer. The buffer must be at least as long as is the payload length.
-	
-	This method is supposed to be called only when RX queue is not empty.  
-	 */
-	void receive(uint8_t * buffer) {
-	    spi::setCs(CS, true);
-		spi::transfer(R_RX_PAYLOAD);
-		receive(buffer, payloadLength_);
-		spi::setCs(CS, false);
-	}
-
-    void receiveAndCheck(uint8_t * buffer) {
-        receive(buffer);
-        if (fifoStatus() || RX_EMPTY)
-            w_register(STATUS, STATUS_RX_DR);
-    }
-	
-	/** Transmits the given payload. 
-	
-	Does not wait for the transmission to succeed. 
-	 */
-	/*void transmit(uint8_t const * payload) {
-		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
-		// set mode to standby, enable transmitter
-		config_ &= ~PRIM_RX;
-		config_ |= PWR_UP;
-		w_register(CONFIG, config_);
-        // transfer the payload
-	    spi::setCs(CS, true);
-		spi::transfer(W_TX_PAYLOAD);
-		send(payload, payloadLength_);
-		spi::setCs(CS, false);
-		// send RXTX pulse to initiate the transmission, datasheet requires 10us delay
-		gpio::high(RXTX);
-		cpu::delay_us(20);
-		gpio::low(RXTX);
-	} */
-	
-	/** Sends given payload as next ack's payload. 
-	
-	 */
-	void transmitAckPayload(uint8_t const * payload) {
-		spi::setCs(CS, true);
-		spi::transfer(W_ACK_PAYLOAD | 1);
-		send(payload, payloadLength_);
-        spi::setCs(CS, false);
-	}
 	
 private:
-
-    void send(uint8_t const * buffer, uint8_t length) {
-		while (length-- > 0) 
-		    spi::transfer(*(buffer++));
-	}
-	
-	void receive(uint8_t * buffer, uint8_t length) {
-		while (length-- > 0) 
-		    *(buffer++) = spi::transfer(0);
-	}
 
     uint8_t r_register(uint8_t reg) {
 		spi::setCs(CS, true);
@@ -449,8 +402,8 @@ private:
 	
     // config register values
 	static constexpr uint8_t CONFIG_MASK_RX_DR = 1 << 6;
-	static constexpr uint8_t CONFIG_MASK_TX_DR = 1 << 5;
-	static constexpr uint8_t CONFIG_MASK_RT_DR = 1 << 4;
+	static constexpr uint8_t CONFIG_MASK_TX_DS = 1 << 5;
+	static constexpr uint8_t CONFIG_MASK_MAX_RT = 1 << 4;
 	static constexpr uint8_t CONFIG_EN_CRC = 1 << 3;
 	static constexpr uint8_t CONFIG_CRCO = 1 << 2;
 	static constexpr uint8_t CONFIG_PWR_UP = 1 << 1;
@@ -472,11 +425,6 @@ private:
     static constexpr uint8_t TX_EMPTY = 1 << 4;
     static constexpr uint8_t RX_FULL = 1 << 1;
     static constexpr uint8_t RX_EMPTY = 1 << 0;
-
-    
-	
-	
-	uint8_t payloadLength_;
 	
 	uint8_t config_;
 	

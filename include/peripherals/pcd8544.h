@@ -173,7 +173,7 @@ private:
 	}
 
     void writeData(uint8_t * data, uint16_t size) {
-        spi::transfer(data, size);
+        spi::send(data, size);
     }
 
     void writeChar(char c) {
