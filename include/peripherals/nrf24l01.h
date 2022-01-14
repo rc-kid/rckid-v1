@@ -246,7 +246,7 @@ public:
     void receive(uint8_t * buffer, uint8_t size) {
 	    spi::setCs(CS, true);
 		spi::transfer(R_RX_PAYLOAD);
-		receive(buffer, size);
+		spi::receive(buffer, size);
 		spi::setCs(CS, false);
     }
 
@@ -427,6 +427,7 @@ private:
 	static constexpr uint8_t STATUS_MAX_RT = 1 << 4;
 	static constexpr uint8_t STATUS_TX_FULL = 1 << 0;
 	
+    // features
 	static constexpr uint8_t EN_DPL = 1 << 2;
 	static constexpr uint8_t EN_ACK_PAY = 1 << 1;
     static constexpr uint8_t EN_DYN_ACK = 1 << 0;

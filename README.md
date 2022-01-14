@@ -1,3 +1,4 @@
+
 # Build
 
 To launch a serial console, connect the serial to USB adapter to the TX RX and GND pins (for my setup it is white/green/black wires) and then launch the following command in terminal:

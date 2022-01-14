@@ -71,7 +71,7 @@ int main() {
         ++i;
         gpio::high(LED_PIN);
         radio_.clearIRQ();
-        radio_.transmit(buffer, 32);
+        radio_.transmitNoAck(buffer, 32);
         gpio::low(LED_PIN);
     }
     /*
