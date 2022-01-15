@@ -17,6 +17,14 @@
             "type": "process"
         },
         {
+            "label": "picoboy-rpi-swd",
+            "command": "bash",
+            "args": [
+                "bin/upload-rpi-swd.sh"
+            ],
+            "type": "process"
+        },
+        {
             "label": "test-receiver-rpi",
             "type": "shell",
             "command": "~/.platformio/penv/bin/pio",

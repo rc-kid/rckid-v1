@@ -59,7 +59,7 @@ void loop() {
             expectedMsg = buffer[0] + 1;
         //}
     }
-    if (millis() - time > 500) {
+    if (millis() - time > 1000) {
         time = millis();
         display_.gotoXY(0,0);
         display_.write(received, ' ');
