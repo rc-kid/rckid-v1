@@ -37,12 +37,14 @@ void setup() {
     spi::initialize();
     display_.enable();
     display_.clear();
-    display_.write(0,0,"Hello!!!");
+    cpu::delay_ms(100);
+    display_.write(0,0,"Hello Again");
     gpio::input(NRF_IRQ);
     radio_.initialize("TEST2", "TEST1", 95);
-    cpu::delay_ms(10);
+    display_.write(0,0,"Init Done ***");
+    //cpu::delay_ms(10);
     radio_.standby();
-    cpu::delay_ms(10);
+    //cpu::delay_ms(10);
     radio_.startReceiver();
     time = millis();
 }

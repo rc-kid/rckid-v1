@@ -120,10 +120,10 @@ public:
             writeRegister(SETUP_RETR, 0x5f);
             // enable automatic acknowledge on input pipe 1 & 0
             writeRegister(EN_AA, 3);
-            // enables the enhanced shock-burst features, dynamic payload size and transmit of packages without ACKs
-            writeRegister(FEATURE, EN_DPL | EN_ACK_PAY | EN_DYN_ACK);
             // disable dynamic payloads on all input pipes except pipe 0 used for ack payloads
             writeRegister(DYNPD, 1);
+            // enables the enhanced shock-burst features, dynamic payload size and transmit of packages without ACKs
+            writeRegister(FEATURE, EN_DPL | EN_ACK_PAY | EN_DYN_ACK);
         } else {
             writeRegister(EN_AA, 0); // disable auto ack
             writeRegister(FEATURE, 0); // disable dynamic payload and ack payload features
@@ -153,26 +153,26 @@ public:
 	/** Flushes the trasmitter's buffer. 
 	 */
 	void flushTx() {
-		spi::setCs(CS, true);
+		begin();
 		spi::transfer(FLUSH_TX);
-		spi::setCs(CS, false);
+        end();
 	}
 	
 	/** Flushes the receiver's buffer. 
 	 */
 	void flushRx() {
-		spi::setCs(CS, true);
+        begin();
 		spi::transfer(FLUSH_RX);
-		spi::setCs(CS, false);
+        end();
 	}
 
 	/** Reads the transmitter's address into the given buffer. The buffer must be at least 5 bytes long. 
 	 */
 	void txAddress(char * addr) {
-        spi::setCs(CS, true);
+        begin();
 		spi::transfer(READREGISTER + TX_ADDR);
 		receive(reinterpret_cast<uint8_t*>(addr), 5);
-        spi::setCs(CS, false);
+        end();
 	}
 
 	/** Sets the transmitter's address (package target). The address must be 5 bytes long. 
@@ -180,23 +180,23 @@ public:
         The address is also set for the 0th receiving pipe for auto acknowledgements.
 	 */
 	void setTxAddress(const char * addr) {
-        spi::setCs(CS, true);
-        spi::transfer(WRITEREGISTER + RX_ADDR_P0);
+        begin();
+        spi::transfer(WRITEREGISTER | RX_ADDR_P0);
         spi::send(reinterpret_cast<uint8_t const*>(addr), 5);
-        spi::setCs(CS, false);
-        spi::setCs(CS, true);
-		spi::transfer(WRITEREGISTER + TX_ADDR);
+        end();
+        begin();
+		spi::transfer(WRITEREGISTER | TX_ADDR);
 		spi::send(reinterpret_cast<uint8_t const*>(addr), 5);
-        spi::setCs(CS, false);
+        end();
 	}
 	
 	/** Reads the receiver's address into the given buffer. The buffer must be at least 5 bytes long. 
 	 */
 	void rxAddress(char * addr) {
-        spi::setCs(CS, true);
-		spi::transfer(READREGISTER + RX_ADDR_P1);
+        begin();
+		spi::transfer(READREGISTER | RX_ADDR_P1);
 		receive(reinterpret_cast<uint8_t*>(addr), 5);
-        spi::setCs(CS, false);
+        end();
 	}
 
 	/** Sets the receiver's address. The address must be 5 bytes long. 
@@ -204,10 +204,10 @@ public:
         For now only pipe 1 is supported as pipe 1 can have a full address specified, the other pipes differ only it the last byte. Also, as of now, I can't imagine a situation where I would like to receive on two addresses. 
 	 */
 	void setRxAddress(const char * addr) {
-		spi::setCs(CS, true);
-		spi::transfer(WRITEREGISTER + RX_ADDR_P1);
+        begin();
+		spi::transfer(WRITEREGISTER | RX_ADDR_P1);
 		spi::send(reinterpret_cast<uint8_t const*>(addr), 5);
-        spi::setCs(CS, false);
+        end();
 	}
 
     /** Enters the power down mode. 
@@ -244,28 +244,28 @@ public:
         The caller must make sure that the message is of the specified size, and that a message exists. Otherwise the protocol will stop working. 
      */
     void receive(uint8_t * buffer, uint8_t size) {
-	    spi::setCs(CS, true);
+	    begin();
 		spi::transfer(R_RX_PAYLOAD);
 		spi::receive(buffer, size);
-		spi::setCs(CS, false);
+        end();
     }
 
     /** Downloads a variable length message returning its length. 
      
         Returns 0 if there is no new message. 
-
-        TODO check that I can do this in a single cs
      */
     uint8_t receive(uint8_t * buffer) {
-        spi::setCs(CS, true);
+        begin();
         Status status{spi::transfer(R_RX_PL_WID)};
         uint8_t len = 0;
         if (status) {
             len = spi::transfer(0);
+            end();
+            begin();
             spi::transfer(R_RX_PAYLOAD);
             spi::receive(buffer, len);
         }
-        spi::setCs(CS, false);
+        end();
         return len;
     }
 
@@ -279,10 +279,10 @@ public:
         config_ |= CONFIG_PWR_UP; 
         writeRegister(CONFIG, config_);
         // transmit the payload
-	    spi::setCs(CS, true);
+	    begin();
 		spi::transfer(W_TX_PAYLOAD);
 		spi::send(buffer, size);
-		spi::setCs(CS, false);
+		end();
         // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
 		gpio::high(RXTX);
 		cpu::delay_us(15); // some margin to 10us required by the datasheet
@@ -299,10 +299,10 @@ public:
         config_ |= CONFIG_PWR_UP; 
         writeRegister(CONFIG, config_);
         // transmit the payload
-	    spi::setCs(CS, true);
+	    begin();
 		spi::transfer(W_TX_PAYLOAD_NO_ACK);
 		spi::send(buffer, size);
-		spi::setCs(CS, false);
+		end();
         // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
 		gpio::high(RXTX);
 		cpu::delay_us(15); // some margin
@@ -314,10 +314,10 @@ public:
         Only works in auto ack mode. 
 	 */
 	void transmitAckPayload(uint8_t const * payload, uint8_t size) {
-		spi::setCs(CS, true);
+		begin();
 		spi::transfer(W_ACK_PAYLOAD | 1); // for pipe 1, since we do not use other pipes
 		spi::send(payload, size);
-        spi::setCs(CS, false);
+        end();
 	}
 
 	/** Returns the contents of the config register on the device. This is for debugging purposes only. 
@@ -329,9 +329,9 @@ public:
 	/** Returns the contents of the status register. For debugging purposes only. 
 	 */
 	Status status() {
-		spi::setCs(CS, true);
+		begin();
         Status result{spi::transfer(NOP)};
-		spi::setCs(CS, false);
+		end();
 		return result;
 	}
 	
@@ -349,24 +349,37 @@ public:
 	}
 
 
+    uint8_t features() {
+        return readRegister(FEATURE);
+    }
+
 	
 private:
 
+    void begin() {
+        spi::setCs(CS, true);
+        cpu::delay_us(2);
+    }
+
+    void end() {
+        spi::setCs(CS, false);
+        cpu::delay_us(2);
+    }
+
     uint8_t readRegister(uint8_t reg) {
-		spi::setCs(CS, true);
-		spi::transfer(READREGISTER + reg);
+		begin();
+		spi::transfer(READREGISTER | reg);
 		uint8_t result = spi::transfer(0);
-		spi::setCs(CS, false);
-		//serial << "READ " << reg << " : " << result << endl;
+		end();
 		return result;
 	}
 	
 	void writeRegister(uint8_t reg, uint8_t value) {
-        spi::setCs(CS, true);
-		spi::transfer(WRITEREGISTER + reg);
+        //printf("Writing register %u, value %u\n", reg, value);
+        begin();
+		spi::transfer(WRITEREGISTER | reg);
 		spi::transfer(value);
-		//serial << "WRITE " << reg << " : " << value << endl;
-        spi::setCs(CS, false);
+        end();
 	}
 	
     // commands

@@ -27,7 +27,7 @@ namespace cpu {
 #if (defined ARCH_RP2040)
         sleep_us(value);  
 #elif (defined ARCH_ARDUINO)
-        delay_us(value);
+        delayMicroseconds(value);
 #else
         ARCH_NOT_SUPPORTED;
 #endif

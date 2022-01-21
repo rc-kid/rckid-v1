@@ -17,7 +17,7 @@ namespace spi {
 
 #if (defined ARCH_RP2040)
     inline void initialize(unsigned miso, unsigned mosi, unsigned sck) {
-        spi_init(spi0, 500000); // init spi0 at 0.5Mhz
+        spi_init(spi0, 5000000); // init spi0 at 5Mhz
         gpio_set_function(miso, GPIO_FUNC_SPI);
         gpio_set_function(mosi, GPIO_FUNC_SPI);
         gpio_set_function(sck, GPIO_FUNC_SPI);
@@ -43,11 +43,6 @@ namespace spi {
 #endif
 
     inline void setCs(gpio::Pin cs, bool value) {
-#if (defined ARCH_RP2040)
-        asm volatile("nop \n nop \n nop");
-        value ? gpio::low(cs) : gpio::high(cs);
-        asm volatile("nop \n nop \n nop");        
-#else
         value ? gpio::low(cs) : gpio::high(cs);
 #if (defined ARCH_ATTINY_1616) | (defined ARCH_ATTINY_3216)
 #elif (defined ARCH_ARDUINO)
@@ -56,7 +51,6 @@ namespace spi {
         else
             SPI.endTransaction();
 #endif        
-#endif
     }
 
     inline uint8_t transfer(uint8_t value) {

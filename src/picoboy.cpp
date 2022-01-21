@@ -35,12 +35,12 @@ NRF24L01<NRF_CS, NRF_RXTX> radio_;
 
 
 int main() {
-    cpu::delay_ms(100);
     stdio_init_all();
     printf("Initializing...\n");
     const uint LED_PIN = PICO_DEFAULT_LED_PIN;
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
+    cpu::delay_ms(100);
 
 
 
@@ -50,11 +50,17 @@ int main() {
 
 
     gpio::input(NRF_IRQ);
-    radio_.initialize("TEST1", "TEST2", 95);
-    //radio_.enableAutoAck(false);
-    cpu::delay_ms(10);
     radio_.standby();
     cpu::delay_ms(10);
+    radio_.initialize("TEST1", "TEST2", 95);
+    char buf[6];
+    buf[5] = 0;
+    radio_.rxAddress(buf);
+    printf("%s\n", buf);
+    //radio_.enableAutoAck(false);
+    cpu::delay_ms(10);
+    unsigned x = 0;
+    printf("feature: %u\n", radio_.features());
 
     uint16_t i = 0;
     uint8_t buffer[32];
@@ -64,7 +70,6 @@ int main() {
         radio_.clearIRQ();
         for (int j = 0; j < 32; ++j)
             buffer[j] = i & 0xff;
-        ++i;
         gpio::high(LED_PIN);
         radio_.transmitNoAck(buffer, 32);
         gpio::low(LED_PIN);
@@ -74,44 +79,19 @@ int main() {
             ++retransmits;
         if (status.dataSent()) 
             ++valid;
-        if (i == 0) {
-            printf("%u\n", valid);
-            valid = 0;
-        }
-
-
-
-
         if (i % 100 == 0) {
-            printf("%u, %u\n", valid, retransmits);
+            i = 0;
+            printf("%u: %u, %u (status: %u, config: %u, channel: %u)\n", x, valid, retransmits, status.raw, radio_.config().raw, radio_.channel());
+            //char buf[6];
+            //buf[5] = 0;
+            //radio_.txAddress(buf);
+            //printf("%s\n", buf);
             valid = 0;
             retransmits = 0;
-            /*
-            printf("--------------------\n");
-            printf("Status:      %u\n", radio_.status());
-            printf("FIFO Status: %u\n", radio_.fifoStatus());
-            printf("Config:      %u\n", radio_.config());
-            printf("Observe TX:  %u\n", radio_.observeTX());
-            */
-        } /*
-        cpu::delay_ms(10);
-        auto status = radio_.status();
-        //printf("    %u\n", status.raw);
-        if (status.maxRetransmits())
-            printf("    MAX RT\n");
-        if (status.dataSent()) {
-            printf("    TX_DS\n");
-            ++valid;
-        printf("Sent packet: %u\n", i);
-        */
+            ++x;
+        }
+        ++i;
     }
-    /*
-    radio_.enableReceiver();
-    gpio_put(LED_PIN, 1);
-    printf("Config: %u\n", radio_.config());
-    printf("Status: %u\n", radio_.status());
-    printf("Channel: %u\n", radio_.channel());
-    */
 
 
     //display_.initialize();
