@@ -52,7 +52,7 @@ int main() {
     gpio::input(NRF_IRQ);
     radio_.standby();
     cpu::delay_ms(10);
-    radio_.initialize("TEST1", "TEST2", 95, NRF24L01::Speed::kb250, NRF24L01::Power::dbm18);
+    radio_.initialize("TEST1", "TEST2", 95, NRF24L01::Speed::m1, NRF24L01::Power::dbm0);
     char buf[6];
     buf[5] = 0;
     radio_.rxAddress(buf);

@@ -15,6 +15,8 @@
     - when packet is not transmitted successfully (MAX_RT), then no further transmits are possible unless the MAX_RT is cleared *and* the packet is *not* removed from the TX buffer!
     - PA+LNA version does not work well short range, especially on max power settings
 
+    - FEATURES must be 0 on the green module for the ACKs to work... Then it kind of works sometimes... But does not seem reliable at all atm
+
  */
 class NRF24L01 {
 public:
@@ -60,9 +62,9 @@ public:
     }; // NRF24L01::TxStats
 
     enum class Speed : uint8_t {
-        kb250 = 0b00100000,
-        mb1 = 0b00000000,
-        mb2 = 0b00001000,
+        k250 = 0b00100000,
+        m1 = 0b00000000,
+        m2 = 0b00001000,
     }; 
 
     enum class Power : uint8_t {
@@ -87,7 +89,7 @@ public:
      
         Sets the tx and rx addresses, channel, power, speed and payload size. Enables auto acknowledgement, auto acknowledgement with payloads, dynamic payloads and non-acked payloads. Enables reading pipes 0 (for auto acknowledgements) and 1 (for receiving). 
      */
-    void initialize(const char * rxAddr, const char * txAddr,  uint8_t channel = 76, Speed speed = Speed::kb250, Power power = Power::dbm0, uint8_t payloadSize = 32) {
+    void initialize(const char * rxAddr, const char * txAddr,  uint8_t channel = 76, Speed speed = Speed::k250, Power power = Power::dbm0, uint8_t payloadSize = 32) {
         // set the desired speed and output power
         writeRegister(RF_SETUP, static_cast<uint8_t>(power) | static_cast<uint8_t>(speed));
         // set the channel and tx and rx addresses
@@ -133,7 +135,8 @@ public:
             // disable dynamic payloads on all input pipes except pipe 0 used for ack payloads
             writeRegister(DYNPD, 1);
             // enables the enhanced shock-burst features, dynamic payload size and transmit of packages without ACKs
-            writeRegister(FEATURE, EN_DPL | EN_ACK_PAY | EN_DYN_ACK);
+            writeRegister(FEATURE, 0);
+            //writeRegister(FEATURE,  EN_DPL | EN_ACK_PAY | EN_DYN_ACK );
         } else {
             writeRegister(EN_AA, 0); // disable auto ack
             writeRegister(FEATURE, 0); // disable dynamic payload and ack payload features

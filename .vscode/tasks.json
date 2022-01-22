@@ -22,7 +22,8 @@
             "args": [
                 "bin/upload-rpi-swd.sh"
             ],
-            "type": "process"
+            "type": "process",
+            "problemMatcher": []            
         },
         {
             "label": "test-receiver-rpi",
