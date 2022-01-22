@@ -9,10 +9,18 @@
     RXTX CS 
      SCK MOSI
     MISO IRQ
+
+    Operation notes:
+
+    - when packet is not transmitted successfully (MAX_RT), then no further transmits are possible unless the MAX_RT is cleared *and* the packet is *not* removed from the TX buffer!
+    - PA+LNA version does not work well short range, especially on max power settings
+
  */
-template<gpio::Pin CS, gpio::Pin RXTX>
 class NRF24L01 {
 public:
+    const gpio::Pin CS;
+    const gpio::Pin RXTX;
+
 
     struct Config {
         bool disableDataReadyIRQ() const { return raw & CONFIG_MASK_RX_DR; }
@@ -25,7 +33,7 @@ public:
                 return 0;
         }
         bool powerUp() const { return raw & CONFIG_PWR_UP; }
-        bool transmitReady() const { return raw & CONFIG_PRIM_RX == 0; }
+        bool transmitReady() const { return raw & (CONFIG_PRIM_RX == 0); }
         bool receiveReady() const { return raw & CONFIG_PRIM_RX; }
         uint8_t const raw;
     }; 
@@ -66,7 +74,9 @@ public:
 
 	/** Initializes the control pins of the module. 
 	 */
-    NRF24L01() {
+    NRF24L01(gpio::Pin CS, gpio::Pin RXTX):
+        CS(CS),
+        RXTX(RXTX) {
         gpio::output(CS);
         gpio::output(RXTX);
         spi::setCs(CS, false);
@@ -258,7 +268,7 @@ public:
         begin();
         Status status{spi::transfer(R_RX_PL_WID)};
         uint8_t len = 0;
-        if (status) {
+        if (status.dataReady()) {
             len = spi::transfer(0);
             end();
             begin();

@@ -30,7 +30,7 @@
 
 
 ILI9341 display_;
-NRF24L01<NRF_CS, NRF_RXTX> radio_;
+NRF24L01 radio_{NRF_CS, NRF_RXTX};
 
 
 
@@ -52,7 +52,7 @@ int main() {
     gpio::input(NRF_IRQ);
     radio_.standby();
     cpu::delay_ms(10);
-    radio_.initialize("TEST1", "TEST2", 95);
+    radio_.initialize("TEST1", "TEST2", 95, NRF24L01::Speed::kb250, NRF24L01::Power::dbm18);
     char buf[6];
     buf[5] = 0;
     radio_.rxAddress(buf);
@@ -71,12 +71,15 @@ int main() {
         for (int j = 0; j < 32; ++j)
             buffer[j] = i & 0xff;
         gpio::high(LED_PIN);
-        radio_.transmitNoAck(buffer, 32);
+        radio_.transmit(buffer, 32);
         gpio::low(LED_PIN);
-        cpu::delay_ms(10);
+        //cpu::delay_ms(3);
+        cpu::delay_ms(50);
         auto status = radio_.status();
-        if (status.maxRetransmits())
+        if (status.maxRetransmits()) {
             ++retransmits;
+            radio_.flushTx();
+        }
         if (status.dataSent()) 
             ++valid;
         if (i % 100 == 0) {
