@@ -105,6 +105,7 @@ public:
         sleep_ms(150);
         sendCommand(DISPLAY_ON, nullptr, 0);
         sleep_ms(150);
+        */
         for (int i = 0; i < 5; ++i) {
             sendCommand(INVERSE_ON, nullptr, 0);
             //sendCommand(0b10000100, nullptr, 0);
@@ -113,7 +114,6 @@ public:
             //sendCommand(0b00000100, nullptr, 0);
             sleep_ms(500);
         }
-        */
     }
 
 

@@ -10,7 +10,11 @@ ARCH_NOT_SUPPORTED;
 
 namespace gpio {
 
+#if (defined ARCH_RP2040)
     using Pin = unsigned;
+#elif (defined ARCH_ARDUINO) 
+
+#endif
 
     inline void output(unsigned pin) {
 #if (defined ARCH_RP2040)
