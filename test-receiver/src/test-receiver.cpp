@@ -40,7 +40,7 @@ void setup() {
     cpu::delay_ms(100);
     display_.write(0,0,"Hello Again");
     gpio::input(NRF_IRQ);
-    radio_.initialize("TEST2", "TEST1", 95, NRF24L01::Speed::m1);
+    radio_.initialize("TEST2", "TEST1", 80, NRF24L01::Speed::k250);
     display_.write(0,0,"      recv ");
     display_.write(0,2,"      valid");
     //cpu::delay_ms(10);

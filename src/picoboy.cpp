@@ -27,9 +27,17 @@
 #define NRF_RXTX 20
 #define NRF_IRQ 21
 
+#define DISPLAY_CS 4
+#define DISPLAY_DC 5
+#define DISPLAY_FMARK 6
+#define DISPLAY_WR 7
+#define DISPLAY_DATA 8
 
 
-ILI9341 display_;
+
+const uint LED_PIN = PICO_DEFAULT_LED_PIN;
+
+ILI9341<DISPLAY_CS, DISPLAY_DC, DISPLAY_FMARK, DISPLAY_WR, DISPLAY_DATA> display_;
 NRF24L01 radio_{NRF_CS, NRF_RXTX};
 
 
@@ -37,10 +45,11 @@ NRF24L01 radio_{NRF_CS, NRF_RXTX};
 int main() {
     stdio_init_all();
     printf("Initializing...\n");
-    const uint LED_PIN = PICO_DEFAULT_LED_PIN;
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
+    gpio::high(LED_PIN);
     cpu::delay_ms(100);
+    gpio::low(LED_PIN);
 
 
 
@@ -50,9 +59,43 @@ int main() {
 
 
     gpio::input(NRF_IRQ);
+
+    display_.initialize();
+
+    while(true) {}
+    
+
+    //mpu6050_reset();
+
+    /*
+
+    int16_t acceleration[3], gyro[3], temp;
+
+    while (true) {
+        gpio_put(LED_PIN, 1);
+        sleep_ms(50);
+        //printf("On");
+        gpio_put(LED_PIN, 0);
+        //printf(" and Off\n");
+        sleep_ms(50);
+        mpu6050_read_raw(acceleration, gyro, &temp);
+
+        // These are the raw numbers from the chip, so will need tweaking to be really useful.
+        // See the datasheet for more information
+        printf("Acc. X = %d, Y = %d, Z = %d\n", acceleration[0], acceleration[1], acceleration[2]);
+        //printf("Gyro. X = %d, Y = %d, Z = %d\n", gyro[0], gyro[1], gyro[2]);
+        // Temperature is simple so use the datasheet calculation to get deg C.
+        // Note this is chip temperature.
+        //printf("Temp. = %f\n", (temp / 340.0) + 36.53);        
+    }
+    */
+}
+
+
+void nrftest() {
     radio_.standby();
     cpu::delay_ms(10);
-    radio_.initialize("TEST1", "TEST2", 95, NRF24L01::Speed::m1, NRF24L01::Power::dbm0);
+    radio_.initialize("TEST1", "TEST2", 80, NRF24L01::Speed::k250, NRF24L01::Power::dbm0);
     char buf[6];
     buf[5] = 0;
     radio_.rxAddress(buf);
@@ -84,7 +127,7 @@ int main() {
             ++valid;
         if (i % 100 == 0) {
             i = 0;
-            printf("%u: %u, %u (status: %u, config: %u, channel: %u)\n", x, valid, retransmits, status.raw, radio_.config().raw, radio_.channel());
+            printf("%u: %u (ok), %u (timeout) (status: %u, config: %u, channel: %u)\n", x, valid, retransmits, status.raw, radio_.config().raw, radio_.channel());
             //char buf[6];
             //buf[5] = 0;
             //radio_.txAddress(buf);
@@ -95,35 +138,6 @@ int main() {
         }
         ++i;
     }
-
-
-    //display_.initialize();
-
-
-    //mpu6050_reset();
-
-    /*
-
-    int16_t acceleration[3], gyro[3], temp;
-
-    while (true) {
-        gpio_put(LED_PIN, 1);
-        sleep_ms(50);
-        //printf("On");
-        gpio_put(LED_PIN, 0);
-        //printf(" and Off\n");
-        sleep_ms(50);
-        mpu6050_read_raw(acceleration, gyro, &temp);
-
-        // These are the raw numbers from the chip, so will need tweaking to be really useful.
-        // See the datasheet for more information
-        printf("Acc. X = %d, Y = %d, Z = %d\n", acceleration[0], acceleration[1], acceleration[2]);
-        //printf("Gyro. X = %d, Y = %d, Z = %d\n", gyro[0], gyro[1], gyro[2]);
-        // Temperature is simple so use the datasheet calculation to get deg C.
-        // Note this is chip temperature.
-        //printf("Temp. = %f\n", (temp / 340.0) + 36.53);        
-    }
-    */
 }
 
 //40960 blink
