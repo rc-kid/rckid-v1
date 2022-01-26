@@ -17,7 +17,7 @@ namespace spi {
 
 #if (defined ARCH_RP2040)
     inline void initialize(unsigned miso, unsigned mosi, unsigned sck) {
-        spi_init(spi0, 5000000); // init spi0 at 5Mhz
+        spi_init(spi0, 500000); // init spi0 at 0.5Mhz
         gpio_set_function(miso, GPIO_FUNC_SPI);
         gpio_set_function(mosi, GPIO_FUNC_SPI);
         gpio_set_function(sck, GPIO_FUNC_SPI);

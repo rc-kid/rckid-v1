@@ -10,7 +10,7 @@
 #include "peripherals/nrf24l01.h"
 
 #include "rp2040/i2c.h"
-#include "peripherals/ili9341.h"
+#include "ili9341.h"
 
 //#include <pico/binary_info.h>
 //#include <hardware/i2c.h>
@@ -37,8 +37,9 @@
 
 const uint LED_PIN = PICO_DEFAULT_LED_PIN;
 
-ILI9341<DISPLAY_CS, DISPLAY_DC, DISPLAY_FMARK, DISPLAY_WR, DISPLAY_DATA> display_;
-NRF24L01 radio_{NRF_CS, NRF_RXTX};
+//ILI9341<DISPLAY_CS, DISPLAY_DC, DISPLAY_FMARK, DISPLAY_WR, DISPLAY_DATA> display_;
+ILI9341<ILI9341_SPI<DISPLAY_CS, DISPLAY_DC>> display_;
+//NRF24L01 radio_{NRF_CS, NRF_RXTX};
 
 
 
@@ -92,6 +93,7 @@ int main() {
 }
 
 
+/*
 void nrftest() {
     radio_.standby();
     cpu::delay_ms(10);
@@ -139,5 +141,6 @@ void nrftest() {
         ++i;
     }
 }
+*/
 
 //40960 blink

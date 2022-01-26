@@ -1,3 +1,7 @@
 {
-    "cmake.buildDirectory": "${workspaceFolder}/build"
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "files.associations": {
+        "cmath": "cpp",
+        "*.tcc": "cpp"
+    }
 }
