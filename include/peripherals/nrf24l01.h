@@ -79,10 +79,6 @@ public:
     NRF24L01(gpio::Pin CS, gpio::Pin RXTX):
         CS(CS),
         RXTX(RXTX) {
-        gpio::output(CS);
-        gpio::output(RXTX);
-        spi::setCs(CS, false);
-        gpio::low(RXTX);
 	}
 
     /** Initializes the chip. 
@@ -90,6 +86,10 @@ public:
         Sets the tx and rx addresses, channel, power, speed and payload size. Enables auto acknowledgement, auto acknowledgement with payloads, dynamic payloads and non-acked payloads. Enables reading pipes 0 (for auto acknowledgements) and 1 (for receiving). 
      */
     void initialize(const char * rxAddr, const char * txAddr,  uint8_t channel = 76, Speed speed = Speed::k250, Power power = Power::dbm0, uint8_t payloadSize = 32) {
+        gpio::output(CS);
+        gpio::output(RXTX);
+        gpio::high(CS);
+        gpio::low(RXTX);
         // set the desired speed and output power
         writeRegister(RF_SETUP, static_cast<uint8_t>(power) | static_cast<uint8_t>(speed));
         // set the channel and tx and rx addresses
@@ -370,12 +370,12 @@ public:
 private:
 
     void begin() {
-        spi::setCs(CS, true);
+        spi::begin(CS);
         cpu::delay_us(2);
     }
 
     void end() {
-        spi::setCs(CS, false);
+        spi::end(CS);
         cpu::delay_us(2);
     }
 

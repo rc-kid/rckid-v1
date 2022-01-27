@@ -21,6 +21,10 @@
 #define ARCH_NOT_SUPPORTED static_assert(false,"Unknown or unsupported architecture")
 
 
+inline uint16_t swapBytes(uint16_t x) {
+    return static_cast<uint16_t>((x & 0xff) << 8 | (x >> 8));
+}
+
 namespace cpu {
 
     inline void delay_us(unsigned value) {

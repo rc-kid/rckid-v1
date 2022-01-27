@@ -16,6 +16,12 @@ namespace gpio {
 
 #endif
 
+    inline void initialize() {
+#if (defined ARCH_RP2040)
+        stdio_init_all();
+#endif
+    }
+
     inline void output(unsigned pin) {
 #if (defined ARCH_RP2040)
         gpio_init(pin);

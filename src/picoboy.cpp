@@ -35,7 +35,7 @@
 
 
 
-const uint LED_PIN = PICO_DEFAULT_LED_PIN;
+constexpr unsigned LED_PIN = PICO_DEFAULT_LED_PIN;
 
 //ILI9341<DISPLAY_CS, DISPLAY_DC, DISPLAY_FMARK, DISPLAY_WR, DISPLAY_DATA> display_;
 ILI9341<ILI9341_SPI<DISPLAY_CS, DISPLAY_DC>> display_;
@@ -44,24 +44,25 @@ ILI9341<ILI9341_SPI<DISPLAY_CS, DISPLAY_DC>> display_;
 
 
 int main() {
-    stdio_init_all();
-    printf("Initializing...\n");
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
+    // Initialize the GPIO
+    gpio::initialize();
+    // initialize the onboard led and turn on for the initialization phase
+    gpio::output(LED_PIN);
     gpio::high(LED_PIN);
-    cpu::delay_ms(100);
-    gpio::low(LED_PIN);
-
-
-
-
-    i2c::initialize(I2C_SDA, I2C_SCL);
+    // initialize HW interfaces
     spi::initialize(SPI_MISO, SPI_MOSI, SPI_SCK);
-
-
-    gpio::input(NRF_IRQ);
-
+    i2c::initialize(I2C_SDA, I2C_SCL);
+    printf("Interfaces initialized\n");
+    // initialize the peripherals
     display_.initialize();
+    printf("HW Initialization done");
+    cpu::delay_ms(50); // delay 100ms so that the voltages across the system can settle
+    display_.initializeDisplay(DisplayRotation::Left);
+
+
+
+    printf("Initialization done");
+    gpio::low(LED_PIN);
 
     while(true) {}
     
