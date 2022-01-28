@@ -59,7 +59,11 @@ int main() {
     cpu::delay_ms(50); // delay 100ms so that the voltages across the system can settle
     display_.initializeDisplay(DisplayRotation::Left);
 
-
+    uint16_t color = 0xff00;
+    display_.fill(Rect::WH(320,20), reinterpret_cast<uint8_t*>(& color), 2);
+    color = 0;
+    sleep_ms(1);
+    display_.fill(Rect::XYWH(10, 10, 10, 10), reinterpret_cast<uint8_t*>(& color), 2);
 
     printf("Initialization done");
     gpio::low(LED_PIN);

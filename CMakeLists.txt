@@ -40,6 +40,7 @@ target_link_libraries(picoboy
     hardware_i2c
     hardware_pio
     hardware_spi
+    hardware_dma
 )
 
 # create map/bin/hex file etc.

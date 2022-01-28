@@ -1,9 +1,15 @@
 #pragma once
+
+#include "platform/gpio.h"
+#include "platform/spi.h"
+
+
+#if (defined ARCH_RP2040)
 #include <cstdint>
 #include <hardware/gpio.h>
 #include <hardware/pio.h>
-#include "platform/gpio.h"
-
+#include <hardware/dma.h>
+#endif
 
 
 enum class DisplayRotation {
@@ -12,6 +18,52 @@ enum class DisplayRotation {
     Right,
     Bottom,
 }; 
+
+class Point {
+public:
+    uint16_t x;
+    uint16_t y;
+};
+
+static_assert(sizeof(Point) == 4);
+
+class Rect {
+public:
+
+    static Rect WH(uint16_t width, uint16_t height) { 
+        return Rect{0,0,width, height};
+    }
+    static Rect XYWH(uint16_t left, uint16_t top, uint16_t width, uint16_t height) {
+        return Rect{left, top, static_cast<uint16_t>(left + width), static_cast<uint16_t>(top + height)};
+    }
+
+    union {
+        struct {
+            Point topLeft;
+            Point bottomRight;
+        };
+        struct {
+            uint16_t left;
+            uint16_t top;
+            uint16_t right;
+            uint16_t bottom;
+        };
+    };
+
+    uint16_t width() const { return right - left; }
+    uint16_t height() const { return bottom - top; }
+
+private:
+    Rect(uint16_t l, uint16_t t, uint16_t r, uint16_t b):
+        left{l}, 
+        top{t}, 
+        right{r}, 
+        bottom{b} {
+    }
+
+};
+
+static_assert(sizeof(Rect) == 8);
 
 
 /** A single pixel. 
@@ -161,7 +213,7 @@ public:
         //sendCommandSequence(initcmd);
 
         // fill the display black
-        fill(Pixel{0,0,31});
+        //fill(Pixel{0,0,31});
         /*
         for (int i = 0; i < 5;++i) {
             sendCommand(INVERSE_ON, nullptr, 0);
@@ -196,6 +248,21 @@ public:
                 break;
         }
         sendCommand8(MADCTL, madctl);
+    }
+
+    /** Fills given area of the display with provided pixel data. 
+     
+        Accepts size of the buffer, which must be a power of two. If the size is smaller than the actual area to be written, provided pixel data will be wrapped. 
+     */
+    void fill(Rect r, uint8_t const * pixelData, size_t pixelDataSize = 0) {
+        setColumnUpdateRange(r.left, r.right - 1);
+        setRowUpdateRange(r.top, r.bottom - 1);
+        beginCommand(RAM_WRITE);
+        data();
+        if (writeAsync(pixelData, r.width() * r.height() * 2, pixelDataSize)) {
+            writeAsyncWait();
+        }
+        end();    
     }
 
     /** Fills the entire screet with given color. 
@@ -235,6 +302,8 @@ protected:
     using T::data;
     using T::command;
     using T::write;
+    using T::writeAsync;
+    using T::writeAsyncWait;
     using T::read;
 
     static constexpr uint8_t RESET = 0x01;
@@ -347,14 +416,78 @@ protected:
         spi::transfer(data);
     }
 
+    /** Async (where supported) write of the given buffer. 
+
+        Always transmits the required bytes. If the transfer is asynchronous, returns true, false is returned when asynrhonous transfer is not supported (and therefore the transfer has already happened).     
+     */
+    bool writeAsync(uint8_t const * data, size_t size, size_t actualSize = 0) {
+#if (defined ARCH_RP2040)
+        // on RP2040 we can use DMA for the asynchronous transfer and a higher transfer speed overall
+        dma_ = dma_claim_unused_channel(true);
+        dma_channel_config c = dma_channel_get_default_config(dma_); // create default channel config, write does not increment, read does increment, 32bits size
+        channel_config_set_transfer_data_size(& c, DMA_SIZE_8); // transfer 8 bytes
+        channel_config_set_dreq(& c, spi_get_dreq(spi0, true)); // tell SPI
+        // determine the wrapping
+        if (actualSize != 0) {
+            if (actualSize == 1)
+                channel_config_set_read_increment(& c, false);
+            else
+                channel_config_set_ring(& c, false, 31 - __builtin_clz(actualSize)); 
+        }        
+        dma_channel_configure(dma_, & c, & spi_get_hw(spi0)->dr, data, size, true); // start
+        return true;
+#else
+        if (actualSize == 0) 
+            actualSize = size;
+        size_t i = 0;
+        while (size-- != 0) {
+            write(data[i++]);
+            if (i == actualSize)
+                i = 0;
+        }
+        return false;
+#endif
+    }
+
+    /** Returns true if there is an asynchronous data write in process. 
+     */
+    bool writeAsyncBusy() {
+#if (defined ARCH_RP2040)
+        return dma_channel_is_busy(dma_);
+#endif
+        return false;
+    }
+
+    /** Waits for the asynchronous data transfer to finish, then returns. 
+     
+        If there is no such transfer, returns immediately. 
+     */
+    void writeAsyncWait() {
+#if (defined ARCH_RP2040)
+        dma_channel_wait_for_finish_blocking(dma_);
+        dma_channel_unclaim(dma_);
+        dma_ = -1;
+        cpu::delay_ms(1);
+#endif
+        // nop
+    }
+
+    /** Reads a single byte from the controller. 
+     */
     uint8_t read() {
         return spi::transfer(0);
     }
 
+private:
+#if (defined ARCH_RP2040)
+    int dma_ = -1;
+#endif
 }; // ILI9341_SPI
 
 
 /** 8bit parallel driver interface for the ILI9341 display controller. 
+ 
+    This driver is specific to RP2040 and won't work on other chips. 
  */
 template<gpio::Pin CS, gpio::Pin DC, gpio::Pin WR, gpio::Pin FMARK, gpio::Pin DATA> 
 class ILI9341_8080 {
@@ -376,6 +509,7 @@ protected:
         // initialize the data pins, which must be consecutive
         gpio_init_mask(0xff << DATA);
         gpio_set_dir_out_masked(0xff << DATA);
+        // load the pio code for writing data
     }
 
     void begin() {
@@ -532,7 +666,6 @@ protected:
 
 /*
 static constexpr uint8_t initcmd[] = {
-    /*
   0xEF, 3, 0x03, 0x80, 0x02,
   0xCF, 3, 0x00, 0xC1, 0x30,
   0xED, 4, 0x64, 0x03, 0x12, 0x81,

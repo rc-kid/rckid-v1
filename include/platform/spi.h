@@ -43,7 +43,13 @@ namespace spi {
 #endif
 
     inline void begin(gpio::Pin cs) {
+#if (defined ARCH_RP2040)
+//        asm volatile("nop \n nop \n nop");
+#endif
         gpio::low(cs);
+#if (defined ARCH_RP2040)
+//        asm volatile("nop \n nop \n nop");
+#endif
 #if (defined ARCH_ATTINY_1616) | (defined ARCH_ATTINY_3216)
 #elif (defined ARCH_ARDUINO)
         SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
