@@ -129,7 +129,7 @@ static_assert(sizeof(Pixel) == 2, "Wrong pixel size!");
  
     The driver provides the higher-levekl API of the display and is templated by the interface providers described below that are responsible for the actual implementation of the low level protocol. 
  
-    # Interface
+    # Wiring
 
     I am using the 40pin 0.5mm displays, such as (...). The interface looks like this:
 
@@ -365,6 +365,30 @@ protected:
  
     A very simple fallback driver that uses the 4-wire SPI interface. Uses the platform interface so that the code itself is portable. 
 
+    # Wiring
+
+    Pin(s)  | Connection | Description
+    ------- | ---------- | ----------------  
+    5       | GND        | GND 
+    6       | VCC        | VCC
+    7       | VCC        | VCC
+    8       | float      | FMARK
+    9       | gpio       | CS
+    10      | gpio       | SPI CLK
+    11      | gpio       | DC
+    12      | VCC        | RD for 8080
+    13      | gpio       | SPI MOSI
+    14      | gpio       | SPI MISO
+    15      | VCC        | Reset (unused, active low)
+    16      | GND        | GND
+    17-32   | GND        | Data for 8080, unused
+    33      | VCC        | Backlight anode
+    34-36   | GND-RES    | Backlight cathode (GND via a resistor, all the same wire)  
+    37      | GND        | GND
+    38      | GND        | IM0 to select SPI mode
+    39      | VCC        | IM1 to select SPI mode
+    40      | VCC        | IM2 to select SPI mode
+
     # Timings
 
     > From page 231 of the datasheet, these are the absolute minimums. At 133Mhz, one instruction is 7.5ns
@@ -488,6 +512,42 @@ private:
 /** 8bit parallel driver interface for the ILI9341 display controller. 
  
     This driver is specific to RP2040 and won't work on other chips. 
+
+    # Wiring 
+
+    Pin(s)  | Connection | Description
+    ------- | ---------- | ----------------  
+    5       | GND        | GND 
+    6       | VCC        | VCC
+    7       | VCC        | VCC
+    8       | gpio 6     | FMARK
+    9       | gpio 4     | CS
+    10      | gpio 5     | DC
+    11      | gpio 7     | WR
+    12      | VCC        | RD for 8080, unused
+    13      | VCC        | SPI MOSI, unused
+    14      | float      | SPI MISO, unused
+    15      | VCC        | Reset (unused, active low)
+    16      | GND        | GND
+    17-24   | GND        | DB0-DB7 for 8080, unused
+    25-32   | gpio 8-15  | DB8-DB15 for 8080 (gpio 8-15)
+    33      | VCC        | Backlight anode
+    34-36   | GND-RES    | Backlight cathode (GND via a resistor, all the same wire)  
+    37      | GND        | GND
+    38      | VCC        | IM0, to select 8bit 8080
+    39      | GND        | IM1, to select 8bit 8080
+    40      | GND        | IM2, to select 8bit 8080
+
+    # Timings
+
+    > From page 228 of the datasheet.  At 133Mhz, one instruction is 7.5ns
+
+    Name  | [ns/cycles] | Description
+    ----- | ----------- | ----------------------
+    TWC   | 66/10       | Write cycle
+    TWRH  | 15          | WR high duration 
+    TWRL  | 15          | WR low duration
+
  */
 template<gpio::Pin CS, gpio::Pin DC, gpio::Pin WR, gpio::Pin FMARK, gpio::Pin DATA> 
 class ILI9341_8080 {
@@ -530,14 +590,45 @@ protected:
     }
 
     void write(uint8_t data) {
-        gpio_put_masked(0xff << DATA, static_cast<uint64_t>(data) << DATA);
         gpio_put(WR, false);
-        sleep_us(1);
+        gpio_put_masked(0xff << DATA, static_cast<uint64_t>(data) << DATA);
+        asm volatile("nop \n nop \n nop");
         gpio_put(WR, true);
+        asm volatile("nop \n nop \n nop \n nop");
+    }
+
+    /** Async (where supported) write of the given buffer. 
+
+        Always transmits the required bytes. If the transfer is asynchronous, returns true, false is returned when asynrhonous transfer is not supported (and therefore the transfer has already happened).     
+     */
+    bool writeAsync(uint8_t const * data, size_t size, size_t actualSize = 0) {
+        if (actualSize == 0) 
+            actualSize = size;
+        size_t i = 0;
+        while (size-- != 0) {
+            write(data[i++]);
+            if (i == actualSize)
+                i = 0;
+        }
+        return false;
+    }
+
+    /** Returns true if there is an asynchronous data write in process. 
+     */
+    bool writeAsyncBusy() {
+        return false;
+    }
+
+    /** Waits for the asynchronous data transfer to finish, then returns. 
+     
+        If there is no such transfer, returns immediately. 
+     */
+    void writeAsyncWait() {
+        // nop
     }
 
     // We don't do read in parallel. 
-    // uint8_t read() { }
+    uint8_t read() { return 0; }
 
 }; // ILI9431_8080
 
