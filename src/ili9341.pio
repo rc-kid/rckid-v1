@@ -1,4 +1,4 @@
-; Pushes 4 bytes (2 consecutive pixels) to the display. Details of the protocol are described on page 226 of the ili9341 dataset:
+; Pushes 4 bytes (2 consecutive pixels) to the display. Details of the protocol are described on page 228 of the ili9341 dataset:
 ;
 ; - write cycle 66 ns
 ; - write low for 15 ns
@@ -8,24 +8,65 @@
 ;
 ; At 133Mhz, one cycle is 7.5ns. This means we need about 10 cycles with a wee bit of a margin. 
 
-; TODO autofill of OSR from the fifo would be nice, use DMA 
-
 .program ili9341
-.side_set 1
+.side_set 1 ; this is the WR pin 
 
 .define DATA_PREPARE_CYCLES 4
 .define DATA_HOLD_CYCLES 6
 
 .wrap_target
+    ; first output 0 on the WR pin and put the data on the data lines, wait for the given time
     out pins, 8     side 0 [DATA_PREPARE_CYCLES - 1]
+    ; keep the data line stable, but put WR high to tell the display to read the data 
     nop             side 1 [DATA_HOLD_CYCLES - 1]
 .wrap
 
+% c-sdk {
 
-; .wrap_target
-;    pull              side 0
-;loop:
-;    out pins, 8       side 0 [6]
-;    jmp !OSRE, loop   side 1 [6]
-;.wrap
+static inline void ili9341_program_init(PIO pio, uint sm, uint offset, uint wrPin, uint dataPin) {
+    pio_gpio_init(pio, wrPin);
+    pio_sm_set_consecutive_pindirs(pio, sm, wrPin, 1, true);
+    pio_gpio_init(pio, dataPin);
+    pio_gpio_init(pio, dataPin + 1);
+    pio_gpio_init(pio, dataPin + 2);
+    pio_gpio_init(pio, dataPin + 3);
+    pio_gpio_init(pio, dataPin + 4);
+    pio_gpio_init(pio, dataPin + 5);
+    pio_gpio_init(pio, dataPin + 6);
+    pio_gpio_init(pio, dataPin + 7);
+    pio_sm_set_consecutive_pindirs(pio, sm, dataPin, 8, true);
+    pio_sm_config c = ili9341_program_get_default_config(offset);
+    sm_config_set_sideset_pins(&c, wrPin);
+    sm_config_set_out_pins(&c, dataPin, 8);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+    //sm_config_set_clkdiv(&c, clk_div);
+    // OSR autofill, 8bits width
+    sm_config_set_out_shift(&c, false, true, 8);
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
 
+// Making use of the narrow store replication behaviour on RP2040 to get the
+// data left-justified (as we are using shift-to-left to get MSB-first serial)
+
+static inline void ili9341_put(PIO pio, uint sm, uint8_t x) {
+    while (pio_sm_is_tx_fifo_full(pio, sm));
+    *(volatile uint8_t*)&pio->txf[sm] = x;
+}
+
+
+static inline bool ili9341_busy(PIO pio, uint sm) {
+    uint32_t sm_stall_mask = 1u << (sm + PIO_FDEBUG_TXSTALL_LSB);
+    pio->fdebug = sm_stall_mask;
+    return !(pio->fdebug & sm_stall_mask);
+}
+
+// SM is done when it stalls on an empty FIFO
+
+static inline void ili9341_wait_idle(PIO pio, uint sm) {
+    uint32_t sm_stall_mask = 1u << (sm + PIO_FDEBUG_TXSTALL_LSB);
+    pio->fdebug = sm_stall_mask;
+    while (!(pio->fdebug & sm_stall_mask));
+}
+
+%}

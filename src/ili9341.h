@@ -9,6 +9,7 @@
 #include <hardware/gpio.h>
 #include <hardware/pio.h>
 #include <hardware/dma.h>
+#include "ili9341.pio.h"
 #endif
 
 
@@ -509,6 +510,7 @@ private:
 }; // ILI9341_SPI
 
 
+#if (defined ARCH_RP2040)
 /** 8bit parallel driver interface for the ILI9341 display controller. 
  
     This driver is specific to RP2040 and won't work on other chips. 
@@ -549,7 +551,7 @@ private:
     TWRL  | 15          | WR low duration
 
  */
-template<gpio::Pin CS, gpio::Pin DC, gpio::Pin WR, gpio::Pin FMARK, gpio::Pin DATA> 
+template<gpio::Pin CS, gpio::Pin DC, gpio::Pin WR, gpio::Pin FMARK, gpio::Pin DATA, uint PIO_ID = 0> 
 class ILI9341_8080 {
 protected:
     ILI9341_8080() = default;
@@ -563,38 +565,50 @@ protected:
         gpio_put(DC, true);
         gpio_init(FMARK);
         gpio_set_dir(FMARK, GPIO_IN);
+        /*
         gpio_init(WR);
         gpio_set_dir(WR, GPIO_OUT);
         gpio_put(WR, true);
         // initialize the data pins, which must be consecutive
         gpio_init_mask(0xff << DATA);
         gpio_set_dir_out_masked(0xff << DATA);
+        */
         // load the pio code for writing data
+        pio_ = PIO_ID ? pio1 : pio0;
+        offset_ = pio_add_program(pio_, &ili9341_program);
+        sm_ = pio_claim_unused_sm(pio_, true);
+        ili9341_program_init(pio_, sm_, offset_, WR, DATA);
     }
 
     void begin() {
+        ili9341_wait_idle(pio_, sm_);
         gpio_put(CS, false);
     }
 
     void end() {
+        ili9341_wait_idle(pio_, sm_);
         gpio_put(CS, true);
     }
 
     void data() {
+        ili9341_wait_idle(pio_, sm_);
         gpio_put(DC, true);
-
     }
 
     void command() {
+        ili9341_wait_idle(pio_, sm_);
         gpio_put(DC, false);
     }
 
     void write(uint8_t data) {
+        ili9341_put(pio_, sm_, data);
+        /*
         gpio_put(WR, false);
         gpio_put_masked(0xff << DATA, static_cast<uint64_t>(data) << DATA);
         asm volatile("nop \n nop \n nop");
         gpio_put(WR, true);
         asm volatile("nop \n nop \n nop \n nop");
+        */
     }
 
     /** Async (where supported) write of the given buffer. 
@@ -611,12 +625,30 @@ protected:
                 i = 0;
         }
         return false;
+
+        /*
+        dma_ = dma_claim_unused_channel(true);
+        dma_channel_config c = dma_channel_get_default_config(dma_); // create default channel config, write does not increment, read does increment, 32bits size
+        channel_config_set_transfer_data_size(& c, DMA_SIZE_8); // transfer 8 bytes
+        channel_config_set_dreq(& c, pio_get_dreq(pio_, sm_, true)); // tell our PIO
+        // determine the wrapping
+        if (actualSize != 0) {
+            if (actualSize == 1)
+                channel_config_set_read_increment(& c, false);
+            else
+                channel_config_set_ring(& c, false, 31 - __builtin_clz(actualSize)); 
+        }        
+        dma_channel_configure(dma_, & c, &pio_->txf[sm_], data, size, true); // start
+        return true;
+        */
     }
 
     /** Returns true if there is an asynchronous data write in process. 
+     
+        This means that either the DMA channel is still transferring, or if DMA is done we must make sure that the PIO has stalled on an empty queue. 
      */
     bool writeAsyncBusy() {
-        return false;
+        return dma_channel_is_busy(dma_) || ili9341_busy(pio_, sm_);
     }
 
     /** Waits for the asynchronous data transfer to finish, then returns. 
@@ -624,136 +656,23 @@ protected:
         If there is no such transfer, returns immediately. 
      */
     void writeAsyncWait() {
-        // nop
+        dma_channel_wait_for_finish_blocking(dma_);
+        dma_channel_unclaim(dma_);
+        dma_ = -1;
+        ili9341_wait_idle(pio_, sm_);
     }
 
     // We don't do read in parallel. 
     uint8_t read() { return 0; }
 
+private:
+    PIO pio_;
+    uint sm_;
+    uint offset_;
+    int dma_ = -1;
+
 }; // ILI9431_8080
-
-
-
-
-
-
-/** OLD DOCS
- * 
-    We need a decent framerate for the entire display. That is 320x240x16x24 (full screen, 16bit color, 24 fps), i.e. 28.125Mbps. The controller only has about ~10Mbps SPI bandwidth, which is not enough. The internet says that this *can* be pushed up to 40Mbps, so technically doable, but the buffer would be locked for almost all time. 
-
-    The parallel interface can be used as an alternative. A minimal write cycle is 66ns, on RP2040 this translates to 12 cycles for ~90ns per byte, around 14ms, out of ~40ms available for the frame, so pretty doable. 
-
-    Since we want the optimal DMA bandwidth, give the data & WRT pins to pio only when in use, disable between block transfers.
-
-    40pin connector:
-
-    1,2,3,4 = Touch panel
-    5 = GND
-    6 = VCC
-    & = ??
-    8 = FMARK (tearing effect)
-    9 = CS
-    10 = RS/SP (1 == data, 0 = command for parallel), SCK for SPI
-    11 = WR/A0 (write at rising edge for parallel), data or command for SPI, VCC if not used
-    12 = RD (read at rising edge), VCC if not used
-    13 = SPI SDI/SDA, if not used, fix at VCC or GND
-    14 = SPI SD0, data outputted on falling edge of SCL, leave floating if not used
-    15 = RESET, active low
-    16 = GND
-    17-24 = Data bus DBO - DB7, GND if not used
-    25-32 = Data bus DB8-DB15, GND if not used
-    33 = LED Anode
-    34,35,36 = LED Cathode (connected together)
-    37 = GND
-    38, 39, 40 = IM0, IM1, IM2
-
-    For the purposes of driving the display from RP2040 in parallel interface, the following should be connected:
-
-    5 = GND
-    6 = VCC
-    8 = FMARK 
-    9 = CS
-    10 = RS/SP
-    11 = WR
-    12 = 6 - VCC (RD is not used)  
-    13 = 6 - VCC (SPI SDI/SDA not used)
-    15 = reset ???
-    16 = GND
-    17-24 = GND (first data bank, not used)
-    25-32 = Data
-    33 = 6 - VCC (LED anode)
-    34, 35, 36 = R47 to GND ? (via transistor for PWM baclight intensity)
-    37 = GND
-    38 = 6 (VCC for 8bit parallel interface II)
-    39 = 37 (GND, for 8bit parallel interface)
-    40 = 37 (GND, for 8bit parallel interface)
-
-    Actual connections are: 5,6,8,9,10,11,25-32
- */
-
-// Adafruit initialization sequence. Does not seem to be needed
-
-/*
-#define ILI9341_TFTWIDTH 240  ///< ILI9341 max TFT width
-#define ILI9341_TFTHEIGHT 320 ///< ILI9341 max TFT height
-
-#define ILI9341_NOP 0x00     ///< No-op register
-#define ILI9341_SWRESET 0x01 ///< Software reset register
-#define ILI9341_RDDID 0x04   ///< Read display identification information
-#define ILI9341_RDDST 0x09   ///< Read Display Status
-
-#define ILI9341_SLPIN 0x10  ///< Enter Sleep Mode
-#define ILI9341_SLPOUT 0x11 ///< Sleep Out
-#define ILI9341_PTLON 0x12  ///< Partial Mode ON
-#define ILI9341_NORON 0x13  ///< Normal Display Mode ON
-
-#define ILI9341_RDMODE 0x0A     ///< Read Display Power Mode
-#define ILI9341_RDMADCTL 0x0B   ///< Read Display MADCTL
-#define ILI9341_RDPIXFMT 0x0C   ///< Read Display Pixel Format
-#define ILI9341_RDIMGFMT 0x0D   ///< Read Display Image Format
-#define ILI9341_RDSELFDIAG 0x0F ///< Read Display Self-Diagnostic Result
-
-#define ILI9341_INVOFF 0x20   ///< Display Inversion OFF
-#define ILI9341_INVON 0x21    ///< Display Inversion ON
-#define ILI9341_GAMMASET 0x26 ///< Gamma Set
-#define ILI9341_DISPOFF 0x28  ///< Display OFF
-#define ILI9341_DISPON 0x29   ///< Display ON
-
-#define ILI9341_CASET 0x2A ///< Column Address Set
-#define ILI9341_PASET 0x2B ///< Page Address Set
-#define ILI9341_RAMWR 0x2C ///< Memory Write
-#define ILI9341_RAMRD 0x2E ///< Memory Read
-
-#define ILI9341_PTLAR 0x30    ///< Partial Area
-#define ILI9341_VSCRDEF 0x33  ///< Vertical Scrolling Definition
-#define ILI9341_MADCTL 0x36   ///< Memory Access Control
-#define ILI9341_VSCRSADD 0x37 ///< Vertical Scrolling Start Address
-#define ILI9341_PIXFMT 0x3A   ///< COLMOD: Pixel Format Set
-
-#define ILI9341_FRMCTR1                                                        \
-  0xB1 ///< Frame Rate Control (In Normal Mode/Full Colors)
-#define ILI9341_FRMCTR2 0xB2 ///< Frame Rate Control (In Idle Mode/8 colors)
-#define ILI9341_FRMCTR3                                                        \
-  0xB3 ///< Frame Rate control (In Partial Mode/Full Colors)
-#define ILI9341_INVCTR 0xB4  ///< Display Inversion Control
-#define ILI9341_DFUNCTR 0xB6 ///< Display Function Control
-
-#define ILI9341_PWCTR1 0xC0 ///< Power Control 1
-#define ILI9341_PWCTR2 0xC1 ///< Power Control 2
-#define ILI9341_PWCTR3 0xC2 ///< Power Control 3
-#define ILI9341_PWCTR4 0xC3 ///< Power Control 4
-#define ILI9341_PWCTR5 0xC4 ///< Power Control 5
-#define ILI9341_VMCTR1 0xC5 ///< VCOM Control 1
-#define ILI9341_VMCTR2 0xC7 ///< VCOM Control 2
-
-#define ILI9341_RDID1 0xDA ///< Read ID 1
-#define ILI9341_RDID2 0xDB ///< Read ID 2
-#define ILI9341_RDID3 0xDC ///< Read ID 3
-#define ILI9341_RDID4 0xDD ///< Read ID 4
-
-#define ILI9341_GMCTRP1 0xE0 ///< Positive Gamma Correction
-#define ILI9341_GMCTRN1 0xE1 ///< Negative Gamma Correction
-*/
+#endif // ARCH_RP2040
 
 /*
 static constexpr uint8_t initcmd[] = {
