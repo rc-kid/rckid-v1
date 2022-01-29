@@ -12,6 +12,9 @@ namespace gpio {
 
 #if (defined ARCH_RP2040)
     using Pin = unsigned;
+
+    static constexpr Pin UNUSED = 0xffff;
+
 #elif (defined ARCH_ARDUINO) 
 
 #endif

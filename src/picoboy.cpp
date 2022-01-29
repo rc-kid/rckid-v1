@@ -5,6 +5,7 @@
  */
 
 #include <stdio.h>
+#include <inttypes.h>
 #include <pico/stdlib.h>
 
 #include "peripherals/nrf24l01.h"
@@ -40,7 +41,7 @@ constexpr unsigned LED_PIN = PICO_DEFAULT_LED_PIN;
 //ILI9341<DISPLAY_CS, DISPLAY_DC, DISPLAY_FMARK, DISPLAY_WR, DISPLAY_DATA> display_;
 
 //ILI9341<ILI9341_SPI<DISPLAY_CS, DISPLAY_DC>> display_;
-ILI9341<ILI9341_8080<DISPLAY_CS, DISPLAY_DC, DISPLAY_WR, DISPLAY_FMARK, DISPLAY_DATA>> display_; 
+ILI9341<ILI9341_8080<DISPLAY_CS, DISPLAY_DC, DISPLAY_WR, DISPLAY_FMARK, DISPLAY_DATA>, DISPLAY_FMARK> display_; 
 //NRF24L01 radio_{NRF_CS, NRF_RXTX};
 
 
@@ -60,12 +61,29 @@ int main() {
     printf("HW Initialization done");
     cpu::delay_ms(50); // delay 100ms so that the voltages across the system can settle
     display_.initializeDisplay(DisplayRotation::Left);
+    uint16_t color = 0;
+    while (true) {
+        color = 0b0000000011111000; // red max
+        display_.fill(Rect::WH(320,240), reinterpret_cast<uint8_t*>(& color), 2);
+        sleep_ms(15);
+        color = 0b1110000000000111; // green max
+        display_.fill(Rect::WH(320,240), reinterpret_cast<uint8_t*>(& color), 2);
+        sleep_ms(15);
+        color = 0b0001111100000000; // blue max
+        display_.fill(Rect::WH(320,240), reinterpret_cast<uint8_t*>(& color), 2);
+        sleep_ms(15);
+    }
 
-    //uint16_t color = 0b1110000000000111;
-    uint16_t color = 0xffff;
+    //uint16_t color = 0x001f;
+    auto start = get_absolute_time();
     display_.fill(Rect::WH(320,240), reinterpret_cast<uint8_t*>(& color), 2);
+    auto end = get_absolute_time();
+    // 40630 for "classic"
+    // 12395 for "pio", 10 cycles
+    // 11166 for "pio", 9 cycles
+    // 9937 for "pio", 8 cycles
+    printf("Refresh: %" PRId64 "[us]\n", absolute_time_diff_us(start, end));
     color = 0;
-    sleep_ms(1);
     display_.fill(Rect::XYWH(10, 10, 10, 10), reinterpret_cast<uint8_t*>(& color), 2);
 
     printf("Initialization done");

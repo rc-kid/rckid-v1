@@ -3,14 +3,12 @@
 #include "platform/gpio.h"
 #include "platform/spi.h"
 
-
-#if (defined ARCH_RP2040)
 #include <cstdint>
 #include <hardware/gpio.h>
 #include <hardware/pio.h>
 #include <hardware/dma.h>
 #include "ili9341.pio.h"
-#endif
+#include "graphics.h"
 
 
 enum class DisplayRotation {
@@ -19,112 +17,6 @@ enum class DisplayRotation {
     Right,
     Bottom,
 }; 
-
-class Point {
-public:
-    uint16_t x;
-    uint16_t y;
-};
-
-static_assert(sizeof(Point) == 4);
-
-class Rect {
-public:
-
-    static Rect WH(uint16_t width, uint16_t height) { 
-        return Rect{0,0,width, height};
-    }
-    static Rect XYWH(uint16_t left, uint16_t top, uint16_t width, uint16_t height) {
-        return Rect{left, top, static_cast<uint16_t>(left + width), static_cast<uint16_t>(top + height)};
-    }
-
-    union {
-        struct {
-            Point topLeft;
-            Point bottomRight;
-        };
-        struct {
-            uint16_t left;
-            uint16_t top;
-            uint16_t right;
-            uint16_t bottom;
-        };
-    };
-
-    uint16_t width() const { return right - left; }
-    uint16_t height() const { return bottom - top; }
-
-private:
-    Rect(uint16_t l, uint16_t t, uint16_t r, uint16_t b):
-        left{l}, 
-        top{t}, 
-        right{r}, 
-        bottom{b} {
-    }
-
-};
-
-static_assert(sizeof(Rect) == 8);
-
-
-/** A single pixel. 
- */
-class Pixel {
-public:
-
-    constexpr Pixel(uint8_t r, uint8_t g, uint8_t b):
-        raw_{static_cast<uint16_t>((r << 11) | (g << 6) | b)} {
-        if (raw_ & 0b0000010000000000)
-            raw_ |= 0b0000000000100000;
-    }
-
-    constexpr Pixel(uint16_t raw):
-        raw_{raw} {
-    }
-
-    uint8_t r() const { return (raw_ >> 11) & 0b11111; }
-    uint8_t g() const { return (raw_ >> 6) & 0b11111; }
-    uint8_t b() const { return raw_ & 0b11111; }
-
-    Pixel & r(uint8_t value) {
-        raw_ &= 0b0000011111111111;
-        raw_ |= value << 11;
-        return *this;
-    }
-
-    Pixel & g(uint8_t value) {
-        raw_ &= 0b1111100000011111;
-        raw_ |= value << 6;
-        if (raw_ & 0b0000010000000000)
-            raw_ |= 0b0000000000100000;
-        return *this;
-    }
-
-    Pixel & b(uint8_t value) {
-        raw_ &= 0b1111111111100000;
-        raw_ |= value;
-        return *this;
-    }
-
-    /** Sets green color in its full range of 0..63. 
-     */
-    Pixel & gFull(uint8_t value) {
-        raw_ &= 0b1111100000011111;
-        raw_ |= value << 5;
-        return *this;
-    }
-
-    operator uint16_t() const {
-        return raw_;
-    }
-
-private:
-    uint16_t raw_;
-};
-
-static_assert(sizeof(Pixel) == 2, "Wrong pixel size!");
-
-
 
 /** ILI9341
  
@@ -172,7 +64,7 @@ static_assert(sizeof(Pixel) == 2, "Wrong pixel size!");
     First check the LED, it should turn the display all white. 
 
  */
-template<typename T>
+template<typename T, gpio::Pin FMARK = gpio::UNUSED>
 class ILI9341 : public T {
 public:
 
@@ -198,6 +90,8 @@ public:
      */
     void initialize() {
         T::initialize();
+        if (FMARK != gpio::UNUSED)
+            gpio::input(FMARK);
     }
 
     /** Initializes the display. 
@@ -207,6 +101,7 @@ public:
         sendCommand8(VERTICAL_SCROLL_START, 0);
         sendCommand8(PIXEL_FORMAT, PIXEL_FORMAT_16);
         rotate(r);
+        sendCommand8(TEARING_LINE_ON, TEARING_LINE_MODE_VSYNC);
         sendCommand(SLEEP_OUT, nullptr, 0);
         cpu::delay_ms(150);
         sendCommand(DISPLAY_ON, nullptr, 0);
@@ -256,13 +151,22 @@ public:
         Accepts size of the buffer, which must be a power of two. If the size is smaller than the actual area to be written, provided pixel data will be wrapped. 
      */
     void fill(Rect r, uint8_t const * pixelData, size_t pixelDataSize = 0) {
+        /*
+        if (FMARK != gpio::UNUSED) {
+            while (!gpio_get(FMARK));
+            //while (gpio_get(FMARK));
+        }
+        */
         setColumnUpdateRange(r.left, r.right - 1);
         setRowUpdateRange(r.top, r.bottom - 1);
         beginCommand(RAM_WRITE);
         data();
-        if (writeAsync(pixelData, r.width() * r.height() * 2, pixelDataSize)) {
-            writeAsyncWait();
+        if (FMARK != gpio::UNUSED) {
+            while (!gpio_get(FMARK));
+            //while (gpio_get(FMARK));
         }
+        if (writeAsync(pixelData, r.width() * r.height() * 2, pixelDataSize))
+            writeAsyncWait();
         end();    
     }
 
@@ -323,6 +227,10 @@ protected:
     static constexpr uint8_t RAM_WRITE = 0x2c;
     static constexpr uint8_t PARTIAL_AREA = 0x30;
     static constexpr uint8_t VERTICAL_SCROLL = 0x33;
+    static constexpr uint8_t TEARING_LINE_OFF = 0x34;
+    static constexpr uint8_t TEARING_LINE_ON = 0x35;
+    static constexpr uint8_t TEARING_LINE_MODE_VSYNC = 0;
+    static constexpr uint8_t TEARING_LINE_MODE_V_AND_H_SYNC = 1;
     static constexpr uint8_t MADCTL = 0x36;
     static constexpr uint8_t MADCTL_MY = 0x80;  // Bottom to top
     static constexpr uint8_t MADCTL_MX = 0x40;  // Right to left
@@ -333,7 +241,8 @@ protected:
     static constexpr uint8_t MADCTL_MH = 0x04;  // LCD refresh right to left    
     static constexpr uint8_t VERTICAL_SCROLL_START = 0x37;
     static constexpr uint8_t PIXEL_FORMAT = 0x3a;
-    static constexpr uint8_t PIXEL_FORMAT_16 =0x55; // 16 bit pixel format
+    static constexpr uint8_t PIXEL_FORMAT_16 = 0x55; // 16 bit pixel format
+    static constexpr uint8_t SET_TEAR_SCANLINE = 0x44;
 
     void beginCommand(uint8_t cmd) {
         begin();
@@ -353,6 +262,10 @@ protected:
 
     void sendCommand8(uint8_t cmd, uint8_t p) {
         sendCommand(cmd, & p, 1);
+    }
+    void sendCommand16(uint8_t cmd, uint16_t p1) {
+        uint16_t params = swapBytes(p1);
+        sendCommand(cmd, reinterpret_cast<uint8_t *>( & params), 2);
     }
 
     void sendCommand16(uint8_t cmd, uint16_t p1, uint16_t p2) {
@@ -565,15 +478,7 @@ protected:
         gpio_put(DC, true);
         gpio_init(FMARK);
         gpio_set_dir(FMARK, GPIO_IN);
-        /*
-        gpio_init(WR);
-        gpio_set_dir(WR, GPIO_OUT);
-        gpio_put(WR, true);
-        // initialize the data pins, which must be consecutive
-        gpio_init_mask(0xff << DATA);
-        gpio_set_dir_out_masked(0xff << DATA);
-        */
-        // load the pio code for writing data
+        // load the pio code for writing data, which also initializes the WR and DATA pins
         pio_ = PIO_ID ? pio1 : pio0;
         offset_ = pio_add_program(pio_, &ili9341_program);
         sm_ = pio_claim_unused_sm(pio_, true);
@@ -616,17 +521,6 @@ protected:
         Always transmits the required bytes. If the transfer is asynchronous, returns true, false is returned when asynrhonous transfer is not supported (and therefore the transfer has already happened).     
      */
     bool writeAsync(uint8_t const * data, size_t size, size_t actualSize = 0) {
-        if (actualSize == 0) 
-            actualSize = size;
-        size_t i = 0;
-        while (size-- != 0) {
-            write(data[i++]);
-            if (i == actualSize)
-                i = 0;
-        }
-        return false;
-
-        /*
         dma_ = dma_claim_unused_channel(true);
         dma_channel_config c = dma_channel_get_default_config(dma_); // create default channel config, write does not increment, read does increment, 32bits size
         channel_config_set_transfer_data_size(& c, DMA_SIZE_8); // transfer 8 bytes
@@ -640,7 +534,6 @@ protected:
         }        
         dma_channel_configure(dma_, & c, &pio_->txf[sm_], data, size, true); // start
         return true;
-        */
     }
 
     /** Returns true if there is an asynchronous data write in process. 

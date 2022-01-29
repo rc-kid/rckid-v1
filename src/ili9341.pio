@@ -6,13 +6,18 @@
 ; - data stable (i.e. stable, write low) 10ns
 ; - data hold (i.e. stable, write high) 10ns
 ;
-; At 133Mhz, one cycle is 7.5ns. This means we need about 10 cycles with a wee bit of a margin. 
+; At 133Mhz, one cycle is 7.5ns. This means we need about 10 cycles with a wee bit of a margin, or 9 cycles with no margin pretty much, but the display seems to handle it well. In fact the display seems to handle it all the way down to 2 instructions per transfer, which is crazy. 
+;
+; Timings are: 12.395ms for 10 cycles, 11.166ms for 9 cycles and then 2.565ms for 2 cycles. 
 
 .program ili9341
 .side_set 1 ; this is the WR pin 
 
 .define DATA_PREPARE_CYCLES 4
-.define DATA_HOLD_CYCLES 6
+.define DATA_HOLD_CYCLES 5
+
+;.define DATA_PREPARE_CYCLES 1
+;.define DATA_HOLD_CYCLES 1
 
 .wrap_target
     ; first output 0 on the WR pin and put the data on the data lines, wait for the given time
