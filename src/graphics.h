@@ -50,57 +50,76 @@ private:
 static_assert(sizeof(Rect) == 8);
 
 /** A single pixel. 
+ 
  */
 class Pixel {
 public:
 
-    constexpr Pixel(uint8_t r, uint8_t g, uint8_t b):
-        raw_{static_cast<uint16_t>((r << 11) | (g << 6) | b)} {
-        if (raw_ & 0b0000010000000000)
-            raw_ |= 0b0000000000100000;
+    Pixel():
+        raw_{0} {
     }
 
-    constexpr Pixel(uint16_t raw):
-        raw_{raw} {
+    static constexpr Pixel RGB(uint8_t r, uint8_t g, uint8_t b) {
+        g = (g >= 16) ? (g << 1) : ((g << 1) + 1);
+        return RGBFull(r, g, b);
+    }
+    static constexpr Pixel RGBFull(uint8_t r, uint8_t g, uint8_t b) {
+        return Pixel{
+            ((r & 31) << 8) |
+            ((g >> 3) & 7) | ((g & 7) << 13) |
+            (b & 31) << 8
+        };
     }
 
-    uint8_t r() const { return (raw_ >> 11) & 0b11111; }
-    uint8_t g() const { return (raw_ >> 6) & 0b11111; }
-    uint8_t b() const { return raw_ & 0b11111; }
+    static constexpr Pixel Black() { return Pixel::RGB(0,0,0); }
+    static constexpr Pixel Red() { return Pixel::RGB(31, 0, 0); };
+    static constexpr Pixel Green() { return Pixel::RGB(0, 31, 0); };
+    static constexpr Pixel Blue() { return Pixel::RGB(0, 0, 31); };
+    static constexpr Pixel White() { return Pixel::RGB(31, 31, 31); };
+
+    uint8_t r() const { return (raw_ >> 8) & 31; }
+    uint8_t g() const { return ((raw_ & 7) << 2) | (( raw_ >> 14) & 3); }
+    uint8_t b() const { return (raw_ >> 3) & 31; }
 
     Pixel & r(uint8_t value) {
-        raw_ &= 0b0000011111111111;
-        raw_ |= value << 11;
+        raw_ &= ~RED_MASK;
+        raw_ |= (value << 8) & RED_MASK;
         return *this;
     }
 
     Pixel & g(uint8_t value) {
-        raw_ &= 0b1111100000011111;
-        raw_ |= value << 6;
-        if (raw_ & 0b0000010000000000)
-            raw_ |= 0b0000000000100000;
-        return *this;
+        value = (value >= 16) ? (value << 1) : ((value << 1) + 1);
+        return gFull(value);
     }
 
     Pixel & b(uint8_t value) {
-        raw_ &= 0b1111111111100000;
-        raw_ |= value;
-        return *this;
+        raw_ &= ~BLUE_MASK;
+        raw_ |= (value << 3) & BLUE_MASK;
+        return * this;
     }
 
-    /** Sets green color in its full range of 0..63. 
-     */
+    uint8_t gFull() const { return ((raw_ & 7) << 3) | (( raw_ >> 13) & 7); }
+
     Pixel & gFull(uint8_t value) {
-        raw_ &= 0b1111100000011111;
-        raw_ |= value << 5;
+        raw_ &= ~GREEN_MASK;
+        raw_ |= ((value >> 3) & 7) | ((value & 7) << 13);
         return *this;
     }
 
-    operator uint16_t() const {
+    constexpr operator uint16_t () {
         return raw_;
     }
 
 private:
+
+    constexpr Pixel(int raw):
+        raw_{static_cast<uint16_t>(raw)} {
+    }
+
+    // GGGRRRRRBBBBBGGG
+    static constexpr uint16_t RED_MASK = 0b0001111100000000;
+    static constexpr uint16_t GREEN_MASK = 0b1110000000000111;
+    static constexpr uint16_t BLUE_MASK = 0b0000000011111000;
     uint16_t raw_;
 };
 

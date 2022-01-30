@@ -12,20 +12,38 @@ ARCH_NOT_SUPPORTED;
 
 namespace i2c {
 
-    void initialize() {
+#if (defined ARCH_RP2040)
+    inline void initialize(unsigned sda, unsigned scl, unsigned baudrate = 400000) {
+        i2c_init(i2c0, 400 * 1000);
+        gpio_set_function(sda, GPIO_FUNC_I2C);
+        gpio_set_function(scl, GPIO_FUNC_I2C);
+        // Make the I2C pins available to picotool
+        bi_decl(bi_2pins_with_func(sda, scl, GPIO_FUNC_I2C));    
+    }
+#else
+
+    inline void initialize() {
 #if (defined __AVR_ATmega8__)
         TWBR = static_cast<uint8_t>((F_CPU / 100000 - 16) / 2);
         TWAR = 0; // master mode
         TWDR = 0xFF; // default content = SDA released.
         TWCR = Bits<TWEN,TWIE>::value();         
-#else
+#elif (defined ARCH_ARDUINO)
         Wire.begin();
         Wire.setClock(400000);
 #endif
     }
+#endif
 
-    bool transmit(uint8_t address, uint8_t * wb, uint8_t wsize, uint8_t * rb, uint8_t rsize) {
-#if (defined __AVR_ATmega8__)
+
+    inline bool transmit(uint8_t address, uint8_t * wb, uint8_t wsize, uint8_t * rb, uint8_t rsize) {
+#if (defined ARCH_RP2040)
+        if (wsize != 0)
+            i2c_write_blocking(i2c0, address, wb, wsize, rsize != 0);
+        if (rsize != 0)
+            i2c_read_blocking(i2c0, address, rb, rsize, false);
+        return true;
+#elif (defined __AVR_ATmega8__)
        // TODO won't compile for now
        // update the slave address by shifting it to the right and then adding 1 if we are going to read immediately, i.e. no transmit bytes
         address <<= 1;
@@ -93,7 +111,7 @@ namespace i2c {
     i2c_master_error:
         TWCR = Bits<TWINT,TWEN,TWSTO>::value();
         return false;
-#else
+#elif (defined ARCH_ARDUINO)
         if (wsize > 0) {
             Wire.beginTransmission(address);
             Wire.write(wb, wsize);

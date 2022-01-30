@@ -9,8 +9,8 @@
 #include <pico/stdlib.h>
 
 #include "peripherals/nrf24l01.h"
+#include "peripherals/mpu6050.h"
 
-#include "rp2040/i2c.h"
 #include "ili9341.h"
 
 //#include <pico/binary_info.h>
@@ -61,18 +61,19 @@ int main() {
     printf("HW Initialization done");
     cpu::delay_ms(50); // delay 100ms so that the voltages across the system can settle
     display_.initializeDisplay(DisplayRotation::Left);
-    uint16_t color = 0;
+    Pixel color;
     while (true) {
-        color = 0b0000000011111000; // red max
+        color = Pixel::Red();
         display_.fill(Rect::WH(320,240), reinterpret_cast<uint8_t*>(& color), 2);
         sleep_ms(15);
-        color = 0b1110000000000111; // green max
+        color = Pixel::Green();
         display_.fill(Rect::WH(320,240), reinterpret_cast<uint8_t*>(& color), 2);
         sleep_ms(15);
-        color = 0b0001111100000000; // blue max
+        color = Pixel::Blue();
         display_.fill(Rect::WH(320,240), reinterpret_cast<uint8_t*>(& color), 2);
         sleep_ms(15);
     }
+    /*
 
     //uint16_t color = 0x001f;
     auto start = get_absolute_time();
@@ -90,7 +91,7 @@ int main() {
     gpio::low(LED_PIN);
 
     while(true) {}
-    
+    */
 
     //mpu6050_reset();
 
