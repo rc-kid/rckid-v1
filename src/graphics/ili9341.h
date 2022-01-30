@@ -16,6 +16,8 @@ enum class DisplayRotation {
     Top,
     Right,
     Bottom,
+    // An attempt for a raw display orientation to elliminate flicker. See how it goes.
+    Raw,
 }; 
 
 /** ILI9341
@@ -142,6 +144,8 @@ public:
             case DisplayRotation::Bottom:
                 madctl = MADCTL_MX | MADCTL_BGR;
                 break;
+            case DisplayRotation::Raw:
+                madctl = MADCTL_BGR;
         }
         sendCommand8(MADCTL, madctl);
     }

@@ -1,20 +1,53 @@
-/**
- * Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
- *
- * SPDX-License-Identifier: BSD-3-Clause
+/** Pinout
+ 
+           TX - 0         VBUS
+           RX - 1         VSYS
+                GND        GND
+          SDA - 2        3V3EN
+          SCL - 3    3V3 (out)
+      DISP_CS - 4     ADC_VREF
+      DISP_DC - 5      28/ADC2
+                GND   GND/AGND
+   DISP_FMARK - 6      27/ADC1
+      DISP_WR - 7      26/ADC0
+      DISP_D7 - 8          RUN
+      DISP_D6 - 9           22
+                GND        GND
+      DISP_D5 - 10          21
+      DISP_D4 - 11          20
+      DISP_D3 - 12          19 - MOSI
+      DISP_D2 - 13          18 - SCK
+                GND        GND
+      DISP_D1 - 14          17
+      DISP_D0 - 15          16 - MISO
+
+
+      7 pins left, 9 if UART disabled
+
+      AVR_IRQ 
+      SD_CARD_CS
+      RADIO_CS
+      I2S_
+      I2S_
+      I2S_
+      PDM
  */
 
 #include <stdio.h>
 #include <inttypes.h>
 #include <pico/stdlib.h>
 
+#include "platform/utils.h"
+
 #include "peripherals/nrf24l01.h"
 #include "peripherals/mpu6050.h"
 
-#include "ili9341.h"
 
-//#include <pico/binary_info.h>
-//#include <hardware/i2c.h>
+#include "graphics/ili9341.h"
+#include "graphics/fonts/FreeMono12pt7b.h"
+
+
+
 
 #define ACCELEROMETER_ADDR 0x68
 #define I2C_SDA 4
@@ -60,18 +93,23 @@ int main() {
     display_.initialize();
     printf("HW Initialization done");
     cpu::delay_ms(50); // delay 100ms so that the voltages across the system can settle
-    display_.initializeDisplay(DisplayRotation::Left);
+    display_.initializeDisplay(DisplayRotation::Raw);
+    Canvas canvas{320,240};
+    canvas.fill(Pixel::White());
+    display_.fill(Rect::WH(240, 320), canvas.buffer(), canvas.bufferSize());
     Pixel color;
+    int i = 0;
+    int inc = 1;
     while (true) {
-        color = Pixel::Red();
-        display_.fill(Rect::WH(320,240), reinterpret_cast<uint8_t*>(& color), 2);
-        sleep_ms(15);
-        color = Pixel::Green();
-        display_.fill(Rect::WH(320,240), reinterpret_cast<uint8_t*>(& color), 2);
-        sleep_ms(15);
-        color = Pixel::Blue();
-        display_.fill(Rect::WH(320,240), reinterpret_cast<uint8_t*>(& color), 2);
-        sleep_ms(15);
+        canvas.fill(Pixel::Black());
+        canvas.fill(Rect::XYWH(i,i,60,10), Pixel::White());
+        display_.fill(Rect::WH(240,320), canvas.buffer(), canvas.bufferSize());
+        //sleep_ms(15);
+        i = i + inc;
+        if (i >= 230)
+            inc = -1;
+        else if (i == 0)
+            inc = 1;
     }
     /*
 
