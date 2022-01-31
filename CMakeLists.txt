@@ -33,6 +33,7 @@ file(GLOB_RECURSE SRC "src/*.cpp" "src/*.h")
 add_executable(picoboy ${SRC})
 
 pico_generate_pio_header(picoboy ${CMAKE_SOURCE_DIR}/src/graphics/ili9341.pio)
+pico_generate_pio_header(picoboy ${CMAKE_SOURCE_DIR}/src/audio/i2s.pio)
 
 # pull in common dependencies
 target_link_libraries(picoboy

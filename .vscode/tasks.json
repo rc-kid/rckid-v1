@@ -6,7 +6,8 @@
             "args": [
                 "bin/upload.sh"
             ],
-            "type": "process"
+            "type": "process",
+            "problemMatcher": []            
         },
         {
             "label": "picoboy-rpi",
@@ -14,7 +15,8 @@
             "args": [
                 "bin/upload-rpi.sh"
             ],
-            "type": "process"
+            "type": "process",
+            "problemMatcher": []            
         },
         {
             "label": "picoboy-rpi-swd",

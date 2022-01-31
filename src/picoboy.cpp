@@ -1,3 +1,20 @@
+
+#include <stdio.h>
+#include <inttypes.h>
+#include <pico/stdlib.h>
+
+#include "platform/utils.h"
+
+#include "peripherals/nrf24l01.h"
+#include "peripherals/mpu6050.h"
+
+
+#include "graphics/ili9341.h"
+#include "graphics/fonts/FreeMono12pt7b.h"
+
+#include "audio/audio.h"
+
+
 /** Pinout
  
            TX - 0         VBUS
@@ -6,10 +23,10 @@
           SDA - 2        3V3EN
           SCL - 3    3V3 (out)
       DISP_CS - 4     ADC_VREF
-      DISP_DC - 5      28/ADC2
+      DISP_DC - 5      28/ADC2 - I2S_DATA
                 GND   GND/AGND
-   DISP_FMARK - 6      27/ADC1
-      DISP_WR - 7      26/ADC0
+   DISP_FMARK - 6      27/ADC1 - I2S_LRCLK
+      DISP_WR - 7      26/ADC0 - I2S_BCLK
       DISP_D7 - 8          RUN
       DISP_D6 - 9           22
                 GND        GND
@@ -33,21 +50,10 @@
       PDM
  */
 
-#include <stdio.h>
-#include <inttypes.h>
-#include <pico/stdlib.h>
 
-#include "platform/utils.h"
-
-#include "peripherals/nrf24l01.h"
-#include "peripherals/mpu6050.h"
-
-
-#include "graphics/ili9341.h"
-#include "graphics/fonts/FreeMono12pt7b.h"
-
-
-
+#define I2S_DATA 28
+#define I2S_LRCLK 27
+#define I2S_BCLK 26
 
 #define ACCELEROMETER_ADDR 0x68
 #define I2C_SDA 4
@@ -77,6 +83,8 @@ constexpr unsigned LED_PIN = PICO_DEFAULT_LED_PIN;
 ILI9341<ILI9341_8080<DISPLAY_CS, DISPLAY_DC, DISPLAY_WR, DISPLAY_FMARK, DISPLAY_DATA>, DISPLAY_FMARK> display_; 
 //NRF24L01 radio_{NRF_CS, NRF_RXTX};
 
+Audio audio_;
+
 
 
 int main() {
@@ -89,6 +97,8 @@ int main() {
     spi::initialize(SPI_MISO, SPI_MOSI, SPI_SCK);
     i2c::initialize(I2C_SDA, I2C_SCL);
     printf("Interfaces initialized\n");
+    audio_.initialize(pio1, I2S_DATA, I2S_BCLK);
+    printf("Audio initialized");
     // initialize the peripherals
     display_.initialize();
     printf("HW Initialization done");
