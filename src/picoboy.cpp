@@ -110,11 +110,13 @@ int main() {
     Pixel color;
     int i = 0;
     int inc = 1;
+    canvas.setFont(FreeMono12pt7b);
     while (true) {
         canvas.fill(Pixel::Black());
         canvas.fill(Rect::XYWH(i,i,60,10), Pixel::White());
+        canvas.write(0,18, "H_|_Hello World!", 1);
+        canvas.write(0,18 + 24, "TWO IS TOO", 1);
         display_.fill(Rect::WH(240,320), canvas.buffer(), canvas.bufferSize());
-        //sleep_ms(15);
         i = i + inc;
         if (i >= 230)
             inc = -1;

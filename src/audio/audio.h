@@ -24,11 +24,13 @@ public:
         outSm_ = pio_claim_unused_sm(pio_, true);
         setOutSampleRate(SampleRate::khz8);
         i2s_out_program_init(pio_, outSm_, outOffset_, i2sData, i2sClock);
+        /*
         uint16_t i = 0;
         while (true) {
             outMono(i);
             i = i + 1;
         }
+        */
     }
 
     void setOutSampleRate(SampleRate sr) {

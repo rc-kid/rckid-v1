@@ -1,8 +1,5 @@
 #include <Arduino.h>
 
-#include "peripherals/pcd8544.h"
-#include "peripherals/nrf24l01.h"
-
 /** Chip Pinout
                -- VDD             GND --
                -- (00) PA4   PA3 (16) -- 
