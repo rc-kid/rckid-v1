@@ -47,6 +47,27 @@
             "problemMatcher": [
                 "$platformio"
             ]
+        },
+        {
+            "label": "picoboy-avr",
+            "type": "shell",
+            "command": "~/.platformio/penv/bin/pio",
+            "args": [
+                "remote",
+                "run",
+                "--target",
+                "upload"
+            ],
+            "options": {
+                "cwd": "src-avr",
+                "shell": {
+                    "executable" : "/bin/zsh",
+                    "args": ["-c"]
+                }
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
         }
     ],
     "version": "2.0.0"
