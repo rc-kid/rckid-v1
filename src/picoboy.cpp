@@ -14,6 +14,8 @@
 
 #include "audio/audio.h"
 
+#include "comms.h"
+
 
 /** Pinout
  
@@ -56,8 +58,8 @@
 #define I2S_BCLK 26
 
 #define ACCELEROMETER_ADDR 0x68
-#define I2C_SDA 4
-#define I2C_SCL 5
+#define I2C_SDA 2
+#define I2C_SCL 3
 
 #define SPI_MISO 16
 #define SPI_MOSI 19
@@ -107,6 +109,15 @@ int main() {
     Canvas canvas{320,240};
     canvas.fill(Pixel::White());
     display_.fill(Rect::WH(240, 320), canvas.buffer(), canvas.bufferSize());
+    printf("Display cleared");
+    /*
+    State state;
+    i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, reinterpret_cast<uint8_t*>(& state), sizeof(state));
+    printf("State:\n");
+    printf("    buttons : %u", state.buttons_);
+    printf("    joyX : %u", state.joyX_);
+    printf("    joyY : %u", state.joyY_);
+    */
     Pixel color;
     int i = 0;
     int inc = 1;

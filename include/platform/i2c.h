@@ -14,7 +14,7 @@ namespace i2c {
 
 #if (defined ARCH_RP2040)
     inline void initialize(unsigned sda, unsigned scl, unsigned baudrate = 400000) {
-        i2c_init(i2c0, 400 * 1000);
+        i2c_init(i2c1, 400 * 1000);
         gpio_set_function(sda, GPIO_FUNC_I2C);
         gpio_set_function(scl, GPIO_FUNC_I2C);
         // Make the I2C pins available to picotool
@@ -28,6 +28,8 @@ namespace i2c {
         TWAR = 0; // master mode
         TWDR = 0xFF; // default content = SDA released.
         TWCR = Bits<TWEN,TWIE>::value();         
+#elif (defined ARCH_AVR_MEGATINY)
+        // TODO TODO
 #elif (defined ARCH_ARDUINO)
         Wire.begin();
         Wire.setClock(400000);
@@ -35,13 +37,35 @@ namespace i2c {
     }
 #endif
 
+#if (defined ARCH_AVR_MEGATINY)
+    /** I2C Slave initialization for Series 1 chips. 
+     */
+    inline void initializeSlave(uint8_t address) {
+        cli();
+        // turn I2C off in case it was running before
+        TWI0.MCTRLA = 0;
+        TWI0.SCTRLA = 0;
+        // make sure that the pins are nout out - HW issue with the chip, will fail otherwise
+        PORTB.OUTCLR = 0x03; // PB0, PB1
+        // set the address and disable general call, disable second address and set no address mask (i.e. only the actual address will be responded to)
+        TWI0.SADDR = address << 1;
+        TWI0.SADDRMASK = 0;
+        // enable the TWI in slave mode, enable all interrupts
+        TWI0.SCTRLA = TWI_DIEN_bm | TWI_APIEN_bm | TWI_PIEN_bm  | TWI_ENABLE_bm;
+        // bus Error Detection circuitry needs Master enabled to work 
+        // not sure why we need it
+        TWI0.MCTRLA = TWI_ENABLE_bm;   
+        sei();
+    }
+#endif
+
 
     inline bool transmit(uint8_t address, uint8_t * wb, uint8_t wsize, uint8_t * rb, uint8_t rsize) {
 #if (defined ARCH_RP2040)
         if (wsize != 0)
-            i2c_write_blocking(i2c0, address, wb, wsize, rsize != 0);
+            i2c_write_blocking(i2c1, address, wb, wsize, rsize != 0);
         if (rsize != 0)
-            i2c_read_blocking(i2c0, address, rb, rsize, false);
+            i2c_read_blocking(i2c1, address, rb, rsize, false);
         return true;
 #elif (defined __AVR_ATmega8__)
        // TODO won't compile for now
@@ -111,6 +135,8 @@ namespace i2c {
     i2c_master_error:
         TWCR = Bits<TWINT,TWEN,TWSTO>::value();
         return false;
+#elif (defined ARCH_AVR_MEGATINY)
+        // TODO TODO
 #elif (defined ARCH_ARDUINO)
         if (wsize > 0) {
             Wire.beginTransmission(address);

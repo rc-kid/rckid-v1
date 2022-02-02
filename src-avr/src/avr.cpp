@@ -1,5 +1,11 @@
 #include <Arduino.h>
 
+#include "platform/platform.h"
+#include "platform/gpio.h"
+#include "platform/i2c.h"
+
+#include "comms.h"
+
 /** Chip Pinout
                -- VDD             GND --
                -- (00) PA4   PA3 (16) -- 
@@ -8,9 +14,9 @@
                -- (03) PA7   PA0 (17) -- UPDI
                -- (04) PB5   PC3 (13) -- 
                -- (05) PB4   PC2 (12) -- 
-               -- (06) PB3   PC1 (11) -- 
-               -- (07) PB2   PC0 (10) -- 
-           I2C -- (08) PB1   PB0 (09) -- I2C
+               -- (06) PB3   PC1 (11) -- DEBUG
+               -- (07) PB2   PC0 (10) -- IRQ
+     SDA (I2C) -- (08) PB1   PB0 (09) -- SCL (I2C)
 
     The AVR is responsible for monitoring the physical inputs and power management. It communicates with RP2040 via I2C and an IRQ pin that AVR rises when there is an input change. 
  */
@@ -27,29 +33,100 @@
    - battery voltage (?)
    - 2
 
-
-
  */
 
 
-/*
-static constexpr gpio::Pin DISPLAY_CE = 10;
-static constexpr gpio::Pin DISPLAY_DC = 9;
-static constexpr gpio::Pin DISPLAY_RST = 8;
+static constexpr gpio::Pin DEBUG_PIN = 11;
 
-static constexpr gpio::Pin NRF_RXTX = 13;
-static constexpr gpio::Pin NRF_CS = 12;
-static constexpr gpio::Pin NRF_IRQ = 11;
+static constexpr gpio::Pin IRQ_PIN = 10;
 
-PCD8544<DISPLAY_RST, DISPLAY_CE, DISPLAY_DC> display_;
-NRF24L01 radio_{NRF_CS, NRF_RXTX};
-*/
+
+State state;
+
+/** I2C Handling. 
+ */
+uint8_t i2cBuffer[32];
+uint8_t i2cBytesRecvd = 0;
+
+/** If true, I2C command has been received and should be acted upon in the main loop. 
+ */
+volatile bool i2cReady = false;
+uint8_t i2cBytesSent = 0;
+
 
 void setup() {
+    gpio::output(DEBUG_PIN);
+    gpio::low(DEBUG_PIN);
+
+    gpio::input(IRQ_PIN);
+
+    i2c::initializeSlave(AVR_I2C_ADDRESS);
+
 }
 
-void loop() {
+void processCommand() {
+    // TODO
+
+    i2cBytesRecvd = 0;
+    i2cReady = false;
 }
+
+
+void loop() {
+    if (i2cReady)
+        processCommand();
+
+}
+
+
+#define I2C_DATA_MASK (TWI_DIF_bm | TWI_DIR_bm) 
+#define I2C_DATA_TX (TWI_DIF_bm | TWI_DIR_bm)
+#define I2C_DATA_RX (TWI_DIF_bm)
+#define I2C_START_MASK (TWI_APIF_bm | TWI_AP_bm | TWI_DIR_bm)
+#define I2C_START_TX (TWI_APIF_bm | TWI_AP_bm | TWI_DIR_bm)
+#define I2C_START_RX (TWI_APIF_bm | TWI_AP_bm)
+#define I2C_STOP_MASK (TWI_APIF_bm | TWI_DIR_bm)
+#define I2C_STOP_TX (TWI_APIF_bm | TWI_DIR_bm)
+#define I2C_STOP_RX (TWI_APIF_bm)
+
+/** Handling of I2C Requests
+ */
+ISR(TWI0_TWIS_vect) {
+    //gpio::high(DEBUG_PIN);
+    uint8_t status = TWI0.SSTATUS;
+    // sending data to accepting master is on our fastpath as is checked first, if there is more state to send, send next byte, otherwise go to transcaction completed mode. 
+    if ((status & I2C_DATA_MASK) == I2C_DATA_TX) {
+        if (i2cBytesSent < sizeof (State)) {
+            TWI0.SDATA = reinterpret_cast<uint8_t*>(& state)[i2cBytesSent++];
+            TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
+        } else {
+            TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
+        }
+    // a byte has been received from master. Store it and send either ACK if we can store more, or NACK if we can't store more
+    } else if ((status & I2C_DATA_MASK) == I2C_DATA_RX) {
+        i2cBuffer[i2cBytesRecvd++] = TWI0.SDATA;
+        TWI0.SCTRLB = (i2cBytesRecvd == sizeof(i2cBuffer)) ? TWI_SCMD_COMPTRANS_gc : TWI_SCMD_RESPONSE_gc;
+    // master requests slave to write data, clear the IRQ and prepare to send the state
+    } else if ((status & I2C_START_MASK) == I2C_START_TX) {
+        gpio::input(IRQ_PIN);
+        i2cBytesSent = 0;
+        TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
+    // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise
+    } else if ((status & I2C_START_MASK) == I2C_START_RX) {
+        TWI0.SCTRLB = i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
+    // sending finished
+    } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
+        TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
+    // receiving finished, inform main loop we have message waiting
+    } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
+        TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
+        i2cReady = true;
+    } else {
+        // error - a state we do not know how to handle
+    }
+    //gpio::low(DEBUG_PIN);
+}
+
 
 
 
