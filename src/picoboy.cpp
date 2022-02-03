@@ -110,14 +110,13 @@ int main() {
     canvas.fill(Pixel::White());
     display_.fill(Rect::WH(240, 320), canvas.buffer(), canvas.bufferSize());
     printf("Display cleared");
-    /*
+
     State state;
     i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, reinterpret_cast<uint8_t*>(& state), sizeof(state));
     printf("State:\n");
-    printf("    buttons : %u", state.buttons_);
-    printf("    joyX : %u", state.joyX_);
-    printf("    joyY : %u", state.joyY_);
-    */
+    printf("    vcc: : %u", state.vcc());
+    printf("    temp : %i", state.temp());
+
     Pixel color;
     int i = 0;
     int inc = 1;
