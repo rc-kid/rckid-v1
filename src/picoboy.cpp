@@ -125,7 +125,7 @@ int main() {
         canvas.fill(Pixel::Black());
         canvas.fill(Rect::XYWH(i,i,60,10), Pixel::White());
         canvas.write(0,18, "H_|_Hello World!", 1);
-        canvas.write(0,18 + 24, "TWO IS TOO", 1);
+        canvas.write(0,18 + 24, "TWO IS TOO AWESOME", 1);
         display_.fill(Rect::WH(240,320), canvas.buffer(), canvas.bufferSize());
         i = i + inc;
         if (i >= 230)
