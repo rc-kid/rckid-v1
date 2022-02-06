@@ -42,6 +42,15 @@ namespace gpio {
 #endif
     }
 
+
+    inline void inputPullup(unsigned pin) {
+#if (defined ARCH_RP2040)
+        // TODO
+#elif (defined ARCH_ARDUINO)
+        pinMode(pin, INPUT_PULLUP);
+#endif
+    }
+
     inline void high(unsigned pin) {
 #if (defined ARCH_RP2040)
         gpio_put(pin, true);
@@ -55,6 +64,14 @@ namespace gpio {
         gpio_put(pin, false);
 #elif (defined ARCH_ARDUINO)
         digitalWrite(pin, LOW);
+#endif
+    }
+
+    inline bool read(unsigned pin) {
+#if (defined ARCH_RP2040)
+        // TODO
+#elif (defined ARCH_ARDUINO)
+        return digitalRead(pin);
 #endif
     }
 

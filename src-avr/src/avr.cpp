@@ -8,16 +8,35 @@
 
 /** Chip Pinout
                -- VDD             GND --
-               -- (00) PA4   PA3 (16) -- 
-               -- (01) PA5   PA2 (15) -- 
-               -- (02) PA6   PA1 (14) -- 
-               -- (03) PA7   PA0 (17) -- UPDI
-               -- (04) PB5   PC3 (13) -- 
-               -- (05) PB4   PC2 (12) -- 
-               -- (06) PB3   PC1 (11) -- DEBUG
-               -- (07) PB2   PC0 (10) -- IRQ
+         BTN_A -- (00) PA4   PA3 (16) -- DEBUG
+         BTN_B -- (01) PA5   PA2 (15) -- 
+         BTN_C -- (02) PA6   PA1 (14) -- 
+         BTN_D -- (03) PA7   PA0 (17) -- UPDI
+         BTN_L -- (04) PB5   PC3 (13) -- 
+         BTN_R -- (05) PB4   PC2 (12) -- JOY_Y
+       BTN_PWR -- (06) PB3   PC1 (11) -- JOY_X
+           IRQ -- (07) PB2   PC0 (10) -- JOY_PWR
      SDA (I2C) -- (08) PB1   PB0 (09) -- SCL (I2C)
+*/
 
+static constexpr gpio::Pin BTN_A_PIN = 0;
+static constexpr gpio::Pin BTN_B_PIN = 1;
+static constexpr gpio::Pin BTN_C_PIN = 2;
+static constexpr gpio::Pin BTN_D_PIN = 3;
+static constexpr gpio::Pin BTN_L_PIN = 4;
+static constexpr gpio::Pin BTN_R_PIN = 5;
+static constexpr gpio::Pin BTN_PWR_PIN = 6;
+static constexpr gpio::Pin IRQ_PIN = 7;
+static constexpr gpio::Pin JOY_PWR_PIN = 10;
+static constexpr gpio::Pin JOY_X_PIN = 11; // AIN7
+static constexpr gpio::Pin JOY_Y_PIN = 12; // AIN8
+
+
+
+
+static constexpr gpio::Pin DEBUG_PIN = 16;
+
+/*
     The AVR is responsible for monitoring the physical inputs and power management. It communicates with RP2040 via I2C and an IRQ pin that AVR rises when there is an input change. 
  */
 
@@ -35,9 +54,8 @@
 
  */
 
-
-static constexpr gpio::Pin DEBUG_PIN = 11;
-static constexpr gpio::Pin IRQ_PIN = 10;
+static constexpr uint8_t NUM_BUTTONS = 7;
+static constexpr uint8_t BUTTON_DEBOUNCE = 10; // [ms]
 
 struct {
     State state;
@@ -47,12 +65,39 @@ struct {
 } comms;
 
 volatile struct {
+    bool irq : 1;
     bool i2cReady : 1;
+    bool tick : 1; 
     bool secondTick : 1;
     bool sleep : 1;
 } flags;
 
+/** Timers for the button debounce. 
+ */
+uint8_t buttonTimers[NUM_BUTTONS] = {0,0,0,0,0,0,0};
+
+void wakeup();
+
 void setup() {
+    // button pins set to input 
+    gpio::inputPullup(BTN_A_PIN);
+    gpio::inputPullup(BTN_B_PIN);
+    gpio::inputPullup(BTN_C_PIN);
+    gpio::inputPullup(BTN_D_PIN);
+    gpio::inputPullup(BTN_L_PIN);
+    gpio::inputPullup(BTN_R_PIN);
+    gpio::inputPullup(BTN_PWR_PIN);
+    // joy pins set to analog inputs
+    static_assert(JOY_X_PIN == 11); // AIN7, PC1
+    PORTC.PIN1CTRL &= ~PORT_ISC_gm;
+    PORTC.PIN1CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+    PORTC.PIN1CTRL &= ~PORT_PULLUPEN_bm;
+    static_assert(JOY_Y_PIN == 12); // AIN8, PC2
+    PORTC.PIN2CTRL &= ~PORT_ISC_gm;
+    PORTC.PIN2CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+    PORTC.PIN2CTRL &= ~PORT_PULLUPEN_bm;
+
+
     gpio::output(DEBUG_PIN);
     gpio::low(DEBUG_PIN);
 
@@ -78,21 +123,42 @@ void setup() {
     // delay & sample averaging for increased precision
     ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc;
     ADC1.CTRLB = ADC_SAMPNUM_ACC64_gc;
-    ADC1.MUXPOS = ADC_MUXPOS_TEMPSENSE_gc;
+    ADC1.MUXPOS = ADC_MUXPOS_AIN7_gc; // PC1, JOY_X
     ADC1.CTRLC = ADC_PRESC_DIV16_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; // use VDD as reference 
     ADC1.CTRLD = ADC_INITDLY_DLY32_gc;
     ADC1.SAMPCTRL = 31;
 
-    // start conversions on the ADCs
-    ADC0.COMMAND = ADC_STCONV_bm;
-    //ADC1.COMMAND = ADC_STCONV_bm;
 
-
-
-
-
+    wakeup();
 
     i2c::initializeSlave(AVR_I2C_ADDRESS);
+
+}
+
+void wakeup() {
+    // power up the joystick
+    gpio::output(JOY_PWR_PIN);
+    gpio::high(JOY_PWR_PIN);
+    
+    // start conversions on the ADCs
+    ADC0.COMMAND = ADC_STCONV_bm;
+    ADC1.COMMAND = ADC_STCONV_bm;
+
+    // TODO check the voltage level before starting pico
+
+    // start the 1kHz timer for ticks
+    TCB0.CTRLB = TCB_CNTMODE_INT_gc;
+    TCB0.INTCTRL = TCB_CAPT_bm;
+    TCB0.CCMP = 10000; // for 1kHz    
+    TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc | TCB_ENABLE_bm;
+}
+
+
+
+void sleep() {
+    // turn off joystick power
+    gpio::input(JOY_PWR_PIN);
+
 
 }
 
@@ -148,10 +214,73 @@ void processADC0Result() {
 void processADC1Result() {
     uint8_t value = ADC1.RES / 64;
     switch (ADC1.MUXPOS) {
-
+        case ADC_MUXPOS_AIN7_gc:
+            if (comms.state.joyX() != value) {
+                comms.state.setJoyX(value);
+                flags.irq = true;
+            }
+            ADC1.MUXPOS = ADC_MUXPOS_AIN8_gc;
+            break;
+        case ADC_MUXPOS_AIN8_gc:
+            if (comms.state.joyY() != value) {
+                comms.state.setJoyY(value);
+                flags.irq = true;
+            }
+        default:
+            ADC1.MUXPOS = ADC_MUXPOS_AIN7_gc;
+            break;
     }
     // start new conversion
     ADC1.COMMAND = ADC_STCONV_bm;
+}
+
+/** Determines if there is a change in state for given button. 
+ */
+bool checkButton(int index, bool value) {
+    if (buttonTimers[index] == 0 && (comms.state.button(index) != value)) {
+        comms.state.setButton(index, value);
+        cli();
+        buttonTimers[index] = BUTTON_DEBOUNCE;
+        sei();
+        return true;
+    } else {
+        return false;
+    }
+}
+
+constexpr gpio::Pin buttonPin(uint8_t btn) {
+    switch (btn) {
+        case BTN_A:
+            return BTN_A_PIN;
+        case BTN_B:
+            return BTN_B_PIN;
+        case BTN_C:
+            return BTN_C_PIN;
+        case BTN_D:
+            return BTN_D_PIN;
+        case BTN_L:
+            return BTN_L_PIN;
+        case BTN_R:
+            return BTN_R_PIN;
+        case BTN_PWR:
+        default: // never happens
+            return BTN_PWR_PIN;
+    }
+}
+
+
+void tick() {
+    flags.tick = false;
+    bool irq = flags.irq;
+    // check buttons 
+    for (int i = 0; i < NUM_BUTTONS; ++i)
+        irq = checkButton(i, ! gpio::read(buttonPin(i))) || irq;
+    // set irq if it is requested by either the 
+    if (irq && gpio::read(IRQ_PIN)) {
+        flags.irq = false;
+        gpio::output(IRQ_PIN);
+        gpio::low(IRQ_PIN);
+    }
 }
 
 
@@ -162,6 +291,19 @@ void loop() {
         processADC0Result();
     if (ADC1.INTFLAGS & ADC_RESRDY_bm)
         processADC1Result();
+    if (flags.tick)
+        tick();
+}
+
+/** Switch debouncing 1kHz interrupt. 
+ */
+ISR(TCB0_CAPT_vect) {
+    TCB0.INTFLAGS = TCB_CAPT_bm;
+    for (int i = 0; i < NUM_BUTTONS; ++i)
+        if (buttonTimers[i] > 0)
+            --buttonTimers[i];
+    // main loop tick for checking button values
+    flags.tick = true;
 }
 
 /** RTC ISR
@@ -207,6 +349,7 @@ ISR(TWI0_TWIS_vect) {
         gpio::input(IRQ_PIN);
         comms.i2cBytesSent = 0;
         TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
+        gpio::input(IRQ_PIN); // clear IRQ
     // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise
     } else if ((status & I2C_START_MASK) == I2C_START_RX) {
         TWI0.SCTRLB = flags.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
