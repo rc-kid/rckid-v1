@@ -19,26 +19,26 @@
 
 /** Pinout
  
-           TX - 0         VBUS
-           RX - 1         VSYS
-                GND        GND
-          SDA - 2        3V3EN
-          SCL - 3    3V3 (out)
-      DISP_CS - 4     ADC_VREF
-      DISP_DC - 5      28/ADC2 - I2S_DATA
-                GND   GND/AGND
-   DISP_FMARK - 6      27/ADC1 - I2S_LRCLK
-      DISP_WR - 7      26/ADC0 - I2S_BCLK
-      DISP_D7 - 8          RUN
-      DISP_D6 - 9           22
-                GND        GND
-      DISP_D5 - 10          21
-      DISP_D4 - 11          20
-      DISP_D3 - 12          19 - MOSI
-      DISP_D2 - 13          18 - SCK
-                GND        GND
-      DISP_D1 - 14          17
-      DISP_D0 - 15          16 - MISO
+           TX -- 0         VBUS --
+           RX -- 1         VSYS --
+              -- GND        GND --
+          SDA -- 2        3V3EN --
+          SCL -- 3    3V3 (out) --
+      DISP_CS -- 4     ADC_VREF --
+      DISP_DC -- 5      28/ADC2 -- I2S_DATA
+              -- GND   GND/AGND --
+   DISP_FMARK -- 6      27/ADC1 -- I2S_LRCLK
+      DISP_WR -- 7      26/ADC0 -- I2S_BCLK
+      DISP_D7 -- 8          RUN --
+      DISP_D6 -- 9           22 -- ????
+              -- GND        GND --
+      DISP_D5 -- 10          21 -- ????
+      DISP_D4 -- 11          20 -- ????
+      DISP_D3 -- 12          19 -- MOSI
+      DISP_D2 -- 13          18 -- SCK
+              -- GND        GND --
+      DISP_D1 -- 14          17 -- ????
+      DISP_D0 -- 15          16 -- MISO
 
 
       7 pins left, 9 if UART disabled
