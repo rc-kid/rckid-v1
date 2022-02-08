@@ -8,7 +8,7 @@
 
 /** Chip Pinout
                -- VDD             GND --
-         BTN_A -- (00) PA4   PA3 (16) -- 
+         BTN_A -- (00) PA4   PA3 (16) -- DEBUG
          BTN_B -- (01) PA5   PA2 (15) -- 
          BTN_C -- (02) PA6   PA1 (14) -- 
          BTN_D -- (03) PA7   PA0 (17) -- UPDI
@@ -80,6 +80,9 @@ uint8_t buttonTimers[NUM_BUTTONS] = {0,0,0,0,0,0,0};
 void wakeup();
 
 void setup() {
+
+    gpio::output(DEBUG_PIN);
+
     // set IRQ pin as input (is pulled up by RP2040 when active)
     gpio::input(IRQ_PIN);
     // button pins set to input 
@@ -102,7 +105,6 @@ void setup() {
     // initialize the RTC to fire every second
     RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
     RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
-    while (RTC.PITSTATUS & RTC_CTRLBUSY_bm) {}
     RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc + RTC_PITEN_bm;
     // initailize ADC0 responsible for temperature, voltages and peripherals
     // voltage reference to 1.1V (internal)
@@ -127,8 +129,6 @@ void setup() {
 
     wakeup();
 
-    i2c::initializeSlave(AVR_I2C_ADDRESS);
-
 }
 
 void wakeup() {
@@ -141,7 +141,8 @@ void wakeup() {
     // TODO check the voltage level before starting pico
 
 
-    // start RP2040
+    // start RP2040, initialize I2C
+    i2c::initializeSlave(AVR_I2C_ADDRESS);
     gpio::input(EN_3V3_PIN);
     
 
@@ -311,13 +312,15 @@ void pwrButtonDown() {
 
 /** Switch debouncing 1kHz interrupt. 
  */
-ISR(TCB0_CAPT_vect) {
+ISR(TCB0_INT_vect) {
+    //gpio::high(DEBUG_PIN);    
     TCB0.INTFLAGS = TCB_CAPT_bm;
     for (int i = 0; i < NUM_BUTTONS; ++i)
         if (buttonTimers[i] > 0)
             --buttonTimers[i];
     // main loop tick for checking button values
     flags.tick = true;
+    //gpio::low(DEBUG_PIN);
 }
 
 /** RTC ISR
@@ -325,11 +328,11 @@ ISR(TCB0_CAPT_vect) {
     Simply increases the time by one second.
  */
 ISR(RTC_PIT_vect) {
-    gpio::high(DEBUG_PIN);
+    //gpio::high(DEBUG_PIN);
     RTC.PITINTFLAGS = RTC_PI_bm; // clear the interrupt
     comms.state.time().secondTick();
     flags.secondTick = true;
-    gpio::low(DEBUG_PIN);
+    //gpio::low(DEBUG_PIN);
 }
 
 /** Handling of I2C Requests
@@ -363,7 +366,7 @@ ISR(TWI0_TWIS_vect) {
         gpio::input(IRQ_PIN);
         comms.i2cBytesSent = 0;
         TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
-        gpio::input(IRQ_PIN); // clear IRQ
+        //gpio::input(IRQ_PIN); // clear IRQ
     // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise
     } else if ((status & I2C_START_MASK) == I2C_START_RX) {
         TWI0.SCTRLB = flags.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
