@@ -135,7 +135,7 @@ https://www.gme.cz/modul-wifi-s-nrf24l01-integr-antena
 
 
 5.5mm up
-2.6mm pcb
+1.6mm pcb
 1mm pico pcb
 2.5mm USB-C
 1

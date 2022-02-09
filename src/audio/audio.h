@@ -20,17 +20,15 @@ public:
      */
     void initialize(PIO pio, gpio::Pin i2sData, gpio::Pin i2sClock) {
         pio_ = pio;
-        outOffset_ = pio_add_program(pio_, &i2s_out_program);
+        outOffset_ = pio_add_program(pio_, &i2s_out_lsbj_program);
         outSm_ = pio_claim_unused_sm(pio_, true);
         setOutSampleRate(SampleRate::khz8);
         i2s_out_program_init(pio_, outSm_, outOffset_, i2sData, i2sClock);
-        /*
         uint16_t i = 0;
         while (true) {
-            outMono(i);
+            outStereo(i, i > 32768 ? 65535 : 0);
             i = i + 1;
         }
-        */
     }
 
     void setOutSampleRate(SampleRate sr) {
