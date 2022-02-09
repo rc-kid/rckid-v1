@@ -133,3 +133,15 @@ https://www.gme.cz/modul-wifi-s-nrf24l01-integr-antena
 - determine which display to use and how to connect to it
 - determine which RF/antenna to use and what would the range be
 
+
+5.5mm up
+2.6mm pcb
+1mm pico pcb
+2.5mm USB-C
+1
+2.6
+5.5
+-------
+
+
+

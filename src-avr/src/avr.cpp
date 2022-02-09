@@ -57,6 +57,7 @@ static constexpr gpio::Pin DEBUG_PIN = 16;
 
 static constexpr uint8_t NUM_BUTTONS = 7;
 static constexpr uint8_t BUTTON_DEBOUNCE = 10; // [ms]
+static constexpr uint16_t POWERON_PRESS = 1000; // [ms]
 
 struct {
     State state;
@@ -78,6 +79,7 @@ volatile struct {
 uint8_t buttonTimers[NUM_BUTTONS] = {0,0,0,0,0,0,0};
 
 void wakeup();
+void pwrButtonDown();
 
 void setup() {
 
@@ -125,48 +127,17 @@ void setup() {
     ADC1.CTRLC = ADC_PRESC_DIV16_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; // use VDD as reference 
     ADC1.CTRLD = ADC_INITDLY_DLY32_gc;
     ADC1.SAMPCTRL = 31;
-
-
-    wakeup();
-
-}
-
-void wakeup() {
-    // power up the joystick
-    gpio::output(JOY_PWR_PIN);
-    gpio::high(JOY_PWR_PIN);
-    // start conversions on the ADCs
-    ADC0.COMMAND = ADC_STCONV_bm;
-    ADC1.COMMAND = ADC_STCONV_bm;
-    // TODO check the voltage level before starting pico
-
-
-    // start RP2040, initialize I2C
-    i2c::initializeSlave(AVR_I2C_ADDRESS);
-    gpio::input(EN_3V3_PIN);
-    
-
+    // attach the power button to interrupt so that it can wake us up
+    attachInterrupt(digitalPinToInterrupt(BTN_PWR_PIN), pwrButtonDown, CHANGE);
     // start the 1kHz timer for ticks
     TCB0.CTRLB = TCB_CNTMODE_INT_gc;
     TCB0.INTCTRL = TCB_CAPT_bm;
     TCB0.CCMP = 10000; // for 1kHz    
     TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc | TCB_ENABLE_bm;
+    // wakeup, including power to pico
+    wakeup();
 }
 
-
-
-void sleep() {
-    // turn off RP2040
-    gpio::output(EN_3V3_PIN);
-    gpio::low(EN_3V3_PIN);
-    // turn off joystick power
-    gpio::input(JOY_PWR_PIN);
-    
-    //wdt_disable();
-    // make sure that any interrupts that would wake up will put to sleep immediately
-    //while (flags.sleep)
-    //    sleep_cpu();
-}
 
 void processCommand() {
     // TODO
@@ -289,6 +260,63 @@ void tick() {
     }
 }
 
+void wakeup() {
+    // clear the irq
+    gpio::input(IRQ_PIN);
+
+
+
+
+    // start conversions on the ADCs
+    ADC0.COMMAND = ADC_STCONV_bm;
+    // TODO check the voltage level before starting pico
+
+
+
+
+    // power up the thumbstick and start its sampling
+    gpio::output(JOY_PWR_PIN);
+    gpio::high(JOY_PWR_PIN);
+    ADC1.COMMAND = ADC_STCONV_bm;
+    // start RP2040, initialize I2C
+    i2c::initializeSlave(AVR_I2C_ADDRESS);
+    gpio::input(EN_3V3_PIN);
+}
+
+void sleep() {
+    // turn off RP2040
+    gpio::output(EN_3V3_PIN);
+    gpio::low(EN_3V3_PIN);
+    // turn off joystick power
+    gpio::input(JOY_PWR_PIN);
+    while (true) {
+        // disable the tick timer
+        TCB0.CTRLA &= ~ TCB_ENABLE_bm;
+        // clear the button debounce timeouts
+        for (int i = 0; i < NUM_BUTTONS; ++i)
+            buttonTimers[i] = 0;
+        // while sleeping, disable watchdog, make sure that any interrupts that would wake up will put to sleep immediately
+        cpu::wdtDisable();
+        while (flags.sleep)
+            cpu::sleep();
+        cpu::wdtEnable();
+        TCB0.CTRLA |= TCB_ENABLE_bm;
+        // avr wakes up immediately after PWR button is held down. Wait some time for the pwr button to be pressed down 
+        uint16_t ticks = POWERON_PRESS;
+        tick();
+        while (comms.state.btnPwr()) {
+            if (flags.tick) {
+                tick();
+                if (--ticks == 0) {
+                    wakeup();
+                    return;
+                }
+            }
+        }
+        // premature release, go back to sleep
+        flags.sleep = true;
+    }
+}
 
 void loop() {
     if (flags.i2cReady)
@@ -301,13 +329,15 @@ void loop() {
         tick();
     if (flags.sleep)
         sleep();
+    // TODO this should be done only when rp calls us on i2c
+    cpu::wdtReset();
 }
 
+/** IRQ for power button change. If sleeping, wake up from sleep. The sleep function will take care of the rest. 
+ */
 void pwrButtonDown() {
-    if (flags.sleep) {
+    if (flags.sleep)
         flags.sleep = false;
-
-    }
 }
 
 /** Switch debouncing 1kHz interrupt. 
