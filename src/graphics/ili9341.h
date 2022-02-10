@@ -7,6 +7,7 @@
 #include <hardware/gpio.h>
 #include <hardware/pio.h>
 #include <hardware/dma.h>
+#include <hardware/clocks.h>
 #include "ili9341.pio.h"
 #include "graphics.h"
 
@@ -487,6 +488,17 @@ protected:
         offset_ = pio_add_program(pio_, &ili9341_program);
         sm_ = pio_claim_unused_sm(pio_, true);
         ili9341_program_init(pio_, sm_, offset_, WR, DATA);
+        overclock(100); // set base frequency
+    }
+
+    /** By default the write cycle is 66ns, i.e. 30 MHz. 
+     
+        This method sets the display driver speed in percentage of the base speed above. 
+
+        TODO this may be individual display & wiring, but on the test unit, the display so far was happy with 2 cycles per byte, which is more than a 400% overclock.
+     */
+    void overclock(uint multiplier_pct = 100) {
+        pio::set_clock_speed(pio_, sm_, 303030 * multiplier_pct); // 30Mhz already divided by 100 for the multiplier to work
     }
 
     void begin() {

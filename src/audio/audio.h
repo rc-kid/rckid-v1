@@ -25,6 +25,7 @@ public:
         outOffset_ = pio_add_program(pio_, &i2s_out_lsbj_program);
         outSm_ = pio_claim_unused_sm(pio_, true);
         i2s_out_program_init(pio_, outSm_, outOffset_, i2sData, i2sClock);
+        /*
         setOutSampleRate(SampleRate::khz8);
         int16_t i = 0;
         while (true) {
@@ -34,14 +35,11 @@ public:
             //outStereo(0x0000,0xffff);
             i = i + 8;
         }
+        */
     }
 
     void setOutSampleRate(uint hz) {
-        uint clk = frequency_count_khz(CLOCKS_FC0_SRC_VALUE_CLK_SYS) * 1000; // [Hz]
-        hz = hz * 16 * 2 *2; // 16 bits per channel, 2 channels, 2 pio instructions per bit
-        uint clkdiv = clk / hz;
-        uint clkfrac = (clk - (clkdiv * hz)) * 256 / hz;
-        pio_sm_set_clkdiv_int_frac(pio_, outSm_, clkdiv & 0xffff, clkfrac & 0xff);
+        pio::set_clock_speed(pio_, outSm_, hz * 16 * 2 * 2); // 16 bits per channel, 2 channels, 2 pio instructions per bit
     }
 
     void setOutSampleRate(SampleRate sr) {

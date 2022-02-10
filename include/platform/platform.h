@@ -17,6 +17,12 @@
     #define ARCH_AVR_MEGA
 #endif
 
+
+#if (defined ARCH_RP2040)
+    #include <hardware/clocks.h>
+    #include <hardware/pio.h>
+#endif
+
 #if (defined ARCH_ARDUINO)
     #include <Arduino.h>
 #endif
@@ -24,6 +30,8 @@
 #if (defined ARCH_AVR_MEGA) || (defined ARCH_AVR_MEGATINY)
     #include <avr/sleep.h>
 #endif
+
+
 
 #define ARCH_NOT_SUPPORTED static_assert(false,"Unknown or unsupported architecture")
 
@@ -86,3 +94,15 @@ namespace cpu {
 #endif
     }
 }
+
+#if (defined ARCH_RP2040)
+namespace pio {
+    inline void set_clock_speed(PIO pio, uint sm, uint hz) {
+        uint clk = frequency_count_khz(CLOCKS_FC0_SRC_VALUE_CLK_SYS) * 1000; // [Hz]
+        uint clkdiv = (clk / hz);
+        uint clkfrac = (clk - (clkdiv * hz)) * 256 / hz;
+        pio_sm_set_clkdiv_int_frac(pio, sm, clkdiv & 0xffff, clkfrac & 0xff);
+
+    }
+}
+#endif

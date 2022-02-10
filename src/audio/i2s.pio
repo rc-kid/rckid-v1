@@ -68,6 +68,8 @@ static inline void i2s_out_program_init(PIO pio, uint sm, uint offset, uint data
 
 %}
 
+
+; my version for Sony format. 
 ; data valid at rising BCLK edge
 
 .program i2s_out_lsbj
@@ -113,8 +115,7 @@ static inline void i2s_out_lsbj_program_init(PIO pio, uint sm, uint offset, uint
 
 
 
-
-
-
-.program i2s_mic 
-    out pins, 1
+;.program i2s_mic 
+;.side_set 2
+;
+;    out pins, 1
