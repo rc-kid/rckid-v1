@@ -68,23 +68,23 @@ static inline void i2s_out_program_init(PIO pio, uint sm, uint offset, uint data
 
 %}
 
+; data valid at rising BCLK edge
+
 .program i2s_out_lsbj
 .side_set 2
-
-                    ;        /--- LRCLK
-                    ;        |/-- BCLK
-bitloop1:           ;        ||
-    out pins, 1            side 0b10
-    jmp x-- bitloop1  side 0b11
-    out pins, 1            side 0b10
-    set x, 14              side 0b11
-
-bitloop0:
-    out pins, 1            side 0b00
-    jmp x-- bitloop0  side 0b01
-    out pins, 1            side 0b00
+                         ;        /--- LRCLK
+                         ;        |/-- BCLK
+left_channel:            ;        ||
+    out pins, 1            side 0b00 ; switch data, falling clk, falling ws
+    jmp x-- left_channel   side 0b01 ; data valid, rising clk
+    out pins, 1            side 0b00 ; switch last bit, falling clk
+    set x, 14              side 0b01 ; data valid last bit, rising clk
+right_channel:
+    out pins, 1            side 0b10 ; switch data, falling clk, rising ws
+    jmp x-- right_channel  side 0b11 ; data valid, rising clk
+    out pins, 1            side 0b10 ; switch last bit, falling clk
 public entry_point:
-    set x, 14              side 0b11
+    set x, 14              side 0b11 ; data valid last bit, rising clk
 
 % c-sdk {
 
