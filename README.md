@@ -25,7 +25,7 @@ A game console that can play some games. These can be either home made single pl
 
 ## MP3 player
 
-Play mp3 files on the SD card. 
+Play mp3/opus files on the SD card. 
 
 > If RPI won't do this then I can skip the I2S output and use a simple PWM as the sound quality will be pretty bad anyways.
 

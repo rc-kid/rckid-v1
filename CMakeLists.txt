@@ -23,12 +23,11 @@ add_compile_options(-Wall
         )
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/lib)
 
-
+add_subdirectory("lib")
 
 file(GLOB_RECURSE SRC "src/*.cpp" "src/*.h")
-
-
 
 add_executable(picoboy ${SRC})
 
@@ -42,6 +41,9 @@ target_link_libraries(picoboy
     hardware_pio
     hardware_spi
     hardware_dma
+    libopus
+    libogg
+    libopusfile
 )
 
 # create map/bin/hex file etc.
