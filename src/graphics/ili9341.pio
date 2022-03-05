@@ -13,17 +13,11 @@
 .program ili9341
 .side_set 1 ; this is the WR pin 
 
-.define DATA_PREPARE_CYCLES 4
-.define DATA_HOLD_CYCLES 5
-
-;.define DATA_PREPARE_CYCLES 1
-;.define DATA_HOLD_CYCLES 1
-
 .wrap_target
     ; first output 0 on the WR pin and put the data on the data lines, wait for the given time
-    out pins, 8     side 0 [DATA_PREPARE_CYCLES - 1]
+    out pins, 8     side 0
     ; keep the data line stable, but put WR high to tell the display to read the data 
-    nop             side 1 [DATA_HOLD_CYCLES - 1]
+    nop             side 1
 .wrap
 
 % c-sdk {

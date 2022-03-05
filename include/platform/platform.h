@@ -3,7 +3,6 @@
 
 #if (defined ARDUINO)
     #define ARCH_ARDUINO
-    #include <Arduino.h>
 #endif
 
 #if (defined PICO_BOARD)
@@ -17,6 +16,22 @@
 #elif (defined __AVR_ATmega8__)
     #define ARCH_AVR_MEGA
 #endif
+
+
+#if (defined ARCH_RP2040)
+    #include <hardware/clocks.h>
+    #include <hardware/pio.h>
+#endif
+
+#if (defined ARCH_ARDUINO)
+    #include <Arduino.h>
+#endif
+
+#if (defined ARCH_AVR_MEGA) || (defined ARCH_AVR_MEGATINY)
+    #include <avr/sleep.h>
+#endif
+
+
 
 #define ARCH_NOT_SUPPORTED static_assert(false,"Unknown or unsupported architecture")
 
@@ -54,4 +69,40 @@ namespace cpu {
         ARCH_NOT_SUPPORTED;
 #endif
     }
+
+    inline void wdtEnable() {
+#if (defined ARCH_AVR_MEGATINY)
+        _PROTECTED_WRITE(WDT.CTRLA,WDT_PERIOD_8KCLK_gc); // no window, 8sec
+#endif
+    }
+
+    inline void wdtDisable() {
+#if (defined ARCH_AVR_MEGATINY)
+        _PROTECTED_WRITE(WDT.CTRLA,0);
+#endif
+    }
+
+    inline void wdtReset() {
+#if (defined ARCH_AVR_MEGATINY)
+        __asm__ __volatile__ ("wdr"::);
+#endif
+    }
+
+    inline void sleep() {
+#if (defined ARCH_AVR_MEGATINY)
+        sleep_cpu();
+#endif
+    }
 }
+
+#if (defined ARCH_RP2040)
+namespace pio {
+    inline void set_clock_speed(PIO pio, uint sm, uint hz) {
+        uint clk = frequency_count_khz(CLOCKS_FC0_SRC_VALUE_CLK_SYS) * 1000; // [Hz]
+        uint clkdiv = (clk / hz);
+        uint clkfrac = (clk - (clkdiv * hz)) * 256 / hz;
+        pio_sm_set_clkdiv_int_frac(pio, sm, clkdiv & 0xffff, clkfrac & 0xff);
+
+    }
+}
+#endif

@@ -25,7 +25,7 @@ A game console that can play some games. These can be either home made single pl
 
 ## MP3 player
 
-Play mp3 files on the SD card. 
+Play mp3/opus files on the SD card. 
 
 > If RPI won't do this then I can skip the I2S output and use a simple PWM as the sound quality will be pretty bad anyways.
 
@@ -132,4 +132,16 @@ https://www.gme.cz/modul-wifi-s-nrf24l01-integr-antena
 
 - determine which display to use and how to connect to it
 - determine which RF/antenna to use and what would the range be
+
+
+5.5mm up
+1.6mm pcb
+1mm pico pcb
+2.5mm USB-C
+1
+2.6
+5.5
+-------
+
+
 

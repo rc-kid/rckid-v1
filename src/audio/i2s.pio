@@ -42,6 +42,7 @@ bitloop0:
 public entry_point:
     set x, 14         side 0b11
 
+
 % c-sdk {
 
 static inline void i2s_out_program_init(PIO pio, uint sm, uint offset, uint dataPin, uint clockPinBase) {
@@ -68,5 +69,53 @@ static inline void i2s_out_program_init(PIO pio, uint sm, uint offset, uint data
 %}
 
 
-.program i2s_mic 
-    out pins, 1
+; my version for Sony format. 
+; data valid at rising BCLK edge
+
+.program i2s_out_lsbj
+.side_set 2
+                         ;        /--- LRCLK
+                         ;        |/-- BCLK
+left_channel:            ;        ||
+    out pins, 1            side 0b00 ; switch data, falling clk, falling ws
+    jmp x-- left_channel   side 0b01 ; data valid, rising clk
+    out pins, 1            side 0b00 ; switch last bit, falling clk
+    set x, 14              side 0b01 ; data valid last bit, rising clk
+right_channel:
+    out pins, 1            side 0b10 ; switch data, falling clk, rising ws
+    jmp x-- right_channel  side 0b11 ; data valid, rising clk
+    out pins, 1            side 0b10 ; switch last bit, falling clk
+public entry_point:
+    set x, 14              side 0b11 ; data valid last bit, rising clk
+
+% c-sdk {
+
+static inline void i2s_out_lsbj_program_init(PIO pio, uint sm, uint offset, uint dataPin, uint clockPinBase) {
+    pio_gpio_init(pio, dataPin);
+    pio_gpio_init(pio, clockPinBase);
+    pio_gpio_init(pio, clockPinBase + 1);
+
+    pio_sm_config sm_config = i2s_out_lsbj_program_get_default_config(offset);
+    
+    sm_config_set_out_pins(&sm_config, dataPin, 1);
+    sm_config_set_sideset_pins(&sm_config, clockPinBase);
+    sm_config_set_out_shift(&sm_config, false, true, 32);
+
+    pio_sm_init(pio, sm, offset, &sm_config);
+
+    uint pin_mask = (1u << dataPin) | (3u << clockPinBase);
+    pio_sm_set_pindirs_with_mask(pio, sm, pin_mask, pin_mask);
+    pio_sm_set_pins(pio, sm, 0); // clear pins
+
+    pio_sm_exec(pio, sm, pio_encode_jmp(offset + i2s_out_lsbj_offset_entry_point));
+    pio_sm_set_enabled(pio, sm, true);    
+}
+
+%}
+
+
+
+;.program i2s_mic 
+;.side_set 2
+;
+;    out pins, 1

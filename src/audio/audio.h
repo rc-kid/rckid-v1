@@ -2,11 +2,13 @@
 
 #include "platform/gpio.h"
 
+#include <hardware/clocks.h>
+
+
 #include "i2s.pio.h"
 
 /* Using Codec2/OPUS for the walkie talkie, Opus can also be used for playback easily, the quality is there. 
  */
-
 class Audio {
 public:
 
@@ -20,41 +22,48 @@ public:
      */
     void initialize(PIO pio, gpio::Pin i2sData, gpio::Pin i2sClock) {
         pio_ = pio;
-        outOffset_ = pio_add_program(pio_, &i2s_out_program);
+        outOffset_ = pio_add_program(pio_, &i2s_out_lsbj_program);
         outSm_ = pio_claim_unused_sm(pio_, true);
-        setOutSampleRate(SampleRate::khz8);
         i2s_out_program_init(pio_, outSm_, outOffset_, i2sData, i2sClock);
         /*
-        uint16_t i = 0;
+        setOutSampleRate(SampleRate::khz8);
+        int16_t i = 0;
         while (true) {
-            outMono(i);
-            i = i + 1;
+            outStereo(i > 0 ? 32767 : -32768, i);
+            //outStereo(i, 65535 - i);
+            //outStereo((i > 32768) ? 32768 : 1024, i);
+            //outStereo(0x0000,0xffff);
+            i = i + 8;
         }
         */
+    }
+
+    void setOutSampleRate(uint hz) {
+        pio::set_clock_speed(pio_, outSm_, hz * 16 * 2 * 2); // 16 bits per channel, 2 channels, 2 pio instructions per bit
     }
 
     void setOutSampleRate(SampleRate sr) {
         switch (sr) {
             case SampleRate::khz8:
-                pio_sm_set_clkdiv_int_frac(pio_, outSm_, 259, 136);
+                setOutSampleRate(8000);
                 break;
             case SampleRate::khz44_1:
-                pio_sm_set_clkdiv_int_frac(pio_, outSm_, 519, 136);
+                setOutSampleRate(44100);
                 break;
             case SampleRate::khz48:
-                pio_sm_set_clkdiv_int_frac(pio_, outSm_, 519, 136);
+                setOutSampleRate(48000);
                 break;
         }
     }
 
-    void outMono(uint16_t value) {
+    void outMono(int16_t value) {
         while (pio_sm_is_tx_fifo_full(pio_, outSm_));
-        pio_->txf[outSm_] = (value << 16) | value;
+        pio_->txf[outSm_] = (static_cast<uint16_t>(value) << 16) | static_cast<uint16_t>(value);
     }   
 
-    void outStereo(uint16_t l, uint16_t r) {
+    void outStereo(int16_t l, int16_t r) {
         while (pio_sm_is_tx_fifo_full(pio_, outSm_));
-        pio_->txf[outSm_] = (r << 16) | l;
+        pio_->txf[outSm_] = (static_cast<uint16_t>(r) << 16) | static_cast<uint16_t>(l);
     } 
 
 private:

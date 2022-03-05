@@ -12,10 +12,10 @@
          BTN_B -- (01) PA5   PA2 (15) -- 
          BTN_C -- (02) PA6   PA1 (14) -- 
          BTN_D -- (03) PA7   PA0 (17) -- UPDI
-         BTN_L -- (04) PB5   PC3 (13) -- 
-         BTN_R -- (05) PB4   PC2 (12) -- JOY_Y
-       BTN_PWR -- (06) PB3   PC1 (11) -- JOY_X
-           IRQ -- (07) PB2   PC0 (10) -- JOY_PWR
+         BTN_L -- (04) PB5   PC3 (13) -- JOY_Y
+         BTN_R -- (05) PB4   PC2 (12) -- JOY_X
+       BTN_PWR -- (06) PB3   PC1 (11) -- JOY_PWR
+           IRQ -- (07) PB2   PC0 (10) -- EN_3V3
      SDA (I2C) -- (08) PB1   PB0 (09) -- SCL (I2C)
 */
 
@@ -27,9 +27,10 @@ static constexpr gpio::Pin BTN_L_PIN = 4;
 static constexpr gpio::Pin BTN_R_PIN = 5;
 static constexpr gpio::Pin BTN_PWR_PIN = 6;
 static constexpr gpio::Pin IRQ_PIN = 7;
-static constexpr gpio::Pin JOY_PWR_PIN = 10;
-static constexpr gpio::Pin JOY_X_PIN = 11; // AIN7
-static constexpr gpio::Pin JOY_Y_PIN = 12; // AIN8
+static constexpr gpio::Pin EN_3V3_PIN = 10;
+static constexpr gpio::Pin JOY_PWR_PIN = 11;
+static constexpr gpio::Pin JOY_X_PIN = 12; // AIN8
+static constexpr gpio::Pin JOY_Y_PIN = 13; // AIN9
 
 
 
@@ -56,6 +57,7 @@ static constexpr gpio::Pin DEBUG_PIN = 16;
 
 static constexpr uint8_t NUM_BUTTONS = 7;
 static constexpr uint8_t BUTTON_DEBOUNCE = 10; // [ms]
+static constexpr uint16_t POWERON_PRESS = 1000; // [ms]
 
 struct {
     State state;
@@ -77,8 +79,14 @@ volatile struct {
 uint8_t buttonTimers[NUM_BUTTONS] = {0,0,0,0,0,0,0};
 
 void wakeup();
+void pwrButtonDown();
 
 void setup() {
+
+    gpio::output(DEBUG_PIN);
+
+    // set IRQ pin as input (is pulled up by RP2040 when active)
+    gpio::input(IRQ_PIN);
     // button pins set to input 
     gpio::inputPullup(BTN_A_PIN);
     gpio::inputPullup(BTN_B_PIN);
@@ -88,25 +96,17 @@ void setup() {
     gpio::inputPullup(BTN_R_PIN);
     gpio::inputPullup(BTN_PWR_PIN);
     // joy pins set to analog inputs
-    static_assert(JOY_X_PIN == 11); // AIN7, PC1
-    PORTC.PIN1CTRL &= ~PORT_ISC_gm;
-    PORTC.PIN1CTRL |= PORT_ISC_INPUT_DISABLE_gc;
-    PORTC.PIN1CTRL &= ~PORT_PULLUPEN_bm;
-    static_assert(JOY_Y_PIN == 12); // AIN8, PC2
+    static_assert(JOY_X_PIN == 12); // AIN8, PC2
     PORTC.PIN2CTRL &= ~PORT_ISC_gm;
     PORTC.PIN2CTRL |= PORT_ISC_INPUT_DISABLE_gc;
     PORTC.PIN2CTRL &= ~PORT_PULLUPEN_bm;
-
-
-    gpio::output(DEBUG_PIN);
-    gpio::low(DEBUG_PIN);
-
-    gpio::input(IRQ_PIN);
-
+    static_assert(JOY_Y_PIN == 13); // AIN9, PC3
+    PORTC.PIN3CTRL &= ~PORT_ISC_gm;
+    PORTC.PIN3CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+    PORTC.PIN3CTRL &= ~PORT_PULLUPEN_bm;
     // initialize the RTC to fire every second
     RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
     RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
-    while (RTC.PITSTATUS & RTC_CTRLBUSY_bm) {}
     RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc + RTC_PITEN_bm;
     // initailize ADC0 responsible for temperature, voltages and peripherals
     // voltage reference to 1.1V (internal)
@@ -123,44 +123,21 @@ void setup() {
     // delay & sample averaging for increased precision
     ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc;
     ADC1.CTRLB = ADC_SAMPNUM_ACC64_gc;
-    ADC1.MUXPOS = ADC_MUXPOS_AIN7_gc; // PC1, JOY_X
+    ADC1.MUXPOS = ADC_MUXPOS_AIN8_gc; // PC2, JOY_X
     ADC1.CTRLC = ADC_PRESC_DIV16_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; // use VDD as reference 
     ADC1.CTRLD = ADC_INITDLY_DLY32_gc;
     ADC1.SAMPCTRL = 31;
-
-
-    wakeup();
-
-    i2c::initializeSlave(AVR_I2C_ADDRESS);
-
-}
-
-void wakeup() {
-    // power up the joystick
-    gpio::output(JOY_PWR_PIN);
-    gpio::high(JOY_PWR_PIN);
-    
-    // start conversions on the ADCs
-    ADC0.COMMAND = ADC_STCONV_bm;
-    ADC1.COMMAND = ADC_STCONV_bm;
-
-    // TODO check the voltage level before starting pico
-
+    // attach the power button to interrupt so that it can wake us up
+    attachInterrupt(digitalPinToInterrupt(BTN_PWR_PIN), pwrButtonDown, CHANGE);
     // start the 1kHz timer for ticks
     TCB0.CTRLB = TCB_CNTMODE_INT_gc;
     TCB0.INTCTRL = TCB_CAPT_bm;
     TCB0.CCMP = 10000; // for 1kHz    
     TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc | TCB_ENABLE_bm;
+    // wakeup, including power to pico
+    wakeup();
 }
 
-
-
-void sleep() {
-    // turn off joystick power
-    gpio::input(JOY_PWR_PIN);
-
-
-}
 
 void processCommand() {
     // TODO
@@ -214,20 +191,20 @@ void processADC0Result() {
 void processADC1Result() {
     uint8_t value = ADC1.RES / 64;
     switch (ADC1.MUXPOS) {
-        case ADC_MUXPOS_AIN7_gc:
+        case ADC_MUXPOS_AIN8_gc:
             if (comms.state.joyX() != value) {
                 comms.state.setJoyX(value);
                 flags.irq = true;
             }
-            ADC1.MUXPOS = ADC_MUXPOS_AIN8_gc;
+            ADC1.MUXPOS = ADC_MUXPOS_AIN9_gc;
             break;
-        case ADC_MUXPOS_AIN8_gc:
+        case ADC_MUXPOS_AIN9_gc:
             if (comms.state.joyY() != value) {
                 comms.state.setJoyY(value);
                 flags.irq = true;
             }
         default:
-            ADC1.MUXPOS = ADC_MUXPOS_AIN7_gc;
+            ADC1.MUXPOS = ADC_MUXPOS_AIN8_gc;
             break;
     }
     // start new conversion
@@ -283,6 +260,63 @@ void tick() {
     }
 }
 
+void wakeup() {
+    // clear the irq
+    gpio::input(IRQ_PIN);
+
+
+
+
+    // start conversions on the ADCs
+    ADC0.COMMAND = ADC_STCONV_bm;
+    // TODO check the voltage level before starting pico
+
+
+
+
+    // power up the thumbstick and start its sampling
+    gpio::output(JOY_PWR_PIN);
+    gpio::high(JOY_PWR_PIN);
+    ADC1.COMMAND = ADC_STCONV_bm;
+    // start RP2040, initialize I2C
+    i2c::initializeSlave(AVR_I2C_ADDRESS);
+    gpio::input(EN_3V3_PIN);
+}
+
+void sleep() {
+    // turn off RP2040
+    gpio::output(EN_3V3_PIN);
+    gpio::low(EN_3V3_PIN);
+    // turn off joystick power
+    gpio::input(JOY_PWR_PIN);
+    while (true) {
+        // disable the tick timer
+        TCB0.CTRLA &= ~ TCB_ENABLE_bm;
+        // clear the button debounce timeouts
+        for (int i = 0; i < NUM_BUTTONS; ++i)
+            buttonTimers[i] = 0;
+        // while sleeping, disable watchdog, make sure that any interrupts that would wake up will put to sleep immediately
+        cpu::wdtDisable();
+        while (flags.sleep)
+            cpu::sleep();
+        cpu::wdtEnable();
+        TCB0.CTRLA |= TCB_ENABLE_bm;
+        // avr wakes up immediately after PWR button is held down. Wait some time for the pwr button to be pressed down 
+        uint16_t ticks = POWERON_PRESS;
+        tick();
+        while (comms.state.btnPwr()) {
+            if (flags.tick) {
+                tick();
+                if (--ticks == 0) {
+                    wakeup();
+                    return;
+                }
+            }
+        }
+        // premature release, go back to sleep
+        flags.sleep = true;
+    }
+}
 
 void loop() {
     if (flags.i2cReady)
@@ -293,17 +327,30 @@ void loop() {
         processADC1Result();
     if (flags.tick)
         tick();
+    if (flags.sleep)
+        sleep();
+    // TODO this should be done only when rp calls us on i2c
+    cpu::wdtReset();
+}
+
+/** IRQ for power button change. If sleeping, wake up from sleep. The sleep function will take care of the rest. 
+ */
+void pwrButtonDown() {
+    if (flags.sleep)
+        flags.sleep = false;
 }
 
 /** Switch debouncing 1kHz interrupt. 
  */
-ISR(TCB0_CAPT_vect) {
+ISR(TCB0_INT_vect) {
+    //gpio::high(DEBUG_PIN);    
     TCB0.INTFLAGS = TCB_CAPT_bm;
     for (int i = 0; i < NUM_BUTTONS; ++i)
         if (buttonTimers[i] > 0)
             --buttonTimers[i];
     // main loop tick for checking button values
     flags.tick = true;
+    //gpio::low(DEBUG_PIN);
 }
 
 /** RTC ISR
@@ -311,11 +358,11 @@ ISR(TCB0_CAPT_vect) {
     Simply increases the time by one second.
  */
 ISR(RTC_PIT_vect) {
-    gpio::high(DEBUG_PIN);
+    //gpio::high(DEBUG_PIN);
     RTC.PITINTFLAGS = RTC_PI_bm; // clear the interrupt
     comms.state.time().secondTick();
     flags.secondTick = true;
-    gpio::low(DEBUG_PIN);
+    //gpio::low(DEBUG_PIN);
 }
 
 /** Handling of I2C Requests
@@ -349,7 +396,7 @@ ISR(TWI0_TWIS_vect) {
         gpio::input(IRQ_PIN);
         comms.i2cBytesSent = 0;
         TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
-        gpio::input(IRQ_PIN); // clear IRQ
+        //gpio::input(IRQ_PIN); // clear IRQ
     // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise
     } else if ((status & I2C_START_MASK) == I2C_START_RX) {
         TWI0.SCTRLB = flags.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
