@@ -130,7 +130,7 @@ https://www.gme.cz/modul-wifi-s-nrf24l01-integr-antena
 
 # TODOs
 
-- determine which display to use and how to connect to it
+- TODO does the opus encode as well? 
 - determine which RF/antenna to use and what would the range be
 
 

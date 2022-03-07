@@ -10,3 +10,5 @@ add_library(libogg ${SRC})
 
 file(GLOB_RECURSE SRC "opusfile/*.cpp" "opusfile/*.h" "opusfile/*.c")
 add_library(libopusfile ${SRC})
+
+include("sd/CMakeLists.txt")

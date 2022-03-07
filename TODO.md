@@ -24,4 +24,9 @@
 
 # SD Card & USB mass storage
 
+- make the SD fat library work and decide on some nice API
+- read files, play audio, show images, etc. 
+- see how it can be mounted via USB
+
+
 # ATTiny Interface

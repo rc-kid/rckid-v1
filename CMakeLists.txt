@@ -22,10 +22,13 @@ add_compile_options(-Wall
         -Wno-maybe-uninitialized
         )
 
+
+add_subdirectory("lib")
+
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/lib)
 
-add_subdirectory("lib")
+add_compile_options(-DNO_PICO_LED=1)
 
 file(GLOB_RECURSE SRC "src/*.cpp" "src/*.h")
 
@@ -44,6 +47,7 @@ target_link_libraries(picoboy
     libopus
     libogg
     libopusfile
+    FatFs_SPI
 )
 
 # create map/bin/hex file etc.

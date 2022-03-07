@@ -14,7 +14,11 @@
 
 #include "audio/audio.h"
 
+#include "sd/sdfs.h"
+
 #include "comms.h"
+
+
 
 
 /** Pinout
@@ -110,6 +114,12 @@ int main() {
     canvas.fill(Pixel::White());
     display_.fill(Rect::WH(240, 320), canvas.buffer(), canvas.bufferSize());
     printf("Display cleared");
+
+    if (SDFS::mount() == false) {
+        printf("Cannot mount\n");
+    } else {
+        printf("Mounted!\n");
+    }
 
     State state;
     i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, reinterpret_cast<uint8_t*>(& state), sizeof(state));
