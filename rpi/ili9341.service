@@ -1,0 +1,15 @@
+[Unit]
+Description=Enable framebuffer copy to the ILI9341 SPI display
+Before=sysinit.target
+After=local-fs.target
+DefaultDependencies=no
+
+[Service]
+Type=simple
+ExecStart=/home/pi/fbcp-ili9341/build/fbcp-ili9341
+Restart=on-failure
+RestartSec=1
+KillMode=process
+
+[Install]
+WantedBy=sysinit.target

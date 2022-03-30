@@ -15,22 +15,3 @@
 ## SX1278
 
 - test with known library first
-
-# Audio
-
-- I2S output seems to be basically working, need to check the sample rate and the proper I2S output for the DAC used
-- libopus,codec2,mp3
-
-# Graphics & Display
-
-- nice fonts
-- bitmaps
-
-# SD Card & USB mass storage
-
-- add decent API to the sdfs library
-- read files, play audio, show images, etc. 
-- see how it can be mounted via USB
-
-
-# ATTiny Interface

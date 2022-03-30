@@ -1,2 +1,0 @@
-# WiFi beacon for Picoboy
-
