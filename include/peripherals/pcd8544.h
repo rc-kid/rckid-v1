@@ -29,7 +29,7 @@ public:
 	
 	void enable() {
         reset();
-        spi::setCs(SCE, true);
+        spi::begin(SCE);
 		writeCommand(0x21); // extended commands, power on
 		writeCommand(0xbf); // VOP (contrast)
 		writeCommand(0x04); // temp coef 
@@ -38,71 +38,71 @@ public:
 		normalMode();
         gotoXY(0,0);
 		clear();
-        spi::setCs(SCE, false);
+        spi::end(SCE);
 	}
 	
 	void disable() {
-        spi::setCs(SCE, true);
+        spi::begin(SCE);
 		writeCommand(0b00100100);
-        spi::setCs(SCE, false);
+        spi::end(SCE);
 	}
 	
 	void normalMode() {
-        spi::setCs(SCE, true);
+        spi::begin(SCE);
 		writeCommand(0x0c); // normal mode
-        spi::setCs(SCE, false);
+        spi::end(SCE);
 	}
 	
 	void inverseMode() {
-        spi::setCs(SCE, true);
+        spi::begin(SCE);
 		writeCommand(0x0d); // inverse mode
-        spi::setCs(SCE, false);
+        spi::end(SCE);
 	}
 	
 	void clear() {
-        spi::setCs(SCE, true);
+        spi::begin(SCE);
 	    for (int i = 0; i < 84 * 48 / 8; ++i)
 		    writeData(0);	
-        spi::setCs(SCE, false);
+        spi::end(SCE);
 	}
 	
 	void gotoXY(uint8_t col, uint8_t row) {
-        spi::setCs(SCE, true);
+        spi::begin(SCE);
 	    writeCommand(0x80 | col);
 		writeCommand(0x40 | row);	
-        spi::setCs(SCE, false);
+        spi::end(SCE);
 	}
 	
     /** Displays a single character.
      */
 	void write(char x) {
-        spi::setCs(SCE, true);
+        spi::begin(SCE);
         writeChar(x);
-        spi::setCs(SCE, false);
+        spi::end(SCE);
 	}
 	
     /** Writes a null-terminated string. 
      */
 	void write(char const * x) {
-        spi::setCs(SCE, true);
+        spi::begin(SCE);
 	    while (*x != 0) {
             writeChar(*x);
             ++x;
         }
-        spi::setCs(SCE, false);
+        spi::end(SCE);
 	}
 
     /** Writes a null-terminated string to a given position. 
      */
     void write(uint8_t col, uint8_t row, char const * x) {
-        spi::setCs(SCE, true);
+        spi::begin(SCE);
 	    writeCommand(0x80 | col);
 		writeCommand(0x40 | row);	
         while (*x != 0) {
             writeChar(*x);
             ++x;
         }
-        spi::setCs(SCE, false);
+        spi::end(SCE);
     }
 
     /** Writes a null-terminated string to a given position, using scaled font (2x larger) to a given position. 
@@ -110,7 +110,7 @@ public:
         The large text uses the same font, but doubles each pixel, i.e. a cell size will become 10x16.
      */
     void writeLarge(uint8_t col, uint8_t row, char const * x) {
-        spi::setCs(SCE, true);
+        spi::begin(SCE);
 	    writeCommand(0x80 | col);
 		writeCommand(0x40 | row);	
         char const * xx = x;
@@ -138,7 +138,7 @@ public:
             writeData(0);
             ++x;
         }
-        spi::setCs(SCE, false);
+        spi::end(SCE);
     }
 	
     /** Writes an unsigned 16bit integer. 
@@ -146,7 +146,7 @@ public:
         If the fill character is '\0' (default), the number will be left-justified, if ' ' it will be right justified, '0' will print all leading zeros as well. 
      */
 	void write(uint16_t x, char fill = '\0') {
-        spi::setCs(SCE, true);
+        spi::begin(SCE);
         for (uint16_t i = 10000; i > 0; i = i / 10) {
             if (x > i || i == 1) {
                 writeChar((x / i) + '0');
@@ -156,7 +156,7 @@ public:
                 writeChar(fill);
             }
         }
-        spi::setCs(SCE, false);
+        spi::end(SCE);
 	}
 
 	

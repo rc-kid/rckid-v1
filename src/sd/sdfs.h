@@ -51,9 +51,25 @@ public:
 
     }; // SDFS::File
 
+    
+
     /** RAII managed SDFS folder. 
      */
     class Folder {
+    public:
+        Folder(char const * path) {
+            SDFS::check(f_opendir(& dir_, path));
+        }
+
+        ~Folder() {
+            SDFS::check(f_closedir(& dir_));
+        }
+
+
+
+
+    private:
+        DIR dir_;
 
     }; // SDFS::Folder
 

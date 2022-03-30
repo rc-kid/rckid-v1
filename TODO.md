@@ -12,6 +12,10 @@
 
 > https://martybugs.net/wireless/rubberducky.cgi -- site that seems to have decent info on antennas
 
+## SX1278
+
+- test with known library first
+
 # Audio
 
 - I2S output seems to be basically working, need to check the sample rate and the proper I2S output for the DAC used
@@ -24,7 +28,7 @@
 
 # SD Card & USB mass storage
 
-- make the SD fat library work and decide on some nice API
+- add decent API to the sdfs library
 - read files, play audio, show images, etc. 
 - see how it can be mounted via USB
 
