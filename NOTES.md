@@ -168,6 +168,17 @@ Other emulators must be downloaded, preferrably as libretro cores so that I can 
 
 Dosbox is not libretro core it seems but the emulator can definitely be installed. Wacky Wheels work after mounting (mount c /home/pi/roms/dosbox), so there is hope. Dosbox does not work from SSH.
 
+# Inputs
+
+- to inspect various controllers: https://github.com/Grumbel/evtest-qt/
+- uinput might be used to generate the events, maybe even including keyboard
 
 
+
+
+
+
+# GPIO
+
+    sudo apt-get install pygpio
 
