@@ -183,5 +183,7 @@ Dosbox is not libretro core it seems but the emulator can definitely be installe
 
 # GPIO
 
-    sudo apt-get install pygpio
+    sudo apt-get install libevdev-dev
+    sudo apt-get install pygpio libi2c-dev
+    
 
