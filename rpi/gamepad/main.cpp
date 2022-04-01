@@ -20,6 +20,26 @@
 
 class Gamepad {
 public:
+
+    enum class Button : unsigned {
+        A = BTN_A,
+        B = BTN_B, 
+        X = BTN_X, 
+        Y = BTN_Y,
+        Left = BTN_LEFT,
+        Right = BTN_RIGHT,
+        Select = BTN_SELECT,
+        Start = BTN_START,
+    };
+
+    enum class Axis : unsigned {
+        ThumbX = ABS_RX,
+        ThumbY = ABS_RY,
+        AccelX = ABS_X,
+        AccelY = ABS_Y,
+        AccelZ = ABS_Z,
+    };
+
     Gamepad() {
         dev_ = libevdev_new();
         libevdev_set_name(dev_, "rcboy gamepad");
@@ -28,14 +48,14 @@ public:
         libevdev_set_id_product(dev_, 0xbabe);
         // enable keys for the buttons
         libevdev_enable_event_type(dev_, EV_KEY);
-        libevdev_enable_event_code(dev_, EV_KEY, BTN_A, nullptr);
-        libevdev_enable_event_code(dev_, EV_KEY, BTN_B, nullptr);
-        libevdev_enable_event_code(dev_, EV_KEY, BTN_X, nullptr);
-        libevdev_enable_event_code(dev_, EV_KEY, BTN_Y, nullptr);
-        libevdev_enable_event_code(dev_, EV_KEY, BTN_LEFT, nullptr);
-        libevdev_enable_event_code(dev_, EV_KEY, BTN_RIGHT, nullptr);
-        libevdev_enable_event_code(dev_, EV_KEY, BTN_START, nullptr);
-        libevdev_enable_event_code(dev_, EV_KEY, BTN_SELECT, nullptr);
+        libevdev_enable_event_code(dev_, EV_KEY, static_cast<unsigned>(Button::A), nullptr);
+        libevdev_enable_event_code(dev_, EV_KEY, static_cast<unsigned>(Button::B), nullptr);
+        libevdev_enable_event_code(dev_, EV_KEY, static_cast<unsigned>(Button::X), nullptr);
+        libevdev_enable_event_code(dev_, EV_KEY, static_cast<unsigned>(Button::Y), nullptr);
+        libevdev_enable_event_code(dev_, EV_KEY, static_cast<unsigned>(Button::Left), nullptr);
+        libevdev_enable_event_code(dev_, EV_KEY, static_cast<unsigned>(Button::Right), nullptr);
+        libevdev_enable_event_code(dev_, EV_KEY, static_cast<unsigned>(Button::Select), nullptr);
+        libevdev_enable_event_code(dev_, EV_KEY, static_cast<unsigned>(Button::Start), nullptr);
         // enable the thumbstick and accelerometer
         libevdev_enable_event_type(dev_, EV_ABS);
         input_absinfo info {
@@ -46,11 +66,11 @@ public:
             .flat = 0,
             .resolution = 1,
         };
-        libevdev_enable_event_code(dev_, EV_ABS, ABS_RX, & info);
-        libevdev_enable_event_code(dev_, EV_ABS, ABS_RY, & info);
-        libevdev_enable_event_code(dev_, EV_ABS, ABS_X, & info);
-        libevdev_enable_event_code(dev_, EV_ABS, ABS_Y, & info);
-        libevdev_enable_event_code(dev_, EV_ABS, ABS_Z, & info);
+        libevdev_enable_event_code(dev_, EV_ABS, static_cast<unsigned>(Axis::ThumbX), & info);
+        libevdev_enable_event_code(dev_, EV_ABS, static_cast<unsigned>(Axis::ThumbY), & info);
+        libevdev_enable_event_code(dev_, EV_ABS, static_cast<unsigned>(Axis::AccelX), & info);
+        libevdev_enable_event_code(dev_, EV_ABS, static_cast<unsigned>(Axis::AccelY), & info);
+        libevdev_enable_event_code(dev_, EV_ABS, static_cast<unsigned>(Axis::AccelZ), & info);
         int err = libevdev_uinput_create_from_device(dev_,
                                                 LIBEVDEV_UINPUT_OPEN_MANAGED,
                                                 &uidev_);
