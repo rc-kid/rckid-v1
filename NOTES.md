@@ -177,3 +177,11 @@ Dosbox is not libretro core it seems but the emulator can definitely be installe
 
     sudo apt-get install pygpio
 
+
+
+
+
+# GPIO
+
+    sudo apt-get install pygpio
+
