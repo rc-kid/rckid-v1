@@ -8,7 +8,17 @@ find_path(EVDEV_INCLUDE_DIR libevdev/libevdev.h
 find_library(EVDEV_LIBRARY
         NAMES evdev libevdev)
 
-include_directories(${EVDEV_INCLUDE_DIR})
+find_path(PIGPIO_INCLUDE_DIR 
+        NAMES pigpio.h pigpiod_if.h pigpiod_if2.h
+        HINTS /usr/local/include)        
 
-add_executable(gamepad-driver main.cpp)
-target_link_libraries(gamepad-driver ${EVDEV_LIBRARY})
+find_library(PIGPIO_LIBRARY 
+        NAMES libpigpio.so
+        HINTS /usr/local/lib)
+
+include_directories(${EVDEV_INCLUDE_DIR} ${PIGPIO_INCLUDE_DIR})
+
+
+file(GLOB_RECURSE SRC  *.cpp *.h)
+add_executable(gamepad-driver ${SRC})
+target_link_libraries(gamepad-driver ${EVDEV_LIBRARY} ${PIGPIO_LIBRARY})
