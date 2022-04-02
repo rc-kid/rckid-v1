@@ -1,10 +1,9 @@
-#include <thread>
-#include <chrono>
 
 #include "gamepad.h"
 
 void Gamepad::loop() {
     while (true) {
+
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));        
     }
 }
@@ -50,19 +49,16 @@ void Gamepad::initializeDevice() {
 }
 
 void Gamepad::initializeGPIO() {
-    gpioInitialise();
-    gpioSetMode(GPIO_A, PI_INPUT);
-    gpioSetPullUpDown(GPIO_A, PI_PUD_UP);
+    gpio::inputPullup(GPIO_A);
+    gpio::inputPullup(GPIO_B);
+    gpio::inputPullup(GPIO_X);
+    gpio::inputPullup(GPIO_Y);
+#if (defined ARCH_RPI)
     gpioSetISRFuncEx(GPIO_A, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnA, this);
-    gpioSetMode(GPIO_B, PI_INPUT);
-    gpioSetPullUpDown(GPIO_B, PI_PUD_UP);
     gpioSetISRFuncEx(GPIO_B, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnB, this);
-    gpioSetMode(GPIO_X, PI_INPUT);
-    gpioSetPullUpDown(GPIO_X, PI_PUD_UP);
     gpioSetISRFuncEx(GPIO_X, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnX, this);
-    gpioSetMode(GPIO_Y, PI_INPUT);
-    gpioSetPullUpDown(GPIO_Y, PI_PUD_UP);
     gpioSetISRFuncEx(GPIO_Y, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnY, this);
+#endif
 }
 
 void Gamepad::initializeI2C() {

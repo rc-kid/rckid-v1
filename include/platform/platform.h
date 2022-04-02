@@ -1,6 +1,11 @@
 #pragma once
 #include <stdint.h>
 
+
+//#define ARCH_RPI
+#define ARCH_MOCK
+
+
 #if (defined ARDUINO)
     #define ARCH_ARDUINO
 #endif
@@ -17,6 +22,16 @@
     #define ARCH_AVR_MEGA
 #endif
 
+
+#if (defined ARCH_MOCK)
+    #include <thread>
+    #include <chrono>
+#endif
+
+#if (defined ARCH_RPI)
+    #include <thread>
+    #include <chrono>
+#endif
 
 #if (defined ARCH_RP2040)
     #include <hardware/clocks.h>
@@ -55,6 +70,8 @@ namespace cpu {
         sleep_us(value);  
 #elif (defined ARCH_ARDUINO)
         delayMicroseconds(value);
+#elif (defined ARCH_RPI) || (defined ARCH_MOCK)
+        std::this_thread::sleep_for(std::chrono::microseconds(value));        
 #else
         ARCH_NOT_SUPPORTED;
 #endif
@@ -65,6 +82,8 @@ namespace cpu {
         sleep_ms(value);  
 #elif (defined ARCH_ARDUINO)
         delay(value);
+#elif (defined ARCH_RPI) || (defined ARCH_MOCK)
+        std::this_thread::sleep_for(std::chrono::milliseconds(value));        
 #else
         ARCH_NOT_SUPPORTED;
 #endif

@@ -12,11 +12,11 @@
 //#include <linux/i2c-dev.h>
 //#include <i2c/smbus.h>
 
-#include <pigpio.h>
-
 #include "libevdev/libevdev.h"
 #include "libevdev/libevdev-uinput.h"
 
+#include "platform/platform.h"
+#include "platform/gpio.h"
 
 class Gamepad {
 public:
@@ -53,7 +53,7 @@ public:
 
     ~Gamepad() {
         libevdev_uinput_destroy(uidev_);
-        gpioTerminate();
+        //gpioTerminate();
     }
 
     void loop();

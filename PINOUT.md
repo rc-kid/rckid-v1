@@ -3,12 +3,12 @@
                            3V3     5V
                 I2C SDA -- 2       5V
                 I2C SCL -- 3      GND
-                           4*      14 -- UART TX
+                AVR_IRQ -- 4*      14 -- UART TX
                            GND     15 -- UART RX
-                           17      18 
-                           27*    GND
-                           22*    *23 
-                           3V3    *24
+                      A -- 17      18 -- B
+                      X -- 27*    GND
+                      Y -- 22*    *23 -- L 
+                           3V3    *24 -- R
     DISPLAY MOSI (SPI0) -- 10     GND
     DISPLAY MISO (SPI0) -- 9      *25 -- DISPLAY D/C
     DISPLAY SCLK (SPI0) -- 11       8 -- DISPLAY CE (SPI0 CE0)

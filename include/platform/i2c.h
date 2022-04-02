@@ -6,6 +6,9 @@
 #elif (defined ARCH_AVR_MEGATINY)
 #elif (defined ARCH_ARDUINO)
 #include <Wire.h>
+#elif (defined ARCH_RPI)
+#include <pigpio.h>
+#elif (defined ARCH_MOCK)
 #else
 ARCH_NOT_SUPPORTED;
 #endif
@@ -33,6 +36,8 @@ namespace i2c {
 #elif (defined ARCH_ARDUINO)
         Wire.begin();
         Wire.setClock(400000);
+#elif (defined ARCH_RPI)
+        
 #endif
     }
 #endif
