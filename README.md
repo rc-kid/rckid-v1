@@ -19,6 +19,28 @@ Runs on RPI, games, music, controllers, etc.
 
 ATTiny is always on, but mostly sleeping. Talks to the RPI via I2C and 
 
+
+# SD Card Image
+
+Install the development dependencies:
+
+    sudo apt-get install libevdev-dev
+    sudo apt-get install pigpio
+
+Add the udev rule for the gamepad to be recognized as a joystick so that emulation station and retroarch pick it up by copying the `rpi/gamepad/99-rcboy-gamepad.rules` file to `/etc/udev/rules/d`. 
+
+> TODO verify with new image whether the libi2c-dev is needed when using pygpio
+
+Install platformio:
+
+    python3 -c "$(curl -fsSL https://raw.githubusercontent.com/platformio/platformio/master/scripts/get-platformio.py)"
+
+
+Add the `rpi/ili9341/ili9341.service` to `/lib/systemd/system` and run:
+
+    sudo systemctl enable ili9341
+
+
 # BOM
 
 RPI Zero 2 W    | 1   |  4  |

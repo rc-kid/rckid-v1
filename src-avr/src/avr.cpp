@@ -58,7 +58,7 @@ static constexpr gpio::Pin DEBUG_PIN = 16;
 
  */
 
-static constexpr uint8_t NUM_BUTTONS = 7;
+static constexpr uint8_t NUM_BUTTONS = 2;
 static constexpr uint8_t BUTTON_DEBOUNCE = 10; // [ms]
 static constexpr uint16_t POWERON_PRESS = 1000; // [ms]
 
@@ -79,7 +79,7 @@ volatile struct {
 
 /** Timers for the button debounce. 
  */
-uint8_t buttonTimers[NUM_BUTTONS] = {0,0,0,0,0,0,0};
+uint8_t buttonTimers[NUM_BUTTONS] = {0,0};
 
 void wakeup();
 void pwrButtonDown();
@@ -211,7 +211,8 @@ void processADC1Result() {
 
 /** Determines if there is a change in state for given button. 
  */
-bool checkButton(int index, bool value) {
+bool checkButtons() {
+    if (buttonTimers[0] == 0 && )
     if (buttonTimers[index] == 0 && (comms.state.button(index) != value)) {
         comms.state.setButton(index, value);
         cli();
@@ -225,21 +226,12 @@ bool checkButton(int index, bool value) {
 
 constexpr gpio::Pin buttonPin(uint8_t btn) {
     switch (btn) {
-        case BTN_A:
-            return BTN_A_PIN;
-        case BTN_B:
-            return BTN_B_PIN;
-        case BTN_C:
-            return BTN_C_PIN;
-        case BTN_D:
-            return BTN_D_PIN;
-        case BTN_L:
-            return BTN_L_PIN;
-        case BTN_R:
-            return BTN_R_PIN;
-        case BTN_PWR:
+        case BTN_START:
+            return BTN_START_PIN;
+        case BTN_SELECT:
+            return BTN_SELECT_PIN;
         default: // never happens
-            return BTN_PWR_PIN;
+            return BTN_START_PIN;
     }
 }
 
@@ -249,7 +241,7 @@ void tick() {
     bool irq = flags.irq;
     // check buttons 
     for (int i = 0; i < NUM_BUTTONS; ++i)
-        irq = checkButton(i, ! gpio::read(buttonPin(i))) || irq;
+        irq = checkButtons() || irq;
     // set irq if it is requested by either the 
     if (irq && gpio::read(IRQ_PIN)) {
         flags.irq = false;
@@ -302,7 +294,7 @@ void sleep() {
         // avr wakes up immediately after PWR button is held down. Wait some time for the pwr button to be pressed down 
         uint16_t ticks = POWERON_PRESS;
         tick();
-        while (comms.state.btnPwr()) {
+        while (comms.state.btnStart()) {
             if (flags.tick) {
                 tick();
                 if (--ticks == 0) {

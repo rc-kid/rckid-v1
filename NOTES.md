@@ -172,18 +172,3 @@ Dosbox is not libretro core it seems but the emulator can definitely be installe
 
 - to inspect various controllers: https://github.com/Grumbel/evtest-qt/
 - uinput might be used to generate the events, maybe even including keyboard
-
-# GPIO
-
-    sudo apt-get install pygpio
-
-
-
-
-
-# GPIO
-
-    sudo apt-get install libevdev-dev
-    sudo apt-get install pygpio libi2c-dev
-    
-
