@@ -1,11 +1,6 @@
 #pragma once
 #include <stdint.h>
 
-
-//#define ARCH_RPI
-#define ARCH_MOCK
-
-
 #if (defined ARDUINO)
     #define ARCH_ARDUINO
 #endif

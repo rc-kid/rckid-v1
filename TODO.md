@@ -1,10 +1,12 @@
 ## Rpi - Gamepad & Drivers
 
 - debounce buttons
-- todos in code
 - can use USB? Host/master?
 - shared memory comms with other processes (dim display, battery level, temp, etc.)
 - control display with PWM
+
+- only use two axes for the accelerometer, figure out how to make gyro and accel to determine the propoer position
+
 
 # RPi - UI
 

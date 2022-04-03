@@ -11,6 +11,24 @@ public:
         int16_t z = 0;
 
         AccelData() = default;
+
+        void toUnsignedByte() {
+            x = (x >> 8) + 128;
+            y = (y >> 8) + 128;
+            z = (z >> 8) + 128;
+            if (x < 0) 
+                x = 0;
+            else if (x > 255)
+                x = 255;
+            if (y < 0) 
+                y = 0;
+            else if (y > 255)
+                y = 255;
+            if (z < 0) 
+                z = 0;
+            else if (z > 255)
+                z = 255;
+        }
     private:
         friend class MPU6050;
         AccelData(uint8_t const * buffer): 

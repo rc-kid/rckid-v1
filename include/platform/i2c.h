@@ -80,7 +80,7 @@ namespace i2c {
     /** Transmission. 
      */
 
-    inline bool transmit(uint8_t address, uint8_t * wb, uint8_t wsize, uint8_t * rb, uint8_t rsize) {
+    inline bool transmit(uint8_t address, uint8_t const * wb, uint8_t wsize, uint8_t * rb, uint8_t rsize) {
 #if (defined ARCH_RP2040)
         if (wsize != 0)
             i2c_write_blocking(i2c1, address, wb, wsize, rsize != 0);
@@ -92,12 +92,16 @@ namespace i2c {
         if (h < 0)
             return false;
         if (wsize != 0)
-            if (i2cWriteDevice(h, wb, wsize) <= 0)
+            if (i2cWriteDevice(h, (char*)wb, wsize) != 0) {
+                i2cClose(h);
                 return false;
+            }
         if (rsize != 0)
-            if (i2cReadDevice(h, rb, rsize) <= 0)
+            if (i2cReadDevice(h, (char *)rb, rsize) != 0) {
+                i2cClose(h);
                 return false;
-        return i2cClose(h) >= 0;
+            }
+        return i2cClose(h) == 0;
 #elif (defined __AVR_ATmega8__)
        // TODO won't compile for now
        // update the slave address by shifting it to the right and then adding 1 if we are going to read immediately, i.e. no transmit bytes

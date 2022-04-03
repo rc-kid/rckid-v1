@@ -7,13 +7,6 @@ static constexpr uint8_t AVR_I2C_ADDRESS = 0x43;
 
 static constexpr size_t I2C_BUFFER_SIZE = 32;
 
-static constexpr uint8_t BTN_PWR = 0;
-static constexpr uint8_t BTN_A = 1;
-static constexpr uint8_t BTN_B = 2;
-static constexpr uint8_t BTN_C = 3;
-static constexpr uint8_t BTN_D = 4;
-static constexpr uint8_t BTN_L = 5;
-static constexpr uint8_t BTN_R = 6;
 
 /** The state AVR sends to RP2040. 
  
@@ -21,23 +14,13 @@ static constexpr uint8_t BTN_R = 6;
  */
 class State {
 public:
-    bool btnPwr() const { return buttons_ & (1 << BTN_PWR); }
-    bool btnA() const { return buttons_ & (1 << BTN_A); }
-    bool btnB() const { return buttons_ & (1 << BTN_B); }
-    bool btnC() const { return buttons_ & (1 << BTN_C); }
-    bool btnD() const { return buttons_ & (1 << BTN_D); }
-    bool btnLeft() const { return buttons_ & (1 << BTN_L); }
-    bool btnRight() const { return buttons_ & (1 << BTN_R); }
+    bool btnStart() const { return buttons_ & (1 << BTN_START); }
+    bool btnSelect() const { return buttons_ & (1 << BTN_SELECT); }
     uint8_t joyX() const { return joyX_; }
     uint8_t joyY() const { return joyY_; }
 
-    void setBtnPwr(bool value) { setOrClear(buttons_, 1 << BTN_PWR, value); }
-    void setBtnA(bool value) { setOrClear(buttons_, 1 << BTN_A, value); }
-    void setBtnB(bool value) { setOrClear(buttons_, 1 << BTN_B, value); }
-    void setBtnC(bool value) { setOrClear(buttons_, 1 << BTN_C, value); }
-    void setBtnD(bool value) { setOrClear(buttons_, 1 << BTN_D, value); }
-    void setBtnLeft(bool value) { setOrClear(buttons_, 1 << BTN_L, value); }
-    void setBtnRight(bool value) { setOrClear(buttons_, 1 << BTN_R, value); }
+    void setBtnStart(bool value) { setOrClear(buttons_, 1 << BTN_START, value); }
+    void setBtnSelect(bool value) { setOrClear(buttons_, 1 << BTN_SELECT, value); }
     void setJoyX(uint8_t value) { joyX_ = value; }
     void setJoyY(uint8_t value) { joyY_ = value; }
 
@@ -94,8 +77,12 @@ public:
     DateTime & time() { return time_; }
 
 private:
-
+    static constexpr uint8_t BTN_START = 0;
+    static constexpr uint8_t BTN_SELECT = 1;
     uint8_t buttons_;
+
+    /** Joystick X and Y coordinates. 
+     */
     uint8_t joyX_;
     uint8_t joyY_;
 

@@ -8,31 +8,34 @@
 
 /** Chip Pinout
                -- VDD             GND --
-         BTN_A -- (00) PA4   PA3 (16) -- DEBUG
-         BTN_B -- (01) PA5   PA2 (15) -- 
-         BTN_C -- (02) PA6   PA1 (14) -- 
-         BTN_D -- (03) PA7   PA0 (17) -- UPDI
-         BTN_L -- (04) PB5   PC3 (13) -- JOY_Y
-         BTN_R -- (05) PB4   PC2 (12) -- JOY_X
-       BTN_PWR -- (06) PB3   PC1 (11) -- JOY_PWR
+               -- (00) PA4   PA3 (16) -- DEBUG
+               -- (01) PA5   PA2 (15) -- 
+               -- (02) PA6   PA1 (14) -- 
+               -- (03) PA7   PA0 (17) -- UPDI
+               -- (04) PB5   PC3 (13) -- JOY_Y
+     BTN_START -- (05) PB4   PC2 (12) -- JOY_X
+    BTN_SELECT -- (06) PB3   PC1 (11) -- JOY_PWR
            IRQ -- (07) PB2   PC0 (10) -- EN_3V3
      SDA (I2C) -- (08) PB1   PB0 (09) -- SCL (I2C)
 */
 
-static constexpr gpio::Pin BTN_A_PIN = 0;
-static constexpr gpio::Pin BTN_B_PIN = 1;
-static constexpr gpio::Pin BTN_C_PIN = 2;
-static constexpr gpio::Pin BTN_D_PIN = 3;
-static constexpr gpio::Pin BTN_L_PIN = 4;
-static constexpr gpio::Pin BTN_R_PIN = 5;
-static constexpr gpio::Pin BTN_PWR_PIN = 6;
+/* Needs to do: (8 available)
+
+   - battery level
+   - charging (maybe no need for it, can use charging, more or less)
+   - headphones
+   - display PWM
+   - vibration motor
+   - RGB led?
+*/
+
+static constexpr gpio::Pin BTN_START_PIN = 5;
+static constexpr gpio::Pin BTN_SELECT_PIN = 6;
 static constexpr gpio::Pin IRQ_PIN = 7;
 static constexpr gpio::Pin EN_3V3_PIN = 10;
 static constexpr gpio::Pin JOY_PWR_PIN = 11;
 static constexpr gpio::Pin JOY_X_PIN = 12; // AIN8
 static constexpr gpio::Pin JOY_Y_PIN = 13; // AIN9
-
-
 
 
 static constexpr gpio::Pin DEBUG_PIN = 16;
@@ -88,13 +91,8 @@ void setup() {
     // set IRQ pin as input (is pulled up by RP2040 when active)
     gpio::input(IRQ_PIN);
     // button pins set to input 
-    gpio::inputPullup(BTN_A_PIN);
-    gpio::inputPullup(BTN_B_PIN);
-    gpio::inputPullup(BTN_C_PIN);
-    gpio::inputPullup(BTN_D_PIN);
-    gpio::inputPullup(BTN_L_PIN);
-    gpio::inputPullup(BTN_R_PIN);
-    gpio::inputPullup(BTN_PWR_PIN);
+    gpio::inputPullup(BTN_START_PIN);
+    gpio::inputPullup(BTN_SELECT_PIN);
     // joy pins set to analog inputs
     static_assert(JOY_X_PIN == 12); // AIN8, PC2
     PORTC.PIN2CTRL &= ~PORT_ISC_gm;

@@ -52,11 +52,10 @@ void Gamepad::loop() {
     }
 }
 
-/** TODO determine how to read the actual value off the accelerometer/gyroscope and convert to 0..255 range. 
- */
 void Gamepad::queryAccelerometer() {
     MPU6050::AccelData d = accel_.readAccel();
-    std::cout << "X: " << d.x << ", Y: " << d.y << " Z: " << d.z << std::endl;
+    d.toUnsignedByte();
+    //std::cout << "X: " << d.x << ", Y: " << d.y << " Z: " << d.z << std::endl;
     // also read the temperature so that we have one more datapoint whether the handheld overheats or not
     uint16_t t = accel_.readTemp();
 
@@ -132,6 +131,8 @@ void Gamepad::initializeGPIO() {
 
 void Gamepad::initializeI2C() {
     i2c::initialize();
+    cpu::delay_ms(5);
+    accel_.reset();
 }
 
 void Gamepad::isrBtnA(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
