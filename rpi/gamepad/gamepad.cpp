@@ -1,18 +1,82 @@
 
 #include "gamepad.h"
 
-void Gamepad::loop() {
-    while (true) {
+using namespace std::chrono_literals;
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));        
+void Gamepad::loop() {
+    auto last = std::chrono::system_clock::now();        
+    auto next = last + 5ms;
+    size_t ticks = 0;
+    while (true) {
+        {
+            std::unique_lock g(m_);
+            cv_.wait_until(g, next, [this] () { return q_.empty(); });
+            while (! q_.empty()) {
+                switch (q_.front()) {
+                    case Event::ButtonAChange:
+                        buttonChange(Button::A, ! a_);
+                        break;
+                    case Event::ButtonBChange:
+                        buttonChange(Button::B, ! b_);
+                        break;
+                    case Event::ButtonXChange:
+                        buttonChange(Button::X, ! x_);
+                        break;
+                    case Event::ButtonYChange:
+                        buttonChange(Button::Y, ! y_);
+                        break;
+                    case Event::ButtonLeftChange:
+                        buttonChange(Button::Left, ! l_);
+                        break;
+                    case Event::ButtonRightChange:
+                        buttonChange(Button::Right, ! r_);
+                        break;
+                    case Event::AvrIrq: 
+                        g.unlock(); // this will take time, so release the lock fpor other interrupts
+                        queryAVR();
+                        g.lock();
+                        ticks = 0; // reset ticks for the heartbeat
+                }
+                q_.pop_front();
+            }
+        }
+        last = std::chrono::system_clock::now();
+        if (last >= next) {
+            queryAccelerometer();
+            // if there's been enough ticks, talk to AVR so that it knows we are still alive (once per second)
+            if (++ticks >=200) {
+                queryAVR();
+                ticks = 0;
+            }
+        }
     }
+}
+
+/** TODO determine how to read the actual value off the accelerometer/gyroscope and convert to 0..255 range. 
+ */
+void Gamepad::queryAccelerometer() {
+    MPU6050::AccelData d = accel_.readAccel();
+    std::cout << "X: " << d.x << ", Y: " << d.y << " Z: " << d.z << std::endl;
+    // also read the temperature so that we have one more datapoint whether the handheld overheats or not
+    uint16_t t = accel_.readTemp();
+
+}
+
+/** TODO actuallytalk to the AVR. 
+ */
+void Gamepad::queryAVR() {
+    // TODO !
+}
+
+void Gamepad::isrAvrIrq(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
+    gamepad->addEvent(Gamepad::Event::AvrIrq);
 }
 
 void Gamepad::initializeDevice() {
         struct libevdev * dev = libevdev_new();
         libevdev_set_name(dev, "rcboy gamepad");
         libevdev_set_id_bustype(dev, BUS_USB);
-        libevdev_set_id_vendor(dev, 0xcafe);
+        libevdev_set_id_vendor(dev, 0x0ada);
         libevdev_set_id_product(dev, 0xbabe);
         // enable keys for the buttons
         libevdev_enable_event_type(dev, EV_KEY);
@@ -45,7 +109,6 @@ void Gamepad::initializeDevice() {
         if (err != 0)
             std::cout << "cannot do what I want to do" << std::endl;
         libevdev_free(dev);
-
 }
 
 void Gamepad::initializeGPIO() {
@@ -53,42 +116,62 @@ void Gamepad::initializeGPIO() {
     gpio::inputPullup(GPIO_B);
     gpio::inputPullup(GPIO_X);
     gpio::inputPullup(GPIO_Y);
+    gpio::inputPullup(GPIO_L);
+    gpio::inputPullup(GPIO_R);
+    gpio::inputPullup(GPIO_AVR_IRQ);
 #if (defined ARCH_RPI)
     gpioSetISRFuncEx(GPIO_A, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnA, this);
     gpioSetISRFuncEx(GPIO_B, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnB, this);
     gpioSetISRFuncEx(GPIO_X, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnX, this);
     gpioSetISRFuncEx(GPIO_Y, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnY, this);
+    gpioSetISRFuncEx(GPIO_L, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnL, this);
+    gpioSetISRFuncEx(GPIO_R, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnR, this);
+    gpioSetISRFuncEx(GPIO_AVR_IRQ, FALLING_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrAvrIrq, this);
 #endif
 }
 
 void Gamepad::initializeI2C() {
-
+    i2c::initialize();
 }
-
 
 void Gamepad::isrBtnA(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
     if (gamepad->a_ != level) {
         gamepad->a_ = level;
-        gamepad->a_ ? gamepad->buttonRelease(Button::A) : gamepad->buttonPress(Button::A);
+        gamepad->addEvent(Gamepad::Event::ButtonAChange);
     }
 }
 
 void Gamepad::isrBtnB(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
     if (gamepad->b_ != level) {
         gamepad->b_ = level;
-        gamepad->b_ ? gamepad->buttonRelease(Button::B) : gamepad->buttonPress(Button::B);
+        gamepad->addEvent(Gamepad::Event::ButtonBChange);
     }
 }
+
 void Gamepad::isrBtnX(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
     if (gamepad->x_ != level) {
         gamepad->x_ = level;
-        gamepad->x_ ? gamepad->buttonRelease(Button::X) : gamepad->buttonPress(Button::X);
+        gamepad->addEvent(Gamepad::Event::ButtonXChange);
     }
 }
 
 void Gamepad::isrBtnY(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
     if (gamepad->y_ != level) {
         gamepad->y_ = level;
-        gamepad->y_ ? gamepad->buttonRelease(Button::Y) : gamepad->buttonPress(Button::Y);
+        gamepad->addEvent(Gamepad::Event::ButtonYChange);
+    }
+}
+
+void Gamepad::isrBtnL(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
+    if (gamepad->l_ != level) {
+        gamepad->l_ = level;
+        gamepad->addEvent(Gamepad::Event::ButtonLeftChange);
+    }
+}
+
+void Gamepad::isrBtnR(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
+    if (gamepad->r_ != level) {
+        gamepad->r_ = level;
+        gamepad->addEvent(Gamepad::Event::ButtonRightChange);
     }
 }

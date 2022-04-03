@@ -1,3 +1,20 @@
+## Rpi - Gamepad & Drivers
+
+- debounce buttons
+- todos in code
+- can use USB? Host/master?
+- shared memory comms with other processes (dim display, battery level, temp, etc.)
+- control display with PWM
+
+# RPi - UI
+
+- TODO
+
+# AVR 
+
+- check it can turn rpi on/off
+- check rpi can program it, should there be a way to force RPI on via some button too to override the shutdown? 
+
 # Radio
 
 ! Determine which radio to use!

@@ -15,7 +15,18 @@ ARCH_NOT_SUPPORTED;
 
 namespace i2c {
 
-#if (defined ARCH_RP2040)
+    /** Master initialization.
+     */
+
+#if (defined ARCH_MOCK)
+    inline void initialize() { }
+#elif (defined ARCH_RPI)
+    inline void initialize() {
+        // TODO set speed here too
+        // make sure that a write followed by a read to the same address will use repeated start as opposed to stop-start
+        i2cSwitchCombined(true);
+    }
+#elif (defined ARCH_RP2040)
     inline void initialize(unsigned sda, unsigned scl, unsigned baudrate = 400000) {
         i2c_init(i2c1, 400 * 1000);
         gpio_set_function(sda, GPIO_FUNC_I2C);
@@ -24,7 +35,6 @@ namespace i2c {
         bi_decl(bi_2pins_with_func(sda, scl, GPIO_FUNC_I2C));    
     }
 #else
-
     inline void initialize() {
 #if (defined __AVR_ATmega8__)
         TWBR = static_cast<uint8_t>((F_CPU / 100000 - 16) / 2);
@@ -36,11 +46,14 @@ namespace i2c {
 #elif (defined ARCH_ARDUINO)
         Wire.begin();
         Wire.setClock(400000);
-#elif (defined ARCH_RPI)
-        
 #endif
     }
 #endif
+
+    /** Slave initialization. 
+     
+        Slaves are not supported on all platforms. 
+     */
 
 #if (defined ARCH_AVR_MEGATINY)
     /** I2C Slave initialization for Series 1 chips. 
@@ -64,6 +77,8 @@ namespace i2c {
     }
 #endif
 
+    /** Transmission. 
+     */
 
     inline bool transmit(uint8_t address, uint8_t * wb, uint8_t wsize, uint8_t * rb, uint8_t rsize) {
 #if (defined ARCH_RP2040)
@@ -72,6 +87,17 @@ namespace i2c {
         if (rsize != 0)
             i2c_read_blocking(i2c1, address, rb, rsize, false);
         return true;
+#elif (defined ARCH_RPI)
+        int h = i2cOpen(1, address, 0);
+        if (h < 0)
+            return false;
+        if (wsize != 0)
+            if (i2cWriteDevice(h, wb, wsize) <= 0)
+                return false;
+        if (rsize != 0)
+            if (i2cReadDevice(h, rb, rsize) <= 0)
+                return false;
+        return i2cClose(h) >= 0;
 #elif (defined __AVR_ATmega8__)
        // TODO won't compile for now
        // update the slave address by shifting it to the right and then adding 1 if we are going to read immediately, i.e. no transmit bytes
@@ -157,6 +183,9 @@ namespace i2c {
             }
         }
         return true;
+#else
+        // OUCH
+        return false;
 #endif
     }
 
@@ -197,31 +226,31 @@ namespace i2c {
     }; // i2c::Device
 
     template<>
-    void Device::write<uint8_t>(uint8_t data) {
+    inline void Device::write<uint8_t>(uint8_t data) {
         transmit(address, & data, 1, nullptr, 0);
     }
 
     template<>
-    void Device::write<uint16_t>(uint16_t data) {
+    inline void Device::write<uint16_t>(uint16_t data) {
         transmit(address, reinterpret_cast<uint8_t *>(& data), 2, nullptr, 0);
     }   
 
     template<>
-    uint8_t Device::read<uint8_t>() {
+    inline uint8_t Device::read<uint8_t>() {
         uint8_t result = 0;
         transmit(address, nullptr, 0, & result, 1);
         return result;
     }
 
     template<>
-    uint16_t Device::read<uint16_t>() {
+    inline uint16_t Device::read<uint16_t>() {
         uint16_t result = 0;
         transmit(address, nullptr, 0, reinterpret_cast<uint8_t *>(result), 2);
         return result;
     }
 
     template<>
-    void Device::writeRegister<uint8_t>(uint8_t reg, uint8_t value) {
+    inline void Device::writeRegister<uint8_t>(uint8_t reg, uint8_t value) {
         uint8_t buf[] = { reg, value };
         transmit(address, buf, 2, nullptr, 0);
     }
@@ -233,14 +262,14 @@ namespace i2c {
     */
 
     template<>
-    uint8_t Device::readRegister<uint8_t>(uint8_t reg) {
+    inline uint8_t Device::readRegister<uint8_t>(uint8_t reg) {
         uint8_t result = 0;
         transmit(address, & reg, 1, & result, 1);
         return result;
     }
 
     template<>
-    uint16_t Device::readRegister<uint16_t>(uint8_t reg) {
+    inline uint16_t Device::readRegister<uint16_t>(uint8_t reg) {
         uint16_t result = 0;
         transmit(address, & reg, 1, reinterpret_cast<uint8_t*>(& result), 2);
         return result;
