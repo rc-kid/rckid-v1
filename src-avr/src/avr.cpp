@@ -126,7 +126,7 @@ void setup() {
     ADC1.CTRLD = ADC_INITDLY_DLY32_gc;
     ADC1.SAMPCTRL = 31;
     // attach the power button to interrupt so that it can wake us up
-    attachInterrupt(digitalPinToInterrupt(BTN_PWR_PIN), pwrButtonDown, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(BTN_SELECT_PIN), pwrButtonDown, CHANGE);
     // start the 1kHz timer for ticks
     TCB0.CTRLB = TCB_CNTMODE_INT_gc;
     TCB0.INTCTRL = TCB_CAPT_bm;
@@ -212,27 +212,24 @@ void processADC1Result() {
 /** Determines if there is a change in state for given button. 
  */
 bool checkButtons() {
-    if (buttonTimers[0] == 0 && )
-    if (buttonTimers[index] == 0 && (comms.state.button(index) != value)) {
-        comms.state.setButton(index, value);
+    bool changed = false;
+    bool value = gpio::read(BTN_START_PIN);
+    if (buttonTimers[0] == 0 && comms.state.btnStart() != value) {
+        comms.state.setBtnStart(value);
         cli();
-        buttonTimers[index] = BUTTON_DEBOUNCE;
+        buttonTimers[0] = BUTTON_DEBOUNCE;
         sei();
-        return true;
-    } else {
-        return false;
-    }
-}
-
-constexpr gpio::Pin buttonPin(uint8_t btn) {
-    switch (btn) {
-        case BTN_START:
-            return BTN_START_PIN;
-        case BTN_SELECT:
-            return BTN_SELECT_PIN;
-        default: // never happens
-            return BTN_START_PIN;
-    }
+        changed = true;
+    } 
+    value = gpio::read(BTN_SELECT_PIN);
+    if (buttonTimers[1] == 0 && comms.state.btnSelect() != value) {
+        comms.state.setBtnSelect(value);
+        cli();
+        buttonTimers[1] = BUTTON_DEBOUNCE;
+        sei();
+        changed = true;
+    } 
+    return changed;
 }
 
 

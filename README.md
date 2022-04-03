@@ -22,6 +22,12 @@ ATTiny is always on, but mostly sleeping. Talks to the RPI via I2C and
 
 # SD Card Image
 
+In raspi-config:
+
+- disable serial port login
+- enable I2C
+
+
 Install the development dependencies:
 
     sudo apt-get install libevdev-dev
@@ -31,10 +37,11 @@ Add the udev rule for the gamepad to be recognized as a joystick so that emulati
 
 > TODO verify with new image whether the libi2c-dev is needed when using pygpio
 
-Install platformio:
+Install platformio & friends:
 
     python3 -c "$(curl -fsSL https://raw.githubusercontent.com/platformio/platformio/master/scripts/get-platformio.py)"
-
+    sudo apt-get install python3-pip
+    pip3 install https://github.com/mraardvark/pyupdi/archive/master.zip
 
 Add the `rpi/ili9341/ili9341.service` to `/lib/systemd/system` and run:
 
