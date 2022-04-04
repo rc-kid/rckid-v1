@@ -43,6 +43,8 @@ Install platformio & friends:
     sudo apt-get install python3-pip
     pip3 install https://github.com/mraardvark/pyupdi/archive/master.zip
 
+> Note that pyupdi is installed in `~/.local/bin` which is not in path generally.
+
 Add the `rpi/ili9341/ili9341.service` to `/lib/systemd/system` and run:
 
     sudo systemctl enable ili9341

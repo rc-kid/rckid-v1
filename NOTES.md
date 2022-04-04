@@ -172,3 +172,9 @@ Dosbox is not libretro core it seems but the emulator can definitely be installe
 
 - to inspect various controllers: https://github.com/Grumbel/evtest-qt/
 - uinput might be used to generate the events, maybe even including keyboard
+
+
+
+# Programming AVR
+
+The AVR can be programmed via the /dev/ttyAMA0 which is used by BT though. Disabling BT solves the issue at the cost of disabling BT. Not sure if we want BT. If we realize we do, this can always be done manually for the update alone, etc. 

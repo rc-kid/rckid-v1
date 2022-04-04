@@ -7,6 +7,8 @@
 
 - only use two axes for the accelerometer, figure out how to make gyro and accel to determine the propoer position
 
+- ttyAMA0 is likely used by bluetooth, check the settings to swap them between BT and AMA0 so that we can program the AVR
+
 
 # RPi - UI
 

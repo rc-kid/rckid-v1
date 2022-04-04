@@ -1,6 +1,12 @@
 
 #include "gamepad.h"
 
+// these come from libevdev
+#undef BTN_START
+#undef BTN_SELECT
+
+#include "comms.h"
+
 using namespace std::chrono_literals;
 
 void Gamepad::loop() {
@@ -64,7 +70,25 @@ void Gamepad::queryAccelerometer() {
 /** TODO actuallytalk to the AVR. 
  */
 void Gamepad::queryAVR() {
-    // TODO !
+    comms::State state;
+    i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(comms::State));
+
+    if (sel_ != state.btnSelect()) {
+        sel_ = state.btnSelect();
+        buttonChange(Button::Select, ! sel_);
+    }
+    if (start_ != state.btnStart()) {
+        start_ = state.btnStart();
+        buttonChange(Button::Start, ! start_);
+    }
+    if (thumbX_ != state.joyX()) {
+        thumbX_ = state.joyX();
+        axisChange(Axis::ThumbX, thumbX_);
+    }
+    if (thumbY_ != state.joyY()) {
+        thumbY_ = state.joyY();
+        axisChange(Axis::ThumbY, thumbY_);
+    }
 }
 
 void Gamepad::isrAvrIrq(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
