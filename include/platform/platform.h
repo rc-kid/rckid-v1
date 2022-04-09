@@ -1,13 +1,24 @@
 #pragma once
 #include <stdint.h>
 
-#if (defined ARDUINO)
+/** Determine the main platform architecture. This can either be force specified by the build process, or in some cases automatically detected. Explicit specification takes precedence.
+ */
+
+#if (defined ARCH_MOCK)
+#elif (defined ARCH_RPI)
+#elif (defined ARCH_ARDUINO)
+#elif (defined ARCH_RPI2040)
+#elif (defined ARDUINO)
     #define ARCH_ARDUINO
+#elif (defined PICO_BOARD)
+    #define ARCH_RP2040
+#else 
+    #error "Platform not detected, or specified."
 #endif
 
-#if (defined PICO_BOARD)
-    #define ARCH_RP2040
-#elif (defined __AVR_ATtiny1616__)
+/** Sub-platforms. These are autodetected. 
+ */
+#if (defined __AVR_ATtiny1616__)
     #define ARCH_AVR_MEGATINY
     #define ARCH_ATTINY_1616
 #elif  (defined __AVR_ATtiny3216)
@@ -17,106 +28,103 @@
     #define ARCH_AVR_MEGA
 #endif
 
-
 #if (defined ARCH_MOCK)
-    #include <thread>
-    #include <chrono>
-#endif
-
-#if (defined ARCH_RPI)
-    #include <thread>
-    #include <chrono>
-#endif
-
-#if (defined ARCH_RP2040)
-    #include <hardware/clocks.h>
-    #include <hardware/pio.h>
-#endif
-
-#if (defined ARCH_ARDUINO)
-    #include <Arduino.h>
-#endif
-
-#if (defined ARCH_AVR_MEGA) || (defined ARCH_AVR_MEGATINY)
-    #include <avr/sleep.h>
-#endif
-
-
-
-#define ARCH_NOT_SUPPORTED static_assert(false,"Unknown or unsupported architecture")
-
-
-inline uint16_t swapBytes(uint16_t x) {
-    return static_cast<uint16_t>((x & 0xff) << 8 | (x >> 8));
-}
-
-template<typename T, typename V>
-void setOrClear(T & value, V mask, bool setOrClear) {
-    if (setOrClear)
-        value |= mask;
-    else 
-        value &= ~mask;
-}
-
-namespace cpu {
-
-    inline void delay_us(unsigned value) {
-#if (defined ARCH_RP2040)
-        sleep_us(value);  
+    #include "mock.h"
 #elif (defined ARCH_ARDUINO)
-        delayMicroseconds(value);
-#elif (defined ARCH_RPI) || (defined ARCH_MOCK)
-        std::this_thread::sleep_for(std::chrono::microseconds(value));        
-#else
-        ARCH_NOT_SUPPORTED;
+    #include "arduino.h"
+#elif (defined ARCH_RP2040)
+    #include "rp2040.h"
+#elif (defined ARCH_RPI)
+    #include "rpi.h"
 #endif
+
+#include "utils.h"
+
+
+
+
+/** A prototype of I2C device. 
+ */
+class I2CDevice {
+public:
+    const uint8_t address;
+protected:
+    I2CDevice(uint8_t address):
+        address{address} {
     }
 
-    inline void delay_ms(unsigned value) {
-#if (defined ARCH_RP2040)
-        sleep_ms(value);  
-#elif (defined ARCH_ARDUINO)
-        delay(value);
-#elif (defined ARCH_RPI) || (defined ARCH_MOCK)
-        std::this_thread::sleep_for(std::chrono::milliseconds(value));        
-#else
-        ARCH_NOT_SUPPORTED;
-#endif
+    bool isPresent() {
+        return i2c::transmit(address, nullptr, 0, nullptr, 0);
     }
 
-    inline void wdtEnable() {
-#if (defined ARCH_AVR_MEGATINY)
-        _PROTECTED_WRITE(WDT.CTRLA,WDT_PERIOD_8KCLK_gc); // no window, 8sec
-#endif
+    template<typename T>
+    void write(T data);
+
+    void write(uint8_t * data, uint8_t size) {
+        i2c::transmit(address, data, size, nullptr, 0);
     }
 
-    inline void wdtDisable() {
-#if (defined ARCH_AVR_MEGATINY)
-        _PROTECTED_WRITE(WDT.CTRLA,0);
-#endif
+    template<typename T>
+    T read(); 
+
+    uint8_t read(uint8_t * buffer, uint8_t size) {
+        return i2c::transmit(address, buffer, size, nullptr, 0) ? size : 0;
     }
 
-    inline void wdtReset() {
-#if (defined ARCH_AVR_MEGATINY)
-        __asm__ __volatile__ ("wdr"::);
-#endif
-    }
+    template<typename T>
+    void writeRegister(uint8_t reg, T value);
 
-    inline void sleep() {
-#if (defined ARCH_AVR_MEGATINY)
-        sleep_cpu();
-#endif
-    }
+    template<typename T>
+    T readRegister(uint8_t reg);
+
+}; // i2c::Device
+
+template<>
+inline void I2CDevice::write<uint8_t>(uint8_t data) {
+    i2c::transmit(address, & data, 1, nullptr, 0);
 }
 
-#if (defined ARCH_RP2040)
-namespace pio {
-    inline void set_clock_speed(PIO pio, uint sm, uint hz) {
-        uint clk = frequency_count_khz(CLOCKS_FC0_SRC_VALUE_CLK_SYS) * 1000; // [Hz]
-        uint clkdiv = (clk / hz);
-        uint clkfrac = (clk - (clkdiv * hz)) * 256 / hz;
-        pio_sm_set_clkdiv_int_frac(pio, sm, clkdiv & 0xffff, clkfrac & 0xff);
+template<>
+inline void I2CDevice::write<uint16_t>(uint16_t data) {
+    i2c::transmit(address, reinterpret_cast<uint8_t *>(& data), 2, nullptr, 0);
+}   
 
-    }
+template<>
+inline uint8_t I2CDevice::read<uint8_t>() {
+    uint8_t result = 0;
+    i2c::transmit(address, nullptr, 0, & result, 1);
+    return result;
 }
-#endif
+
+template<>
+inline uint16_t I2CDevice::read<uint16_t>() {
+    uint16_t result = 0;
+    i2c::transmit(address, nullptr, 0, reinterpret_cast<uint8_t *>(result), 2);
+    return result;
+}
+
+template<>
+inline void I2CDevice::writeRegister<uint8_t>(uint8_t reg, uint8_t value) {
+    uint8_t buf[] = { reg, value };
+    i2c::transmit(address, buf, 2, nullptr, 0);
+}
+
+/*
+template<>
+void I2CDevice::writeRegister<uint16_t>(uint8_t reg, uint16_t value) {
+}
+*/
+
+template<>
+inline uint8_t I2CDevice::readRegister<uint8_t>(uint8_t reg) {
+    uint8_t result = 0;
+    i2c::transmit(address, & reg, 1, & result, 1);
+    return result;
+}
+
+template<>
+inline uint16_t I2CDevice::readRegister<uint16_t>(uint8_t reg) {
+    uint16_t result = 0;
+    i2c::transmit(address, & reg, 1, reinterpret_cast<uint8_t*>(& result), 2);
+    return result;
+}

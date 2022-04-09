@@ -1,8 +1,8 @@
 #pragma once
 
-#include "platform/i2c.h"
+#include "platform/platform.h"
 
-class MPU6050 : i2c::Device {
+class MPU6050 : I2CDevice {
 public:
 
     struct AccelData {
@@ -41,7 +41,7 @@ public:
     static_assert(sizeof(AccelData) == 6);
 
     MPU6050(uint8_t address = 0x68):
-        i2c::Device{address} {
+        I2CDevice{address} {
     }
 
     void reset() {

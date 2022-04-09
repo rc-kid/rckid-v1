@@ -154,7 +154,7 @@ void Gamepad::initializeGPIO() {
 }
 
 void Gamepad::initializeI2C() {
-    i2c::initialize();
+    i2c::initializeMaster();
     cpu::delay_ms(5);
     accel_.reset();
 }

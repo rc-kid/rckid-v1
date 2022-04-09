@@ -1,17 +1,15 @@
 #pragma once
 #error "This file has not been coverted to the new API yet."
 
-#include "avr.h"
-
 /** The SSD1306 OLED display controller. 
  
     Supports monochrome OLED displays of 128x32 and 128x64 pixels connected via I2C bus. A fresh reimplementation for minimal footprint. 
  */
-class SSD1306 : public i2c::Device {
+class SSD1306 : public I2CDevice {
 public:
 
     SSD1306(uint8_t address):
-        i2c::Device{address} {
+        I2CDevice{address} {
     }
 
     void initialize128x32() {
@@ -33,22 +31,22 @@ public:
             NORMAL_MODE, // set display normal mode
             DISPLAY_ON // turn display on
         };
-        Device::write(cmd, sizeof(cmd));
+        I2CDevice::write(cmd, sizeof(cmd));
     }
 
     void normalMode() {
         uint8_t cmd[] = { COMMAND_MODE, NORMAL_MODE };
-        Device::write(cmd, sizeof(cmd));
+        I2CDevice::write(cmd, sizeof(cmd));
     }
 
     void inverseMode() {
         uint8_t cmd[] = { COMMAND_MODE, INVERSE_MODE };
-        Device::write(cmd, sizeof(cmd));
+        I2CDevice::write(cmd, sizeof(cmd));
     }
 
     void setContrast(uint8_t value) {
         uint8_t cmd[] = { SET_CONTRAST, value };
-        Device::write(cmd, sizeof(cmd));
+        I2CDevice::write(cmd, sizeof(cmd));
     }
 
     void clear32() {

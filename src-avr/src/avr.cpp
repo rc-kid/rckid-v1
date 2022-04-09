@@ -21,11 +21,13 @@
 
 /* Needs to do: (8 available)
 
+   - 4 DPad
+   - display
+   - vibration
+   - charging (maybe battery level)
+
    - battery level
-   - charging (maybe no need for it, can use charging, more or less)
    - headphones
-   - display PWM
-   - vibration motor
    - RGB led?
 */
 

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "avr.h"
+#include "platform/platform.h"
 
-class ADXL345: public i2c::Device {
+class ADXL345: public I2CDevice {
 public:
 
     ADXL345(uint8_t address):
-        i2c::Device{address} {
+        I2CDevice{address} {
     }
 
     void enable() {

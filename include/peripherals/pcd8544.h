@@ -1,8 +1,6 @@
 #pragma once
 
 #include "platform/platform.h"
-#include "platform/gpio.h"
-#include "platform/spi.h"
 
 /** PCD8544 aka the nokia 5110 display. 
  

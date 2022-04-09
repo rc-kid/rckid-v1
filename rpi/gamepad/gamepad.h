@@ -19,8 +19,6 @@
 #include "libevdev/libevdev-uinput.h"
 
 #include "platform/platform.h"
-#include "platform/gpio.h"
-#include "platform/i2c.h"
 #include "peripherals/mpu6050.h"
 
 /** Gamepad Driver.
