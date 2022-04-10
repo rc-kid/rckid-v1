@@ -54,6 +54,7 @@ public:
     static bool transmit(uint8_t address, uint8_t const * wb, uint8_t wsize, uint8_t * rb, uint8_t rsize) {
         return false;
     }
+
 }; // i2c
 
 class spi {
@@ -68,4 +69,10 @@ public:
     static void end(Device device) {}
 
     static uint8_t transfer(uint8_t value) { return 0; }
+
+    static size_t transfer(uint8_t const * tx, uint8_t * rx, size_t numBytes) { return 0; }
+
+    static void send(uint8_t const * data, size_t size) {}
+
+    static void receive(uint8_t * data, size_t size) {}
 }; // spi

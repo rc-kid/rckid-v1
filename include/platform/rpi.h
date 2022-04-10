@@ -91,17 +91,53 @@ public:
 class spi {
 public:
 
+    /** Unlike most other implementations, device here is not a pin, but a device ID, which the auxiliary spi supports up to three. The number of devices supported and their pins are setup via overlays in `/boot/config.txt`, such as:
+     
+        dtoverlay=spi1-2cs,cs0_pin=16,cs1_pin=26
+     */
     using Device = unsigned;
 
+    /** No need for an initualization. 
+     */
     static void initialize() {}
 
-    static void begin(Device device) {}
+    /** Starts the transmission to given device. 
+     */
+    static void begin(Device device, unsigned baudrate) {
+        handle_ = spiOpen(device, baudrate, SPI_AUX);
+    }
 
-    static void end(Device device) {}
+    /** Terminates the SPI transmission and pulls the CE high. 
+     */
+    static void end(Device device) {
+        spiClose(handle_);
+    }
 
-    static uint8_t transfer(uint8_t value) { return 0; }
+    /** Transfers a single byte.
+     */
+    static uint8_t transfer(uint8_t value) { 
+        uint8_t result;
+        spiXfer(handle_, & value, & result, 1);
+    }
+
+    static size_t transfer(uint8_t const * tx, uint8_t * rx, size_t numBytes) { 
+        spiXfer(handle_, tx, rx, numBytes);
+        return numBytes;
+    }
+
+    static void send(uint8_t const * data, size_t size) {
+        spiWrite(handle_, static_cast<char*>(data), size);
+    }
+
+    static void receive(uint8_t * data, size_t size) {
+        spiRead(handle_, static_cast<char*>(data), size);
+    }
 
 private:
+
+    static constexpr unsigned SPI_AUX = 1 << 8;
+
+    static inline int handle_ = PI_SPI_OPEN_FAILED;
 
     
 }; // spi

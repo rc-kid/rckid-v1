@@ -1,7 +1,6 @@
 #pragma once
 
-#include "platform/gpio.h"
-#include "platform/spi.h"
+#include "platform/platform.h"
 
 /** A simplified driver for the nRF24l01+ radio chip. 
 
@@ -20,9 +19,8 @@
  */
 class NRF24L01 {
 public:
-    const gpio::Pin CS;
+    const spi::Device CS;
     const gpio::Pin RXTX;
-
 
     struct Config {
         bool disableDataReadyIRQ() const { return raw & CONFIG_MASK_RX_DR; }
