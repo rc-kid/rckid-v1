@@ -88,13 +88,12 @@ public:
     }
 }; // i2c
 
+
+/** The default spi implementation via pigpio sets the CS line before and after each transfer which does not play nice with the smaller MCUs such as AVR where multiple sequential transfers are used for a single transaction. Fortunately, the CS pins can be ignored by the pigpio, so they can be controlled by the user, which is what we do here. 
+ */
 class spi {
 public:
 
-    /** Unlike most other implementations, device here is not a pin, but a device ID, which the auxiliary spi supports up to three. The number of devices supported and their pins are setup via overlays in `/boot/config.txt`, such as:
-     
-        dtoverlay=spi1-2cs,cs0_pin=16,cs1_pin=26
-     */
     using Device = gpio::Pin;
 
     static void initialize(unsigned baudrate = 5000000) {

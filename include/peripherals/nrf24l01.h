@@ -8,6 +8,10 @@
      SCK MOSI
     MISO IRQ
 
+    The big problem with those chips is that there is a lot of fakes and many of the fakes are subtly incompatible with the original, especially in the enhanced shock burst mode, which would be quite handy. To mitigate the simplified driver does not use the features known to be broken across the chips and should therefore work fine with both real and counterfeit ones.
+
+    No dynamic payload. Therefore we can't send data with ACKs.
+
 
   - use only enhanced shock burst
   - do not use dynamic payload 
