@@ -1,195 +1,105 @@
 #pragma once
-
 #include "platform/platform.h"
 
-/** A simplified driver for the nRF24l01+ radio chip. 
-
+/** Simplified driver for the NRF24L01 chip and its clones. 
+ 
      GND VCC
     RXTX CS 
      SCK MOSI
     MISO IRQ
 
-    Operation notes:
 
-    - when packet is not transmitted successfully (MAX_RT), then no further transmits are possible unless the MAX_RT is cleared *and* the packet is *not* removed from the TX buffer!
-    - PA+LNA version does not work well short range, especially on max power settings
+  - use only enhanced shock burst
+  - do not use dynamic payload 
 
-    - FEATURES must be 0 on the green module for the ACKs to work... Then it kind of works sometimes... But does not seem reliable at all atm
-
+  - these limitations should allow for interoperability with both real and fake nrf modules, test that first though! 
+ 
  */
 class NRF24L01 {
 public:
+    /** Chip select/device ID for the driver.
+     */
     const spi::Device CS;
+    /** The RX/TX enable pin to turn the radio on or off. 
+     */
     const gpio::Pin RXTX;
 
-    struct Config {
-        bool disableDataReadyIRQ() const { return raw & CONFIG_MASK_RX_DR; }
-        bool disableDataSentIRQ() const { return raw & CONFIG_MASK_TX_DS; }
-        bool disableMaxRetransmitsIRQ() const { return raw & CONFIG_MASK_MAX_RT; }
-        uint8_t crcSize() const {
-            if (raw | CONFIG_EN_CRC)
-                return (raw | CONFIG_CRCO) ? 2 : 1;
-            else
-                return 0;
-        }
-        bool powerUp() const { return raw & CONFIG_PWR_UP; }
-        bool transmitReady() const { return raw & (CONFIG_PRIM_RX == 0); }
-        bool receiveReady() const { return raw & CONFIG_PRIM_RX; }
-        uint8_t const raw;
-    }; 
+    NRF24L01(spi::Device cs, gpio::Pin rxtx):
+        CS{cs},
+        RXTX{rxtx} {
+    }
 
-    struct Status {
-        bool dataReady() const { return raw & STATUS_RX_DR; }
-        bool dataSent() const { return raw & STATUS_TX_DS; }
-        bool maxRetransmits() const { return raw & STATUS_MAX_RT; }
-        bool txFull() const { return raw & STATUS_TX_FULL; }
-        bool rxEmpty() const { return dataReadyPipe() == 7; }
-        /** Returns the data pipe from which the data is ready. 
-         
-            0..5 are valid pipe values, 7 is returned when rx pipe is empty. 
-         */
-        uint8_t dataReadyPipe() const { return (raw > 1) & 7; }
-
-        uint8_t const raw;
-    }; // NRF24L01::Status
-
-    struct TxStats {
-        uint8_t lostPackets() const { return raw >> 4; }
-        uint8_t lastRetransmissions() const { return raw & 0xf; }
-        uint8_t const raw;
-    }; // NRF24L01::TxStats
-
-    enum class Speed : uint8_t {
-        k250 = 0b00100000,
-        m1 = 0b00000000,
-        m2 = 0b00001000,
-    }; 
-
-    enum class Power : uint8_t {
-        dbm0 = 0b11,
-        dbm6 = 0b10,
-        dbm12 = 0b01,
-        dbm18 = 0b00,
-    }; 
-
-	/** Initializes the control pins of the module. 
-	 */
-    NRF24L01(gpio::Pin CS, gpio::Pin RXTX):
-        CS(CS),
-        RXTX(RXTX) {
-	}
-
-    /** Initializes the chip. 
-     
-        Sets the tx and rx addresses, channel, power, speed and payload size. Enables auto acknowledgement, auto acknowledgement with payloads, dynamic payloads and non-acked payloads. Enables reading pipes 0 (for auto acknowledgements) and 1 (for receiving). 
+    /** Initializes the driver and returns true if successful, false is not. 
      */
-    void initialize(const char * rxAddr, const char * txAddr,  uint8_t channel = 76, Speed speed = Speed::k250, Power power = Power::dbm0, uint8_t payloadSize = 32) {
-        gpio::output(CS);
+    bool initialize(char const * rxAddr, char const * txAddr) {
         gpio::output(RXTX);
-        gpio::high(CS);
         gpio::low(RXTX);
-        // set the desired speed and output power
-        writeRegister(RF_SETUP, static_cast<uint8_t>(power) | static_cast<uint8_t>(speed));
-        // set the channel and tx and rx addresses
-        setChannel(channel);
-        setTxAddress(txAddr);
+        gpio::output(CS);
+        gpio::high(CS);
+        setTxAddress(rxAddr);
         setRxAddress(rxAddr);
-        // enable auto ack and enhanced shock-burst
-        enableAutoAck();
-        // enable read pipes 0 and 1
-        writeRegister(EN_RXADDR, 3);
-        // set the payload size
-        setPayloadSize(payloadSize);
-        // reset the chip's status
-        writeRegister(STATUS, STATUS_MAX_RT | STATUS_RX_DR | STATUS_TX_DS);
-        // flush the tx and rx fifos
-        flushTx();
-        flushRx();
-        // set configuration to powered down, ready to receive, crc to 2 bytes
-        // all events will appear on the interrupt pin
-        config_ = CONFIG_CRCO | CONFIG_EN_CRC;
-        writeRegister(CONFIG, config_);
+        // get the tx address and verify that it has been set properly
+        char txCheck[6];
+        txCheck[5] = 0;
+        txAddress(txCheck);
+        std::cout << txCheck << std::endl;
+        if (strncmp(txCheck, txAddr, 5) != 0)
+            return false;
+        // otherwise continue with the initialization
+        return true;
     }
 
-    /** Sets static payload size for all receiving pipes. 
+    /** Enters the simple mode on given channel. 
      
-        Technically only affects pipe 1, as others are disabled and pipe 0 has dynamic payload size enabled for auto ack payloads to work. 
+        In the simple mode, receiver starts at given channel and receiving address. When a message is received, the IRQ will be set, which can be monitored by the app, otherwise polling can be used. 
+
+        Transmission can be initiated by calling the transmit method, which disables the receiver, enables transciever, sends the 
+     
      */
-    void setPayloadSize(uint8_t value) {
-        for (uint8_t i = 0; i < 6; ++i)
-            writeRegister(RX_PW_P0 + i, value);        
+    void simpleMode(uint8_t channel, uint8_t msgSize) {
+
     }
 
-	/** Enables or disables the auto acknowledgement feature. 
-	
-    	Also enables the dynamic payload length and ack payload features so that ack packages can return non critical data. 
-	 */
-    void enableAutoAck(bool enable = true) {
-        if (enable) {
-            // auto retransmit count to 15, auto retransmit delay to 1500us, which is the minimum for the worst case of 32bytes long payload and 250kbps speed
-            writeRegister(SETUP_RETR, 0x80);
-            // enable automatic acknowledge on input pipe 1 & 0
-            writeRegister(EN_AA, 3);
-            // disable dynamic payloads on all input pipes except pipe 0 used for ack payloads
-            writeRegister(DYNPD, 0xff);
-            // enables the enhanced shock-burst features, dynamic payload size and transmit of packages without ACKs
-            writeRegister(FEATURE, 0);
-            //writeRegister(FEATURE,  EN_DPL | EN_ACK_PAY | EN_DYN_ACK );
-        } else {
-            writeRegister(EN_AA, 0); // disable auto ack
-            writeRegister(FEATURE, 0); // disable dynamic payload and ack payload features
-            writeRegister(DYNPD, 0); // disable dynamic payload on all pipes
-            writeRegister(SETUP_RETR, 0); // disable auto retransmit
-        }
+
+    void transmit(uint8_t const * buffer) {
+
     }
 
-	/** Sets the channel. 
+
+    uint8_t receive(uint8_t * buffer) {
+        
+    }
+
+    /** Enters the enhanced mode. 
+     */
+    void enhancedMode(uint8_t channel) {
+
+    }
+
+	/** Channel selection. 
 	 */
-	void setChannel(uint8_t value) {
-		writeRegister(RF_CH, value);
-	}
-	
-	/** Returns the current channel. 
-	 */
+
 	uint8_t channel() {
 		return readRegister(RF_CH & 0x7f);
 	}
 
-	/** Clears the status flags for interrupt events. 
-	 */
-	void clearIRQ() {
-		writeRegister(STATUS, STATUS_RX_DR | STATUS_TX_DS | STATUS_MAX_RT); // clear interrupt flags
-	}
-
-	/** Flushes the trasmitter's buffer. 
-	 */
-	void flushTx() {
-		begin();
-		spi::transfer(FLUSH_TX);
-        end();
+	void setChannel(uint8_t value) {
+		writeRegister(RF_CH, value);
 	}
 	
-	/** Flushes the receiver's buffer. 
-	 */
-	void flushRx() {
-        begin();
-		spi::transfer(FLUSH_RX);
-        end();
-	}
 
-	/** Reads the transmitter's address into the given buffer. The buffer must be at least 5 bytes long. 
-	 */
+    /** Transmittingh Address. 
+     
+        This is the address to which the radio will transmit. 
+     */
+
 	void txAddress(char * addr) {
         begin();
 		spi::transfer(READREGISTER + TX_ADDR);
-		receive(reinterpret_cast<uint8_t*>(addr), 5);
+		spi::receive(reinterpret_cast<uint8_t*>(addr), 5);
         end();
 	}
 
-	/** Sets the transmitter's address (package target). The address must be 5 bytes long. 
-     
-        The address is also set for the 0th receiving pipe for auto acknowledgements.
-	 */
 	void setTxAddress(const char * addr) {
         begin();
         spi::transfer(WRITEREGISTER | RX_ADDR_P0);
@@ -200,20 +110,16 @@ public:
 		spi::send(reinterpret_cast<uint8_t const*>(addr), 5);
         end();
 	}
-	
-	/** Reads the receiver's address into the given buffer. The buffer must be at least 5 bytes long. 
-	 */
+
+    /** Receiving address.
+     */
 	void rxAddress(char * addr) {
         begin();
 		spi::transfer(READREGISTER | RX_ADDR_P1);
-		receive(reinterpret_cast<uint8_t*>(addr), 5);
+		spi::receive(reinterpret_cast<uint8_t*>(addr), 5);
         end();
 	}
 
-	/** Sets the receiver's address. The address must be 5 bytes long. 
-
-        For now only pipe 1 is supported as pipe 1 can have a full address specified, the other pipes differ only it the last byte. Also, as of now, I can't imagine a situation where I would like to receive on two addresses. 
-	 */
 	void setRxAddress(const char * addr) {
         begin();
 		spi::transfer(WRITEREGISTER | RX_ADDR_P1);
@@ -221,150 +127,9 @@ public:
         end();
 	}
 
-    /** Enters the power down mode. 
-     */
-    void powerDown() {
-        gpio::low(RXTX);
-		config_ &= ~CONFIG_PWR_UP;
-		writeRegister(CONFIG, config_);
-    }
-
-	/** Enters the standby mode
-     
-        Note that standby mode has to be entered before transmitting or receiving or the radio might not work from the very beginning.
-	 */
-    void standby() {
-		gpio::low(RXTX);
-        config_ |= CONFIG_PWR_UP | CONFIG_PRIM_RX;
- 		writeRegister(CONFIG, config_);
-        cpu::delay_ms(3); // startup time by the datasheet is 1.5ms
-    }
-
-    /** Starts the receiver. 
-     
-        To stop the receiver, call either standby() or powerDown(). 
-     */
-    void startReceiver() {
-        config_ |= (CONFIG_PWR_UP | CONFIG_PRIM_RX);
-		writeRegister(CONFIG, config_);
-		gpio::high(RXTX);
-    }
-
-    /** Receives a single message from the TX FIFO.
-     
-        The caller must make sure that the message is of the specified size, and that a message exists. Otherwise the protocol will stop working. 
-     */
-    void receive(uint8_t * buffer, uint8_t size) {
-	    begin();
-		spi::transfer(R_RX_PAYLOAD);
-		spi::receive(buffer, size);
-        end();
-    }
-
-    /** Downloads a variable length message returning its length. 
-     
-        Returns 0 if there is no new message. 
-     */
-    uint8_t receive(uint8_t * buffer) {
-        begin();
-        Status status{spi::transfer(R_RX_PL_WID)};
-        uint8_t len = 0;
-        if (status.dataReady()) {
-            len = spi::transfer(0);
-            end();
-            begin();
-            spi::transfer(R_RX_PAYLOAD);
-            spi::receive(buffer, len);
-        }
-        end();
-        return len;
-    }
-
-    /** Transmits given message immediately. 
-     
-        ACK will be expected on the message unless auto ack feature is disabled.
-     */
-    void transmit(uint8_t * buffer, uint8_t size) {
-		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
-        config_ &= ~CONFIG_PRIM_RX;
-        config_ |= CONFIG_PWR_UP; 
-        writeRegister(CONFIG, config_);
-        // transmit the payload
-	    begin();
-		spi::transfer(W_TX_PAYLOAD);
-		spi::send(buffer, size);
-		end();
-        // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
-		gpio::high(RXTX);
-		cpu::delay_us(15); // some margin to 10us required by the datasheet
-		gpio::low(RXTX);
-    }
-
-    /** Transmits the given payload not requiring an ACK from the receiver. 
-     
-        Only works in auto ack mode.
-     */
-    void transmitNoAck(uint8_t * buffer, uint8_t size) {
-		gpio::low(RXTX); // disable power to allow switching, or sending a pulse
-        config_ &= ~CONFIG_PRIM_RX;
-        config_ |= CONFIG_PWR_UP; 
-        writeRegister(CONFIG, config_);
-        // transmit the payload
-	    begin();
-		spi::transfer(W_TX_PAYLOAD_NO_ACK);
-		spi::send(buffer, size);
-		end();
-        // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
-		gpio::high(RXTX);
-		cpu::delay_us(15); // some margin
-		gpio::low(RXTX);
-    }
-
-	/** Sends given payload as next ack's payload. 
-     
-        Only works in auto ack mode. 
-	 */
-	void transmitAckPayload(uint8_t const * payload, uint8_t size) {
-		begin();
-		spi::transfer(W_ACK_PAYLOAD | 1); // for pipe 1, since we do not use other pipes
-		spi::send(payload, size);
-        end();
-	}
-
-	/** Returns the contents of the config register on the device. This is for debugging purposes only. 
-	 */
-	Config config() {
-		return Config{readRegister(CONFIG)};
-	}
-	
-	/** Returns the contents of the status register. For debugging purposes only. 
-	 */
-	Status status() {
-		begin();
-        Status result{spi::transfer(NOP)};
-		end();
-		return result;
-	}
-	
-	/** Returns the observe TX register. For debugging purposes only. 
-	 */
-	TxStats observeTX() {
-		return TxStats{readRegister(OBSERVE_TX)};
-	}
 
 
-	/** Returns the fifo status register. For debugging purposes only. 
-	 */
-	uint8_t fifoStatus() {
-		return readRegister(FIFO_STATUS);
-	}
 
-
-    uint8_t features() {
-        return readRegister(FEATURE);
-    }
-
-	
 private:
 
     void begin() {
@@ -376,6 +141,7 @@ private:
         spi::end(CS);
         cpu::delay_us(2);
     }
+
 
     uint8_t readRegister(uint8_t reg) {
 		begin();
@@ -392,7 +158,11 @@ private:
 		spi::transfer(value);
         end();
 	}
-	
+
+    /** Local cache of the config register.
+     */
+    uint8_t config_;
+
     // commands
 	
     static constexpr uint8_t READREGISTER = 0;
@@ -462,11 +232,5 @@ private:
     static constexpr uint8_t TX_EMPTY = 1 << 4;
     static constexpr uint8_t RX_FULL = 1 << 1;
     static constexpr uint8_t RX_EMPTY = 1 << 0;
-	
-	uint8_t config_;
-	
+
 };
-
-
-
-

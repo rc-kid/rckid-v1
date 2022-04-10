@@ -20,7 +20,6 @@
 
 #include "platform/platform.h"
 #include "peripherals/mpu6050.h"
-#include "peripherals/nrf24l01.h"
 
 /** Gamepad Driver.
  

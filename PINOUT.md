@@ -14,8 +14,8 @@
     DISPLAY SCLK (SPI0) -- 11       8 -- DISPLAY CE (SPI0 CE0)
                            GND      7 -- DISPLAY RESET (SPI0 CE1)
                     ??? -- 0        1 -- ???
-                           5*     GND
-                           6*      12 -- AUDIO L
+               NRF_RXTX -- 5*     GND
+                NRF_IRQ -- 6*      12 -- AUDIO L
                 AUDIO R -- 13     GND
               SPI1 MISO -- 19      16 -- SPI1 CE0
                SPI1 CE1 -- 26      20 -- SPI1 MOSI

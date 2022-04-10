@@ -25,6 +25,7 @@
    - display
    - vibration
    - charging (maybe battery level)
+   - microphone
 
    - battery level
    - headphones
