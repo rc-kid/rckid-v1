@@ -1,6 +1,22 @@
 #pragma once
 #include "platform/platform.h"
 
+namespace nrf24l01 {
+    enum class Speed : uint8_t {
+        k250 = 0b00100000,
+        m1 = 0b00000000,
+        m2 = 0b00001000,
+    }; 
+
+    enum class Power : uint8_t {
+        dbm0 = 0b11,
+        dbm6 = 0b10,
+        dbm12 = 0b01,
+        dbm18 = 0b00,
+    }; 
+
+} // namespace nrf24l01
+
 /** Simplified driver for the NRF24L01 chip and its clones. 
  
      GND VCC
@@ -8,19 +24,67 @@
      SCK MOSI
     MISO IRQ
 
-    The big problem with those chips is that there is a lot of fakes and many of the fakes are subtly incompatible with the original, especially in the enhanced shock burst mode, which would be quite handy. To mitigate the simplified driver does not use the features known to be broken across the chips and should therefore work fine with both real and counterfeit ones.
 
-    No dynamic payload. Therefore we can't send data with ACKs.
+    Pipe 0 : TX_ADDR for ACKs
+    Pipe 1 : RX_ADDR for direct packets
+    Pipe 2 : BCAST for broadcasts
 
 
-  - use only enhanced shock burst
-  - do not use dynamic payload 
+    Receiving messages
 
-  - these limitations should allow for interoperability with both real and fake nrf modules, test that first though! 
- 
+    To receive a message, initialize, then enter standby and then enableReceiver. Then either poll the receive() method, or wait for an interrupt, upon which call the receive method which is guaranteed to return a packet then. After each successful call to receive() the clearDataReadyIrq() method should be called to clear the IRQ. If this method returns true, there is still a packet to be received and the process should be repeated. 
+
+    Transmitting messages
+
+    Initialize, then standby. When there are messages to be sent, use the transmit() or transmitNoAck() methods to transfer the payloads to the chip. Start the transmitter by calling enableTransmitter(). This will send the messages and generate interrupts each time either a message is sent, or max number of retransmits has been reached. Either poll, or wait for interrupt to call the checkTransmitIrq() method. 
+
+    !!! Note that the device must not transmit for more than 4ms. After whole tx fifo is transmitted, standby-ii mode is entered. At this point either power down, or add more stuff to tx buffer, but tx buffer can't be filled in while actually transmitting as this could exceed the time. 
+    
  */
 class NRF24L01 {
 public:
+
+    struct Status {
+    public:
+        uint8_t raw;
+
+        Status(uint8_t raw): raw{raw} {}
+
+        bool rxDataReadyIrq() const { return raw & STATUS_RX_DR; }
+        bool rxDataReady() const { return raw & STATUS_RX_EMPTY != STATUS_RX_EMPTY; }
+        uint8_t rxDataPipe() const { return (raw & STATUS_RX_EMPTY) >> 1; }
+        bool txDataSentIrq() const { return raw & STATUS_TX_DS; }
+        bool txDataFailIrq() const { return raw & STATUS_MAX_RT; }
+        bool txFifoFull() const { return raw & STATUS_TX_FULL; }
+
+        operator uint8_t () const { return raw; }
+    }; // Status
+
+    struct FifoStatus {
+        uint8_t raw;
+
+        FifoStatus(uint8_t raw): raw{raw} {}
+
+        bool txFull() const { return raw & FIFO_TX_FULL; }
+        bool txEmpty() const { return raw & FIFO_TX_EMPTY; }
+        bool rxFull() const { return raw & FIFO_RX_FULL; }
+        bool rxEmpty() const { return raw & FIFO_RX_EMPTY; }
+
+    }; // FifoStatus
+
+    enum class TxStatus {
+        /** Currently sending a message and no sent or failed message yet.
+         */
+        InProgress,
+        /** Last message has been sent ok, and there are more messages that are being sent now.
+         */
+        Ok,
+        /** Last message sent failed. 
+         */
+        Fail,
+    }; // TxStatus
+        
+
     /** Chip select/device ID for the driver.
      */
     const spi::Device CS;
@@ -35,62 +99,202 @@ public:
 
     /** Initializes the driver and returns true if successful, false is not. 
      */
-    bool initialize(char const * rxAddr, char const * txAddr) {
+    bool initialize(char const * rxAddr, char const * txAddr, uint8_t ch = 86) {
         gpio::output(RXTX);
         gpio::low(RXTX);
         gpio::output(CS);
         gpio::high(CS);
+        // set channel and rx & tx addresses
+        setChannel(ch);
         setTxAddress(rxAddr);
         setRxAddress(rxAddr);
-        // get the tx address and verify that it has been set properly
-        char txCheck[6];
-        txCheck[5] = 0;
-        txAddress(txCheck);
-        std::cout << txCheck << std::endl;
-        if (strncmp(txCheck, txAddr, 5) != 0)
+        // initialize auto acking the messages
+        initializeEnhancedShockBurst();
+        // enable largest payload size by default
+        setPayloadSize(32);
+        // set default rf settings - highest power, slowest speed
+        setRfSettings(nrf24l01::Power::dbm0, nrf24l01::Speed::k250);
+        // and finally time to initialize the config register
+        config_ = CONFIG_CRCO | CONFIG_EN_CRC;
+        writeRegister(CONFIG, config_);
+        return readRegister(CONFIG) != config_;
+    }
+
+    /** Powers the nrf24l01p off. 
+     */
+    void powerDown() {
+        gpio::low(RXTX);
+        config_ &= ~CONFIG_PWR_UP;
+        writeRegister(CONFIG, config_);
+    }
+
+    /** Enters the standby mode for the radio. 
+     
+        Once in standby mode receive and transmit functions can be called.
+     */
+    void standby() {
+		gpio::low(RXTX);
+        config_ |= (CONFIG_PWR_UP | CONFIG_PRIM_RX);
+        // enable interrupts (ok to enable all of them)
+        config_ &= ~(CONFIG_MASK_MAX_RT | CONFIG_MASK_RX_DR | CONFIG_MASK_TX_DS);
+ 		writeRegister(CONFIG, config_);
+        cpu::delay_ms(3); // startup time by the datasheet is 1.5ms
+        // reset the chip state
+        flushTx();
+        flushRx();
+        clearIRQ();
+    }
+
+    /** Enables the receiver of the chip. 
+     */
+    void enableReceiver() {
+        gpio::low(RXTX);
+        // make sure we are on and select the receiver mode
+        config_ |= (CONFIG_PWR_UP | CONFIG_PRIM_RX);
+        writeRegister(CONFIG, config_);
+        // enable the radio
+        gpio::high(RXTX);
+    }
+
+    /** Enables the transmitter part of the chip. 
+     */
+    void enableTransmitter() {
+        gpio::low(RXTX);
+        config_ |= CONFIG_PWR_UP;
+        config_ &= ~ CONFIG_PRIM_RX;
+        writeRegister(CONFIG, config_);
+        gpio::high(RXTX);
+    }
+
+    /** Clears the data ready IRQ. 
+     
+        Returns true if there are more packets ready in the rx fifo, false when no more data is available. 
+     */
+    bool clearDataReadyIrq() {
+        begin();
+        Status status = spi::transfer(WRITEREGISTER | STATUS);
+        spi::transfer(status);
+        end();
+        return status.rxDataReady();
+    }
+
+    /** Receives a message. 
+
+     */
+    bool receive(uint8_t * buffer, size_t payloadSize) {
+	    begin();
+        Status status = spi::transfer(R_RX_PAYLOAD);
+        if (!status.rxDataReady()) {
+            end();
             return false;
-        // otherwise continue with the initialization
-        return true;
+        } else {
+            spi::receive(buffer, payloadSize);
+            return true;
+        }
     }
 
-    /** Enters the simple mode on given channel. 
+    /** Uploads the given message to the tx fifo. 
      
-        In the simple mode, receiver starts at given channel and receiving address. When a message is received, the IRQ will be set, which can be monitored by the app, otherwise polling can be used. 
+        Returns true if the message was uploaded successfully or false if the tx fifo is full. When sent, the message is expected to be acked. 
 
-        Transmission can be initiated by calling the transmit method, which disables the receiver, enables transciever, sends the 
-     
+        Note that calling this actually does not transmit the message. To do so, the startTransmitter() method must be called when the tx fifo is filled with messages to be sent. 
      */
-    void simpleMode(uint8_t channel, uint8_t msgSize) {
-
+    bool transmit(uint8_t const * buffer, size_t payloadSize) {
+        begin();
+        Status status = spi::transfer(W_TX_PAYLOAD);
+        if (status.txFifoFull()) {
+            end();
+            return false;
+        } else {
+            spi::send(buffer, payloadSize);
+            end();
+            return true;
+        }
     }
 
-
-    void transmit(uint8_t const * buffer) {
-
-    }
-
-
-    uint8_t receive(uint8_t * buffer) {
-        
-    }
-
-    /** Enters the enhanced mode. 
+    /** Uploads a message that should not be acked to the tx fifo. Otherwise works exactly as the transmit() method. 
      */
-    void enhancedMode(uint8_t channel) {
+    bool transmitNoAck(uint8_t const * buffer, size_t payloadSize) {
+        begin();
+        Status status = spi::transfer(W_TX_PAYLOAD_NO_ACK);
+        if (status.txFifoFull()) {
+            end();
+            return false;
+        } else {
+            spi::send(buffer, payloadSize);
+            end();
+            return true;
+        }
+    }
 
+    /** Checks the last transmission and returns its status.
+     */
+    TxStatus checkTransmitIrq(bool stopOnFailure = true) {
+        begin();
+        Status status = spi::transfer(WRITEREGISTER | STATUS);
+        TxStatus result = TxStatus::InProgress;
+        if (status.txDataSentIrq())
+            result = TxStatus::Ok;
+        if (status.txDataFailIrq()) {
+            result = TxStatus::Fail;
+            if (stopOnFailure) {
+                end();
+                standby();
+                return result;
+            }
+        }
+        if (result != TxStatus::InProgress) {
+            spi::transfer(status); // this clears all IRQs
+        }
+        end();
+        return result;
+    }
+
+    /** Returns the current status register contents. 
+     */
+    Status getStatus() {
+        return readRegister(STATUS);
+    }
+
+    /** Returns the status of the tx and rx fifos. 
+     */
+    FifoStatus getFifoStatus() {
+        return readRegister(FIFO_STATUS);
+    }
+
+    /** RF Settings, which is the power and speed. 
+     */
+    std::pair<nrf24l01::Power, nrf24l01::Speed> rfSettings() {
+        uint8_t x = readRegister(RF_SETUP);
+        auto p = static_cast<nrf24l01::Power>(x & 0b110);
+        auto s = static_cast<nrf24l01::Speed>(x & 0b101000);
+        return std::make_pair(p, s);
+    }
+
+    void setRfSettings(nrf24l01::Power power, nrf24l01::Speed speed) {
+        writeRegister(RF_SETUP, static_cast<uint8_t>(power) | static_cast<uint8_t>(speed));        
     }
 
 	/** Channel selection. 
 	 */
 
 	uint8_t channel() {
-		return readRegister(RF_CH & 0x7f);
+		return readRegister(RF_CH);
 	}
 
 	void setChannel(uint8_t value) {
 		writeRegister(RF_CH, value);
 	}
-	
+
+    /** Payload size. 
+     */
+    uint8_t payloadSize() {
+        return readRegister(RX_PW_P1);
+    }
+
+    void setPayloadSize(uint8_t size) {
+        writeRegister(RX_PW_P1, size);
+    }
 
     /** Transmittingh Address. 
      
@@ -163,6 +367,40 @@ private:
         end();
 	}
 
+    void initializeEnhancedShockBurst() {
+        // auto retransmit count to 15, auto retransmit delay to 1500us, which is the minimum for the worst case of 32bytes long payload and 250kbps speed
+        writeRegister(SETUP_RETR, 0x80);
+        // enable automatic acknowledge on input pipe 1 & 0
+        writeRegister(EN_AA, 3);
+        // disable dynamic payloads on all input pipes
+        writeRegister(DYNPD, 0);
+        // enables per message control of ACK (via the W_TX_PAYLOAD_NO_ACK command)
+        writeRegister(FEATURE, EN_DYN_ACK);
+    }
+
+	/** Clears the status flags for interrupt events. 
+	 */
+	void clearIRQ() {
+		writeRegister(STATUS, STATUS_RX_DR | STATUS_TX_DS | STATUS_MAX_RT); // clear interrupt flags
+	}
+
+	/** Flushes the trasmitter's buffer. 
+	 */
+	void flushTx() {
+		begin();
+		spi::transfer(FLUSH_TX);
+        end();
+	}
+	
+	/** Flushes the receiver's buffer. 
+	 */
+	void flushRx() {
+        begin();
+		spi::transfer(FLUSH_RX);
+        end();
+	}
+
+
     /** Local cache of the config register.
      */
     uint8_t config_;
@@ -224,6 +462,7 @@ private:
 	static constexpr uint8_t STATUS_TX_DS = 1 << 5;
 	static constexpr uint8_t STATUS_MAX_RT = 1 << 4;
 	static constexpr uint8_t STATUS_TX_FULL = 1 << 0;
+    static constexpr uint8_t STATUS_RX_EMPTY = 0b1110;
 	
     // features
 	static constexpr uint8_t EN_DPL = 1 << 2;
@@ -231,10 +470,10 @@ private:
     static constexpr uint8_t EN_DYN_ACK = 1 << 0;
 
     // fifo status register values
-    static constexpr uint8_t TX_REUSE = 1 << 6;
-    static constexpr uint8_t TX_FULL = 1 << 5;
-    static constexpr uint8_t TX_EMPTY = 1 << 4;
-    static constexpr uint8_t RX_FULL = 1 << 1;
-    static constexpr uint8_t RX_EMPTY = 1 << 0;
+    static constexpr uint8_t FIFO_TX_REUSE = 1 << 6;
+    static constexpr uint8_t FIFO_TX_FULL = 1 << 5;
+    static constexpr uint8_t FIFO_TX_EMPTY = 1 << 4;
+    static constexpr uint8_t FIFO_RX_FULL = 1 << 1;
+    static constexpr uint8_t FIFO_RX_EMPTY = 1 << 0;
 
 };

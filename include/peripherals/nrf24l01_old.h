@@ -66,10 +66,10 @@ public:
     }; 
 
     enum class Power : uint8_t {
-        dbm0 = 0b11,
-        dbm6 = 0b10,
-        dbm12 = 0b01,
-        dbm18 = 0b00,
+        dbm0 = 0b110,
+        dbm6 = 0b100,
+        dbm12 = 0b010,
+        dbm18 = 0b000,
     }; 
 
 	/** Initializes the control pins of the module. 
@@ -457,11 +457,11 @@ private:
     static constexpr uint8_t EN_DYN_ACK = 1 << 0;
 
     // fifo status register values
-    static constexpr uint8_t TX_REUSE = 1 << 6;
-    static constexpr uint8_t TX_FULL = 1 << 5;
-    static constexpr uint8_t TX_EMPTY = 1 << 4;
-    static constexpr uint8_t RX_FULL = 1 << 1;
-    static constexpr uint8_t RX_EMPTY = 1 << 0;
+    static constexpr uint8_t FIFO_TX_REUSE = 1 << 6;
+    static constexpr uint8_t FIFO_TX_FULL = 1 << 5;
+    static constexpr uint8_t FIFO_TX_EMPTY = 1 << 4;
+    static constexpr uint8_t FIFO_RX_FULL = 1 << 1;
+    static constexpr uint8_t FIFO_RX_EMPTY = 1 << 0;
 	
 	uint8_t config_;
 	
