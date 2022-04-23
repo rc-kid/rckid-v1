@@ -117,7 +117,7 @@ public:
         // and finally time to initialize the config register
         config_ = CONFIG_CRCO | CONFIG_EN_CRC;
         writeRegister(CONFIG, config_);
-        return readRegister(CONFIG) != config_;
+        return readRegister(CONFIG) == config_;
     }
 
     /** Powers the nrf24l01p off. 
@@ -166,6 +166,11 @@ public:
         gpio::high(RXTX);
     }
 
+    void clearIrq() {
+        writeRegister(STATUS, STATUS_MAX_RT | STATUS_RX_DR | STATUS_TX_DS);
+    }
+
+
     /** Clears the data ready IRQ. 
      
         Returns true if there are more packets ready in the rx fifo, false when no more data is available. 
@@ -173,7 +178,7 @@ public:
     bool clearDataReadyIrq() {
         begin();
         Status status = spi::transfer(WRITEREGISTER | STATUS);
-        spi::transfer(status);
+        spi::transfer(STATUS_RX_DR); // clear the IRQ
         end();
         return status.rxDataReady();
     }
