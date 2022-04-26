@@ -1,5 +1,6 @@
 {
     "tasks": [
+        /*
         {
             "label": "picoboy-local",
             "command": "bash",
@@ -26,9 +27,27 @@
             ],
             "type": "process",
             "problemMatcher": []            
+        }, */
+        {
+            "label": "lego-remote",
+            "type": "shell",
+            "command": "~/.platformio/penv/bin/pio",
+            "args": [
+                "run",
+            ],
+            "options": {
+                "cwd": "lego-remote",
+                "shell": {
+                    "executable" : "/bin/zsh",
+                    "args": ["-c"]
+                }
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
         },
         {
-            "label": "test-receiver-rpi",
+            "label": "lego-remote-upload",
             "type": "shell",
             "command": "~/.platformio/penv/bin/pio",
             "args": [
@@ -38,7 +57,7 @@
                 "upload"
             ],
             "options": {
-                "cwd": "test-receiver",
+                "cwd": "lego-remote",
                 "shell": {
                     "executable" : "/bin/zsh",
                     "args": ["-c"]
@@ -53,10 +72,7 @@
             "type": "shell",
             "command": "~/.platformio/penv/bin/pio",
             "args": [
-                "remote",
                 "run",
-                "--target",
-                "upload"
             ],
             "options": {
                 "cwd": "src-avr",
@@ -70,23 +86,19 @@
             ]
         },
         {
-            "label": "picoboy-avr-build",
-            "type": "shell",
-            "command": "~/.platformio/penv/bin/pio",
+            "label": "picoboy-avr-upload",
+            "command": "bash",
             "args": [
-                "run",
+                "bin/picoboy-avr-upload.sh",
             ],
             "options": {
-                "cwd": "src-avr",
-                "shell": {
-                    "executable" : "/bin/zsh",
-                    "args": ["-c"]
-                }
+                "cwd": "",
             },
             "problemMatcher": [
                 "$platformio"
             ]
-        },
+        }
+        /*
         {
             "label": "test-receiver-sx1278-build",
             "type": "shell",
@@ -104,7 +116,7 @@
             "problemMatcher": [
                 "$platformio"
             ]
-        }
+        } */
     ],
     "version": "2.0.0"
 }

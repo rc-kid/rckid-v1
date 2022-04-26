@@ -1,3 +1,7 @@
+## Rpi image 
+
+- how to install pyupdi directly in platformio penv? so that I do not have to set PATH in tasks
+
 ## Rpi - Gamepad & Drivers
 
 - debounce buttons

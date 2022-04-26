@@ -1,5 +1,6 @@
 #pragma once
-#error "This file has not been coverted to the new API yet."
+#error "Not finished"
+#include "platform/platform.h"
 
 /** The SSD1306 OLED display controller. 
  
@@ -50,6 +51,7 @@ public:
     }
 
     void clear32() {
+        /*
         i2c::startWrite(address);
         i2c::write(COMMAND_MODE);
         i2c::write(SET_PAGE);
@@ -60,9 +62,11 @@ public:
         for (uint16_t i = 0; i < (128 * 32 / 8) - 1; ++i)
             i2c::write(0);
         i2c::writeLast(0);
+        */
     }
 
     void clear64() {
+        /*
         i2c::startWrite(address);
         i2c::write(COMMAND_MODE);
         i2c::write(SET_PAGE);
@@ -73,14 +77,19 @@ public:
         for (uint16_t i = 0; i < (128 * 64 / 8) - 1; ++i)
             i2c::write(0);
         i2c::writeLast(0);
+        */
     }
 
     void gotoXY(uint8_t col, uint8_t row) {
+        uint8_t cmd[] = { address, COMMAND_MODE, SET_PAGE | row, SET_COLUMN_LOW | (col & 0xf), SET_COLUMN_HIGH | ((col >> 4) & 0xf)};
+        I2CDevice::write(cmd, sizeof (cmd));
+        /*
         i2c::startWrite(address);
         i2c::write(COMMAND_MODE);
         i2c::write(SET_PAGE | row);
         i2c::write(SET_COLUMN_LOW | (col & 0xf));
         i2c::writeLast(SET_COLUMN_HIGH | ((col >> 4) & 0xf));
+        */
     }
 
     void write(char x) {
@@ -88,11 +97,6 @@ public:
     }
 
     void writeData(uint8_t col, uint8_t row, uint8_t * data, uint16_t size) {
-        i2c::startWrite(address);
-        i2c::write(COMMAND_MODE);
-        i2c::write(SET_PAGE | row);
-        i2c::write(SET_COLUMN_LOW | (col & 0xf));
-        i2c::writeLast(SET_COLUMN_HIGH | ((col >> 4) & 0xf));
     }
 
 private:

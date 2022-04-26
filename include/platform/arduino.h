@@ -7,6 +7,24 @@
 #include <avr/sleep.h>
 #endif
 
+/** Missing features of the standard library. 
+ */
+namespace std {
+    template<typename T1, typename T2>
+    struct pair {
+        T1 first;
+        T2 second;
+
+        pair(T1 first, T2 second): first{first}, second{second} {}
+    };
+
+    template<typename T1, typename T2>
+    pair<T1, T2> make_pair(T1 first, T2 second) {
+        return pair<T1, T2>{first, second};
+    }
+
+}
+
 class cpu {
 public:
     static void delay_us(unsigned value) {
@@ -245,7 +263,7 @@ public:
     }
 
     static uint8_t transfer(uint8_t value) {
-#elif (defined ARCH_AVR_MEGATINY)
+#if (defined ARCH_AVR_MEGATINY)
         // megatinycore says this speeds up by 10% - have to check that this is really the truth
         //asm volatile("nop");
         SPI0.DATA = value;
@@ -262,12 +280,12 @@ public:
         return numBytes;
     }
 
-    static void send(uint8_t const * data, size_t size) {
+    static void send(uint8_t const * data, size_t numBytes) {
         for (size_t i = 0; i < numBytes; ++i)
             transfer(*(data++));
     }
 
-    static void receive(uint8_t * data, size_t size) {
+    static void receive(uint8_t * data, size_t numBytes) {
         for (size_t i = 0; i < numBytes; ++i)
             *(data++) = transfer(0);
     }

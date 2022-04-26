@@ -1,15 +1,13 @@
 #include <Arduino.h>
 
 #include "platform/platform.h"
-#include "platform/gpio.h"
-#include "platform/i2c.h"
 
 #include "comms.h"
 
 /** Chip Pinout
                -- VDD             GND --
-               -- (00) PA4   PA3 (16) -- DEBUG
-               -- (01) PA5   PA2 (15) -- 
+               -- (00) PA4   PA3 (16) -- DISP_BRIGHTNESS
+               -- (01) PA5   PA2 (15) -- DEBUG
                -- (02) PA6   PA1 (14) -- 
                -- (03) PA7   PA0 (17) -- UPDI
                -- (04) PB5   PC3 (13) -- JOY_Y
@@ -39,9 +37,10 @@ static constexpr gpio::Pin EN_3V3_PIN = 10;
 static constexpr gpio::Pin JOY_PWR_PIN = 11;
 static constexpr gpio::Pin JOY_X_PIN = 12; // AIN8
 static constexpr gpio::Pin JOY_Y_PIN = 13; // AIN9
+static constexpr gpio::Pin DISP_BRIGHTNESS_PIN = 16;
 
 
-static constexpr gpio::Pin DEBUG_PIN = 16;
+static constexpr gpio::Pin DEBUG_PIN = 15;
 
 /*
     The AVR is responsible for monitoring the physical inputs and power management. It communicates with RP2040 via I2C and an IRQ pin that AVR rises when there is an input change. 
@@ -130,7 +129,14 @@ void setup() {
     ADC1.SAMPCTRL = 31;
     // attach the power button to interrupt so that it can wake us up
     attachInterrupt(digitalPinToInterrupt(BTN_SELECT_PIN), pwrButtonDown, CHANGE);
+    // enable the display brightness PWM timer, fully on
+    gpio::output(DISP_BRIGHTNESS_PIN);
+    TCB1.CTRLB = TCB_CNTMODE_PWM8_gc | TCB_CCMPEN_bm;
+    TCB1.CCMPL = 255;
+    TCB1.CCMPH = 255;
+    TCB1.CTRLA = TCB_CLKSEL_CLKDIV1_gc | TCB_ENABLE_bm;
     // start the 1kHz timer for ticks
+    // TODO change this to 8kHz for audio recording, or use different timer? 
     TCB0.CTRLB = TCB_CNTMODE_INT_gc;
     TCB0.INTCTRL = TCB_CAPT_bm;
     TCB0.CCMP = 10000; // for 1kHz    
@@ -286,10 +292,10 @@ void sleep() {
         for (int i = 0; i < NUM_BUTTONS; ++i)
             buttonTimers[i] = 0;
         // while sleeping, disable watchdog, make sure that any interrupts that would wake up will put to sleep immediately
-        cpu::wdtDisable();
+        wdt::disable();
         while (flags.sleep)
             cpu::sleep();
-        cpu::wdtEnable();
+        wdt::enable();
         TCB0.CTRLA |= TCB_ENABLE_bm;
         // avr wakes up immediately after PWR button is held down. Wait some time for the pwr button to be pressed down 
         uint16_t ticks = POWERON_PRESS;
@@ -320,7 +326,7 @@ void loop() {
     if (flags.sleep)
         sleep();
     // TODO this should be done only when rp calls us on i2c
-    cpu::wdtReset();
+    wdt::reset();
 }
 
 /** IRQ for power button change. If sleeping, wake up from sleep. The sleep function will take care of the rest. 
