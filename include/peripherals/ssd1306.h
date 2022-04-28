@@ -51,53 +51,52 @@ public:
     }
 
     void clear32() {
-        /*
-        i2c::startWrite(address);
-        i2c::write(COMMAND_MODE);
-        i2c::write(SET_PAGE);
-        i2c::write(SET_COLUMN_LOW);
-        i2c::writeRestart(SET_COLUMN_HIGH);
-        i2c::startWrite(address);
-        i2c::write(DATA_MODE);
-        for (uint16_t i = 0; i < (128 * 32 / 8) - 1; ++i)
-            i2c::write(0);
-        i2c::writeLast(0);
-        */
-    }
-
-    void clear64() {
-        /*
-        i2c::startWrite(address);
-        i2c::write(COMMAND_MODE);
-        i2c::write(SET_PAGE);
-        i2c::write(SET_COLUMN_LOW);
-        i2c::writeRestart(SET_COLUMN_HIGH);
-        i2c::startWrite(address);
-        i2c::write(DATA_MODE);
-        for (uint16_t i = 0; i < (128 * 64 / 8) - 1; ++i)
-            i2c::write(0);
-        i2c::writeLast(0);
-        */
+        for (uint8_t row = 0; row < 4; ++row) {
+            uint8_t cmd[] = { COMMAND_MODE, SET_PAGE | row, SET_COLUMN_LOW, SET_COLUMN_HIGH };
+            I2CDevice::write(cmd, sizeof(cmd));
+            uint8_t data[] = {DATA_MODE, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+            for (uint8_t i = 0; i < 4; ++i)
+                I2CDevice::write(data, sizeof(data));
+        }
     }
 
     void gotoXY(uint8_t col, uint8_t row) {
-        uint8_t cmd[] = { address, COMMAND_MODE, SET_PAGE | row, SET_COLUMN_LOW | (col & 0xf), SET_COLUMN_HIGH | ((col >> 4) & 0xf)};
+        uint8_t cmd[] = { COMMAND_MODE, SET_PAGE | row, SET_COLUMN_LOW | (col & 0xf), SET_COLUMN_HIGH | ((col >> 4) & 0xf)};
         I2CDevice::write(cmd, sizeof (cmd));
-        /*
-        i2c::startWrite(address);
-        i2c::write(COMMAND_MODE);
-        i2c::write(SET_PAGE | row);
-        i2c::write(SET_COLUMN_LOW | (col & 0xf));
-        i2c::writeLast(SET_COLUMN_HIGH | ((col >> 4) & 0xf));
-        */
     }
 
-    void write(char x) {
-
+    void writeChar(char x) {
+        uint8_t * c = Font::basic + (x - 0x20) * 5;
+        uint8_t data[] = { DATA_MODE, c[0], c[1], c[2], c[3], c[4]};
+        I2CDevice::write(data, sizeof(data));
     }
 
-    void writeData(uint8_t col, uint8_t row, uint8_t * data, uint16_t size) {
+    void write(char const * x) {
+        while (*x != 0)
+            writeChar(*(x++));
     }
+
+    void write(uint8_t col, uint8_t row, char const * x) {
+        gotoXY(col, row);
+        write(x);
+    }
+    
+    /** Writes an unsigned 16bit integer. 
+     
+        If the fill character is '\0' (default), the number will be left-justified, if ' ' it will be right justified, '0' will print all leading zeros as well. 
+     */
+    void write(uint16_t x, char fill = '\0') {
+        for (uint16_t i = 10000; i > 0; i = i / 10) {
+            if (x > i || i == 1) {
+                writeChar((x / i) + '0');
+                fill = '0';
+                x = x % i;
+            } else if (fill != '\0') {
+                writeChar(fill);
+            }
+        }
+    }
+
 
 private:
 
