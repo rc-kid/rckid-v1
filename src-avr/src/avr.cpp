@@ -4,6 +4,8 @@
 
 #include "comms.h"
 
+#include "peripherals/ssd1306.h"
+
 /** Chip Pinout
                -- VDD             GND --
                -- (00) PA4   PA3 (16) -- DISP_BRIGHTNESS
@@ -86,6 +88,8 @@ uint8_t buttonTimers[NUM_BUTTONS] = {0,0};
 void wakeup();
 void pwrButtonDown();
 
+SSD1306 display;
+
 void setup() {
 
     gpio::output(DEBUG_PIN);
@@ -142,7 +146,14 @@ void setup() {
     TCB0.CCMP = 10000; // for 1kHz    
     TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc | TCB_ENABLE_bm;
     // wakeup, including power to pico
-    wakeup();
+    //wakeup();
+
+    gpio::low(DEBUG_PIN);
+    i2c::initializeMaster();
+    display.initialize128x32();
+    display.inverseMode();
+    gpio::high(DEBUG_PIN);
+    while (true) {}
 }
 
 

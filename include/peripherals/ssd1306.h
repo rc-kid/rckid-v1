@@ -1,6 +1,6 @@
 #pragma once
-#error "Not finished"
 #include "platform/platform.h"
+#include "utils/fonts.h"
 
 /** The SSD1306 OLED display controller. 
  
@@ -9,7 +9,7 @@
 class SSD1306 : public I2CDevice {
 public:
 
-    SSD1306(uint8_t address):
+    SSD1306(uint8_t address = 0x3c):
         I2CDevice{address} {
     }
 
