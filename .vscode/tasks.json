@@ -89,13 +89,26 @@
             "label": "rcboy-avr-upload",
             "command": "bash",
             "args": [
-                "bin/picoboy-avr-upload.sh",
+                "bin/rcboy-avr-upload.sh",
             ],
             "options": {
                 "cwd": "",
             },
             "problemMatcher": [
                 "$platformio"
+            ]
+        },
+        {
+            "label": "rcboy-build",
+            "command": "bash",
+            "args": [
+                "bin/rcboy-build.sh",
+            ],
+            "options": {
+                "cwd": "",
+            },
+            "problemMatcher": [
+                "$gcc"
             ]
         }
         /*

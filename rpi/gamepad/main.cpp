@@ -34,7 +34,6 @@ int main(int argc, char * argv[]) {
 
     if (! nrf.initialize("TEST1", "TEST2")) {
         std::cout << "Failed to initialize NRF" << std::endl;
-
     }
     nrf.standby();
 #ifdef ARCH_RPI
@@ -52,6 +51,7 @@ int main(int argc, char * argv[]) {
         uint8_t msg[32];
         for (int i = 0; i < sizeof(msg); ++i)
             msg[i] = idx;
+        ++idx;
         if (nrf.transmitNoAck(msg, sizeof(msg)))
             ++sent;
         cpu::delay_ms(4);

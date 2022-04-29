@@ -26,6 +26,9 @@
 
 ! Determine which radio to use!
 
+- nrf seems to work both ACK and non ACK with green modules
+- receiver stops receiving after a while, seems that IRQ / receive timing issue
+
 ## NRF24L01+
 
 - ACKed packets does not seem to work yet

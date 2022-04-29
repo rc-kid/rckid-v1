@@ -14,7 +14,7 @@
                -- (04) PB5   PC3 (13) -- NRF_CS
                -- (05) PB4   PC2 (12) -- NRF_RXTX
                -- (06) PB3   PC1 (11) -- NRF_IRQ
-               -- (07) PB2   PC0 (10) -- 
+               -- (07) PB2   PC0 (10) -- DEBUG_PIN
            SDA -- (08) PB1   PB0 (09) -- SCL
 
     9 free pins
@@ -28,6 +28,8 @@ constexpr gpio::Pin NRF_CS = 13;
 constexpr gpio::Pin NRF_RXTX = 12;
 constexpr gpio::Pin NRF_IRQ = 11;
 
+constexpr gpio::Pin DEBUG_PIN = 10;
+
 NRF24L01 radio{NRF_CS, NRF_RXTX};
 SSD1306 oled;
 
@@ -38,7 +40,7 @@ SSD1306 oled;
 #define RST_PIN -1
 
 
-volatile uint8_t radio_irq = false;
+volatile bool radio_irq = false;
 volatile bool tick = false;
 uint8_t ticks = 0;
 uint16_t received = 0;
@@ -48,6 +50,7 @@ bool tickMark = false;
 
 void radioIrq() {
     radio_irq = true;
+    gpio::high(DEBUG_PIN);
 }
 
 ISR(TCB0_INT_vect) {
@@ -67,6 +70,9 @@ void setup() {
     oled.initialize128x32();
     oled.normalMode();
     oled.clear32();
+
+    gpio::output(DEBUG_PIN);
+    gpio::low(DEBUG_PIN);
 
     if (! radio.initialize("TEST2", "TEST1")) {
         oled.write(0,0,"Radio FAIL");
@@ -93,12 +99,15 @@ void loop() {
     if (radio_irq) {
         radio.clearDataReadyIrq();
         radio_irq = false;
+
         uint8_t msg[32];
         while (radio.receive(msg, 32)) {
             received += 1;
-            errors += (msg[0] - x - 1);
-            x = msg[0];
+            while (++x != msg[0])
+                ++errors;
+            //x = msg[0];
         }
+        gpio::low(DEBUG_PIN);
     }
     if (tick) {
         tickMark = ! tickMark;
@@ -109,5 +118,13 @@ void loop() {
         oled.write(received, ' ');
         oled.gotoXY(64,1);
         oled.write(errors, ' ');
+        /*
+        oled.gotoXY(0,2);
+        oled.write(radio.getStatus().raw, ' ');
+        oled.gotoXY(50,2);
+        oled.write(radio.readRegister(NRF24L01::CONFIG), ' ');
+        received = 0;
+        errors = 0;
+        */
     }
 }

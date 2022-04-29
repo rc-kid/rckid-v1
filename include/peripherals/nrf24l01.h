@@ -51,7 +51,7 @@ public:
         Status(uint8_t raw): raw{raw} {}
 
         bool rxDataReadyIrq() const { return raw & STATUS_RX_DR; }
-        bool rxDataReady() const { return raw & STATUS_RX_EMPTY != STATUS_RX_EMPTY; }
+        bool rxDataReady() const { return (raw & STATUS_RX_EMPTY) != STATUS_RX_EMPTY; }
         uint8_t rxDataPipe() const { return (raw & STATUS_RX_EMPTY) >> 1; }
         bool txDataSentIrq() const { return raw & STATUS_TX_DS; }
         bool txDataFailIrq() const { return raw & STATUS_MAX_RT; }
@@ -106,7 +106,7 @@ public:
         gpio::high(CS);
         // set channel and rx & tx addresses
         setChannel(ch);
-        setTxAddress(rxAddr);
+        setTxAddress(txAddr);
         setRxAddress(rxAddr);
         // initialize auto acking the messages
         initializeEnhancedShockBurst();
