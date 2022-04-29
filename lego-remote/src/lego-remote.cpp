@@ -3,6 +3,7 @@
 
 #include "platform/platform.h"
 #include "peripherals/nrf24l01.h"
+#include "peripherals/ssd1306.h"
 
 /** Chip Pinout
                -- VDD             GND --
@@ -28,7 +29,7 @@ constexpr gpio::Pin NRF_RXTX = 12;
 constexpr gpio::Pin NRF_IRQ = 11;
 
 NRF24L01 radio{NRF_CS, NRF_RXTX};
-SSD1306AsciiWire oled;
+SSD1306 oled;
 
 // 0X3C+SA0 - 0x3C or 0x3D
 #define I2C_ADDRESS 0x3C
@@ -36,23 +37,77 @@ SSD1306AsciiWire oled;
 // Define proper RST_PIN if required.
 #define RST_PIN -1
 
+
+volatile uint8_t radio_irq = false;
+volatile bool tick = false;
+uint8_t ticks = 0;
+uint16_t received = 0;
+uint16_t errors = 0;
+uint8_t x = 0;
+bool tickMark = false;
+
+void radioIrq() {
+    radio_irq = true;
+}
+
+ISR(TCB0_INT_vect) {
+    TCB0.INTFLAGS = TCB_CAPT_bm;
+    if (++ticks >= 100) {
+        tick = true;
+        ticks -= 100;
+    }
+}
+
 void setup() {
+    cpu::delay_ms(100);
     gpio::initialize();
     spi::initialize();
     i2c::initializeMaster();
   
-    oled.begin(&Adafruit128x32, 0x3c);
-    oled.setFont(Adafruit5x7);
-    oled.clear();
-    oled.println("Helo world!");    
+    oled.initialize128x32();
+    oled.normalMode();
+    oled.clear32();
 
     if (! radio.initialize("TEST2", "TEST1")) {
-        //std::cout << "Failed to initialize NRF" << std::endl;
+        oled.write(0,0,"Radio FAIL");
+    } else {
+        oled.write(0,0,"Radio OK");
     }
-    // TODO Set interrupt
-    radio.standby();
+    gpio::input(NRF_IRQ);
+    attachInterrupt(digitalPinToInterrupt(NRF_IRQ), radioIrq, FALLING);
 
+    radio.standby();
+    radio.enableReceiver();
+
+    // start the 1kHz timer for ticks
+    // TODO change this to 8kHz for audio recording, or use different timer? 
+    TCB0.CTRLB = TCB_CNTMODE_INT_gc;
+    TCB0.INTCTRL = TCB_CAPT_bm;
+    TCB0.CCMP = 50000; // for 100Hz    
+    TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc | TCB_ENABLE_bm;
+    oled.write(0,0, "? Recvd  ");
+    oled.write(64,0, "Errors");
 }
 
 void loop() {
+    if (radio_irq) {
+        radio.clearDataReadyIrq();
+        radio_irq = false;
+        uint8_t msg[32];
+        while (radio.receive(msg, 32)) {
+            received += 1;
+            errors += (msg[0] - x - 1);
+            x = msg[0];
+        }
+    }
+    if (tick) {
+        tickMark = ! tickMark;
+        tick = false;
+        oled.gotoXY(0,0);
+        oled.writeChar(tickMark ? '-' : '|');
+        oled.gotoXY(0,1);
+        oled.write(received, ' ');
+        oled.gotoXY(64,1);
+        oled.write(errors, ' ');
+    }
 }

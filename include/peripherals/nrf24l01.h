@@ -194,6 +194,7 @@ public:
             return false;
         } else {
             spi::receive(buffer, payloadSize);
+            end();
             return true;
         }
     }
@@ -343,7 +344,7 @@ public:
 
 
 
-private:
+//private:
 
     void begin() {
         spi::begin(CS);

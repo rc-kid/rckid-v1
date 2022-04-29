@@ -65,11 +65,11 @@ static constexpr uint8_t BUTTON_DEBOUNCE = 10; // [ms]
 static constexpr uint16_t POWERON_PRESS = 1000; // [ms]
 
 struct {
-    State state;
-    uint8_t i2cBuffer[I2C_BUFFER_SIZE];
+    comms::State state;
+    uint8_t i2cBuffer[comms::I2C_BUFFER_SIZE];
     uint8_t i2cBytesRecvd = 0;
     uint8_t i2cBytesSent = 0;
-} comms;
+} communication;
 
 volatile struct {
     bool irq : 1;
@@ -149,7 +149,7 @@ void setup() {
 void processCommand() {
     // TODO
 
-    comms.i2cBytesRecvd = 0;
+    communication.i2cBytesRecvd = 0;
     cli();
     flags.i2cReady = false;
     sei();
@@ -163,7 +163,7 @@ void processADC0Result() {
             value = 110 * 512 / value;
             value = value * 2;
             cli();
-            comms.state.setVcc(value);
+            communication.state.setVcc(value);
             sei();
             ADC0.MUXPOS = ADC_MUXPOS_TEMPSENSE_gc;
             ADC0.CTRLC = ADC_PRESC_DIV16_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm; // internal reference
@@ -181,7 +181,7 @@ void processADC0Result() {
             // and now loose precision to 0.5C (x10, i.e. -15 = -1.5C)
             temp = (temp >>= 7) * 5;
             cli();
-            comms.state.setTemp(temp);
+            communication.state.setTemp(temp);
             sei();
             // TODO deal with sensing battery voltage here
             // fallthrough
@@ -199,15 +199,15 @@ void processADC1Result() {
     uint8_t value = ADC1.RES / 64;
     switch (ADC1.MUXPOS) {
         case ADC_MUXPOS_AIN8_gc:
-            if (comms.state.joyX() != value) {
-                comms.state.setJoyX(value);
+            if (communication.state.joyX() != value) {
+                communication.state.setJoyX(value);
                 flags.irq = true;
             }
             ADC1.MUXPOS = ADC_MUXPOS_AIN9_gc;
             break;
         case ADC_MUXPOS_AIN9_gc:
-            if (comms.state.joyY() != value) {
-                comms.state.setJoyY(value);
+            if (communication.state.joyY() != value) {
+                communication.state.setJoyY(value);
                 flags.irq = true;
             }
         default:
@@ -223,16 +223,16 @@ void processADC1Result() {
 bool checkButtons() {
     bool changed = false;
     bool value = gpio::read(BTN_START_PIN);
-    if (buttonTimers[0] == 0 && comms.state.btnStart() != value) {
-        comms.state.setBtnStart(value);
+    if (buttonTimers[0] == 0 && communication.state.btnStart() != value) {
+        communication.state.setBtnStart(value);
         cli();
         buttonTimers[0] = BUTTON_DEBOUNCE;
         sei();
         changed = true;
     } 
     value = gpio::read(BTN_SELECT_PIN);
-    if (buttonTimers[1] == 0 && comms.state.btnSelect() != value) {
-        comms.state.setBtnSelect(value);
+    if (buttonTimers[1] == 0 && communication.state.btnSelect() != value) {
+        communication.state.setBtnSelect(value);
         cli();
         buttonTimers[1] = BUTTON_DEBOUNCE;
         sei();
@@ -275,7 +275,7 @@ void wakeup() {
     gpio::high(JOY_PWR_PIN);
     ADC1.COMMAND = ADC_STCONV_bm;
     // start RP2040, initialize I2C
-    i2c::initializeSlave(AVR_I2C_ADDRESS);
+    i2c::initializeSlave(comms::AVR_I2C_ADDRESS);
     gpio::input(EN_3V3_PIN);
 }
 
@@ -300,7 +300,7 @@ void sleep() {
         // avr wakes up immediately after PWR button is held down. Wait some time for the pwr button to be pressed down 
         uint16_t ticks = POWERON_PRESS;
         tick();
-        while (comms.state.btnStart()) {
+        while (communication.state.btnStart()) {
             if (flags.tick) {
                 tick();
                 if (--ticks == 0) {
@@ -356,7 +356,7 @@ ISR(TCB0_INT_vect) {
 ISR(RTC_PIT_vect) {
     //gpio::high(DEBUG_PIN);
     RTC.PITINTFLAGS = RTC_PI_bm; // clear the interrupt
-    comms.state.time().secondTick();
+    communication.state.time().secondTick();
     flags.secondTick = true;
     //gpio::low(DEBUG_PIN);
 }
@@ -377,20 +377,20 @@ ISR(TWI0_TWIS_vect) {
     uint8_t status = TWI0.SSTATUS;
     // sending data to accepting master is on our fastpath as is checked first, if there is more state to send, send next byte, otherwise go to transcaction completed mode. 
     if ((status & I2C_DATA_MASK) == I2C_DATA_TX) {
-        if (comms.i2cBytesSent < sizeof (comms.state) + sizeof (comms.i2cBuffer)) {
-            TWI0.SDATA = reinterpret_cast<uint8_t*>(& comms.state)[comms.i2cBytesSent++];
+        if (communication.i2cBytesSent < sizeof (communication.state) + sizeof (communication.i2cBuffer)) {
+            TWI0.SDATA = reinterpret_cast<uint8_t*>(& communication.state)[communication.i2cBytesSent++];
             TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
         } else {
             TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
         }
     // a byte has been received from master. Store it and send either ACK if we can store more, or NACK if we can't store more
     } else if ((status & I2C_DATA_MASK) == I2C_DATA_RX) {
-        comms.i2cBuffer[comms.i2cBytesRecvd++] = TWI0.SDATA;
-        TWI0.SCTRLB = (comms.i2cBytesRecvd == sizeof(comms.i2cBuffer)) ? TWI_SCMD_COMPTRANS_gc : TWI_SCMD_RESPONSE_gc;
+        communication.i2cBuffer[communication.i2cBytesRecvd++] = TWI0.SDATA;
+        TWI0.SCTRLB = (communication.i2cBytesRecvd == sizeof(communication.i2cBuffer)) ? TWI_SCMD_COMPTRANS_gc : TWI_SCMD_RESPONSE_gc;
     // master requests slave to write data, clear the IRQ and prepare to send the state
     } else if ((status & I2C_START_MASK) == I2C_START_TX) {
         gpio::input(IRQ_PIN);
-        comms.i2cBytesSent = 0;
+        communication.i2cBytesSent = 0;
         TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
         //gpio::input(IRQ_PIN); // clear IRQ
     // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise

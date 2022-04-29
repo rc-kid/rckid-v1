@@ -68,7 +68,7 @@
             ]
         },
         {
-            "label": "picoboy-avr",
+            "label": "rcboy-avr",
             "type": "shell",
             "command": "~/.platformio/penv/bin/pio",
             "args": [
@@ -86,7 +86,7 @@
             ]
         },
         {
-            "label": "picoboy-avr-upload",
+            "label": "rcboy-avr-upload",
             "command": "bash",
             "args": [
                 "bin/picoboy-avr-upload.sh",
