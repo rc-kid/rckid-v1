@@ -130,7 +130,7 @@ public:
 
     /** Enters the standby mode for the radio. 
      
-        Once in standby mode receive and transmit functions can be called.
+        Once in standby mode receive and transmit functions can be called. The standby mode also enables all interrupts for both receiver and transmitter and flushes the buffers so that the chip is in a fresh state to either transmit or receive.
      */
     void standby() {
 		gpio::low(RXTX);
@@ -146,6 +146,8 @@ public:
     }
 
     /** Enables the receiver of the chip. 
+     
+        The receiver can be on for as long as necessary and the radio will start receiving immediately after the call to the method. 
      */
     void enableReceiver() {
         gpio::low(RXTX);
@@ -157,6 +159,8 @@ public:
     }
 
     /** Enables the transmitter part of the chip. 
+     
+        Note that the transmitter can only be in TX mode for no more than 4ms. When the automatic ACK 
      */
     void enableTransmitter() {
         gpio::low(RXTX);

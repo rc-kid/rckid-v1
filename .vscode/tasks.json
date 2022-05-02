@@ -1,33 +1,53 @@
 {
     "tasks": [
-        /*
+        // builds the avr part of rcboy locally
         {
-            "label": "picoboy-local",
-            "command": "bash",
+            "label": "rcboy-avr",
+            "type": "shell",
+            "command": "~/.platformio/penv/bin/pio",
             "args": [
-                "bin/upload.sh"
+                "run",
             ],
-            "type": "process",
-            "problemMatcher": []            
+            "options": {
+                "cwd": "src-avr",
+                "shell": {
+                    "executable" : "/bin/zsh",
+                    "args": ["-c"]
+                }
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
         },
+        // uploads the avr part of rcboy to the rpi, builds and flashes the avr
         {
-            "label": "picoboy-rpi",
+            "label": "rcboy-avr-upload",
             "command": "bash",
             "args": [
-                "bin/upload-rpi.sh"
+                "bin/rcboy-avr-upload.sh",
             ],
-            "type": "process",
-            "problemMatcher": []            
+            "options": {
+                "cwd": "",
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
         },
+        // uploads the rcboy rpi code and builds it on the device
         {
-            "label": "picoboy-rpi-swd",
+            "label": "rcboy-build",
             "command": "bash",
             "args": [
-                "bin/upload-rpi-swd.sh"
+                "bin/rcboy-build.sh",
             ],
-            "type": "process",
-            "problemMatcher": []            
-        }, */
+            "options": {
+                "cwd": "",
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        // locally builds the lego remote avr program
         {
             "label": "lego-remote",
             "type": "shell",
@@ -46,6 +66,7 @@
                 "$platformio"
             ]
         },
+        // locally builds the lego remote avr program and flashes it to the chip using the rpi dev server and pio remote
         {
             "label": "lego-remote-upload",
             "type": "shell",
@@ -67,15 +88,16 @@
                 "$platformio"
             ]
         },
+        // locally builds the nrf24l01p receiver for range and compatibility testing
         {
-            "label": "rcboy-avr",
+            "label": "test-nrf",
             "type": "shell",
             "command": "~/.platformio/penv/bin/pio",
             "args": [
                 "run",
             ],
             "options": {
-                "cwd": "src-avr",
+                "cwd": "test-nrf",
                 "shell": {
                     "executable" : "/bin/zsh",
                     "args": ["-c"]
@@ -85,42 +107,19 @@
                 "$platformio"
             ]
         },
+        // locally builds the nrf24l01p receiver test and flashes it to the chip using the rpi dev server and pio remote
         {
-            "label": "rcboy-avr-upload",
-            "command": "bash",
-            "args": [
-                "bin/rcboy-avr-upload.sh",
-            ],
-            "options": {
-                "cwd": "",
-            },
-            "problemMatcher": [
-                "$platformio"
-            ]
-        },
-        {
-            "label": "rcboy-build",
-            "command": "bash",
-            "args": [
-                "bin/rcboy-build.sh",
-            ],
-            "options": {
-                "cwd": "",
-            },
-            "problemMatcher": [
-                "$gcc"
-            ]
-        }
-        /*
-        {
-            "label": "test-receiver-sx1278-build",
+            "label": "test-nrf-upload",
             "type": "shell",
             "command": "~/.platformio/penv/bin/pio",
             "args": [
+                "remote",
                 "run",
+                "--target",
+                "upload"
             ],
             "options": {
-                "cwd": "test-receiver-sx1278",
+                "cwd": "test-nrf",
                 "shell": {
                     "executable" : "/bin/zsh",
                     "args": ["-c"]
@@ -129,7 +128,50 @@
             "problemMatcher": [
                 "$platformio"
             ]
-        } */
+        },
+        // locally builds the sx1278 receiver for range and compatibility testing
+        {
+            "label": "test-sx1278",
+            "type": "shell",
+            "command": "~/.platformio/penv/bin/pio",
+            "args": [
+                "run",
+            ],
+            "options": {
+                "cwd": "test-sx1278",
+                "shell": {
+                    "executable" : "/bin/zsh",
+                    "args": ["-c"]
+                }
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        // locally builds the sx1278 receiver test and flashes it to the chip using the rpi dev server and pio remote
+        {
+            "label": "test-sx1278-upload",
+            "type": "shell",
+            "command": "~/.platformio/penv/bin/pio",
+            "args": [
+                "remote",
+                "run",
+                "--target",
+                "upload"
+            ],
+            "options": {
+                "cwd": "test-sx1278",
+                "shell": {
+                    "executable" : "/bin/zsh",
+                    "args": ["-c"]
+                }
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+
+
     ],
     "version": "2.0.0"
 }

@@ -1,3 +1,6 @@
+- MIC5504 does not seem to be working (vout == vin) why??? maybe try solder 1uf ceramic capacitors to the breakout
+
+
 ## Rpi image 
 
 - how to install pyupdi directly in platformio penv? so that I do not have to set PATH in tasks
@@ -27,7 +30,7 @@
 ! Determine which radio to use!
 
 - nrf seems to work both ACK and non ACK with green modules
-- receiver stops receiving after a while, seems that IRQ / receive timing issue
+- check range
 
 ## NRF24L01+
 
