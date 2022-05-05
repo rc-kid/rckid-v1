@@ -1,4 +1,4 @@
-- MIC5504 does not seem to be working (vout == vin) why??? maybe try solder 1uf ceramic capacitors to the breakout
+
 
 
 ## Rpi image 
