@@ -1,5 +1,13 @@
 # LEGO Remote Controller for Picoboy
 
+The controller brick operates from any voltage between 5 and 9 volts, inclusive. It uses a special connector that supports connecting 2 Li-Ion cells in series as well as other configurations:
+
+    1N    2P  
+    1N 2N 2P
+    1P 1P 2N
+
+Internally the `1P` and `2N` terminals are connected together to provide 7.4V between `1N` and `2P` which should be used for other sources. 
+
 The controller consists of ATTiny, radio and the following:
 
 - 2 motor drivers (5 or 9volts)
@@ -10,21 +18,32 @@ The controller consists of ATTiny, radio and the following:
 
 ## Connectors
 
-The connectors are built from headers, in a way that supports only one insertion. 
+The connectors are built from headers, in a way that supports all possible orientations by doubling the pins. 
 
 ### Motors
 
-Motors use 8pin connector which is created by 3,3,2 pins in a row. The connector allows the motor to select its preferred voltage. 
+Motors use 3x4 12pin connector that allows the motor to select its own voltage as well as draw voltage for electronics. 
 
-5V      VA
-9V VSEL VB
+    5V   +   -   9V
+    SEL GND GND SEL
+    9V   -   +   5V
 
-### Others
+### I/O
+
 
 This includes Speaker, RGB lights, buttons... Arranged in 2-1 in a row. 
 
-5V
-GND X
+    5V    X
+    GND GND
+    X    5V
+
+### Expander
+
+The expander connector is a 7pin 3x2x3 connector with the following layout:
+
+    SDA     SCL
+    5V  GND  5V 
+    SCL     SDA
 
 > TODO should there be I2C connector? 
 
