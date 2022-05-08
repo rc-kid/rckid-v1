@@ -5,27 +5,17 @@
 
 /** Chip Pinout
                -- VDD             GND --
-           XL1 -- (00) PA4   PA3 (16) -- SCK
-           XL2 -- (01) PA5   PA2 (15) -- MISO
-           ML1 -- (02) PA6   PA1 (14) -- MOSI
-           ML2 -- (03) PA7   PA0 (17) -- UPDI
-           MR1 -- (04) PB5   PC3 (13) -- NRF_CS
-           MR2 -- (05) PB4   PC2 (12) -- NRF_RXTX
-           XR1 -- (06) PB3   PC1 (11) -- NRF_IRQ
-           XR2 -- (07) PB2   PC0 (10) -- NEOPIXEL_PIN
+     ML1 (WOA) -- (00) PA4   PA3 (16) -- SCK
+     MR1 (WOB) -- (01) PA5   PA2 (15) -- MISO
+           XL1 -- (02) PA6   PA1 (14) -- MOSI
+           XL2 -- (03) PA7   PA0 (17) -- UPDI
+           XR1 -- (04) PB5   PC3 (13) -- NRF_CS
+           XR2 -- (05) PB4   PC2 (12) -- NRF_RXTX
+       NRF_IRQ -- (06) PB3   PC1 (11) -- MR2(WOD)
+  NEOPIXEL_PIN -- (07) PB2   PC0 (10) -- ML2(WOC)
            SDA -- (08) PB1   PB0 (09) -- SCL
 
-
-    9 free pins
-
-    2 = motor 1
-    2 = motor 2
-    1 = pwm
-    1 = 
-
-
     Timers
-
 
     - 20ms intervals for the servo control (RTC)
     - 2.5ms interval for the servo control pulse (TCB0)
@@ -33,26 +23,27 @@
  */
 constexpr gpio::Pin NRF_CS_PIN = 13;
 constexpr gpio::Pin NRF_RXTX_PIN = 12;
-constexpr gpio::Pin NRF_IRQ_PIN = 11;
-constexpr gpio::Pin NEOPIXEL_PIN = 10;
+constexpr gpio::Pin NRF_IRQ_PIN = 6;
+constexpr gpio::Pin NEOPIXEL_PIN = 7;
 
-constexpr gpio::Pin XL1_PIN = 0;
-constexpr gpio::Pin XL2_PIN = 1;
-constexpr gpio::Pin ML1_PIN = 2;
-constexpr gpio::Pin ML2_PIN = 3;
+constexpr gpio::Pin XL1_PIN = 2;
+constexpr gpio::Pin XL2_PIN = 3;
 constexpr gpio::Pin XR1_PIN = 4;
 constexpr gpio::Pin XR2_PIN = 5;
-constexpr gpio::Pin MR1_PIN = 6;
-constexpr gpio::Pin MR2_PIN = 7;
+
+constexpr gpio::Pin ML1_PIN = 0;
+constexpr gpio::Pin ML2_PIN = 10;
+constexpr gpio::Pin MR1_PIN = 1;
+constexpr gpio::Pin MR2_PIN = 11;
 
 NRF24L01 nrf_{NRF_CS_PIN, NRF_RXTX_PIN};
 
 NeopixelStrip<5> leds{NEOPIXEL_PIN};
 
-volatile struct {
-    bool tick : 1;
+struct {
+    volatile bool tick : 1;
     uint8_t tickCounter : 2;
-    bool radioIrq : 1;
+    volatile bool radioIrq : 1;
 } status_;
 
 enum class OutputKind {
@@ -73,22 +64,35 @@ struct IOOutput {
 
 IOOutput outputs_[4];
 
-
-
-/** RTC ISR
- 
-    Simply increases the time by one second.
- */
-ISR(RTC_PIT_vect) {
-    RTC.PITINTFLAGS = RTC_PI_bm; // clear the interrupt
-    status_.tick = true;
-}
-
 /** Motor Control
+ 
+    The idea is to use TCD to control both motors: mirror the A and B waveforms on the C and D outputs respectively and then depending on the desired value do the following:
+
+    - idle = disable WOA and WOC, set gpios to low
+    - brake = disable WOA and WOC, set the gpios to high
+    - clockwise = enable WOA, disable WOC, set WOC pin to low
+    - counter-clockwise = enable WOC, disable WOA, set WOA pin to low
  */
 namespace motor {
     void initialize() {
-        // TODO set TCD to 20kHz
+        TCD0.CTRLA = TCD_CLKSEL_20MHZ_gc | TCD_CNTPRES_DIV1_gc | TCD_SYNCPRES_DIV1_gc;
+        TCD0.CTRLB = TCD_WGMODE_ONERAMP_gc;
+        TCD0.CTRLC = TCD_CMPCSEL_PWMA_gc | TCD_CMPDSEL_PWMB_gc;
+        // unlock the protected fault register before writing to it 
+        CPU_CCP = CCP_IOREG_gc;
+        TCD0.FAULTCTRL = TCD_CMPAEN_bm;
+        // set the counters to reset at 1024 for roughly 20kHz 
+        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+        TCD0.CMPACLR = 1024;
+        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+        TCD0.CMPBCLR = 1024;
+        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+        TCD0.CMPASET = 512;
+        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+        TCD0.CMPBSET = 512;
+        // enable the timer
+        while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+        TCD0.CTRLA |= TCD_ENABLE_bm;
     }
 }
 
@@ -114,7 +118,8 @@ namespace servo {
             TCB0.CTRLA &= ~TCB_ENABLE_bm;
             // currently 1964 .. 9821 for 0.5 to 2.5ms pulse duration
             // TODO the real numbers are incorrect because wrong CLKDIV was used
-            TCB0.CCMP = 1964 + (outputs_[i].value & 0xff) * 31;
+            //TCB0.CCMP = 1964 + (outputs_[i].value & 0xff) * 31;
+            TCB0.CCMP = (1964 * 2) + (outputs_[i].value & 0xff) * 31 * 2;
             gpio::high(outputs_[i].pin);
             TCB0.CNT = 0;
             TCB0.CTRLA |= TCB_ENABLE_bm; 
@@ -148,8 +153,7 @@ namespace radio {
             leds.fill(Color::Black());
         leds.update();
         gpio::input(NRF_IRQ_PIN);
-        attachInterrupt(digitalPinToInterrupt(NRF_IRQ_PIN), irq, FALLING);
-
+        attachInterrupt(digitalPinToInterrupt(NRF_IRQ_PIN), radio::irq, FALLING);
         nrf_.standby();
         nrf_.enableReceiver();
     }
@@ -164,7 +168,7 @@ void setup() {
     leds.fill(Color::White().withBrightness(32));
     leds.update();
     // wait for voltages to stabilize
-    cpu::delay_ms(100);
+    cpu::delay_ms(200);
     // initialize internal state
     outputs_[0].pin = XL1_PIN;
     outputs_[1].pin = XL2_PIN;
@@ -176,22 +180,28 @@ void setup() {
     outputs_[1].value = 255;
 
     gpio::output(XL1_PIN);
+    gpio::output(XR2_PIN);
+    gpio::output(ML1_PIN);
+    gpio::output(ML2_PIN);
+    gpio::output(MR1_PIN);
+    gpio::output(MR2_PIN);
 
 
     // initialize the peripherals
     spi::initialize();
     i2c::initializeMaster();
-    // initialize the RTC to fire every 4 ms
-    RTC.CLKSEL = RTC_CLKSEL_INT32K_gc; // select internal oscillator
-    RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
-    RTC.PITCTRLA = RTC_PERIOD_CYC128_gc + RTC_PITEN_bm;
-    RTC.CTRLA |= RTC_RTCEN_bm;
+
+    // initialize the RTC timer to to fire every 5 ms, which for 4 outputs multiplexed gives 20ms per input
+    RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
+    RTC.PER = 164;
+    while (RTC.STATUS != 0) {};
+    RTC.CTRLA = RTC_RTCEN_bm;
 
     motor::initialize();
     servo::initialize();
     audio::initialize();
-
     radio::initialize();
+
 
 
 
@@ -199,22 +209,28 @@ void setup() {
 
     DDISP_INITIALIZE();
 
+
+    DDISP(0,0,"Setup Done");
+
 }
 
 uint8_t x = 0;
 
 void loop() {
-    if (status_.tick) {
-        status_.tick = false;
+    if (RTC.INTFLAGS & RTC_OVF_bm) {
+        RTC.INTFLAGS = RTC_OVF_bm;
+        //status_.tick = false;
         ++status_.tickCounter;
         servo::tick();
-        if (++x == 0) {
+        if (++x % 128 == 0) {
             outputs_[0].value += 1;
         }
     }
+    /*
     if (status_.radioIrq) {
         // TODO
     }
+    */
     /*
     if (radio_irq) {
         radio_irq = false;

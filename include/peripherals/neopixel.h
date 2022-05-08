@@ -213,6 +213,7 @@ public:
         #else
                 #error "Platform not supported!"
         #endif
+        sei();
     }
     
 private:
