@@ -1,5 +1,27 @@
 # LEGO Remote Controller for Picoboy
 
+## Pairing
+
+The control brick is very dumb and does not have any internal state (apart from its name) that would survive power cycle, all is managed by the remote. The handshake looks like this:
+
+                              Controller | Remote
+                         --------------- | --------------
+                                         | L: (listen for new devices - optional) 
+    B: broadcast its name on set channel | 
+                                         | P1: send pairing info on set channel
+                                         | (own name & channel, wait for ACK)
+                                         |
+            switch channel & wait for P2 | switch to channel, send P2, wait for ACK
+                                         |
+         (timeout 1 second, return to B) | (timeout 1 second, return to L, or P1)
+
+While pairing the controller flashes red lights. When paired, blue is flashed. Upon pairing the remote uploads the connector profile, after which the pairing is complete. 
+
+While paired the remote periodically updates the controller every 1/100th of a second (10ms). If there is no update for 50ms the controller enters the disconnected state, in which case all motors are powered off and lights flash red. Upon regaining connection, the remote must acknowledge the disconnect before the motors can be powered on again. 
+
+## Power
+
+
 The controller brick operates from any voltage between 5 and 9 volts, inclusive. It uses a special connector that supports connecting 2 Li-Ion cells in series as well as other configurations:
 
     1N    2P  
@@ -74,7 +96,7 @@ Uses the motor connector, 9V input. Additionally can use up to 2 peripheral conn
 
 ### LEGO Compatible servo
 
-Uses the peripheral connector. 
+Uses the peripheral connector in servo mode. 
 
 ### PWM Speaker
 

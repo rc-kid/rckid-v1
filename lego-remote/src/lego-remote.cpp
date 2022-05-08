@@ -19,7 +19,9 @@
 
     - 20ms intervals for the servo control (RTC)
     - 2.5ms interval for the servo control pulse (TCB0)
-    - 
+    - 20kHz PWM for motors (TCD)
+    - 2 8bit timers in TCA split mode
+    - 1 16bit timer in TCB1 
  */
 constexpr gpio::Pin NRF_CS_PIN = 13;
 constexpr gpio::Pin NRF_RXTX_PIN = 12;
@@ -51,9 +53,10 @@ enum class OutputKind {
     DigitalInput, // button, IRQ on the pin
     AnalogInput, // photoresistor, etc, repeated ADC
     DigitalOutput, // on or off
-    AnalogOutput, // duty-cycle PWM
     Servo, // Servo control
+    // since these use timer A, there can only be two peripherals of this type attached at once
     Audio, // 50% duty cycle audio 0..8000 Hz
+    AnalogOutput, // duty-cycle PWM
 };
 
 struct IOOutput {
@@ -133,9 +136,11 @@ ISR(TCB0_INT_vect) {
     TCB0.CTRLA &= ~TCB_ENABLE_bm;
 }
 
-/** Tone generation. 
+/** PWM and tone generation. 
+ 
+    Since both PWM and audio use TCA, it needs to run off the same clock.
  */
-namespace audio {
+namespace pwm {
     void initialize() {
     }
 }
@@ -199,7 +204,7 @@ void setup() {
 
     motor::initialize();
     servo::initialize();
-    audio::initialize();
+    pwm::initialize();
     radio::initialize();
 
 
