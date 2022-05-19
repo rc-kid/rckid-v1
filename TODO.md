@@ -1,5 +1,6 @@
 
-
+- get extra M2.5 inserts
+- get 5pin FPC for joysticks
 
 ## Rpi image 
 
