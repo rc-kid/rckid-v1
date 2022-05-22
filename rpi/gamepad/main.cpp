@@ -3,10 +3,29 @@
 #include "gamepad.h"
 
 #include "peripherals/nrf24l01.h"
+#include "peripherals/sx1278.h"
 
 volatile bool irq = false;
 
 NRF24L01 nrf{16,5};
+SX1278 lora{26};
+
+
+
+void loraIrq(int gpio, int level, uint32_t tick, SX1278 * lora) {
+    irq = true;
+}
+
+void loraMain() {
+    if (!lora.initialize()) 
+        std::cout << "Error initializing LoRa module" << std::endl;
+#ifdef ARCH_RPI
+    gpioSetISRFuncEx(0, FALLING_EDGE, 0, (gpioISRFuncEx_t) loraIrq, & lora);
+#else
+    std::cout << "NO INTERRUPT" << std::endl;
+#endif
+
+}
 
 
 void nrf24l01irq(int gpio, int level, uint32_t tick, NRF24L01 * radio) {
@@ -23,15 +42,7 @@ void nrf24l01irq(int gpio, int level, uint32_t tick, NRF24L01 * radio) {
     irq = true;
 }
 
-/** Transmitter test. 
- 
-    Sends the given ammount of bytes per second for ever. 
- */
-
-int main(int argc, char * argv[]) {
-    gpio::initialize();
-    spi::initialize();
-
+void nrfMain() {
     if (! nrf.initialize("TEST1", "TEST2")) {
         std::cout << "Failed to initialize NRF" << std::endl;
     }
@@ -70,6 +81,21 @@ int main(int argc, char * argv[]) {
         }
     }
 }
+
+
+/** Transmitter test. 
+ 
+    Sends the given ammount of bytes per second for ever. 
+ */
+
+int main(int argc, char * argv[]) {
+    gpio::initialize();
+    spi::initialize();
+
+    loraMain();
+}
+
+
 
 
 /*
