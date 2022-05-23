@@ -7,3 +7,4 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/common)
 
 add_subdirectory("rpi/gamepad")
+add_subdirectory("rpi/test-radio")
