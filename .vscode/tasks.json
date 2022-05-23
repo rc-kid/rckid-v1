@@ -88,16 +88,16 @@
                 "$platformio"
             ]
         },
-        // locally builds the nrf24l01p receiver for range and compatibility testing
+        // locally builds the radio test receiver for range and compatibility testing
         {
-            "label": "test-nrf",
+            "label": "test-radio",
             "type": "shell",
             "command": "~/.platformio/penv/bin/pio",
             "args": [
                 "run",
             ],
             "options": {
-                "cwd": "test-nrf",
+                "cwd": "test-radio",
                 "shell": {
                     "executable" : "/bin/zsh",
                     "args": ["-c"]
@@ -107,50 +107,9 @@
                 "$platformio"
             ]
         },
-        // locally builds the nrf24l01p receiver test and flashes it to the chip using the rpi dev server and pio remote
+        // locally builds the radio test receiver test and flashes it to the chip using the rpi dev server and pio remote
         {
-            "label": "test-nrf-upload",
-            "type": "shell",
-            "command": "~/.platformio/penv/bin/pio",
-            "args": [
-                "remote",
-                "run",
-                "--target",
-                "upload"
-            ],
-            "options": {
-                "cwd": "test-nrf",
-                "shell": {
-                    "executable" : "/bin/zsh",
-                    "args": ["-c"]
-                }
-            },
-            "problemMatcher": [
-                "$platformio"
-            ]
-        },
-        // locally builds the sx1278 receiver for range and compatibility testing
-        {
-            "label": "test-sx1278",
-            "type": "shell",
-            "command": "~/.platformio/penv/bin/pio",
-            "args": [
-                "run",
-            ],
-            "options": {
-                "cwd": "test-sx1278",
-                "shell": {
-                    "executable" : "/bin/zsh",
-                    "args": ["-c"]
-                }
-            },
-            "problemMatcher": [
-                "$platformio"
-            ]
-        },
-        // locally builds the sx1278 receiver test and flashes it to the chip using the rpi dev server and pio remote
-        {
-            "label": "test-sx1278-upload",
+            "label": "test-radio-upload",
             "type": "shell",
             "command": "~/.platformio/penv/bin/pio",
             "args": [
@@ -160,7 +119,7 @@
                 "upload"
             ],
             "options": {
-                "cwd": "test-sx1278",
+                "cwd": "test-radio",
                 "shell": {
                     "executable" : "/bin/zsh",
                     "args": ["-c"]
@@ -170,8 +129,6 @@
                 "$platformio"
             ]
         },
-
-
     ],
     "version": "2.0.0"
 }

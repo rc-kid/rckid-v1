@@ -45,6 +45,8 @@ public:
         // the REG_VERSION must contain 0x12. If that's not the case either the chip is wrong, or SPI is not working
         if (readRegister(REG_VERSION) != 0x12)
             return false;
+        // start in sleep mode where we can access all registers
+        sleep();
         // the tx and rx modes can use the whole fifo for themselves
         writeRegister(REG_FIFO_TX_BASE_ADDR, 0);
         writeRegister(REG_FIFO_RX_BASE_ADDR, 0);            
@@ -64,6 +66,8 @@ public:
         // set the transmitter power and frequency
         setTxPower(power);
         setFrequency(freq);
+        // move to standby for quicker tx and rx times
+        standby();
         return true;
     }
 
@@ -75,20 +79,44 @@ public:
         writeRegister(REG_OP_MODE, MODE_LORA | MODE_STANDBY);
     }
 
+    /** Enables the continous receiver, puts RxDone on DIO0 and starts listening. 
+     */
     void enableReceiver() {
+        writeRegister(REG_DIO_MAPPING_1, 0b00000000); // enable RXdone on DIO0
         writeRegister(REG_OP_MODE, MODE_LORA | MODE_RX_CONTINUOUS);
     }
 
+    /** Returns true if there was a message ready to be copied to the buffer. False otherwise. 
+     */
     bool receive(uint8_t * buffer, size_t payloadSize) {
+        if (readRegister(REG_RX_NB_BYTES) < payloadSize)
+            return false;        
+        writeRegister(REG_FIFO_ADDR_PTR, readRegister(REG_FIFO_RX_CURRENT_ADDR));
+        begin();
+        spi::transfer(REG_FIFO | 0x80);
+        spi::receive(buffer, payloadSize);
+        end();
+        return true;
+    }
 
-        return false;
+    uint8_t packetRssi() {
+        return readRegister(REG_PKT_RSSI_VALUE);
+    }
+
+    /** Enables the transmitter. 
+     
+        Enters standby mode and makes sure that DIO0 will go from 0 to 1 when TxDone interrupt happens. 
+     */
+    void enableTransmitter() {
+        standby();
+        writeRegister(REG_DIO_MAPPING_1, 0b01000000); // enable TXdone on DIO0
     }
 
     /** Transmits the given payload as a single packet.
      */
     void transmit(uint8_t const * buffer, size_t payloadSize) {
-        // go to standby mode, reset the fifo 
-        standby();
+        //standby();
+        // reset the fifo. Is this necessary? 
         writeRegister(REG_FIFO_ADDR_PTR, 0);
         // upload the packet
         begin();
@@ -98,6 +126,11 @@ public:
         // enter tx mode
         writeRegister(REG_OP_MODE, MODE_LORA | MODE_TX);
     }
+
+    void clearIrq() {
+        writeRegister(REG_IRQ_FLAGS, 0xff);
+    }
+
 
     /** Sets the frequency (channel). 
      

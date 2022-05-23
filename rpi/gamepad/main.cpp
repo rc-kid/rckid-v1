@@ -20,11 +20,38 @@ void loraMain() {
     if (!lora.initialize()) 
         std::cout << "Error initializing LoRa module" << std::endl;
 #ifdef ARCH_RPI
-    gpioSetISRFuncEx(0, FALLING_EDGE, 0, (gpioISRFuncEx_t) loraIrq, & lora);
+    gpioSetISRFuncEx(0, RISING_EDGE, 0, (gpioISRFuncEx_t) loraIrq, & lora);
 #else
     std::cout << "NO INTERRUPT" << std::endl;
 #endif
 
+    uint8_t idx = 0;
+    size_t sent = 0;
+    size_t acked = 0;
+    auto start = std::chrono::steady_clock::now();
+    lora.enableTransmitter();
+    while (true) {
+        uint8_t msg[32];
+        for (int i = 0; i < sizeof(msg); ++i)
+            msg[i] = idx;
+        ++idx;
+        lora.transmit(msg, sizeof(msg));
+        ++sent;
+        cpu::delay_ms(20); // for 12800bps
+        if (irq) {
+            lora.clearIrq();
+            ++acked;
+            irq = false;
+        }
+        auto t = std::chrono::steady_clock::now();
+        auto d = std::chrono::duration_cast<std::chrono::milliseconds>(t - start);
+        if (d.count() >= 1000) {
+            std::cout << sent << "/" << acked << " packages sent/acked." << std::endl;
+            sent = 0;
+            acked = 0;
+            start = t;
+        }
+    }
 }
 
 
@@ -91,8 +118,16 @@ void nrfMain() {
 int main(int argc, char * argv[]) {
     gpio::initialize();
     spi::initialize();
-
-    loraMain();
+    if (argc == 2) {
+        if (strcmp(argv[1], "lora") == 0) {
+            std::cout << "lora:" << std::endl;
+            loraMain();
+        } else if (strcmp(argv[1], "nrf") == 0) {
+            std::cout << "nrf:" << std::endl;
+            nrfMain();
+        }
+    }
+    std::cout << "nrf or lora?" << std::endl;
 }
 
 

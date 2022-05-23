@@ -188,7 +188,8 @@ public:
     }
 
     /** Receives a message. 
-
+     
+        Receives a message. Returns true if the message has been stored in the buffer, false if there was no message ready on the chip. 
      */
     bool receive(uint8_t * buffer, size_t payloadSize) {
 	    begin();
