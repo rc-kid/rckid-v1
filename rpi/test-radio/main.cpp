@@ -1,4 +1,6 @@
 #include <cstdlib>
+#include <iostream>
+#include <cstring>
 
 #include "peripherals/nrf24l01.h"
 #include "peripherals/sx1278.h"

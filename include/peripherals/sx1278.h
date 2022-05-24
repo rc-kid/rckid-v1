@@ -93,7 +93,7 @@ public:
             return false;        
         writeRegister(REG_FIFO_ADDR_PTR, readRegister(REG_FIFO_RX_CURRENT_ADDR));
         begin();
-        spi::transfer(REG_FIFO | 0x80);
+        spi::transfer(REG_FIFO);
         spi::receive(buffer, payloadSize);
         end();
         return true;
@@ -120,7 +120,7 @@ public:
         writeRegister(REG_FIFO_ADDR_PTR, 0);
         // upload the packet
         begin();
-        spi::transfer(REG_FIFO);
+        spi::transfer(REG_FIFO | 0x80);
         spi::send(buffer, payloadSize);
         end();
         // enter tx mode

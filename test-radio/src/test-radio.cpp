@@ -1,4 +1,3 @@
-
 #include "platform/platform.h"
 #include "peripherals/nrf24l01.h"
 #include "peripherals/ssd1306.h"
@@ -15,15 +14,8 @@
        NRF_IRQ -- (06) PB3   PC1 (11) -- 
                -- (07) PB2   PC0 (10) -- 
            SDA -- (08) PB1   PB0 (09) -- SCL
-
-
-    9 free pins
-
-    2 = motor 1
-    2 = motor 2
-    1 = pwm
-    1 = 
  */
+
 constexpr gpio::Pin NRF_CS = 13;
 constexpr gpio::Pin NRF_RXTX = 12;
 constexpr gpio::Pin NRF_IRQ = 6;
@@ -58,7 +50,7 @@ bool tickMark = false;
 
 void nrfIrq() {
     nrf_irq = true;
-    gpio::high(DEBUG_PIN);
+    //gpio::high(DEBUG_PIN);
 }
 
 void loraIrq() {
@@ -154,6 +146,7 @@ void loop() {
         */
         nrf_received = 0;
         nrf_errors = 0;
+
 
         oled.gotoXY(64,1);
         oled.write(lora_received, ' ');
