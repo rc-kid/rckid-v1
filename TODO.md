@@ -23,6 +23,7 @@
 
 # AVR 
 
+- move backlight to PA5 (TCB0)
 - check it can turn rpi on/off
 - check rpi can program it, should there be a way to force RPI on via some button too to override the shutdown? 
 
