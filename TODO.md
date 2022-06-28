@@ -1,6 +1,13 @@
 
-- get extra M2.5 inserts
+- M1.4 brass inserts for thumbstick and M1.4 screws
+- black M2.5 screws for top 
 - get 5pin FPC for joysticks
+
+- add jumper for turning rpi on
+- check that 5V can control 3v3 for vibration motor
+- check headphones detection working
+- verify pads
+- determine missing values
 
 ## Rpi image 
 
