@@ -16,23 +16,17 @@ namespace comms {
     */
     class State {
     public:
-        bool btnStart() const { return buttons_ & (1 << BTN_START); }
-        bool btnSelect() const { return buttons_ & (1 << BTN_SELECT); }
+        bool btnLeftVolume() const { return status_ & BTN_LVOL; }
+        bool btnRightVolume() const { return status_ & BTN_RVOL; }
+        bool btnJoystick() const { return status_ & BTN_JOY; }
         uint8_t joyX() const { return joyX_; }
         uint8_t joyY() const { return joyY_; }
 
-        void setBtnStart(bool value) { setOrClear(buttons_, 1 << BTN_START, value); }
-        void setBtnSelect(bool value) { setOrClear(buttons_, 1 << BTN_SELECT, value); }
+        void setBtnLeftVolume(bool value) { setOrClear(status_, BTN_LVOL, value); }
+        void setBtnRightVolume(bool value) { setOrClear(status_, BTN_RVOL, value); }
+        void setBtnJoystick(bool value) { setOrClear(status_, BTN_JOY, value); }
         void setJoyX(uint8_t value) { joyX_ = value; }
         void setJoyY(uint8_t value) { joyY_ = value; }
-
-        bool button(uint8_t index) const {
-            return buttons_ & static_cast<uint8_t>(1 << index);
-        }
-
-        void setButton(uint8_t index, bool value) {
-            setOrClear(buttons_, 1 << index, value);
-        }
 
         /** Returns the vcc voltage (battery or USB when attached)
          
@@ -42,10 +36,12 @@ namespace comms {
             0 = below 2.46V
             
         */
+       /*
         uint16_t vcc() const {
             return (vcc_ == 0) ? 0 : (vcc_ + 245);
-        }
+        } */
 
+/*
         void setVcc(uint16_t vx100) {
             if (vx100 < 250)
                 vcc_ = 0;
@@ -53,7 +49,7 @@ namespace comms {
                 vcc_ = 255;
             else 
                 vcc_ = (vx100 - 249) & 0xff;
-        }
+        } */
 
         /** Returns the temperature. 
          
@@ -78,18 +74,37 @@ namespace comms {
         DateTime const & time() const { return time_; }
         DateTime & time() { return time_; }
 
+        bool powerOn() const { return status_ & POWER_ON; }
+        void setPowerOn(bool value = true) { setOrClear(status_, POWER_ON, value); }
+
     private:
-        static constexpr uint8_t BTN_START = 0;
-        static constexpr uint8_t BTN_SELECT = 1;
-        uint8_t buttons_;
+        static constexpr uint8_t BTN_LVOL = 1 << 0;
+        static constexpr uint8_t BTN_RVOL = 1 << 1;
+        static constexpr uint8_t BTN_JOY = 1 << 2;
+        //static constexpr uint8_t = 1 << 3;
+        static constexpr uint8_t POWER_ON = 1 << 4;
+        static constexpr uint8_t CHARGING = 1 << 5;
+        static constexpr uint8_t VUSB = 1 << 6;
+        static constexpr uint8_t LOW_BATT = 1 << 7;
+
+        uint8_t status_ = 0;
+
 
         /** Joystick X and Y coordinates. 
          */
         uint8_t joyX_;
         uint8_t joyY_;
 
-        uint8_t vcc_;
+        /** Photoresistor value (unitless)
+         */
+        uint8_t photores_;
+
+        /** Battery voltage. 
+         */
         uint8_t batt_;
+
+        /** Temperature.
+         */
         uint8_t temp_;
 
         DateTime time_;

@@ -9,6 +9,7 @@
 - test that ATTiny can PWM display brightness
 - test that ATTiny can read microphone
 - test that ATTiny can read photoresistor
+- check if 1M pull-down resistor can be used for rpi power
 
 - test that headphone detection works
 - test rpi can read buttons 

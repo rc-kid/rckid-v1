@@ -45,9 +45,9 @@ FDV303N         | 1  | 9  | Switching MOSFET-N
 1k8             | 2  | 20 | Resistor, 0805
 2k2             | 1  | 10 | Resistor, 0805
 2k5             | 1  | 20 | Resistor, 0805
-10k             | 7  | 99 | Resistor, 0805
+10k             | 6  | 99 | Resistor, 0805
 75k             | 1  | 10 | Resistor, 0805
-100k            | 4  | 20 | Resistor, 0805
+100k            | 5  | 20 | Resistor, 0805
 
 > + resistor divider on PAM8302 input for volume, has to be calculated 
 
