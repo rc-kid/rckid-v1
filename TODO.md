@@ -1,3 +1,19 @@
+# Hardware Checks
+
+- test that ATTiny can be programmed from rpi
+- test that ATTiny can signal rpi and I2C comms
+- test that ATTiny can turn rpi on/off
+- test that ATTiny can turn RGB on/off
+- test that ATTiny can turn vibration on/off + PWM
+- test that ATTiny can read joystick analog and the buttons
+- test that ATTiny can PWM display brightness
+- test that ATTiny can read microphone
+- test that ATTiny can read photoresistor
+
+- test that headphone detection works
+- test rpi can read buttons 
+
+
 
 - M1.4 brass inserts for thumbstick and M1.4 screws
 - black M2.5 screws for top 
