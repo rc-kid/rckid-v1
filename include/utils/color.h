@@ -222,16 +222,18 @@ public:
         }
     }
 
-    void moveTowards(ColorStrip<SIZE> const & other, uint8_t step) {
+    bool moveTowards(ColorStrip<SIZE> const & other, uint8_t step = 1) {
         for (uint8_t i = 0; i < SIZE; ++i) {
             changed_ = colors_[i].moveTowards(other.colors_[i], step) | changed_;
         }
+        return changed_;
     }
 
-    void moveTowardsReversed(ColorStrip<SIZE> const & other, uint8_t step) {
+    bool moveTowardsReversed(ColorStrip<SIZE> const & other, uint8_t step = 1) {
         for (uint8_t i = 0; i < SIZE; ++i) {
             changed_ = colors_[i].moveTowards(other.colors_[SIZE - 1 - i], step) | changed_;
         }
+        return changed_;
     }
 
     /** Shows point at given offset. 

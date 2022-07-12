@@ -6,6 +6,16 @@ inline uint16_t swapBytes(uint16_t x) {
 }
 
 template<typename T, typename V>
+bool checkSetOrClear(T & value, V mask, bool setOrClear) {
+    bool result = ((value | mask) != 0) == setOrClear;
+    if (setOrClear)
+        value |= mask;
+    else 
+        value &= ~mask;
+    return result;
+}
+
+template<typename T, typename V>
 void setOrClear(T & value, V mask, bool setOrClear) {
     if (setOrClear)
         value |= mask;

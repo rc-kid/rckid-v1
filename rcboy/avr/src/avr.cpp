@@ -4,6 +4,8 @@
 
 #include "comms.h"
 
+#include "peripherals/neopixel.h"
+
 /** Chip pinout and considerations
 
                    -- VDD             GND --
@@ -76,38 +78,23 @@ static constexpr gpio::Pin VBATT = 3; // ADC0(7)
 static constexpr gpio::Pin CHARGE = 15; // ADC0(2)
 
 
-
-
-
-
-static constexpr uint8_t NUM_BUTTONS = 2;
-static constexpr uint8_t BUTTON_DEBOUNCE = 10; // [ms]
-static constexpr uint16_t POWERON_PRESS = 1000; // [ms]
-
+/** The entire status of the AVR as a continuous area of memory so that when we rpi reads the I2C all this information can be returned. 
+ */
 struct {
-    comms::State state;
+    comms::Status status;
     uint8_t i2cBuffer[comms::I2C_BUFFER_SIZE];
     uint8_t i2cBytesRecvd = 0;
     uint8_t i2cBytesSent = 0;
-} communication;
-
-volatile struct {
-    bool irq : 1;
-    bool i2cReady : 1;
-    bool tick : 1; 
-    bool secondTick : 1;
-    bool sleep : 1;
-} flags;
-
-/** Timers for the button debounce. 
- */
-uint8_t buttonTimers[NUM_BUTTONS] = {0,0};
-
-void wakeup();
-void pwrButtonDown();
-
-
-
+    volatile struct {
+        /** Determines that the AVR irq is either requested, or should be requested at the next tick. 
+         */
+        bool irq : 1;
+        bool i2cReady : 1;
+        bool tick : 1; 
+        bool secondTick : 1;
+        bool sleep : 1;
+    } flags;
+} state;
 
 /** \name Clocks
  
@@ -131,14 +118,16 @@ namespace clocks {
     }
 
     void stopTick() {
+        // if there was a pending tick, disable it
+        state.flags.tick = false;
 
     }
 }
 
 ISR(RTC_PIT_vect) {
     RTC.PITINTFLAGS = RTC_PI_bm; // clear the interrupt
-    communication.state.time().secondTick();
-    flags.secondTick = true;
+    state.status.time().secondTick();
+    state.flags.secondTick = true;
 }
 
 /** \name Interface with the RPi.
@@ -147,22 +136,46 @@ ISR(RTC_PIT_vect) {
  */
 namespace rpi {
 
-    __inline__ void on() {
+    void initialize() {
+        // make sure rpi is on, and clear the AVR_IRQ flag (will be pulled high by rpi)
+        gpio::input(RPI_EN);
+        gpio::input(AVR_IRQ);
+    }
+
+    void on() {
         gpio::input(RPI_EN);
     }
 
-    __inline__ void off() {
+    void off() {
         gpio::output(RPI_EN);
         gpio::high(RPI_EN);
+    }
+
+    void setIrq() {
+        state.flags.irq = true;
+    }
+
+    void setIrqImmediately() {
+        state.flags.irq = true;
+        gpio::output(AVR_IRQ);
+        gpio::low(AVR_IRQ);
+    }
+
+    void tick() {
+        // force IRQ down if it's up and the irq flag is set
+        if (state.flags.irq == true && gpio::read(AVR_IRQ)) {
+            gpio::output(AVR_IRQ);
+            gpio::low(AVR_IRQ);
+        }
     }
 
     void processCommand() {
         // TODO
 
         // clear the received bytes buffer and the i2c command ready flag
-        communication.i2cBytesRecvd = 0;
+        state.i2cBytesRecvd = 0;
         cli();
-        flags.i2cReady = false;
+        state.flags.i2cReady = false;
         sei();
     }
 }
@@ -180,32 +193,32 @@ ISR(TWI0_TWIS_vect) {
     uint8_t status = TWI0.SSTATUS;
     // sending data to accepting master is on our fastpath as is checked first, if there is more state to send, send next byte, otherwise go to transcaction completed mode. 
     if ((status & I2C_DATA_MASK) == I2C_DATA_TX) {
-        if (communication.i2cBytesSent < sizeof (communication.state) + sizeof (communication.i2cBuffer)) {
-            TWI0.SDATA = reinterpret_cast<uint8_t*>(& communication.state)[communication.i2cBytesSent++];
+        if (state.i2cBytesSent < sizeof (state.status) + sizeof (state.i2cBuffer)) {
+            TWI0.SDATA = reinterpret_cast<uint8_t*>(& state.status)[state.i2cBytesSent++];
             TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
         } else {
             TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
         }
     // a byte has been received from master. Store it and send either ACK if we can store more, or NACK if we can't store more
     } else if ((status & I2C_DATA_MASK) == I2C_DATA_RX) {
-        communication.i2cBuffer[communication.i2cBytesRecvd++] = TWI0.SDATA;
-        TWI0.SCTRLB = (communication.i2cBytesRecvd == sizeof(communication.i2cBuffer)) ? TWI_SCMD_COMPTRANS_gc : TWI_SCMD_RESPONSE_gc;
+        state.i2cBuffer[state.i2cBytesRecvd++] = TWI0.SDATA;
+        TWI0.SCTRLB = (state.i2cBytesRecvd == sizeof(state.i2cBuffer)) ? TWI_SCMD_COMPTRANS_gc : TWI_SCMD_RESPONSE_gc;
     // master requests slave to write data, clear the IRQ and prepare to send the state
     } else if ((status & I2C_START_MASK) == I2C_START_TX) {
         gpio::input(AVR_IRQ);
-        communication.i2cBytesSent = 0;
+        state.i2cBytesSent = 0;
         TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
         //gpio::input(IRQ_PIN); // clear IRQ
     // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise
     } else if ((status & I2C_START_MASK) == I2C_START_RX) {
-        TWI0.SCTRLB = flags.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
+        TWI0.SCTRLB = state.flags.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
     // sending finished
     } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
         TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
     // receiving finished, inform main loop we have message waiting
     } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
         TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
-        flags.i2cReady = true;
+        state.flags.i2cReady = true;
     } else {
         // error - a state we do not know how to handle
     }
@@ -256,7 +269,11 @@ namespace adc0 {
         ADC0.SAMPCTRL = 31;
     }
 
-    __inline__ bool ready() {
+    void tick() {
+        // TODO update the photoresistor value
+    }
+
+    bool ready() {
         // TODO should always return false if in the audio recording mode. How to determine? 
         return (ADC0.INTFLAGS & ADC_RESRDY_bm);
     }
@@ -320,78 +337,6 @@ namespace adc0 {
 
 }
 
-/** \name ADC1
- 
-    ADC1 is used exclusively for reading the thumbstick state. It cycles through reading the horizontal, button and vertical value. The values are read all the time and are averaged on each tick. 
- */
-namespace adc1 {
-
-    constexpr uint8_t MUXPOS_JOY_H = ADC_MUXPOS_AIN6_gc;
-    constexpr uint8_t MUXPOS_JOY_BTN = ADC_MUXPOS_AIN7_gc;
-    constexpr uint8_t MUXPOS_JOY_V = ADC_MUXPOS_AIN8_gc;
-
-    uint16_t accH_;
-    uint16_t accV_;
-    uint8_t accHSize_;
-    uint8_t accVSize_;
-
-    void initialize() {
-        static_assert(JOY_H == 10); // AIN6 - ADC1, PC0
-        PORTC.PIN0CTRL &= ~PORT_ISC_gm;
-        PORTC.PIN0CTRL |= PORT_ISC_INPUT_DISABLE_gc;
-        PORTC.PIN0CTRL &= ~PORT_PULLUPEN_bm;
-        static_assert(JOY_BTN == 11); // AIN7 - ADC1, PC1
-        PORTC.PIN1CTRL &= ~PORT_ISC_gm;
-        PORTC.PIN1CTRL |= PORT_ISC_INPUT_DISABLE_gc;
-        PORTC.PIN1CTRL &= ~PORT_PULLUPEN_bm;
-        static_assert(JOY_V == 12); // AIN8 - ADC1, PC2
-        PORTC.PIN2CTRL &= ~PORT_ISC_gm;
-        PORTC.PIN2CTRL |= PORT_ISC_INPUT_DISABLE_gc;
-        PORTC.PIN2CTRL &= ~PORT_PULLUPEN_bm;
-    }
-
-    void start() {
-        accH_ = 0;
-        accV_ = 0;
-        accHSize_ = 0;
-        accVSize_ = 0;
-        // delay & sample averaging for increased precision
-        ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc;
-        ADC1.CTRLB = ADC_SAMPNUM_ACC64_gc;
-        ADC1.MUXPOS = MUXPOS_JOY_H;
-        ADC1.CTRLC = ADC_PRESC_DIV16_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; // use VDD as reference 
-        ADC1.CTRLD = ADC_INITDLY_DLY32_gc;
-        ADC1.SAMPCTRL = 31;
-    }
-
-    __inline__ bool ready() {
-        return (ADC1.INTFLAGS & ADC_RESRDY_bm);
-    }
-
-    void processResult() {
-        uint8_t value = ADC1.RES / 64;
-        switch (ADC1.MUXPOS) {
-            case MUXPOS_JOY_H:
-                accH_ += value;
-                ++accHSize_;
-                ADC1.MUXPOS = MUXPOS_JOY_BTN;
-                break;
-            case MUXPOS_JOY_BTN:
-                // TODO how to aggregate the button
-                ADC1.MUXPOS = MUXPOS_JOY_V;
-                break;
-            case MUXPOS_JOY_V:
-                accV_ += value;
-                ++accVSize_;
-            default:
-                ADC1.MUXPOS = MUXPOS_JOY_H;
-                break;
-        }
-        // start new conversion
-        ADC1.COMMAND = ADC_STCONV_bm;
-    }
-}
-
 /** \name Audio
  
     The audio module supports recording sound from the microphone in 8kHz 8bit resolution. When recording, the ADC0 is taken over by the audio subsystem and therefore no other measurements are made. This should not be a problem as recordings should be relatively shortlived, a few seconds max so that we can't run out of battery catastrophically while recording. 
@@ -422,6 +367,14 @@ ISR(ADC0_RESRDY_vect) {
 /** \name Neopixel control. 
  */
 namespace led {
+
+    NeopixelStrip<1> led_{RGB};
+    ColorStrip<1> desired_;    
+
+    void initialize() {
+        gpio::input(RGB_EN);
+    }
+
     void off() {
         gpio::input(RGB_EN);
     }
@@ -430,6 +383,169 @@ namespace led {
         gpio::low(RGB_EN);
     }
 
+    void setColor(Color c) {
+        desired_[0] = c;
+    }
+
+    void tick() {
+        if (led_.moveTowards(desired_))
+            led_.update();
+    }
+
+}
+
+
+/** \name User Inputs
+
+    User input is three digital buttons (L,R and JOY) and the analog joystick horizontal and vertical axis. The buttons work at all times (using internal pullups from the AVR), but the analog stick works only when RPI is on as it is powered from the audio 3V3 power rail. 
+
+    The left and right volume buttons are protected against accidental presses and therefore are used to turn the device on or enable the torch mode via interrupts attached to them. 
+
+    All three buttons are debounced.
+
+ */
+namespace inputs {
+
+    constexpr uint8_t DEBOUNCE_TICKS = 10;
+
+    constexpr uint8_t MUXPOS_JOY_H = ADC_MUXPOS_AIN6_gc;
+    constexpr uint8_t MUXPOS_JOY_V = ADC_MUXPOS_AIN8_gc;
+
+    // joystick H and V values are aggregated and only reported at each tick
+    uint16_t accH_;
+    uint16_t accV_;
+    uint8_t accHSize_;
+    uint8_t accVSize_;
+
+    uint8_t debounceCounter_[3] = {0,0,0};
+
+    // forward declaration for the ISR
+    void leftVolume();
+    void rightVolume();
+    void joystickButton();
+
+    void initialize() {
+        // start pullups on the L and R volume buttons
+        gpio::inputPullup(BTN_LVOL);
+        gpio::inputPullup(BTN_RVOL);
+        gpio::input(JOY_BTN);
+        // attach button interrupts on change
+        attachInterrupt(digitalPinToInterrupt(BTN_LVOL), leftVolume, CHANGE);
+        attachInterrupt(digitalPinToInterrupt(BTN_RVOL), rightVolume, CHANGE);
+        // initialize ADC1 responsible for the joystick position
+        static_assert(JOY_H == 10); // AIN6 - ADC1, PC0
+        PORTC.PIN0CTRL &= ~PORT_ISC_gm;
+        PORTC.PIN0CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+        PORTC.PIN0CTRL &= ~PORT_PULLUPEN_bm;
+        static_assert(JOY_V == 12); // AIN8 - ADC1, PC2
+        PORTC.PIN2CTRL &= ~PORT_ISC_gm;
+        PORTC.PIN2CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+        PORTC.PIN2CTRL &= ~PORT_PULLUPEN_bm;
+    }
+
+    void joystickStart() {
+        gpio::inputPullup(JOY_BTN);
+
+        accH_ = 0;
+        accV_ = 0;
+        accHSize_ = 0;
+        accVSize_ = 0;
+        // delay & sample averaging for increased precision
+        ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_10BIT_gc;
+        ADC1.CTRLB = ADC_SAMPNUM_ACC64_gc;
+        ADC1.MUXPOS = MUXPOS_JOY_H;
+        ADC1.CTRLC = ADC_PRESC_DIV16_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; // use VDD as reference 
+        ADC1.CTRLD = ADC_INITDLY_DLY32_gc;
+        ADC1.SAMPCTRL = 31;
+        // TODO switch reference to 4V3 for better resolution? Most likely not as it might not be available when powering from less than that 
+        attachInterrupt(digitalPinToInterrupt(JOY_BTN), joystickButton, CHANGE);
+    }
+
+    /** Disables ADC1 and interrupt on the joystick button so that AVR won't get interrupts from it. 
+     */
+    void joystickStop() {
+        ADC1.CTRLA = 0;
+        detachInterrupt(digitalPinToInterrupt(JOY_BTN));
+        gpio::input(JOY_BTN);
+    }
+
+    bool joystickReady() {
+        return (ADC1.INTFLAGS & ADC_RESRDY_bm);
+    }
+
+    void processJoystick() {
+        uint8_t value = ADC1.RES / 64;
+        switch (ADC1.MUXPOS) {
+            case MUXPOS_JOY_H:
+                accH_ += value;
+                ++accHSize_;
+                ADC1.MUXPOS = MUXPOS_JOY_V;
+                break;
+            case MUXPOS_JOY_V:
+                accV_ += value;
+                ++accVSize_;
+            default:
+                ADC1.MUXPOS = MUXPOS_JOY_H;
+                break;
+        }
+        // start new conversion
+        ADC1.COMMAND = ADC_STCONV_bm;
+    }
+
+    void leftVolume() {
+        if (debounceCounter_[0] == 0) {
+            debounceCounter_[0] = DEBOUNCE_TICKS;
+            state.status.setBtnLeftVolume(gpio::read(BTN_LVOL));
+            rpi::setIrq();
+        }
+    }
+
+    void rightVolume() {
+        if (debounceCounter_[1] == 0) {
+            debounceCounter_[1] = DEBOUNCE_TICKS;
+            state.status.setBtnRightVolume(gpio::read(BTN_RVOL));
+            rpi::setIrq();
+        }
+    }
+
+    void joystickButton() {
+        if (debounceCounter_[2] == 0) {
+            debounceCounter_[2] = DEBOUNCE_TICKS;
+            state.status.setBtnJoystick(gpio::read(JOY_BTN));
+            rpi::setIrq();
+        }
+    }
+
+    /** Each tick decrements the debounce timers and if they reach zero, the button status if updated and if it changes, irq is set (in this case press or release was shorted than the debounce interval). During the tick we also update the X and Y joystick readings (averaged over the measurements that happened during the tick for less jitter). 
+     */
+    void tick() {
+        if (debounceCounter_[0] > 0)
+            if (--debounceCounter_[0] == 0)
+                if (state.status.setBtnLeftVolume(gpio::read(BTN_LVOL)))
+                    rpi::setIrq();
+        if (debounceCounter_[0] > 0)
+            if (--debounceCounter_[0] == 0)
+                if (state.status.setBtnRightVolume(gpio::read(BTN_RVOL)))
+                    rpi::setIrq();
+        if (debounceCounter_[0] > 0)
+            if (--debounceCounter_[0] == 0)
+                if (state.status.setBtnJoystick(gpio::read(JOY_BTN)))
+                    rpi::setIrq();
+        if (accHSize_ != 0) {
+            accH_ = accH_ / accHSize_;
+            if (state.status.setJoyX(accH_))
+                rpi::setIrq();
+        }
+        if (accVSize_ != 0) {
+            accV_ = accV_ / accVSize_;
+            if (state.status.setJoyY(accV_))
+                rpi::setIrq();
+        }
+        accH_ = 0;
+        accV_ = 0;
+        accHSize_ = 0;
+        accVSize_ = 0;
+    }
 }
 
 /** \name AVR Modes
@@ -459,17 +575,24 @@ namespace led {
     TODO timeout in seconds, TODO flashlight mode controls. 
  */
 namespace mode {
+
     void standby() {
+        wdt::enable();
         adc0::initialize();
         adc0::start();
+        clocks::startTick();
+        
     }
 
     /** Puts the chip to sleep, disabling all peripherals. 
      */
     void sleep() {
+        // disable the ticks counter
+        clocks::stopTick();
         // disable rpi, disable rgb
         rpi::off();
         led::off();
+        inputs::joystickStop();
         // disable backlight
         TCB0.CTRLA = 0;
         gpio::input(BACKLIGHT);
@@ -477,6 +600,11 @@ namespace mode {
         // TODO disable all timers but RTC
         // TODO disable vibration
         // TODO sleep
+        wdt::disable();
+        while (state.flags.sleep)
+            cpu::sleep();
+        standby();
+        // wait for the mode to be set either to rpi, torch, or back to sleep
     }
 
     /** Turns on the power to rpi without any initialization
@@ -484,6 +612,9 @@ namespace mode {
     void rpiPowerOn() {
         // turn rpi on
         rpi::on();
+        // initalize I2C slave if the pi wants to talk to us
+        i2c::initializeSlave(comms::AVR_I2C_ADDRESS);
+
     }
 
     /** Initializes the rpi and notifies user it is booting. 
@@ -497,9 +628,8 @@ namespace mode {
         TCB0.CCMPL = 255;
         TCB0.CCMPH = 255;
         TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc | TCB_ENABLE_bm;
-        // initialize ADC1
-        adc1::initialize();
-        adc1::start();
+        // start joystick readouts
+        inputs::joystickStart();
 
         // TODO set status to rpi mode
     }
@@ -523,20 +653,16 @@ namespace mode {
  */
 void setup() {
     // initialize common digital pins
-    // make sure rpi is on, and clear the AVR_IRQ flag (will be pulled high by rpi)
-    gpio::input(RPI_EN);
-    gpio::input(AVR_IRQ);
-    // start pullups on the L and R volume buttons
-    gpio::inputPullup(BTN_LVOL);
-    gpio::inputPullup(BTN_RVOL);
+    rpi::initialize();
+    inputs::initialize();
+    led::initialize();
     // start reading the charging status
     gpio::input(CHARGE);
     // disable the rgb, brightness and vibration motor controls
-    gpio::input(RGB_EN);
     gpio::input(BACKLIGHT);
     gpio::input(VIB_EN);
     // set the power on flag in config
-    communication.state.setPowerOn();
+    state.status.setPowerOn();
     clocks::startRTC();
     // enter standby mode, then start rpi and make the start permanent immediately
     mode::standby();
@@ -547,25 +673,28 @@ void setup() {
 /** Main loop. 
  */
 void loop() {
-    if (flags.i2cReady)
+    if (state.flags.i2cReady)
         rpi::processCommand();
     if (adc0::ready())
         adc0::processResult();
-    if (adc1::ready())
-        adc1::processResult();
-    /*
-    if (ADC0.INTFLAGS & ADC_RESRDY_bm)
-        processADC0Result();
-    if (ADC1.INTFLAGS & ADC_RESRDY_bm)
-        processADC1Result();
-    if (flags.tick)
-        tick();
-    if (flags.sleep)
-        sleep();
-    // TODO this should be done only when rp calls us on i2c
-    wdt::reset();
-    */
+    if (inputs::joystickReady())
+        inputs::processJoystick();
 
+
+
+    if (state.flags.tick) {
+        state.flags.tick = false;
+        adc0::tick();
+        led::tick();
+        inputs::tick();
+        // the rpi tick must be last as it may set the irq if any of the ticks above determine it need to be set
+        rpi::tick();
+        // TODO should we do this only when rp calls us on IRQ? likely not 
+        wdt::reset();
+    }
+    // if there is 
+    if (state.flags.sleep)
+        mode::sleep();
 }
 
 // OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD
@@ -629,124 +758,6 @@ void setup2() {
     TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc | TCB_ENABLE_bm;
     // wakeup, including power to pico
     wakeup();
-}
-
-/** Determines if there is a change in state for given button. 
- */
-bool checkButtons() {
-    bool changed = false;
-    bool value = gpio::read(BTN_START_PIN);
-    if (buttonTimers[0] == 0 && communication.state.btnStart() != value) {
-        communication.state.setBtnStart(value);
-        cli();
-        buttonTimers[0] = BUTTON_DEBOUNCE;
-        sei();
-        changed = true;
-    } 
-    value = gpio::read(BTN_SELECT_PIN);
-    if (buttonTimers[1] == 0 && communication.state.btnSelect() != value) {
-        communication.state.setBtnSelect(value);
-        cli();
-        buttonTimers[1] = BUTTON_DEBOUNCE;
-        sei();
-        changed = true;
-    } 
-    return changed;
-}
-
-
-void tick() {
-    flags.tick = false;
-    bool irq = flags.irq;
-    // check buttons 
-    for (int i = 0; i < NUM_BUTTONS; ++i)
-        irq = checkButtons() || irq;
-    // set irq if it is requested by either the 
-    if (irq && gpio::read(IRQ_PIN)) {
-        flags.irq = false;
-        gpio::output(IRQ_PIN);
-        gpio::low(IRQ_PIN);
-    }
-}
-
-void wakeup() {
-    // clear the irq
-    gpio::input(IRQ_PIN);
-
-
-
-
-    // start conversions on the ADCs
-    ADC0.COMMAND = ADC_STCONV_bm;
-    // TODO check the voltage level before starting pico
-
-
-
-
-    // power up the thumbstick and start its sampling
-    gpio::output(JOY_PWR_PIN);
-    gpio::high(JOY_PWR_PIN);
-    ADC1.COMMAND = ADC_STCONV_bm;
-    // start RP2040, initialize I2C
-    i2c::initializeSlave(comms::AVR_I2C_ADDRESS);
-    gpio::input(EN_3V3_PIN);
-}
-
-void sleep() {
-    // turn off RP2040
-    gpio::output(EN_3V3_PIN);
-    gpio::low(EN_3V3_PIN);
-    // turn off joystick power
-    gpio::input(JOY_PWR_PIN);
-    while (true) {
-        // disable the tick timer
-        TCB0.CTRLA &= ~ TCB_ENABLE_bm;
-        // clear the button debounce timeouts
-        for (int i = 0; i < NUM_BUTTONS; ++i)
-            buttonTimers[i] = 0;
-        // while sleeping, disable watchdog, make sure that any interrupts that would wake up will put to sleep immediately
-        wdt::disable();
-        while (flags.sleep)
-            cpu::sleep();
-        wdt::enable();
-        TCB0.CTRLA |= TCB_ENABLE_bm;
-        // avr wakes up immediately after PWR button is held down. Wait some time for the pwr button to be pressed down 
-        uint16_t ticks = POWERON_PRESS;
-        tick();
-        while (communication.state.btnStart()) {
-            if (flags.tick) {
-                tick();
-                if (--ticks == 0) {
-                    wakeup();
-                    return;
-                }
-            }
-        }
-        // premature release, go back to sleep
-        flags.sleep = true;
-    }
-}
-
-void loop() {
-    if (flags.i2cReady)
-        processCommand();
-    if (ADC0.INTFLAGS & ADC_RESRDY_bm)
-        processADC0Result();
-    if (ADC1.INTFLAGS & ADC_RESRDY_bm)
-        processADC1Result();
-    if (flags.tick)
-        tick();
-    if (flags.sleep)
-        sleep();
-    // TODO this should be done only when rp calls us on i2c
-    wdt::reset();
-}
-
-/** IRQ for power button change. If sleeping, wake up from sleep. The sleep function will take care of the rest. 
- */
-void pwrButtonDown() {
-    if (flags.sleep)
-        flags.sleep = false;
 }
 
 /** Switch debouncing 1kHz interrupt. 

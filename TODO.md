@@ -1,5 +1,9 @@
 # Hardware Checks
 
+- photoresistor can easily work off VRPI
+- check if VRPI can be sent to the joystick as well
+- MIC should be centered around some decent voltage for internal reference and smaller gain perhaps
+
 - test that ATTiny can be programmed from rpi
 - test that ATTiny can signal rpi and I2C comms
 - test that ATTiny can turn rpi on/off

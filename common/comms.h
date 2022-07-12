@@ -9,12 +9,11 @@ namespace comms {
 
     static constexpr size_t I2C_BUFFER_SIZE = 32;
 
-
     /** The state AVR sends to RP2040. 
      
         This consists of the state of the buttons, 
     */
-    class State {
+    class Status {
     public:
         bool btnLeftVolume() const { return status_ & BTN_LVOL; }
         bool btnRightVolume() const { return status_ & BTN_RVOL; }
@@ -22,11 +21,25 @@ namespace comms {
         uint8_t joyX() const { return joyX_; }
         uint8_t joyY() const { return joyY_; }
 
-        void setBtnLeftVolume(bool value) { setOrClear(status_, BTN_LVOL, value); }
-        void setBtnRightVolume(bool value) { setOrClear(status_, BTN_RVOL, value); }
-        void setBtnJoystick(bool value) { setOrClear(status_, BTN_JOY, value); }
-        void setJoyX(uint8_t value) { joyX_ = value; }
-        void setJoyY(uint8_t value) { joyY_ = value; }
+        bool setBtnLeftVolume(bool value) { return checkSetOrClear(status_, BTN_LVOL, value); }
+        bool setBtnRightVolume(bool value) { return checkSetOrClear(status_, BTN_RVOL, value); }
+        bool setBtnJoystick(bool value) { return checkSetOrClear(status_, BTN_JOY, value); }
+        bool setJoyX(uint8_t value) { 
+            if (joyX_ != value) {
+                joyX_ = value;
+                return true;
+            } else {
+                return false;
+            } 
+        }
+        bool setJoyY(uint8_t value) { 
+            if (joyY_ != value) {
+                joyY_ = value;
+                return true;
+            } else {
+                return false;
+            }
+        }
 
         /** Returns the vcc voltage (battery or USB when attached)
          
@@ -111,6 +124,6 @@ namespace comms {
 
     } __attribute__((packed)); // State
 
-    static_assert(sizeof(State) == 10);
+    static_assert(sizeof(Status) == 10);
 
 }
