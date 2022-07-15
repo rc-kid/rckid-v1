@@ -102,6 +102,15 @@ struct {
  */
 namespace clocks {
 
+    /** Normally the arduino core uses TCA0 timer to generate PWM signals on the analog pins. Since we do not use these, we can take over TCA0. Or we can use analog write to backlight and vibration motor via TCA and use TCB for the ticks & audio timing. 
+     */
+    void initialize() {
+        /*
+        takeOverTCA0(); 
+        TCA0.SINGLE.CTRLD = 0; // make sure we are not iin split mode
+        */
+    }
+
     /** Initializes the RTC and starts its IRQ with 1 second interval. 
      */
     void startRTC() {
@@ -114,7 +123,41 @@ namespace clocks {
     /** Starts the clock tick with 100Hz interval, which is used for updating the user controls, rpi notifications and general effects. 
      */
     void startTick() {
+        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
+        TCB0.CCMP = 40000; // for 100Hz
 
+        /*
+        TCA0.SINGLE.PER = 52083;
+        TCA0.SINGLE.CTRLA = TCA_SINGLE_CLKSEL_DIV64_gc | TCA_SINGLE_ENABLE_bm;
+        */
+        TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc | TCB_ENABLE_bm;
+    }
+
+    bool tick() {
+        if (TCB0.INTFLAGS & TCB_CAPT_bm) {
+            TCB0.INTFLAGS = TCB_CAPT_bm;
+            return true;
+        } else {
+            return false;
+        }
+        /*
+        if (TCA0.SPLIT.INTFLAGS & TCA_SPLIT_HUNF_bm) {
+            TCA0.SPLIT.INTFLAGS |= TCA_SPLIT_HUNF_bm;
+            return true;
+        } else {
+            return false;
+        } */
+        /*
+        
+        if (TCA0.SINGLE.INTFLAGS & TCA_SINGLE_OVF_bm) {
+            TCA0.SINGLE.INTFLAGS |= TCA_SINGLE_OVF_bm;
+            return true;
+        } else {
+            return false;
+        }
+        */
+       return true;
+        
     }
 
     void stopTick() {
@@ -144,11 +187,15 @@ namespace rpi {
 
     void on() {
         gpio::input(RPI_EN);
+        // start the backlight timer
+        
     }
 
     void off() {
         gpio::output(RPI_EN);
         gpio::high(RPI_EN);
+        // disable the backlight timer
+
     }
 
     void setIrq() {
@@ -380,6 +427,7 @@ namespace led {
     }
 
     void on() {
+        gpio::output(RGB_EN);
         gpio::low(RGB_EN);
     }
 
@@ -581,7 +629,6 @@ namespace mode {
         adc0::initialize();
         adc0::start();
         clocks::startTick();
-        
     }
 
     /** Puts the chip to sleep, disabling all peripherals. 
@@ -623,11 +670,13 @@ namespace mode {
         // TODO vibrate
 
         // display backlight full on
+        /*
         gpio::output(BACKLIGHT);
         TCB0.CTRLB = TCB_CNTMODE_PWM8_gc | TCB_CCMPEN_bm;
         TCB0.CCMPL = 255;
         TCB0.CCMPH = 255;
         TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc | TCB_ENABLE_bm;
+        */
         // start joystick readouts
         inputs::joystickStart();
 
@@ -652,6 +701,7 @@ namespace mode {
     Called when the chip powers on, initializes the perihperals and gpios. Sets the power on flag and makes sure the rpi is on. 
  */
 void setup() {
+    clocks::initialize();
     // initialize common digital pins
     rpi::initialize();
     inputs::initialize();
@@ -668,7 +718,31 @@ void setup() {
     mode::standby();
     mode::rpiPowerOn();
     mode::rpiOn();
+
+    led::on();
+    for (int i = 0; i < 5; ++i) {
+        led::setColor(Color::White().withBrightness(32));
+        led::tick();
+        cpu::delay_ms(200);
+        led::setColor(Color::Black());
+        led::tick();
+        cpu::delay_ms(200);
+    }
+    //led::off();
+
+    //gpio::input(BACKLIGHT);
+    gpio::output(BACKLIGHT);
+    analogWrite(BACKLIGHT, 128);
+    gpio::output(VIB_EN);
+    //analogWrite(VIB_EN, 128);
+    CCP = CCP_IOREG_gc;
+    CLKCTRL.MCLKCTRLA |= CLKCTRL_CLKOUT_bm;
+    CCP = CCP_IOREG_gc;
+    CLKCTRL.MCLKCTRLB = 0;
+
 }
+
+bool x;
 
 /** Main loop. 
  */
@@ -682,8 +756,13 @@ void loop() {
 
 
 
-    if (state.flags.tick) {
-        state.flags.tick = false;
+    if (clocks::tick()) {
+        if (x)
+            led::setColor(Color::White().withBrightness(32));
+        else
+            led::setColor(Color::Black());
+        x = !x;
+        digitalWrite(VIB_EN, x);
         adc0::tick();
         led::tick();
         inputs::tick();
@@ -691,10 +770,11 @@ void loop() {
         rpi::tick();
         // TODO should we do this only when rp calls us on IRQ? likely not 
         wdt::reset();
+         
     }
     // if there is 
-    if (state.flags.sleep)
-        mode::sleep();
+    //if (state.flags.sleep)
+    //    mode::sleep();
 }
 
 // OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD
