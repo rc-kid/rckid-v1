@@ -1,28 +1,32 @@
-# Hardware Checks
+# BOM
 
-- check if VRPI can be sent to the joystick as well
+- M1.4 screws for thumbstick
+- black M2.5 screws for top 
+
+# HW Design
+
+- check if 1M pull-down resistor can be used for rpi power
+- add a flyback diode to the vibration motor
 - MIC should be centered around some decent voltage for internal reference and smaller gain perhaps
+- check if VRPI can be sent to the joystick as well
+- add testpoints & stuff, jumper or test point for rpi on permanently
+- verify pads
+- determine missing values - mic & speaker
+
+# Hardware Checks
 
 - test that ATTiny can signal rpi and I2C comms
 - test that ATTiny can turn rpi on/off
-- test that ATTiny can turn vibration on/off + PWM
-- test that ATTiny can read joystick analog and the buttons
 - test that ATTiny can read microphone
-- test that ATTiny can read photoresistor
-- check if 1M pull-down resistor can be used for rpi power
+- check headphones detection working
 
-- test that headphone detection works
+
 - test rpi can read buttons 
 
+# AVR Issues
 
+- AVR software deboucing seems not to be very robust. See if this is breadboard related & fix
 
-- M1.4 brass inserts for thumbstick and M1.4 screws
-- black M2.5 screws for top 
-
-- add jumper for turning rpi on (or maybe not necessary, just a test point)
-- check headphones detection working
-- verify pads
-- determine missing values
 
 ## Rpi image 
 

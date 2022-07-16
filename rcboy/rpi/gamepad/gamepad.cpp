@@ -70,8 +70,8 @@ void Gamepad::queryAccelerometer() {
 /** TODO actuallytalk to the AVR. 
  */
 void Gamepad::queryAVR() {
-    comms::State state;
-    i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(comms::State));
+    comms::Status state;
+    i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(comms::Status));
 
     if (sel_ != state.btnSelect()) {
         sel_ = state.btnSelect();

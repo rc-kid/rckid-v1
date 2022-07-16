@@ -122,7 +122,7 @@ namespace clocks {
         //CLKCTRL.MCLKCTRLA |= CLKCTRL_CLKOUT_bm;
         // disable CLK_PER prescaler, i.e. CLK_PER = CLK_MAIN
         CCP = CCP_IOREG_gc;
-        CLKCTRL.MCLKCTRLB = 0;
+        CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm;
     }
 
     /** Initializes the RTC and starts its IRQ with 1 second interval. 
@@ -168,7 +168,10 @@ ISR(RTC_PIT_vect) {
 
 /** \name Interface with the RPi.
  
-    Communication is done via I2C and the IRQ pin that is pulled up by RPi and can be driven low by AVR if it wants to communicate a state change to RPi. 
+    Communication is done via I2C, where the RPi is the master and AVR is the slave. When the AVR wants to signal RPi that a state has been changed, it pulls the AVR_IRQ pin low. 
+
+    The RPi can either read data from the AVR, or send commands. The commands can consist of up to 32 bytes and are received in a dedicated buffer. When the master write transaction ends the avr signals the main thread to process the command received. Only one command can be received at a time. Attempting to send a command while the previous command is being processed results in a NACK. 
+    
  */
 namespace rpi {
 
@@ -333,20 +336,23 @@ namespace adc0 {
         // delay 32us and sampctrl of 32 us for the temperature sensor, do averaging over 64 values, full precission
         ADC0.CTRLB = ADC_SAMPNUM_ACC64_gc;
         ADC0.MUXPOS = MUXPOS_VCC; // start by measuring the internal voltage 
-        ADC0.CTRLC = ADC_PRESC_DIV16_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; // use VDD as reference for VCC sensing
+        ADC0.CTRLC = ADC_PRESC_DIV16_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; // use VDD as reference for VCC sensing, 0.5Mhz
         ADC0.CTRLD = ADC_INITDLY_DLY32_gc;
         ADC0.SAMPCTRL = 31;
         ADC0.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_10BIT_gc;
-    }
+        ADC0.COMMAND = ADC_STCONV_bm;
+     }
 
     void tick() {
         // update the photoresistor value
+        /*
         if (accPhotoresSize_ > 0)
             accPhotores_ /= accPhotoresSize_;
         if (state.estatus.irqPhotores() && state.status.setPhotores(accPhotores_ & 0xff))
             rpi::setIrq();
         accPhotores_ = 0;
         accPhotoresSize_ = 0;
+        */
         // check the microphone threshold 
         if (state.estatus.irqMic() && micMax_ >= state.estatus.micThreshold()) 
             if (state.status.setMicLoud())
@@ -378,13 +384,11 @@ namespace adc0 {
                 // TODO
                 ADC0.MUXPOS = MUXPOS_PHOTORES;
                 break;
-            /* Calculates the photoresistor value. Expected range is 0..255 which should correspond to 0..3V3 voltage measured. 
-             
-                TODO should we switch here for the 4.3V reference? 
+            /* Calculates the photoresistor value. Expected range is 0..255 which should correspond to 0..VCC voltage measured. 
              */
             case MUXPOS_PHOTORES:
-                accPhotores_ += (value >> 2); // only 8 bits are important
-                ++accPhotoresSize_;
+                if (state.status.setPhotores((value >> 2) & 0xff) && state.estatus.irqPhotores())
+                    rpi::setIrq();
                 ADC0.MUXPOS = MUXPOS_MIC;
                 break;
             /* Measures the sound, so that we can trigger the mic loud event if necessary. 
@@ -526,10 +530,12 @@ namespace led {
 
     All three buttons are debounced.
 
+    NOTE that the vibration motor's PWM is reversed, i.e. PWM 254 = lowest setting, PWM 1 = higherst setting
+
  */
 namespace inputs {
 
-    constexpr uint8_t DEBOUNCE_TICKS = 10;
+    constexpr uint8_t DEBOUNCE_TICKS = 2;
 
     constexpr uint8_t MUXPOS_JOY_H = ADC_MUXPOS_AIN6_gc;
     constexpr uint8_t MUXPOS_JOY_V = ADC_MUXPOS_AIN8_gc;
@@ -582,6 +588,7 @@ namespace inputs {
         ADC1.CTRLC = ADC_PRESC_DIV16_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; // use VDD as reference 
         ADC1.CTRLD = ADC_INITDLY_DLY32_gc;
         ADC1.SAMPCTRL = 31;
+        ADC1.COMMAND = ADC_STCONV_bm;
         // TODO switch reference to 4V3 for better resolution? Most likely not as it might not be available when powering from less than that 
         attachInterrupt(digitalPinToInterrupt(JOY_BTN), joystickButton, CHANGE);
     }
@@ -622,6 +629,10 @@ namespace inputs {
             debounceCounter_[0] = DEBOUNCE_TICKS;
             if (state.status.setBtnLeftVolume(gpio::read(BTN_LVOL)));
                 rpi::setIrq();
+            if (! gpio::read(BTN_LVOL))
+                led::setColor(Color::Blue().withBrightness(32));
+            else
+                led::setColor(Color::Black());
         }
     }
 
@@ -638,6 +649,10 @@ namespace inputs {
             debounceCounter_[2] = DEBOUNCE_TICKS;
             if (state.status.setBtnJoystick(gpio::read(JOY_BTN)));
                 rpi::setIrq();
+            if (! gpio::read(JOY_BTN))
+                led::setColor(Color::Green().withBrightness(32));
+            else
+                led::setColor(Color::Black());
         }
     }
 
@@ -648,12 +663,12 @@ namespace inputs {
             if (--debounceCounter_[0] == 0)
                 if (state.status.setBtnLeftVolume(gpio::read(BTN_LVOL)))
                     rpi::setIrq();
-        if (debounceCounter_[0] > 0)
-            if (--debounceCounter_[0] == 0)
+        if (debounceCounter_[1] > 0)
+            if (--debounceCounter_[1] == 0)
                 if (state.status.setBtnRightVolume(gpio::read(BTN_RVOL)))
                     rpi::setIrq();
-        if (debounceCounter_[0] > 0)
-            if (--debounceCounter_[0] == 0)
+        if (debounceCounter_[2] > 0)
+            if (--debounceCounter_[2] == 0)
                 if (state.status.setBtnJoystick(gpio::read(JOY_BTN)))
                     rpi::setIrq();
         if (accHSize_ != 0) {
@@ -797,29 +812,33 @@ void setup() {
     mode::rpiOn();
 
     led::on();
-    for (int i = 0; i < 5; ++i) {
-        led::setColor(Color::White().withBrightness(32));
-        led::tick();
-        cpu::delay_ms(200);
-        led::setColor(Color::Black());
+    /*
+    if (FUSE.OSCCFG == 1) {
+        led::setColor(Color::Red());
         led::tick();
         cpu::delay_ms(200);
     }
+    */
+    for (int i = 0; i < 3; ++i) {
+        led::setColor(Color::White().withBrightness(32));
+        led::tick();
+        cpu::delay_ms(100);
+        led::setColor(Color::Black());
+        led::tick();
+        cpu::delay_ms(100);
+    }
     //led::off();
-
     //gpio::input(BACKLIGHT);
     gpio::output(BACKLIGHT);
     analogWrite(BACKLIGHT, 128);
-    gpio::output(VIB_EN);
-    //analogWrite(VIB_EN, 128);
+    /*
     CCP = CCP_IOREG_gc;
     CLKCTRL.MCLKCTRLA |= CLKCTRL_CLKOUT_bm;
     CCP = CCP_IOREG_gc;
     CLKCTRL.MCLKCTRLB = 0;
+    */
 
 }
-
-bool x;
 
 /** Main loop. 
  */
@@ -834,17 +853,11 @@ void loop() {
 
 
     if (clocks::tick()) {
-        if (x)
-            led::setColor(Color::White().withBrightness(32));
-        else
-            led::setColor(Color::Black());
-        x = !x;
-        digitalWrite(VIB_EN, x);
         adc0::tick();
-        led::tick();
         inputs::tick();
         // the rpi tick must be last as it may set the irq if any of the ticks above determine it need to be set
         rpi::tick();
+        led::tick();
         // TODO should we do this only when rp calls us on IRQ? likely not 
         wdt::reset();
          
