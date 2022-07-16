@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <cstring>
 #include <pigpio.h>
 #include <thread>
 #include <chrono>
