@@ -15,8 +15,6 @@
 
 # Hardware Checks
 
-- test that ATTiny can signal rpi and I2C comms
-- test that ATTiny can turn rpi on/off
 - test that ATTiny can read microphone
 - check headphones detection working
 
@@ -27,6 +25,8 @@
 
 - Status is only the first byte, then extra type for input properties, then extended state, then date time
 - this way it will be easier to ask only for a few...
+- reading the audio has lots of errors, probably too many irqs present...
+
 
 - AVR software deboucing seems not to be very robust. See if this is breadboard related & fix
 - micmax can't be aggregated like this since we need the max value actually

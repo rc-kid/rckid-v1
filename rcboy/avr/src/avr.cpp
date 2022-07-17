@@ -103,6 +103,12 @@ volatile struct {
 } flags;
 
 
+
+namespace audio {
+    void startRecording();
+    void stopRecording();
+}
+
 /** \name Clocks
  
     Simply increases the time by one second and sets the second tick flag so that the main loop can react to the second increase in due time. 
@@ -215,6 +221,7 @@ namespace rpi {
         if (flags.irq == true && gpio::read(AVR_IRQ)) {
             gpio::output(AVR_IRQ);
             gpio::low(AVR_IRQ);
+            flags.irq = false;
         }
     }
 
@@ -223,6 +230,14 @@ namespace rpi {
         switch (i2cBuffer_[0]) {
             case msg::ClearPowerOnFlag::Id: {
                 state.status.setAvrPowerOn(false);
+                break;
+            }
+            case msg::StartAudioRecording::Id: {
+                audio::startRecording();
+                break;
+            }
+            case msg::StopAudioRecording::Id: {
+                audio::stopRecording();
                 break;
             }
             case msg::SetBrightness::Id: {
@@ -351,9 +366,11 @@ namespace adc0 {
 
     void tick() {
         // check the microphone threshold 
+        /*
         if (state.estatus.irqMic() && micMax_ >= state.estatus.micThreshold()) 
             if (state.status.setMicLoud())
                 rpi::setIrq();
+            */
         micMax_ = 0;
     }
 
@@ -433,6 +450,8 @@ namespace audio {
     uint8_t recAccSize_;
     uint8_t bufferIndex_;
 
+    uint8_t x = 0;
+
     void startRecording() {
         // start the ADC first
         ADC0.CTRLA = 0; // disable ADC so that any pending read from the main app is cancelled
@@ -452,6 +471,7 @@ namespace audio {
         recAcc_ = 0;
         recAccSize_ = 0;
         bufferIndex_ = 0;
+        x = 0;
     }
 
     /** Stops the audio recording by disabling the 8kHz timer and returning ADC0 to the single conversion mode used to sample multiple perihperals and voltages. 
@@ -468,7 +488,7 @@ namespace audio {
         if (recAccSize_ > 0) 
             recAcc_ /= recAccSize_;
         // store the value in buffer
-        state.buffer[bufferIndex_] = (recAcc_ & 0xff);
+        state.buffer[bufferIndex_] = x++; // (recAcc_ & 0xff);
         bufferIndex_ = (bufferIndex_ + 1) % (comms::I2C_PACKET_SIZE * 2);
         if (bufferIndex_ % comms::I2C_PACKET_SIZE == 0) {
             rpi::setNextReadAddress(bufferIndex_ == 0 ? state.buffer : state.buffer + comms::I2C_PACKET_SIZE);
@@ -554,6 +574,13 @@ namespace inputs {
         gpio::inputPullup(BTN_LVOL);
         gpio::inputPullup(BTN_RVOL);
         gpio::input(JOY_BTN);
+        // invert the button ports so that we get 1 for button pressed, 0 for released
+        static_assert(BTN_LVOL == 14);
+        PORTA.PIN1CTRL |= PORT_INVEN_bm;
+        static_assert(BTN_RVOL == 6);
+        PORTB.PIN3CTRL |= PORT_INVEN_bm;
+        static_assert(JOY_BTN == 11);
+        PORTC.PIN1CTRL |= PORT_INVEN_bm;
         // attach button interrupts on change
         attachInterrupt(digitalPinToInterrupt(BTN_LVOL), leftVolume, CHANGE);
         attachInterrupt(digitalPinToInterrupt(BTN_RVOL), rightVolume, CHANGE);
@@ -625,10 +652,13 @@ namespace inputs {
             debounceCounter_[0] = DEBOUNCE_TICKS;
             if (state.status.setBtnLeftVolume(gpio::read(BTN_LVOL)));
                 rpi::setIrq();
-            if (! gpio::read(BTN_LVOL))
+            // TODO this is debug code
+            if (gpio::read(BTN_LVOL))
                 led::setColor(Color::Blue().withBrightness(32));
+                //rpi::off();
             else
                 led::setColor(Color::Black());
+                //rpi::on();
         }
     }
 
@@ -645,10 +675,6 @@ namespace inputs {
             debounceCounter_[2] = DEBOUNCE_TICKS;
             if (state.status.setBtnJoystick(gpio::read(JOY_BTN)));
                 rpi::setIrq();
-            if (! gpio::read(JOY_BTN))
-                led::setColor(Color::Green().withBrightness(32));
-            else
-                led::setColor(Color::Black());
         }
     }
 
@@ -835,6 +861,7 @@ void setup() {
     */
 
 }
+
 
 /** Main loop. 
  */

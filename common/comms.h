@@ -80,12 +80,12 @@ namespace comms {
 
         /** Joystick X and Y coordinates. 
          */
-        uint8_t joyX_;
-        uint8_t joyY_;
+        uint8_t joyX_ = 112;
+        uint8_t joyY_ = 233;
 
         /** Photoresistor value (unitless)
          */
-        uint8_t photores_;
+        uint8_t photores_ = 210;
     } __attribute__((packed)); // Status
 
     static_assert(sizeof(Status) == 4);
@@ -197,6 +197,9 @@ namespace msg {
     /** Clears the power on flag in the AVR status. 
      */
     MESSAGE(ClearPowerOnFlag)
+
+    MESSAGE(StartAudioRecording)
+    MESSAGE(StopAudioRecording)
 
     /** Sets the brightness of the TFT screen. 
      */

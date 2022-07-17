@@ -11,6 +11,7 @@ In `/boot/config.txt` make the following changes:
     camera_auto_detect=0
     display_auto_detect=0
     #dtoverlay=vc4-kms-v3d
+    dtparam=i2c_arm=on,i2c_arm_baudrate=400000
     dtoverlay=dwc2
     hdmi_force_hotplug=1
     hdmi_cvt=320 240 60 1 0 0 0
