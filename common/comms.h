@@ -7,7 +7,8 @@ namespace comms {
 
     static constexpr uint8_t AVR_I2C_ADDRESS = 0x43;
 
-    static constexpr size_t I2C_BUFFER_SIZE = 32;
+    static constexpr uint8_t I2C_BUFFER_SIZE = 32;
+    static constexpr uint8_t I2C_PACKET_SIZE = 32;
 
     /** Basic AVR Status. 
      

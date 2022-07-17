@@ -87,15 +87,10 @@ struct {
     comms::ExtendedStatus estatus;
     DateTime time;
 
-    static_assert(sizeof(comms::Status) + sizeof(comms::ExtendedStatus) + sizeof(DateTime) <= 32);
-
     /** Audio buffer
      */
-    uint8_t buffer[256];
+    uint8_t buffer[comms::I2C_PACKET_SIZE * 2];
 
-    /** I2C buffer.
-     */
-    uint8_t i2cBuffer[comms::I2C_BUFFER_SIZE];
 } state;
 
 volatile struct {
@@ -175,9 +170,17 @@ ISR(RTC_PIT_vect) {
  */
 namespace rpi {
 
-    uint8_t * i2cReadStart = reinterpret_cast<uint8_t*>(& state);
-    uint8_t i2cBytesRecvd = 0;
-    uint8_t i2cBytesSent = 0;
+    /** The desired address from which a new read should start. Note that each read is always 32 bytes long. 
+     */
+    uint8_t * i2cReadStart_ = reinterpret_cast<uint8_t*>(& state);
+    uint8_t * i2cReadActual_;
+    uint8_t i2cBytesRecvd_ = 0;
+    uint8_t i2cBytesSent_ = 0;
+
+    /** I2C buffer.
+     */
+    uint8_t i2cBuffer_[comms::I2C_BUFFER_SIZE];
+
 
     void initialize() {
         // make sure rpi is on, and clear the AVR_IRQ flag (will be pulled high by rpi)
@@ -216,8 +219,8 @@ namespace rpi {
     }
 
     void processCommand() {
-        msg::Message const & m = msg::Message::fromBuffer(state.i2cBuffer);
-        switch (state.i2cBuffer[0]) {
+        msg::Message const & m = msg::Message::fromBuffer(i2cBuffer_);
+        switch (i2cBuffer_[0]) {
             case msg::ClearPowerOnFlag::Id: {
                 state.status.setAvrPowerOn(false);
                 break;
@@ -231,12 +234,19 @@ namespace rpi {
         }
 
         // clear the received bytes buffer and the i2c command ready flag
-        i2cBytesRecvd = 0;
+        i2cBytesRecvd_ = 0;
         cli();
         flags.i2cReady = false;
         sei();
     }
 
+    /** Sets the address from which the next I2C read will be. 
+     */
+    void setNextReadAddress(uint8_t * addr) {
+        cli();
+        i2cReadStart_ = addr;
+        sei();
+    }
 
     /** I2C Slave handler. 
      
@@ -260,22 +270,23 @@ namespace rpi {
         uint8_t status = TWI0.SSTATUS;
         // sending data to accepting master is on our fastpath as is checked first, if there is more state to send, send next byte, otherwise go to transcaction completed mode. 
         if ((status & I2C_DATA_MASK) == I2C_DATA_TX) {
-            if (i2cBytesSent < sizeof (state.status) + sizeof (state.i2cBuffer)) {
-                TWI0.SDATA = reinterpret_cast<uint8_t*>(& state.status)[i2cBytesSent++];
-                TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
-            } else {
-                TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
+            if (i2cBytesSent_ >= comms::I2C_PACKET_SIZE) {
+                i2cReadActual_ = reinterpret_cast<uint8_t*>(& state);
+                i2cBytesSent_ = 0;
             }
+            TWI0.SDATA = i2cReadActual_[i2cBytesSent_++];
+            TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
+            //TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
         // a byte has been received from master. Store it and send either ACK if we can store more, or NACK if we can't store more
         } else if ((status & I2C_DATA_MASK) == I2C_DATA_RX) {
-            state.i2cBuffer[i2cBytesRecvd++] = TWI0.SDATA;
-            TWI0.SCTRLB = (i2cBytesRecvd == sizeof(state.i2cBuffer)) ? TWI_SCMD_COMPTRANS_gc : TWI_SCMD_RESPONSE_gc;
-        // master requests slave to write data, clear the IRQ and prepare to send the state
+            i2cBuffer_[i2cBytesRecvd_++] = TWI0.SDATA;
+            TWI0.SCTRLB = (i2cBytesRecvd_ == sizeof(i2cBuffer_)) ? TWI_SCMD_COMPTRANS_gc : TWI_SCMD_RESPONSE_gc;
+        // master requests slave to write data, reset the sent bytes counter, initialize the actual read address from the read start and reset the IRQ
         } else if ((status & I2C_START_MASK) == I2C_START_TX) {
             gpio::input(AVR_IRQ);
-            i2cBytesSent = 0;
+            i2cBytesSent_ = 0;
+            i2cReadActual_ = i2cReadStart_;
             TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
-            //gpio::input(IRQ_PIN); // clear IRQ
         // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise
         } else if ((status & I2C_START_MASK) == I2C_START_RX) {
             TWI0.SCTRLB = flags.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
@@ -306,9 +317,6 @@ namespace adc0 {
     static constexpr uint8_t MUXPOS_MIC = ADC_MUXPOS_AIN9_gc;
     static constexpr uint8_t MUXPOS_TEMP = ADC_MUXPOS_TEMPSENSE_gc; // uses 1V1 internal reference
 
-    uint16_t accPhotores_;
-    uint8_t accPhotoresSize_;
-
     uint8_t micMax_;
 
     void initialize() {
@@ -327,8 +335,6 @@ namespace adc0 {
     }
 
     void start() {
-        accPhotores_ = 0;
-        accPhotoresSize_ = 0;
         micMax_ = 0;
         // voltage reference to 1.1V (internal for the temperature sensor)
         VREF.CTRLA &= ~ VREF_ADC0REFSEL_gm;
@@ -344,15 +350,6 @@ namespace adc0 {
      }
 
     void tick() {
-        // update the photoresistor value
-        /*
-        if (accPhotoresSize_ > 0)
-            accPhotores_ /= accPhotoresSize_;
-        if (state.estatus.irqPhotores() && state.status.setPhotores(accPhotores_ & 0xff))
-            rpi::setIrq();
-        accPhotores_ = 0;
-        accPhotoresSize_ = 0;
-        */
         // check the microphone threshold 
         if (state.estatus.irqMic() && micMax_ >= state.estatus.micThreshold()) 
             if (state.status.setMicLoud())
@@ -432,8 +429,6 @@ namespace adc0 {
  */
 namespace audio {
 
-    constexpr uint8_t AUDIO_PACKET_SIZE = 32;
-
     uint16_t recAcc_;
     uint8_t recAccSize_;
     uint8_t bufferIndex_;
@@ -473,9 +468,10 @@ namespace audio {
         if (recAccSize_ > 0) 
             recAcc_ /= recAccSize_;
         // store the value in buffer
-        state.buffer[bufferIndex_++] = (recAcc_ & 0xff);
-        if (bufferIndex_ % AUDIO_PACKET_SIZE == 0) {
-            // TODO TODO TODO TODO TODO TODO 
+        state.buffer[bufferIndex_] = (recAcc_ & 0xff);
+        bufferIndex_ = (bufferIndex_ + 1) % (comms::I2C_PACKET_SIZE * 2);
+        if (bufferIndex_ % comms::I2C_PACKET_SIZE == 0) {
+            rpi::setNextReadAddress(bufferIndex_ == 0 ? state.buffer : state.buffer + comms::I2C_PACKET_SIZE);
             rpi::setIrqImmediately();
         }
         // reset the accumulator for next phase

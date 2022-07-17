@@ -25,8 +25,11 @@
 
 # AVR Issues
 
-- AVR software deboucing seems not to be very robust. See if this is breadboard related & fix
+- Status is only the first byte, then extra type for input properties, then extended state, then date time
+- this way it will be easier to ask only for a few...
 
+- AVR software deboucing seems not to be very robust. See if this is breadboard related & fix
+- micmax can't be aggregated like this since we need the max value actually
 
 ## Rpi image 
 
