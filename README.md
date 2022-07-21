@@ -62,3 +62,16 @@ To launch a serial console, connect the serial to USB adapter to the TX RX and G
 - buttons (maybe 3d printed caps)
 - small and nice speaker
 - i2c flash memory, or can use the memory on AVR to store data between on/off
+
+## PCB
+
+### Test Points
+
+TP1  | VUSB
+TP2  | VBATT
+TP3  | VCC
+TP4  | VRPI
+TP5  | Photoresistor 
+TP6  | Mic
+TP7  | Charge
+
