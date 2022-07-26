@@ -3,18 +3,11 @@
 - M1.4 screws for thumbstick
 - black M2.5 screws for top 
 
-# PCB
-
-- add names
-- add test points
-- add holes for usb-c mounting holes
-
 # HW Design
 
 - check if 1M pull-down resistor can be used for rpi power
-- add a flyback diode to the vibration motor
 - MIC should be centered around some decent voltage for internal reference and smaller gain perhaps
-- check if VRPI can be sent to the joystick as well
+- check if VRPI can be sent to the joystick as well - no but we can add voltage divider 
 - verify pads
 - determine missing values - mic & speaker
 
