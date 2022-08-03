@@ -50,6 +50,7 @@
         "fstream": "cpp",
         "sstream": "cpp",
         "cinttypes": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "qapplication": "cpp"
     }
 }
