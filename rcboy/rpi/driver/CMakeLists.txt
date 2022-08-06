@@ -1,4 +1,4 @@
-project(gamepad-driver)
+project(driver)
 
 if(DEFINED ARCH_RPI)
     add_definitions(-DARCH_RPI)
@@ -28,9 +28,9 @@ endif()
 
 
 file(GLOB_RECURSE SRC  *.cpp *.h)
-add_executable(gamepad-driver ${SRC})
-target_link_libraries(gamepad-driver ${EVDEV_LIBRARY})
+add_executable(driver ${SRC})
+target_link_libraries(driver ${EVDEV_LIBRARY})
 
 if(DEFINED ARCH_RPI)
-    target_link_libraries(gamepad-driver ${PIGPIO_LIBRARY})
+    target_link_libraries(driver ${PIGPIO_LIBRARY})
 endif()
