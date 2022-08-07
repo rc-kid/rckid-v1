@@ -34,14 +34,14 @@ public:
 
     /** Pins at which the buttons are connected directly to RPi. 
      */
-    static constexpr unsigned GPIO_A = 17;
-    static constexpr unsigned GPIO_B = 18;
-    static constexpr unsigned GPIO_X = 27;
-    static constexpr unsigned GPIO_Y = 22;
-    static constexpr unsigned GPIO_L = 23;
-    static constexpr unsigned GPIO_R = 24;
-    static constexpr unsigned GPIO_SELECT = 0;
-    static constexpr unsigned GPIO_START = 0;
+    static constexpr unsigned GPIO_A = 24;
+    static constexpr unsigned GPIO_B = 22;
+    static constexpr unsigned GPIO_X = 0;
+    static constexpr unsigned GPIO_Y = 26;
+    static constexpr unsigned GPIO_L = 18;
+    static constexpr unsigned GPIO_R = 27;
+    static constexpr unsigned GPIO_SELECT = 23;
+    static constexpr unsigned GPIO_START = 1;
 
     enum class Button : unsigned {
         A = BTN_A,
@@ -92,6 +92,8 @@ private:
         ButtonYChange,
         ButtonLeftChange,
         ButtonRightChange,
+        ButtonSelectChange, 
+        ButtonStartChange,
         AvrIrq,
     };
 
@@ -100,7 +102,6 @@ private:
     void queryAVR();
 
     static void isrAvrIrq(int gpio, int level, uint32_t tick, Gamepad * gamepad);
-
 
     void initializeDevice();
     void initializeGPIO();
@@ -124,7 +125,6 @@ private:
         cv_.notify_one();
     }
 
-
     /** ISRs for the buttons connected directly to RPI GPIOs. 
      */
     static void isrBtnA(int gpio, int level, uint32_t tick, Gamepad * gamepad);
@@ -133,6 +133,8 @@ private:
     static void isrBtnY(int gpio, int level, uint32_t tick, Gamepad * gamepad);
     static void isrBtnL(int gpio, int level, uint32_t tick, Gamepad * gamepad);
     static void isrBtnR(int gpio, int level, uint32_t tick, Gamepad * gamepad);
+    static void isrBtnSelect(int gpio, int level, uint32_t tick, Gamepad * gamepad);
+    static void isrBtnStart(int gpio, int level, uint32_t tick, Gamepad * gamepad);
 
     std::mutex m_;
     std::condition_variable cv_;
@@ -150,7 +152,6 @@ private:
     bool y_ = true;
     bool l_ = true;
     bool r_ = true;
-
     bool sel_ = true;
     bool start_ = true;
 

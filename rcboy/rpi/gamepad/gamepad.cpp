@@ -37,6 +37,12 @@ void Gamepad::loop() {
                     case Event::ButtonRightChange:
                         buttonChange(Button::Right, ! r_);
                         break;
+                    case Event::ButtonSelectChange:
+                        buttonChange(Button::Select, ! r_);
+                        break;
+                    case Event::ButtonStartChange:
+                        buttonChange(Button::Start, ! r_);
+                        break;
                     case Event::AvrIrq: 
                         g.unlock(); // this will take time, so release the lock fpor other interrupts
                         queryAVR();
@@ -136,12 +142,15 @@ void Gamepad::initializeDevice() {
 }
 
 void Gamepad::initializeGPIO() {
+    gpio::initialize();
     gpio::inputPullup(GPIO_A);
     gpio::inputPullup(GPIO_B);
     gpio::inputPullup(GPIO_X);
     gpio::inputPullup(GPIO_Y);
     gpio::inputPullup(GPIO_L);
     gpio::inputPullup(GPIO_R);
+    gpio::inputPullup(GPIO_SELECT);
+    gpio::inputPullup(GPIO_START);
     gpio::inputPullup(GPIO_AVR_IRQ);
 #if (defined ARCH_RPI)
     gpioSetISRFuncEx(GPIO_A, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnA, this);
@@ -150,6 +159,8 @@ void Gamepad::initializeGPIO() {
     gpioSetISRFuncEx(GPIO_Y, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnY, this);
     gpioSetISRFuncEx(GPIO_L, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnL, this);
     gpioSetISRFuncEx(GPIO_R, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnR, this);
+    gpioSetISRFuncEx(GPIO_SELECT, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnSelect, this);
+    gpioSetISRFuncEx(GPIO_START, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrBtnStart, this);
     gpioSetISRFuncEx(GPIO_AVR_IRQ, FALLING_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrAvrIrq, this);
 #endif
 }
@@ -199,5 +210,19 @@ void Gamepad::isrBtnR(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
     if (gamepad->r_ != level) {
         gamepad->r_ = level;
         gamepad->addEvent(Gamepad::Event::ButtonRightChange);
+    }
+}
+
+void Gamepad::isrBtnSelect(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
+    if (gamepad->sel_ != level) {
+        gamepad->sel_ = level;
+        gamepad->addEvent(Gamepad::Event::ButtonSelectChange);
+    }
+}
+
+void Gamepad::isrBtnStart(int gpio, int level, uint32_t tick, Gamepad * gamepad) {
+    if (gamepad->start_ != level) {
+        gamepad->start_ = level;
+        gamepad->addEvent(Gamepad::Event::ButtonStartChange);
     }
 }
