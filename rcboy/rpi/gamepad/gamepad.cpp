@@ -73,6 +73,7 @@ void Gamepad::queryAVR() {
     comms::Status state;
     i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(comms::Status));
 
+/*
     if (sel_ != state.btnSelect()) {
         sel_ = state.btnSelect();
         buttonChange(Button::Select, ! sel_);
@@ -80,7 +81,7 @@ void Gamepad::queryAVR() {
     if (start_ != state.btnStart()) {
         start_ = state.btnStart();
         buttonChange(Button::Start, ! start_);
-    }
+    } */
     if (thumbX_ != state.joyX()) {
         thumbX_ = state.joyX();
         axisChange(Axis::ThumbX, thumbX_);

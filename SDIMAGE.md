@@ -3,6 +3,7 @@
 ## Software installation
 
     sudo apt-get install xinit x11-xserver-utils
+    sudo apt-get install libqt5gamepad5-dev
 
 
 

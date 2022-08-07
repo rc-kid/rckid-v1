@@ -5,6 +5,20 @@
 #include "peripherals/nrf24l01.h"
 #include "peripherals/sx1278.h"
 
+int main(int argc, char * argv[]) {
+    gpio::initialize();
+
+    Gamepad gamepad;
+    gamepad.loop();
+    // actually never returns
+    return EXIT_SUCCESS;
+}
+
+
+/*
+
+
+
 volatile bool irq = false;
 
 NRF24L01 nrf{16,5};
@@ -56,7 +70,6 @@ void loraMain() {
 
 
 void nrf24l01irq(int gpio, int level, uint32_t tick, NRF24L01 * radio) {
-/*    
     std::cout << "interrupt " << radio << std::endl;
     auto status = radio->getStatus();
     if (status.txDataFailIrq())
@@ -65,7 +78,6 @@ void nrf24l01irq(int gpio, int level, uint32_t tick, NRF24L01 * radio) {
         std::cout << "Data sent OK" << std::endl;
     std::cout << "status " << (int)status.raw << std::endl;
     irq = true;
-*/
     irq = true;
 }
 
@@ -107,14 +119,14 @@ void nrfMain() {
             start = t;
         }
     }
-}
+} */
 
 
 /** Transmitter test. 
  
     Sends the given ammount of bytes per second for ever. 
  */
-
+/*
 int main(int argc, char * argv[]) {
     gpio::initialize();
     spi::initialize();
@@ -128,7 +140,7 @@ int main(int argc, char * argv[]) {
         }
     }
     std::cout << "nrf or lora?" << std::endl;
-}
+} */
 
 
 

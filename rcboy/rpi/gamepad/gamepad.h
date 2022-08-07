@@ -28,6 +28,10 @@
 class Gamepad {
 public:
 
+    /** The AVR irq flag. 
+     */
+    static constexpr unsigned GPIO_AVR_IRQ = 4;
+
     /** Pins at which the buttons are connected directly to RPi. 
      */
     static constexpr unsigned GPIO_A = 17;
@@ -36,8 +40,8 @@ public:
     static constexpr unsigned GPIO_Y = 22;
     static constexpr unsigned GPIO_L = 23;
     static constexpr unsigned GPIO_R = 24;
-
-    static constexpr unsigned GPIO_AVR_IRQ = 4;
+    static constexpr unsigned GPIO_SELECT = 0;
+    static constexpr unsigned GPIO_START = 0;
 
     enum class Button : unsigned {
         A = BTN_A,
