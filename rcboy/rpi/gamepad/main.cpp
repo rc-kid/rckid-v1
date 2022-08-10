@@ -2,14 +2,12 @@
 
 #include "gamepad.h"
 
-#include "peripherals/nrf24l01.h"
-#include "peripherals/sx1278.h"
-
 int main(int argc, char * argv[]) {
     gpio::initialize();
 
     Gamepad gamepad;
     gamepad.loop();
+    
     // actually never returns
     return EXIT_SUCCESS;
 }

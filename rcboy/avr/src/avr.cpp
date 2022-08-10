@@ -19,6 +19,7 @@
             RPI_EN -- (07) PB2   PC0 (10) -- JOY_H
          SDA (I2C) -- (08) PB1   PB0 (09) -- SCL (I2C)
 
+
     Powering on 
 
     The AVR is in sleep mode, registering changes on the L and R volume buttons and waking up every second via the RTC timer. When either button is pressed, AVR switches to standby mode, enables the tick timer at 10ms and attempts to determine what 

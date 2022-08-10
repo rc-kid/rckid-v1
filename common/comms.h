@@ -12,10 +12,38 @@ namespace comms {
 
     /** Basic AVR Status. 
      
+        The first byte of the status contains the most critical information, such as button presses and flags, followed by two bytes for the analog stick position and one byte for the photoresistor value. 
      */
     class Status {
     public:
 
+        /** \name Status of avr connected buttons. 
+         
+            The left and right volume buttons as well as the thumbstick center button are connected to the avr. Available in the first byte. 
+         */
+        //@{
+        bool btnLeftVolume() const { return status_ & BTN_LVOL; }
+        bool btnRightVolume() const { return status_ & BTN_RVOL; }
+        bool btnJoystick() const { return status_ & BTN_JOY; }
+
+        bool setBtnLeftVolume(bool value) { return checkSetOrClear(status_, BTN_LVOL, value); }
+        bool setBtnRightVolume(bool value) { return checkSetOrClear(status_, BTN_RVOL, value); }
+        bool setBtnJoystick(bool value) { return checkSetOrClear(status_, BTN_JOY, value); }
+        //@}
+
+        /** \name Device flags. 
+         
+            The first status byte also contains various device flags:
+
+            - power on flag that is being set when the AVR powers on instead of resuming from sleep. 
+            - microphone loudness flag when the reading from the microphone passes the volume threshold
+            - whether the device is charging or not
+            - whether the power cable is connected, or running from batteries
+            - low battery warning
+
+            TODO the power flag does not have to be in the first byte. 
+         */
+        //@{
         bool avrPowerOn() const { return status_ & POWER_ON; }
         bool charging() const { return status_ & CHARGING; }
         bool vusb() const { return status_ & VUSB; }
@@ -28,16 +56,18 @@ namespace comms {
 
         bool micLoud() const { return status_ & MIC_LOUD; }
         bool setMicLoud(bool value = true) { return checkSetOrClear(status_, MIC_LOUD, value); }
+        //@}
 
-        bool btnLeftVolume() const { return status_ & BTN_LVOL; }
-        bool btnRightVolume() const { return status_ & BTN_RVOL; }
-        bool btnJoystick() const { return status_ & BTN_JOY; }
+        /** \name Analog stick position
+         
+            The raw horizontal and vertical position of the analog stick. Supported values are 0..255 with [127,127] being the ideal center. Note that on the AVR's side those are the raw values as read by the axes potentiometers. These must be rotated by 30 degrees to actually provide the horizontal and vertical position. 
+         */
+        //@{
+
         uint8_t joyX() const { return joyX_; }
         uint8_t joyY() const { return joyY_; }
 
-        bool setBtnLeftVolume(bool value) { return checkSetOrClear(status_, BTN_LVOL, value); }
-        bool setBtnRightVolume(bool value) { return checkSetOrClear(status_, BTN_RVOL, value); }
-        bool setBtnJoystick(bool value) { return checkSetOrClear(status_, BTN_JOY, value); }
+
         bool setJoyX(uint8_t value) { 
             if (joyX_ != value) {
                 joyX_ = value;
@@ -54,8 +84,14 @@ namespace comms {
                 return false;
             }
         }
+        //@}
+
+        /** \name Photoresistor value. 
+         */
+        //@{
 
         uint8_t photores() const { return photores_; }
+        
         bool setPhotores(uint8_t value) {
             if (photores_ != value) {
                 photores_ = value;
@@ -64,6 +100,7 @@ namespace comms {
                 return false;
             }
         }
+        //@}
 
 
     private:
@@ -90,6 +127,10 @@ namespace comms {
 
     static_assert(sizeof(Status) == 4);
 
+    /** Extended AVR status which can only be requested when necessary. 
+     
+        Contains extra information such as measured voltages and temperatures as well as settings, such as sensitivity thresholds, display brightness, etc.  
+     */
     class ExtendedStatus {
     public:
 
@@ -162,6 +203,11 @@ namespace comms {
 
     } __attribute__((packed)); // ExtendedStatus
 }
+
+/** \name Messages
+ 
+    The AVR and RPi communicate with each other via typed messages whose kinds and payloads are defined below. All messages have automatically assigned id numbers. As a side-effect the avr and rpi versions must be identical or the message ids may differ, which would lead to problems. 
+ */
 
 #define MESSAGE(NAME, ...) \
     class NAME : public msg::MessageHelper<NAME> { \

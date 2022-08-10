@@ -9,7 +9,7 @@
                 "run",
             ],
             "options": {
-                "cwd": "rcboy/avr",
+                "cwd": "${workspaceFolder}/rcboy/avr",
                 "shell": {
                     "executable" : "/bin/zsh",
                     "args": ["-c"]

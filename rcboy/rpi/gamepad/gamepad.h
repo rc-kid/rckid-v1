@@ -167,6 +167,4 @@ private:
      */
     MPU6050 accel_;
 
-
-
 }; // Gamepad
