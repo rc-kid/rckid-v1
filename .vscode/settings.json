@@ -51,6 +51,7 @@
         "sstream": "cpp",
         "cinttypes": "cpp",
         "chrono": "cpp",
-        "qapplication": "cpp"
+        "qapplication": "cpp",
+        "condition_variable": "cpp"
     }
 }

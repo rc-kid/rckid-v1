@@ -1,4 +1,6 @@
 #pragma once
+#include <cstring>
+
 #include "platform.h"
 
 inline uint16_t swapBytes(uint16_t x) {

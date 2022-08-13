@@ -56,7 +56,7 @@
                 "run",
             ],
             "options": {
-                "cwd": "lego-remote",
+                "cwd": "${workspaceFolder}/lego-remote",
                 "shell": {
                     "executable" : "/bin/zsh",
                     "args": ["-c"]
@@ -78,7 +78,7 @@
                 "upload"
             ],
             "options": {
-                "cwd": "lego-remote",
+                "cwd": "${workspaceFolder}/lego-remote",
                 "shell": {
                     "executable" : "/bin/zsh",
                     "args": ["-c"]
@@ -89,46 +89,46 @@
             ]
         },
         // locally builds the radio test receiver for range and compatibility testing
-        {
-            "label": "test-radio",
-            "type": "shell",
-            "command": "~/.platformio/penv/bin/pio",
-            "args": [
-                "run",
-            ],
-            "options": {
-                "cwd": "test-radio",
-                "shell": {
-                    "executable" : "/bin/zsh",
-                    "args": ["-c"]
-                }
-            },
-            "problemMatcher": [
-                "$platformio"
-            ]
-        },
+//        {
+//            "label": "test-radio",
+//            "type": "shell",
+//            "command": "~/.platformio/penv/bin/pio",
+//            "args": [
+//                "run",
+//            ],
+//            "options": {
+//                "cwd": "test-radio",
+//                "shell": {
+//                    "executable" : "/bin/zsh",
+//                    "args": ["-c"]
+//                }
+//            },
+//            "problemMatcher": [
+//                "$platformio"
+//            ]
+//        },
         // locally builds the radio test receiver test and flashes it to the chip using the rpi dev server and pio remote
-        {
-            "label": "test-radio-upload",
-            "type": "shell",
-            "command": "~/.platformio/penv/bin/pio",
-            "args": [
-                "remote",
-                "run",
-                "--target",
-                "upload"
-            ],
-            "options": {
-                "cwd": "test-radio",
-                "shell": {
-                    "executable" : "/bin/zsh",
-                    "args": ["-c"]
-                }
-            },
-            "problemMatcher": [
-                "$platformio"
-            ]
-        },
+//        {
+//            "label": "test-radio-upload",
+//            "type": "shell",
+//            "command": "~/.platformio/penv/bin/pio",
+//            "args": [
+//                "remote",
+//                "run",
+//                "--target",
+//                "upload"
+//            ],
+//            "options": {
+//                "cwd": "test-radio",
+//                "shell": {
+//                    "executable" : "/bin/zsh",
+//                    "args": ["-c"]
+//                }
+//            },
+//            "problemMatcher": [
+//                "$platformio"
+//            ]
+//        },
     ],
     "version": "2.0.0"
 }

@@ -35,6 +35,8 @@
 
 ## Rpi - Gamepad & Drivers
 
+- how should the volume buttons be reported on the gamepad, if at all
+
 - debounce buttons
 - can use USB? Host/master?
 - shared memory comms with other processes (dim display, battery level, temp, etc.)
