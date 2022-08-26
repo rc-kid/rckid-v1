@@ -22,3 +22,14 @@
               SPI1 MISO -- 19      16 -- SPI1 CE0
                   BTN_Y -- 26      20 -- SPI1 MOSI
                            GND     21 -- SPI1 SCLK
+
+
+## App
+
+### Status Bar
+
+- time, wifi, nrf, battery (charging), volume
+
+### Bottom Help
+
+- here just show what buttons do what action

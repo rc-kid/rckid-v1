@@ -27,6 +27,7 @@ public:
         initializeLibevdevDevice();
         initializePins();
         initializeI2C();
+        //loop();
         std::thread t{Gamepad::loop};
         t.detach();
     }
@@ -75,6 +76,13 @@ private:
         unsigned evdevId;
     
         AxisInfo(unsigned evdevId): state{127}, evdevId{evdevId} {}
+
+        void update(uint8_t value) {
+            if (state == value)
+                return;
+            state = value;
+            
+        }
 
     }; // Gamepad::AxisInfo
 
@@ -138,6 +146,7 @@ private:
     inline static ButtonInfo start_{BTN_START};
     inline static ButtonInfo volumeLeft_{KEY_VOLUMEDOWN};
     inline static ButtonInfo volumeRight_{KEY_VOLUMEUP};
+    inline static ButtonInfo thumbBtn_{BTN_JOYSTICK};
 
     inline static AxisInfo thumbX_{ABS_RX};
     inline static AxisInfo thumbY_{ABS_RY};

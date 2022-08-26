@@ -43,6 +43,17 @@ public:
     MPU6050(uint8_t address = 0x68):
         I2CDevice{address} {
     }
+    
+    /** Returns the contents of the WHO_AM_I register. 
+     
+        Expected value is 0x68 (104). Other values might be possibe. 
+     */
+    uint8_t deviceIdentification() {
+        uint8_t cmd[] = { REG_WHO_AM_I };
+        uint8_t result;
+        i2c::transmit(address, cmd, 1, & result, sizeof(result));
+        return result;
+    }
 
     void reset() {
         // Two byte reset. First byte register, second byte data
@@ -72,11 +83,14 @@ public:
         return buffer[0] << 8 | buffer[1];
     }
 
+
+
 private:
     static constexpr uint8_t CMD_READ_ACCEL = 0x3b;
     static constexpr uint8_t CMD_READ_TEMP = 0x41;
     static constexpr uint8_t CMD_READ_GYRO = 0x43;
     static constexpr uint8_t CMD_RESET = 0x6b;
+    static constexpr uint8_t REG_WHO_AM_I = 0x75;
 
 }; 
 

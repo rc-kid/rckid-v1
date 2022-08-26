@@ -22,12 +22,12 @@ namespace comms {
             The left and right volume buttons as well as the thumbstick center button are connected to the avr. Available in the first byte. 
          */
         //@{
-        bool btnLeftVolume() const { return status_ & BTN_LVOL; }
-        bool btnRightVolume() const { return status_ & BTN_RVOL; }
+        bool btnVolumeLeft() const { return status_ & BTN_LVOL; }
+        bool btnVolumeRight() const { return status_ & BTN_RVOL; }
         bool btnJoystick() const { return status_ & BTN_JOY; }
 
-        bool setBtnLeftVolume(bool value) { return checkSetOrClear(status_, BTN_LVOL, value); }
-        bool setBtnRightVolume(bool value) { return checkSetOrClear(status_, BTN_RVOL, value); }
+        bool setBtnVolumeLeft(bool value) { return checkSetOrClear(status_, BTN_LVOL, value); }
+        bool setBtnVolumeRight(bool value) { return checkSetOrClear(status_, BTN_RVOL, value); }
         bool setBtnJoystick(bool value) { return checkSetOrClear(status_, BTN_JOY, value); }
         //@}
 
@@ -103,15 +103,15 @@ namespace comms {
         //@}
 
 
-    private:
-        static constexpr uint8_t BTN_LVOL = 1 << 0;
-        static constexpr uint8_t BTN_RVOL = 1 << 1;
-        static constexpr uint8_t BTN_JOY = 1 << 2;
-        static constexpr uint8_t MIC_LOUD = 1 << 3;
-        static constexpr uint8_t POWER_ON = 1 << 4;
-        static constexpr uint8_t CHARGING = 1 << 5;
-        static constexpr uint8_t VUSB = 1 << 6;
-        static constexpr uint8_t LOW_BATT = 1 << 7;
+    //private:
+        static constexpr uint8_t BTN_LVOL = 1 << 0; // 1
+        static constexpr uint8_t BTN_RVOL = 1 << 1; // 2
+        static constexpr uint8_t BTN_JOY = 1 << 2; // 4
+        static constexpr uint8_t MIC_LOUD = 1 << 3; // 8
+        static constexpr uint8_t POWER_ON = 1 << 4; // 16
+        static constexpr uint8_t CHARGING = 1 << 5; // 32
+        static constexpr uint8_t VUSB = 1 << 6; // 64
+        static constexpr uint8_t LOW_BATT = 1 << 7; // 128
 
         uint8_t status_ = 0;
 

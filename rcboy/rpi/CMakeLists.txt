@@ -51,7 +51,7 @@ endif()
 file(GLOB_RECURSE SRC  *.cpp *.h)
 add_executable(rcboy ${SRC})
 target_link_libraries(rcboy ${EVDEV_LIBRARY})
-target_link_libraries(rcboy Qt5::Widgets Qt5::Gamepad)
+target_link_libraries(rcboy Qt5::Widgets)
 target_link_libraries(rcboy Threads::Threads)
 
 

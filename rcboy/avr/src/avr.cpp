@@ -566,8 +566,8 @@ namespace inputs {
     uint8_t debounceCounter_[3] = {0,0,0};
 
     // forward declaration for the ISR
-    void leftVolume();
-    void rightVolume();
+    void volumeLeft();
+    void volumeRight();
     void joystickButton();
 
     void initialize() {
@@ -583,8 +583,8 @@ namespace inputs {
         static_assert(JOY_BTN == 11);
         PORTC.PIN1CTRL |= PORT_INVEN_bm;
         // attach button interrupts on change
-        attachInterrupt(digitalPinToInterrupt(BTN_LVOL), leftVolume, CHANGE);
-        attachInterrupt(digitalPinToInterrupt(BTN_RVOL), rightVolume, CHANGE);
+        attachInterrupt(digitalPinToInterrupt(BTN_LVOL), volumeLeft, CHANGE);
+        attachInterrupt(digitalPinToInterrupt(BTN_RVOL), volumeRight, CHANGE);
         // initialize ADC1 responsible for the joystick position
         static_assert(JOY_H == 10); // AIN6 - ADC1, PC0
         PORTC.PIN0CTRL &= ~PORT_ISC_gm;
@@ -648,10 +648,10 @@ namespace inputs {
         ADC1.COMMAND = ADC_STCONV_bm;
     }
 
-    void leftVolume() {
+    void volumeLeft() {
         if (debounceCounter_[0] == 0) {
             debounceCounter_[0] = DEBOUNCE_TICKS;
-            if (state.status.setBtnLeftVolume(gpio::read(BTN_LVOL)));
+            if (state.status.setBtnVolumeLeft(gpio::read(BTN_LVOL)));
                 rpi::setIrq();
             // TODO this is debug code
             if (gpio::read(BTN_LVOL))
@@ -663,10 +663,10 @@ namespace inputs {
         }
     }
 
-    void rightVolume() {
+    void volumeRight() {
         if (debounceCounter_[1] == 0) {
             debounceCounter_[1] = DEBOUNCE_TICKS;
-            if (state.status.setBtnRightVolume(gpio::read(BTN_RVOL)));
+            if (state.status.setBtnVolumeRight(gpio::read(BTN_RVOL)));
                 rpi::setIrq();
         }
     }
@@ -684,11 +684,11 @@ namespace inputs {
     void tick() {
         if (debounceCounter_[0] > 0)
             if (--debounceCounter_[0] == 0)
-                if (state.status.setBtnLeftVolume(gpio::read(BTN_LVOL)))
+                if (state.status.setBtnVolumeLeft(gpio::read(BTN_LVOL)))
                     rpi::setIrq();
         if (debounceCounter_[1] > 0)
             if (--debounceCounter_[1] == 0)
-                if (state.status.setBtnRightVolume(gpio::read(BTN_RVOL)))
+                if (state.status.setBtnVolumeRight(gpio::read(BTN_RVOL)))
                     rpi::setIrq();
         if (debounceCounter_[2] > 0)
             if (--debounceCounter_[2] == 0)

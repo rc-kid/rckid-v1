@@ -7,35 +7,37 @@
 #include "platform/platform.h"
 #include "gamepad.h"
 
-#include <QGamepadManager>
+#include "log.h"
+
+
+void initialize() {
+    LOG("  gpio");
+    // first initialize the gpio and enable the gamepad driver
+    gpio::initialize();
+    LOG("  avr");
+
+    LOG("  gamepad");
+    Gamepad::initialize();
+}
 
 
 
 int main(int argc, char * argv[]) {
-    // first initialize the gpio and enable the gamepad driver
-    gpio::initialize();
+    // initialize the HW, check peripherals
+    LOG("initializing hardware...");
+    initialize();
 
-    Gamepad::initialize();
-    std::cout << "gamepad initialized" << std::endl;
-
-    //cpu::delay_ms(1000);
-
-    // then start the gui application
-    QApplication app(argc, argv);
-    std::cout << "qt initialized" << std::endl;
-
-    auto gamepads = QGamepadManager::instance()->connectedGamepads();
-    std::cout << "Found " << gamepads.size() << " connected gamepads" << std::endl;
-    for (auto i : gamepads) {
-        std::cout << "Gamepad " << i << ": " << QGamepadManager::instance()->gamepadName(i).toStdString() << std::endl;
-    }
+    // initialize the GUI
+    LOG("initializing GUI...");
+    LOG("  QT");
 
     while (true) {}
+    QApplication app{argc, argv};
 
 
 
 
-    /*
+    LOG("  main window");
     QWidget w;
     //MainWindow w;
     w.setFixedSize(QSize{320,240});
@@ -47,9 +49,9 @@ int main(int argc, char * argv[]) {
     QApplication::setOverrideCursor(cursor);
     QApplication::changeOverrideCursor(cursor);    
     w.show();
-    */
 
 
     // though we actually never plan to return really 
+    LOG("running...");
     return app.exec();
 }

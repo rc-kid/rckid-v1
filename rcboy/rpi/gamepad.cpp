@@ -3,35 +3,40 @@
 #include "gamepad.h"
 
 #include "comms.h"
+#include "log.h"
 
 using namespace std::chrono_literals;
 
 
 void Gamepad::loop() {
     auto last = std::chrono::system_clock::now();        
-    auto next = last + 5ms;
-    size_t ticks = 0;
+    auto nextAccel = last + 5ms;
+    auto nextAvr = last + 1s;
     while (true) {
         {
             std::unique_lock g{m_};
-            cv_.wait_until(g, next, [] () { return q_.empty(); });
+            cv_.wait_until(g, nextAccel, [] () { return q_.empty(); });
             while (! q_.empty()) {
                 switch (q_.front()) {
                     case Event::AVR_IRQ:
+                        g.unlock();
+                        nextAvr = std::chrono::system_clock::now() + 1s;
+                        queryAvr();
+                        g.lock();
                         break;
                 }
                 q_.pop_front();
             }
         }
         last = std::chrono::system_clock::now();
-        if (last >= next) {
-            next = last + 5ms;
+        if (last >= nextAccel) {
+            nextAccel = last + 5ms;
             queryAccelerometer();
+        }
+        if (last >= nextAvr) {
             // if there's been enough ticks, talk to AVR so that it knows we are still alive (once per second)
-            if (++ticks >=200) {
-                queryAvr();
-                ticks = 0;
-            }
+            nextAvr = last + 1s;
+            queryAvr();
         }
     }
 }
@@ -41,6 +46,14 @@ void Gamepad::loop() {
 void Gamepad::queryAvr() {
     comms::Status state;
     i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(comms::Status));
+    //std::cout << (int)state.status_ << " " << (int)state.joyX_ << " " << (int)state.joyY_ << " " << (int)state.photores_ << std::endl;
+    // once we have the state, check the buttons, axes and other settings
+    if (volumeLeft_.state != state.btnVolumeLeft())
+        isrButtonChange(0, volumeLeft_.state, 0, & volumeLeft_);
+    if (volumeRight_.state != state.btnVolumeRight())
+        isrButtonChange(0, volumeRight_.state, 0, & volumeRight_);
+    if (thumbBtn_.state != state.btnJoystick())
+        isrButtonChange(0, thumbBtn_.state, 0, & thumbBtn_);
 
 /*
     if (sel_ != state.btnSelect()) {
@@ -65,7 +78,7 @@ void Gamepad::queryAvr() {
 void Gamepad::queryAccelerometer() {
     MPU6050::AccelData d = accel_.readAccel();
     d.toUnsignedByte();
-    //std::cout << "X: " << d.x << ", Y: " << d.y << " Z: " << d.z << std::endl;
+    std::cout << "X: " << d.x << ", Y: " << d.y << " Z: " << d.z << std::endl;
     // also read the temperature so that we have one more datapoint whether the handheld overheats or not
     uint16_t t = accel_.readTemp();
 }
@@ -89,6 +102,7 @@ void Gamepad::initializeLibevdevDevice() {
         libevdev_enable_event_code(dev, EV_KEY, start_.evdevId, nullptr);
         libevdev_enable_event_code(dev, EV_KEY, volumeLeft_.evdevId, nullptr);
         libevdev_enable_event_code(dev, EV_KEY, volumeRight_.evdevId, nullptr);
+        libevdev_enable_event_code(dev, EV_KEY, thumbBtn_.evdevId, nullptr);
         // enable the thumbstick and accelerometer
         libevdev_enable_event_type(dev, EV_ABS);
         input_absinfo info {
@@ -141,4 +155,5 @@ void Gamepad::initializeI2C() {
     i2c::initializeMaster();
     cpu::delay_ms(5);
     accel_.reset();
+    std::cout << (int)accel_.deviceIdentification() << std::endl;
 }
