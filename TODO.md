@@ -1,7 +1,6 @@
 # PCB
 
 
-- enlarge the pads on the backs of the shoulder so that they can be easily soldered at the bottom
 - verify thumbstick front panel hole placement
 - test if different buffer can be used because the one I have is hard to find, need to find something that is possible
 - the UPDI has a pullup so in theory it brings rpi gpio to more than 3v3 and can't work this way. TXB0101 seems to work for the level shifting of the updi line. Alternatively we can give up on the rpi programming the avr, which is though a bit of shame. Is there enough pins in the design? 

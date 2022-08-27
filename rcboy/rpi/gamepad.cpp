@@ -78,7 +78,7 @@ void Gamepad::queryAvr() {
 void Gamepad::queryAccelerometer() {
     MPU6050::AccelData d = accel_.readAccel();
     d.toUnsignedByte();
-    std::cout << "X: " << d.x << ", Y: " << d.y << " Z: " << d.z << std::endl;
+    //std::cout << "X: " << d.x << ", Y: " << d.y << " Z: " << d.z << std::endl;
     // also read the temperature so that we have one more datapoint whether the handheld overheats or not
     uint16_t t = accel_.readTemp();
 }

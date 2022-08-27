@@ -8,7 +8,7 @@
 #include "gamepad.h"
 
 #include "log.h"
-
+#include "gui.h"
 
 void initialize() {
     LOG("  gpio");
@@ -31,7 +31,8 @@ int main(int argc, char * argv[]) {
     LOG("initializing GUI...");
     LOG("  QT");
 
-    while (true) {}
+    return GUI::exec(argc, argv);
+
     QApplication app{argc, argv};
 
 
