@@ -1,12 +1,12 @@
 # PCB
 
+- check display
+- check the different speaker
 - mic amplification is too great, determine proper value
 - verify thumbstick front panel hole placement
 - test if different buffer can be used because the one I have is hard to find, need to find something that is possible
 - the UPDI has a pullup so in theory it brings rpi gpio to more than 3v3 and can't work this way. TXB0101 seems to work for the level shifting of the updi line. Alternatively we can give up on the rpi programming the avr, which is though a bit of shame. Is there enough pins in the design? 
 - if vclean is brought down to 2.5V then reading joystick is simpler and we can run the clean voltage from battery level as low as 3.4 - see if it is loud enough, it just might
-- headphones on/off does not work, the voltage when headphones are inserted is too small
-
 
 - audio board is too big to be inserted comfortably (most likely it is ok)
 - ferrite beads are 1206, should be 0805, but now can also stay 1206

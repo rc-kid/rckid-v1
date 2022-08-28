@@ -40,6 +40,7 @@ public:
 
     static void input(Pin pin) {
         gpioSetMode(pin, PI_INPUT);
+        gpioSetPullUpDown(pin, PI_PUD_OFF);
     }
 
     static void inputPullup(Pin pin) {

@@ -31,7 +31,9 @@ private:
 
 /** GUI Header 
  
-    Displays the status bar with information about charging, battery levels, signal strength, volume, etc. 
+    Displays the status bar with information about charging, battery levels, signal strength, volume, etc.
+
+    Time (Alarm) ------------ Speaker/Mute Battery 
  */
 class GUI::Header : public QGraphicsScene {
     Q_OBJECT

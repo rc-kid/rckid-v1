@@ -137,6 +137,7 @@ void Gamepad::initializePins() {
     gpio::inputPullup(GPIO_SELECT);
     gpio::inputPullup(GPIO_START);
     gpio::inputPullup(GPIO_AVR_IRQ);
+    gpio::input(GPIO_HEADPHONES);
 #if (defined ARCH_RPI)
     gpioSetISRFuncEx(GPIO_A, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrButtonChange, & a_);
     gpioSetISRFuncEx(GPIO_B, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Gamepad::isrButtonChange, & b_);

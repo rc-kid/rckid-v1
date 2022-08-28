@@ -56,6 +56,8 @@ private:
     static constexpr unsigned GPIO_R = 27;
     static constexpr unsigned GPIO_SELECT = 23;
     static constexpr unsigned GPIO_START = 1;
+
+    static constexpr unsigned GPIO_HEADPHONES = 17;
     //@}
 
     enum class Event {
