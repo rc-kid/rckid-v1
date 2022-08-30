@@ -50,9 +50,9 @@ namespace comms {
         bool lowBattery() const { return status_ & LOW_BATT; }
 
         void setAvrPowerOn(bool value = true) { setOrClear(status_, POWER_ON, value); }
-        void setCharging(bool value = true) { setOrClear(status_, CHARGING, value); }
-        void setVUsb(bool value = true) { setOrClear(status_, VUSB, value); }
-        void setLowBattery(bool value = true) { setOrClear(status_, LOW_BATT, value); }
+        bool setCharging(bool value = true) { return checkSetOrClear(status_, CHARGING, value); }
+        bool setVUsb(bool value = true) { return checkSetOrClear(status_, VUSB, value); }
+        bool setLowBattery(bool value = true) { return checkSetOrClear(status_, LOW_BATT, value); }
 
         bool micLoud() const { return status_ & MIC_LOUD; }
         bool setMicLoud(bool value = true) { return checkSetOrClear(status_, MIC_LOUD, value); }
@@ -135,27 +135,44 @@ namespace comms {
     public:
 
         /** Returns the vcc voltage (battery or USB when attached)
-         
 
             500 = 5V or more
             250 = 2.5V
             0 = below 2.46V
             
         */
-       /*
+        //@{
         uint16_t vcc() const {
             return (vcc_ == 0) ? 0 : (vcc_ + 245);
-        } */
+        } 
 
-/*
         void setVcc(uint16_t vx100) {
             if (vx100 < 250)
                 vcc_ = 0;
             else if (vx100 >= 500)
                 vcc_ = 255;
             else 
-                vcc_ = (vx100 - 249) & 0xff;
-        } */
+                vcc_ = (vx100 - 245) & 0xff;
+        }
+        //@}
+
+        /** Voltage of the attached battery in 10mV increments. 
+
+            420 = 4.2V or more (max capacity)
+            0 = les than 1.7V (no battery present) 
+         */
+        uint16_t vbatt() const {
+            return (vbatt_ == 0) ? 0 : vbatt_ + 165;
+        }
+
+        void setVBatt(uint16_t vx100) {
+            if (vx100 >= 420)
+                vbatt_ = 255;
+            else if (vx100 < 170)
+                vbatt_ = 0;
+            else 
+                vbatt_ = (vx100 - 165) & 0xff;
+        }
 
         /** Returns the temperature. 
          
@@ -196,7 +213,7 @@ namespace comms {
         uint8_t settings_;
 
         uint8_t vcc_ = 0;
-        uint8_t batt_ = 0;
+        uint8_t vbatt_ = 0;
         uint8_t temp_ = 0;
         uint8_t micThreshold_ = 255;
         uint8_t brightness_ = 64;

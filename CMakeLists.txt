@@ -4,6 +4,5 @@ project(rcboy)
 set (CMAKE_CXX_STANDARD 17)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/common)
 
 add_subdirectory("rcboy/rpi")

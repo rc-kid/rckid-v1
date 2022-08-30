@@ -2,7 +2,8 @@
 
 #include "platform/platform.h"
 
-#include "comms.h"
+#include "common/comms.h"
+#include "common/config.h"
 
 #include "peripherals/neopixel.h"
 
@@ -72,11 +73,9 @@ static constexpr gpio::Pin PHOTORES = 4; // ADC0(8)
  */
 static constexpr gpio::Pin VBATT = 3; // ADC0(7)
 
-/** Determines the state of the battery charger. High means the battery charging has finished. Low means the battery is being charged. There is also a high impedance mode, which is shutdown or no battery which we do not use. In those states the reading of the pin can be waird.
- 
-    TODO Check it's ok for the pin to be digital. 
+/** Determines the state of the battery charger. High means the battery charging has finished. Low means the battery is being charged. There is also a high impedance state when the charger is in shutdown mode, or a battery is not present which we read as analog value of VCC/2. 
  */
-static constexpr gpio::Pin CHARGE = 15; // ADC0(2)
+static constexpr gpio::Pin CHARGING = 15; // ADC0(2)
 
 
 /** The entire status of the AVR as a continuous area of memory so that when we rpi reads the I2C all this information can be returned. 
@@ -332,6 +331,7 @@ namespace adc0 {
     static constexpr uint8_t MUXPOS_PHOTORES = ADC_MUXPOS_AIN8_gc;
     static constexpr uint8_t MUXPOS_MIC = ADC_MUXPOS_AIN9_gc;
     static constexpr uint8_t MUXPOS_TEMP = ADC_MUXPOS_TEMPSENSE_gc; // uses 1V1 internal reference
+    static constexpr uint8_t MUXPOS_CHARGING = ADC_MUXPOS_AIN2_gc;
 
     uint8_t micMax_;
 
@@ -348,6 +348,10 @@ namespace adc0 {
         PORTB.PIN4CTRL &= ~PORT_ISC_gm;
         PORTB.PIN4CTRL |= PORT_ISC_INPUT_DISABLE_gc;
         PORTB.PIN4CTRL &= ~PORT_PULLUPEN_bm;
+        static_assert(CHARGING == 15); // AIN2 - ADC0, PA2
+        PORTA.PIN2CTRL &= ~PORT_ISC_gm;
+        PORTA.PIN2CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+        PORTA.PIN2CTRL &= ~PORT_PULLUPEN_bm;
     }
 
     void start() {
@@ -390,13 +394,38 @@ namespace adc0 {
             case MUXPOS_VCC:
                 value = 110 * 512 / value;
                 value = value * 2;
-                // TODO
+                state.estatus.setVcc(value);
+                if (value <= CRITICAL_BATTERY_THRESHOLD) {
+                    // TODO what to do? 
+                } else if (value <= LOW_BATTERY_THRESHOLD) {
+                    if (state.status.setLowBattery())
+                        rpi::setIrq();
+                } else if (value >= VUSB_BATTERY_THRESHOLD) {
+                    if (state.status.setVUsb())
+                      rpi::setIrq();
+                }   
                 ADC0.MUXPOS = MUXPOS_VBATT;
                 break;
             /* Using the VCC value, calculates the VBATT in 10mV increments, i.e. [V*100]. Expected values are 0..430.
              */
             case MUXPOS_VBATT:
-                // TODO
+                value = state.estatus.vcc() * value / 1024;
+                state.estatus.setVBatt(value);
+                ADC0.MUXPOS = MUXPOS_CHARGING;
+                break;
+            case MUXPOS_CHARGING:
+                if (value < 256) {
+                    // logical 0, charging, vbatt reading tells the progress
+                    if (state.status.setCharging(true)) 
+                        rpi::setIrq();
+                } else if (value > 768) {
+                    // logical 1, battery charging finished
+                    if (state.status.setCharging(false))
+                        rpi::setIrq();
+                } else {
+                    // hi-Z state, battery not present, or charger in shutdown mode
+                    // TODO
+                }
                 ADC0.MUXPOS = MUXPOS_PHOTORES;
                 break;
             /* Calculates the photoresistor value. Expected range is 0..255 which should correspond to 0..VCC voltage measured. 
@@ -651,22 +680,15 @@ namespace inputs {
     void volumeLeft() {
         if (debounceCounter_[0] == 0) {
             debounceCounter_[0] = DEBOUNCE_TICKS;
-            if (state.status.setBtnVolumeLeft(gpio::read(BTN_LVOL)));
+            if (state.status.setBtnVolumeLeft(gpio::read(BTN_LVOL)))
                 rpi::setIrq();
-            // TODO this is debug code
-            if (gpio::read(BTN_LVOL))
-                led::setColor(Color::Blue().withBrightness(32));
-                //rpi::off();
-            else
-                led::setColor(Color::Black());
-                //rpi::on();
         }
     }
 
     void volumeRight() {
         if (debounceCounter_[1] == 0) {
             debounceCounter_[1] = DEBOUNCE_TICKS;
-            if (state.status.setBtnVolumeRight(gpio::read(BTN_RVOL)));
+            if (state.status.setBtnVolumeRight(gpio::read(BTN_RVOL)))
                 rpi::setIrq();
         }
     }
@@ -674,7 +696,7 @@ namespace inputs {
     void joystickButton() {
         if (debounceCounter_[2] == 0) {
             debounceCounter_[2] = DEBOUNCE_TICKS;
-            if (state.status.setBtnJoystick(gpio::read(JOY_BTN)));
+            if (state.status.setBtnJoystick(gpio::read(JOY_BTN)))
                 rpi::setIrq();
         }
     }
@@ -821,8 +843,6 @@ void setup() {
     rpi::initialize();
     inputs::initialize();
     led::initialize();
-    // start reading the charging status
-    gpio::input(CHARGE);
     // disable the rgb, brightness and vibration motor controls
     gpio::input(BACKLIGHT);
     gpio::input(VIB_EN);

@@ -2,7 +2,7 @@
 
 #include "gamepad.h"
 
-#include "comms.h"
+#include "common/comms.h"
 #include "log.h"
 
 using namespace std::chrono_literals;

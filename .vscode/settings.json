@@ -52,6 +52,8 @@
         "cinttypes": "cpp",
         "chrono": "cpp",
         "qapplication": "cpp",
-        "condition_variable": "cpp"
+        "condition_variable": "cpp",
+        "ratio": "cpp",
+        "variant": "cpp"
     }
 }
