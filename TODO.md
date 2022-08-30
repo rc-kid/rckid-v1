@@ -1,16 +1,21 @@
-# PCB
+# PCB Checks
 
+- check 3V3 generation and NRF comms
+- check the brightness & display
+- mic amplification is too great
+- loudspeaker amplification is too great for the speaker
+- verify thumbstick front panel hole placement
+- check if 1M pull-down resistor can be used for rpi power
+
+# PCB Updates
 
 - update the programmer add the TXB0101 buffer in the path
 - resize photoresistor holes
 
-- check display
-- mic amplification is too great, determine proper value
-- verify thumbstick front panel hole placement
-- test if different buffer can be used because the one I have is hard to find, need to find something that is possible
+
+# PCB Old
+
 - if vclean is brought down to 2.5V then reading joystick is simpler and we can run the clean voltage from battery level as low as 3.4 - see if it is loud enough, it just might
-
-
 - audio board is too big to be inserted comfortably (most likely it is ok)
 - ferrite beads are 1206, should be 0805, but now can also stay 1206
 
@@ -20,22 +25,6 @@
 - black M2.5 screws for top 
 - extra mosfet switches (if available)
 - extra buffers (if available)
-
-# HW Design
-
-- check if 1M pull-down resistor can be used for rpi power
-- MIC should be centered around some decent voltage for internal reference and smaller gain perhaps
-- check if VRPI can be sent to the joystick as well - no but we can add voltage divider 
-- verify pads
-- determine missing values - mic & speaker
-
-# Hardware Checks
-
-- test that ATTiny can read microphone
-- check headphones detection working
-
-
-- test rpi can read buttons 
 
 # AVR Issues
 
@@ -56,9 +45,6 @@
 - how should the volume buttons be reported on the gamepad, if at all
 
 - debounce buttons
-- can use USB? Host/master?
-- shared memory comms with other processes (dim display, battery level, temp, etc.)
-- control display with PWM
 
 - only use two axes for the accelerometer, figure out how to make gyro and accel to determine the propoer position
 
