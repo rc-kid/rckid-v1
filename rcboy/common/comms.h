@@ -219,7 +219,17 @@ namespace comms {
         uint8_t brightness_ = 64;
 
     } __attribute__((packed)); // ExtendedStatus
-}
+
+    struct FullState {
+        Status status;
+        ExtendedStatus estatus;
+        DateTime time;
+
+    } __attribute__((packed)); // FullState
+
+} // namespace comms
+
+
 
 /** \name Messages
  
@@ -270,6 +280,12 @@ namespace msg {
         uint8_t value;
         SetBrightness(uint8_t value): value{value} {}
     )
+
+    /** Powers the raspberry pi off and moves the avr into a standby state. 
+     
+        The poweroff is not immediate since RPI must 
+     */
+    MESSAGE(PowerOff)
 
 
 } // namespace msg

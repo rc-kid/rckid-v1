@@ -1,7 +1,5 @@
 # PCB Checks
 
-- check 3V3 generation and NRF comms
-- check the brightness & display
 - mic amplification is too great
 - loudspeaker amplification is too great for the speaker
 - verify thumbstick front panel hole placement
@@ -12,10 +10,8 @@
 - update the programmer add the TXB0101 buffer in the path
 - resize photoresistor holes
 
-
 # PCB Old
 
-- if vclean is brought down to 2.5V then reading joystick is simpler and we can run the clean voltage from battery level as low as 3.4 - see if it is loud enough, it just might
 - audio board is too big to be inserted comfortably (most likely it is ok)
 - ferrite beads are 1206, should be 0805, but now can also stay 1206
 

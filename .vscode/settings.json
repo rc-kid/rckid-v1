@@ -54,6 +54,12 @@
         "qapplication": "cpp",
         "condition_variable": "cpp",
         "ratio": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "ctime": "cpp",
+        "list": "cpp",
+        "map": "cpp",
+        "mutex": "cpp",
+        "thread": "cpp",
+        "qgraphicsscene": "cpp"
     }
 }

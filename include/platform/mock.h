@@ -45,6 +45,14 @@ public:
     static bool read(Pin pin) { return false; }
 }; // gpio
 
+static constexpr int RISING_EDGE = 0;
+static constexpr int FALLING_EDGE = 0;
+static constexpr int EITHER_EDGE = 0;
+
+typedef  void (*gpioISRFuncEx_t)(int, int, uint32_t, void*); 
+
+inline int gpioSetISRFuncEx(unsigned gpio, unsigned edge, int timeout, gpioISRFuncEx_t f, void *userdata) { return 0; }
+
 class i2c {
 public:
 

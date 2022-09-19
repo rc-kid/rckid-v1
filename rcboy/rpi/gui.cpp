@@ -1,6 +1,7 @@
 #include <QFrame>
 
 #include "gui.h"
+#include "calibration.h"
 
 int GUI::exec(int argc, char * argv[]) {
     QApplication app(argc, argv);
@@ -21,14 +22,16 @@ GUI::GUI(QWidget *parent):
     footer_{new Footer{}} {
 
     setFixedSize(QSize{320,240});
-    headerView_->setGeometry(QRect{0,0,320,32});
+    headerView_->setGeometry(QRect{0,0,320,24});
     headerView_->setFrameStyle(QFrame::NoFrame);
-    pageView_->setGeometry(QRect{0,32,320,176});
+    pageView_->setGeometry(QRect{0,24,320,192});
     pageView_->setFrameStyle(QFrame::NoFrame);
-    footerView_->setGeometry(QRect{0,208,320,32});
+    footerView_->setGeometry(QRect{0,216,320,24});
     footerView_->setFrameStyle(QFrame::NoFrame);
     headerView_->setScene(header_);
     footerView_->setScene(footer_);
+    auto c = new Calibration();
+    pageView_->setScene(c);
 
 }
 

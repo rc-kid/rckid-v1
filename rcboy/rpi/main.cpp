@@ -5,27 +5,16 @@
 #include <QPushButton>
 
 #include "platform/platform.h"
-#include "gamepad.h"
+#include "driver.h"
 
 #include "log.h"
 #include "gui.h"
 
-void initialize() {
-    LOG("  gpio");
-    // first initialize the gpio and enable the gamepad driver
-    gpio::initialize();
-    LOG("  avr");
-
-    LOG("  gamepad");
-    Gamepad::initialize();
-}
-
-
 
 int main(int argc, char * argv[]) {
-    // initialize the HW, check peripherals
-    LOG("initializing hardware...");
-    initialize();
+    // initialize the driver singleton and peripherals
+    Driver * driver = Driver::initialize();
+    
 
     // initialize the GUI
     LOG("initializing GUI...");
