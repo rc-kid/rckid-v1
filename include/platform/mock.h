@@ -4,6 +4,8 @@
 #include <thread>
 #include <chrono>
 
+#include "spinlock.h"
+
 class cpu {
 public:
     static void delay_us(unsigned value) {

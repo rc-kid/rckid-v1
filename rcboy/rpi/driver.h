@@ -37,12 +37,7 @@ public:
         Must be called *after* initialize(), otherwise returns nullptr. 
      */
     static Driver * instance() { return singleton_; }
-
-
-    /** Starts the driver control loop in own detached thread. 
-     */
-    static void start();
-
+    
     /** Starts the power off sequence. 
      */
     void poweroff() {
@@ -55,7 +50,7 @@ public:
 
     void setBrightness(uint8_t value) {
         {
-            std::lock_guard<std::mutex> g_{mState_};
+            std::lock_guard g_{mState_};
             if (brightness_ != value)
                 brightness_ = value;
         }
@@ -212,7 +207,7 @@ private:
 
 
 
-    std::mutex mState_;
+    SpinLock mState_;
 
     /** \name Gamepad
      */

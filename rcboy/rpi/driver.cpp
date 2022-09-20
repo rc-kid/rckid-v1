@@ -48,14 +48,13 @@ Driver * Driver::initialize() {
     singleton_->radio_.standby();
     gpioSetISRFuncEx(PIN_NRF_IRQ, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrRadio, singleton_);
 
-    return singleton_;
-}
-
-void Driver::start() {
+    LOG("  driver thread");
     std::thread t{[](){
         singleton_->loop();
     }};
     t.detach();
+
+    return singleton_;
 }
 
 void Driver::loop() {
@@ -97,6 +96,8 @@ void Driver::loop() {
             nextAccel = last + ACCEL_MAX_PERIOD;
             g.lock();
         }
+        if (last >= nextAvr) 
+            events_.push_back(Event::AvrIrq); // don't call emit event since we already have lock
     }
 }
 
@@ -110,15 +111,16 @@ void Driver::queryAvrStatus() {
 void Driver::queryAvrFull() {
     comms::FullState state;
     i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
+
     // update the basic status
     updateStatus(state.status);
     // update the extended state - first get lock on the data
-    std::unique_lock g_{mState_};
+    mState_.lock();
     bool vbattChanged = batteryVoltage_ != state.estatus.vbatt();
     batteryVoltage_ = state.estatus.vbatt();
     bool tempChanged = tempAvr_ != state.estatus.temp();
     tempAvr_ = state.estatus.temp();
-    g_.unlock();
+    mState_.unlock();
     // emit events where necessary
     if (vbattChanged)
         emit batteryVoltage(batteryVoltage_);
@@ -128,7 +130,7 @@ void Driver::queryAvrFull() {
 
 void Driver::updateStatus(comms::Status status) {
     // get the lock on the driver's state and perform updates based on the status, remembering the events that need to be raised later on when the lock is released
-    std::unique_lock g_{mState_};
+    mState_.lock();
     bool volLeftChanged = volumeLeft_.update(status.btnVolumeLeft());
     bool volRightChanged = volumeRight_.update(status.btnVolumeRight());
     bool thumbChanged = thumbBtn_.update(status.btnJoystick());
@@ -139,11 +141,11 @@ void Driver::updateStatus(comms::Status status) {
     lowBattery_ = status.lowBattery();
 
     // release the lock and emit the necessary events
-    g_.release();
+    mState_.unlock();
     if (volLeftChanged)
         emit buttonVolumeLeft(status.btnVolumeLeft());
     if (volRightChanged)
-        emit buttonVolumeLeft(status.btnVolumeRight());
+        emit buttonVolumeRight(status.btnVolumeRight());
     if (thumbChanged)
         emit buttonVolumeLeft(status.btnJoystick());
 
