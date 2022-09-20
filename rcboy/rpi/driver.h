@@ -78,6 +78,7 @@ signals:
     void buttonThumb(bool state);
     void buttonVolumeLeft(bool state);
     void buttonVolumeRight(bool state);
+    void thumbstick(uint8_t x, uint8_t y);
     //@}
 
     void headphones(bool state);
@@ -135,6 +136,15 @@ private:
         unsigned evdevId;
 
         Axis(unsigned evdevId): state{127}, evdevId{evdevId} {}
+
+        bool update(uint8_t newState) {
+            if (state != newState) {
+                state = newState;
+                return true;
+            } else {
+                return false;
+            }
+        }
 
     }; // Driver::Axis
 

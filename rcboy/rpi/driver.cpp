@@ -134,6 +134,8 @@ void Driver::updateStatus(comms::Status status) {
     bool volLeftChanged = volumeLeft_.update(status.btnVolumeLeft());
     bool volRightChanged = volumeRight_.update(status.btnVolumeRight());
     bool thumbChanged = thumbBtn_.update(status.btnJoystick());
+    bool thumbPosChanged = thumbX_.update(status.joyX());
+    thumbPosChanged = thumbY_.update(status.joyY()) || thumbPosChanged;
 
     bool chargingChanged = charging_ != status.charging();
     charging_ = status.charging();
@@ -148,6 +150,9 @@ void Driver::updateStatus(comms::Status status) {
         emit buttonVolumeRight(status.btnVolumeRight());
     if (thumbChanged)
         emit buttonVolumeLeft(status.btnJoystick());
+
+    if (thumbPosChanged)
+        emit thumbstick(status.joyX(), status.joyY());
 
     if (chargingChanged)
         emit charging(charging_);

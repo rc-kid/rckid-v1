@@ -54,3 +54,11 @@ inline char ToHex(uint8_t value) {
     else 
         return '?'; // error
 }
+
+#if (defined ARCH_MOCK | defined ARCH_RPI)
+
+#include <sstream>
+
+#define STR(...) static_cast<std::stringstream &&>(std::stringstream() << __VA_ARGS__).str()
+
+#endif

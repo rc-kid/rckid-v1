@@ -81,6 +81,7 @@ public:
         connect(driver, & Driver::buttonVolumeLeft, this, & Page::buttonVolumeLeft, Qt::QueuedConnection);
         connect(driver, & Driver::buttonVolumeRight, this, & Page::buttonVolumeRight, Qt::QueuedConnection);
         connect(driver, & Driver::buttonThumb, this, & Page::buttonThumb, Qt::QueuedConnection);
+        connect(driver, & Driver::thumbstick, this, & Page::thumbstick, Qt::QueuedConnection);
 
     }
 
@@ -97,6 +98,7 @@ protected slots:
     virtual void buttonVolumeLeft(bool state) {}
     virtual void buttonVolumeRight(bool state) {}
     virtual void buttonThumb(bool state) {}
+    virtual void thumbstick(uint8_t x, uint8_t y) {}
     
 }; 
 

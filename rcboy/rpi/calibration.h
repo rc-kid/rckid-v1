@@ -9,17 +9,40 @@ class Calibration : public Page {
     Q_OBJECT
 public:
     explicit Calibration() {
-        a_ = newText("A", 5, 0);
-        b_ = newText("B", 20, 0);
-        x_ = newText("X", 35, 0);
-        y_ = newText("Y", 50, 0); 
-        select_ = newText("SEL", 65, 0);
-        start_ = newText("START", 95, 0);
-        l_ = newText("L", 140, 0);
-        r_ = newText("R", 155, 0);
-        lVol_ = newText("L_VOL", 170, 0);
-        rVol_ = newText("R_VOL", 215, 0);
-        thumbBtn_ = newText("THUMB", 260, 0);
+        newText("Buttons:", 0, 0);
+        a_ = newText("A", 5, 16);
+        b_ = newText("B", 20, 16);
+        x_ = newText("X", 35, 16);
+        y_ = newText("Y", 50, 16); 
+        select_ = newText("SEL", 65, 16);
+        start_ = newText("START", 95, 16);
+        l_ = newText("L", 140, 16);
+        r_ = newText("R", 155, 16);
+        lVol_ = newText("L_VOL", 170, 16);
+        rVol_ = newText("R_VOL", 215, 16);
+        thumbBtn_ = newText("THUMB", 260, 16);
+        newText("Thumbstick:", 0, 40);
+        newText("X:", 5, 56);
+        newText("Y:", 5, 72);
+        thumbX_ = newText("255", 25, 56);
+        thumbY_ = newText("0", 25, 72);
+        thumbX_->setBrush(Qt::white);
+        thumbY_->setBrush(Qt::white);
+
+        newText("Accel:", 160, 40);
+        newText("X:", 165, 56);
+        newText("Y:", 165, 72);
+        accelX_ = newText("255", 185, 56);
+        accelY_ = newText("0", 185, 72);
+        accelX_->setBrush(Qt::white);
+        accelY_->setBrush(Qt::white);
+        addLine(50, 106, 150, 106, QPen{Qt::darkGray});
+        addLine(100, 56, 100, 156, QPen{Qt::darkGray});
+        thumb_ = addEllipse(100 - 3, 106 - 3, 6,6,QPen{Qt::white});
+
+        addLine(210, 106, 310, 106, QPen{Qt::darkGray});
+        addLine(260, 56, 260, 156, QPen{Qt::darkGray});
+        accel_ = addEllipse(260 - 3, 106 - 3, 6,6,QPen{Qt::white});
     }
 
 protected slots:
@@ -35,6 +58,7 @@ protected slots:
     void buttonVolumeLeft(bool state) override { updateButton(lVol_, state); }
     void buttonVolumeRight(bool state) override { updateButton(rVol_, state); }
     void buttonThumb(bool state) override { updateButton(thumbBtn_, state); }
+    void thumbstick(uint8_t x, uint8_t y) override { updatePoint(thumb_, x, y); }
 
 private:
 
@@ -49,6 +73,19 @@ private:
         text->setBrush(state ? Qt::white : Qt::darkGray);
     }
 
+    void updatePoint(QGraphicsEllipseItem * p, uint8_t x, uint8_t y) {
+        qreal xx = (p == thumb_ ? 50 : 210) - 3 + static_cast<qreal>(x) / 255 * 100;
+        qreal yy = 56 - 3 + static_cast<qreal>(x) / 255 * 100;
+        p->setRect(xx, yy, 6, 6);
+        if (p == thumb_) {
+            thumbX_->setText(QString::number(static_cast<uint>(x), 10));
+            thumbY_->setText(QString::number(static_cast<uint>(y), 10));
+        } else {
+            accelX_->setText(QString::number(static_cast<uint>(x), 10));
+            accelY_->setText(QString::number(static_cast<uint>(y), 10));
+        }
+    }
+
     QGraphicsSimpleTextItem * a_;
     QGraphicsSimpleTextItem * b_;
     QGraphicsSimpleTextItem * x_;
@@ -60,6 +97,12 @@ private:
     QGraphicsSimpleTextItem * lVol_;
     QGraphicsSimpleTextItem * rVol_;
     QGraphicsSimpleTextItem * thumbBtn_;
+    QGraphicsSimpleTextItem * thumbX_;
+    QGraphicsSimpleTextItem * thumbY_;
+    QGraphicsSimpleTextItem * accelX_;
+    QGraphicsSimpleTextItem * accelY_;
+    QGraphicsEllipseItem * thumb_;
+    QGraphicsEllipseItem * accel_;
 
 
 
