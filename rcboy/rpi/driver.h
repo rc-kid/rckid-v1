@@ -79,6 +79,7 @@ signals:
     void buttonVolumeLeft(bool state);
     void buttonVolumeRight(bool state);
     void thumbstick(uint8_t x, uint8_t y);
+    void accel(uint8_t x, uint8_t y); 
     //@}
 
     void headphones(bool state);

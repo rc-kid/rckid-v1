@@ -41,7 +41,9 @@ Driver * Driver::initialize() {
     LOG("  avr");
     // TODO
     LOG("  accel");
-
+    if (singleton_->accel_.deviceIdentification() != 104)
+        ERROR("Accel not found");
+    singleton_->accel_.reset();
     LOG("  radio");
     if (!singleton_->radio_.initialize("TEST1", "TEST2")) 
         ERROR("Radio not found");
@@ -164,10 +166,15 @@ void Driver::updateStatus(comms::Status status) {
 
 void Driver::queryAccel() {
     MPU6050::AccelData d = accel_.readAccel();
-    d.toUnsignedByte();
-    //std::cout << "X: " << d.x << ", Y: " << d.y << " Z: " << d.z << std::endl;
     // also read the temperature so that we have one more datapoint whether the handheld overheats or not
     uint16_t t = accel_.readTemp();
+    d.toUnsignedByte();
+    mState_.lock();
+    bool accelChanged = accelX_.update(d.x);
+    accelChanged = accelY_.update(d.y) || accelChanged;
+    mState_.unlock();
+    if (accelChanged)
+        emit accel(d.x, d.y);
 }
 
 void Driver::queryRadio() {

@@ -59,6 +59,7 @@ protected slots:
     void buttonVolumeRight(bool state) override { updateButton(rVol_, state); }
     void buttonThumb(bool state) override { updateButton(thumbBtn_, state); }
     void thumbstick(uint8_t x, uint8_t y) override { updatePoint(thumb_, x, y); }
+    void accel(uint8_t x, uint8_t y) override { updatePoint(accel_, x, y); }
 
 private:
 
@@ -75,7 +76,7 @@ private:
 
     void updatePoint(QGraphicsEllipseItem * p, uint8_t x, uint8_t y) {
         qreal xx = (p == thumb_ ? 50 : 210) - 3 + static_cast<qreal>(x) / 255 * 100;
-        qreal yy = 56 - 3 + static_cast<qreal>(x) / 255 * 100;
+        qreal yy = 56 - 3 + static_cast<qreal>(y) / 255 * 100;
         p->setRect(xx, yy, 6, 6);
         if (p == thumb_) {
             thumbX_->setText(QString::number(static_cast<uint>(x), 10));
