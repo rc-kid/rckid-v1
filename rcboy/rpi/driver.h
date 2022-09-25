@@ -179,6 +179,10 @@ private:
      */
     void queryAccel();
 
+    /** Converts the accelerometer values to 1G range so that it can be used for positioning. 
+     */
+    uint8_t accelTo1GUnsigned(int16_t v); 
+
     void queryRadio();
 
     /** \name Interrupt handlers. 

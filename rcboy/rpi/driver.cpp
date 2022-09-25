@@ -163,12 +163,12 @@ void Driver::updateStatus(comms::Status status) {
 
 }
 
-
 void Driver::queryAccel() {
     MPU6050::AccelData d = accel_.readAccel();
     // also read the temperature so that we have one more datapoint whether the handheld overheats or not
     uint16_t t = accel_.readTemp();
-    d.toUnsignedByte();
+    d.x = accelTo1GUnsigned(d.x);
+    d.y = accelTo1GUnsigned(d.y);
     mState_.lock();
     bool accelChanged = accelX_.update(d.x);
     accelChanged = accelY_.update(d.y) || accelChanged;
@@ -176,6 +176,16 @@ void Driver::queryAccel() {
     if (accelChanged)
         emit accel(d.x, d.y);
 }
+
+uint8_t Driver::accelTo1GUnsigned(int16_t v) {
+    if (v < -16384)
+        v = -16384;
+    if (v >= 16384)
+        v = 16383;
+    v += 16384;
+    return (v >> 7);    
+}
+
 
 void Driver::queryRadio() {
 
