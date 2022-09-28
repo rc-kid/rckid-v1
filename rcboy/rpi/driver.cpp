@@ -25,12 +25,12 @@ bool Driver::Button::update(bool newState) {
 Driver::TriState Driver::AnalogButton::update(uint8_t value) {
     bool changed = false;
     if (state) {
-        if (value < thresholdOff) {
+        if (overThresholdOff(value)) {
             state = false;
             changed = true;
         }
     } else {
-        if (value > thresholdOn) {
+        if (overThresholdOn(value)) {
             state = true;
             changed = true;
         }

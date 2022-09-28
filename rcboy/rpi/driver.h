@@ -156,6 +156,17 @@ private:
         }
 
         TriState update(uint8_t value);
+
+    private:
+
+        bool overThresholdOn(uint8_t value) {
+            return (thresholdOn < thresholdOff) ? (value < thresholdOn) : (value > thresholdOn);
+        }
+
+        bool overThresholdOff(uint8_t value) {
+            return (thresholdOn < thresholdOff) ? (value > thresholdOff) : (value < thresholdOff);
+        }
+
     }; // Driver::AnalogButton
 
     struct Axis {
@@ -285,15 +296,14 @@ private:
         Thumbstick,
         Accel,
     }; // Driver::DPadState
-    AnalogButton dpadUp_{BTN_DPAD_UP, 128 + 32, 128};
-    AnalogButton dpadDown_{BTN_DPAD_DOWN, 128 - 32, 128};
-    AnalogButton dpadLeft_{BTN_DPAD_LEFT, 128 - 32, 128};
-    AnalogButton dpadRight_{BTN_DPAD_RIGHT, 128 + 32, 128};
-    uint8_t dpadThresholdOn_ = 20;
-    uint8_t dpadThresholdOff_ = 0;
-    DPadState dpadState_ = DPadState::Off;
+    AnalogButton dpadUp_{BTN_DPAD_UP, 64, 96};
+    AnalogButton dpadDown_{BTN_DPAD_DOWN, 192, 160};
+    AnalogButton dpadLeft_{BTN_DPAD_LEFT, 64, 96};
+    AnalogButton dpadRight_{BTN_DPAD_RIGHT, 192, 160};
+    DPadState dpadState_ = DPadState::Accel;
 
     void updateDPad(uint8_t horizontal, uint8_t vertical);
+
     //@}
    
 
