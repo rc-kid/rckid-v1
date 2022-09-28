@@ -82,11 +82,12 @@ signals:
     void accel(uint8_t x, uint8_t y); 
     //@}
 
-    void headphones(bool state);
-    void charging(bool state);
-    void lowBattery();
-    void batteryVoltage(uint16_t value);
-    void temp(uint16_t value); 
+    void headphonesChanged(bool state);
+    void chargingChanged(bool state);
+    void lowBatteryChanged();
+    void batteryVoltageChanged(uint16_t value);
+    void tempAvrChanged(uint16_t value); 
+    void tempAccelChanged(uint16_t value); 
 
 private:
 

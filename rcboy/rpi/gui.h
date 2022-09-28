@@ -46,6 +46,12 @@ public:
         setSceneRect(QRectF{0,0,320,24});
         addText("Hello world!")->setDefaultTextColor(Qt::white);
     }
+
+protected slots:
+
+    void headphones(bool state);
+    void charging(bool state);
+    void batteryVoltage(uint16_t value);
 }; 
 
 /** GUI Footer
@@ -84,6 +90,13 @@ public:
         connect(driver, & Driver::thumbstick, this, & Page::thumbstick, Qt::QueuedConnection);
         connect(driver, & Driver::accel, this, & Page::accel, Qt::QueuedConnection);
 
+        connect(driver, & Driver::headphonesChanged, this, & Page::headphones, Qt::QueuedConnection);
+        connect(driver, & Driver::chargingChanged, this, & Page::charging, Qt::QueuedConnection);
+        connect(driver, & Driver::lowBatteryChanged, this, & Page::lowBattery, Qt::QueuedConnection);
+        connect(driver, & Driver::batteryVoltageChanged, this, & Page::batteryVoltage, Qt::QueuedConnection);
+        connect(driver, & Driver::tempAvrChanged, this, & Page::tempAvr, Qt::QueuedConnection);
+        connect(driver, & Driver::tempAccelChanged, this, & Page::tempAccel, Qt::QueuedConnection);
+
     }
 
 protected slots:
@@ -101,6 +114,14 @@ protected slots:
     virtual void buttonThumb(bool state) {}
     virtual void thumbstick(uint8_t x, uint8_t y) {}
     virtual void accel(uint8_t x, uint8_t y) {}
+
+    virtual void headphones(bool state) {}
+    virtual void charging(bool state) {}
+    virtual void lowBattery() {}
+    virtual void batteryVoltage(uint16_t value) {}
+    virtual void tempAvr(uint16_t value) {}
+    virtual void tempAccel(uint16_t value) {}
+
     
 }; 
 

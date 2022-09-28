@@ -80,18 +80,12 @@ static constexpr gpio::Pin CHARGING = 15; // ADC0(2)
 
 /** The entire status of the AVR as a continuous area of memory so that when we rpi reads the I2C all this information can be returned. 
  */
-struct {
-    /** State
-     */
-    comms::Status status;
-    comms::ExtendedStatus estatus;
-    DateTime time;
+comms::FullState state;
 
-    /** Audio buffer
-     */
-    uint8_t buffer[comms::I2C_PACKET_SIZE * 2];
+/** Audio buffer
+ */
+uint8_t i2cBuffer[comms::I2C_PACKET_SIZE * 2];
 
-} state;
 
 volatile struct {
     /** Determines that the AVR irq is either requested, or should be requested at the next tick. 
@@ -409,7 +403,8 @@ namespace adc0 {
             /* Using the VCC value, calculates the VBATT in 10mV increments, i.e. [V*100]. Expected values are 0..430.
              */
             case MUXPOS_VBATT:
-                value = state.estatus.vcc() * value / 1024;
+                //value = state.estatus.vcc() * value / 1024;
+                value = state.estatus.vcc() * (value >> 3) / 128;
                 state.estatus.setVBatt(value);
                 ADC0.MUXPOS = MUXPOS_CHARGING;
                 break;
@@ -518,10 +513,10 @@ namespace audio {
         if (recAccSize_ > 0) 
             recAcc_ /= recAccSize_;
         // store the value in buffer
-        state.buffer[bufferIndex_] = x++; // (recAcc_ & 0xff);
+        i2cBuffer[bufferIndex_] = x++; // (recAcc_ & 0xff);
         bufferIndex_ = (bufferIndex_ + 1) % (comms::I2C_PACKET_SIZE * 2);
         if (bufferIndex_ % comms::I2C_PACKET_SIZE == 0) {
-            rpi::setNextReadAddress(bufferIndex_ == 0 ? state.buffer : state.buffer + comms::I2C_PACKET_SIZE);
+            rpi::setNextReadAddress(bufferIndex_ == 0 ? i2cBuffer : i2cBuffer + comms::I2C_PACKET_SIZE);
             rpi::setIrqImmediately();
         }
         // reset the accumulator for next phase

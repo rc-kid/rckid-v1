@@ -1,7 +1,7 @@
 #include <QFrame>
 
 #include "gui.h"
-#include "calibration.h"
+#include "debug.h"
 
 int GUI::exec(int argc, char * argv[]) {
     QApplication app(argc, argv);
@@ -38,4 +38,17 @@ GUI::GUI(QWidget *parent):
 GUI::~GUI() {
     delete header_;
     delete footer_;
+}
+
+
+void GUI::Header::headphones(bool stage) {
+
+}
+
+void GUI::Header::charging(bool state) {
+
+}
+
+void GUI::Header::batteryVoltage(uint16_t value) {
+    
 }

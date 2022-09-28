@@ -113,10 +113,12 @@ void Driver::queryAvrStatus() {
 void Driver::queryAvrFull() {
     comms::FullState state;
     i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
-
     // update the basic status
     updateStatus(state.status);
     // update the extended state - first get lock on the data
+    LOG("VBatt: " << state.estatus.vbatt());
+    LOG("VCC: " << state.estatus.vcc());
+    LOG("Temp: " << state.estatus.temp());
     mState_.lock();
     bool vbattChanged = batteryVoltage_ != state.estatus.vbatt();
     batteryVoltage_ = state.estatus.vbatt();
@@ -125,9 +127,9 @@ void Driver::queryAvrFull() {
     mState_.unlock();
     // emit events where necessary
     if (vbattChanged)
-        emit batteryVoltage(batteryVoltage_);
+        emit batteryVoltageChanged(batteryVoltage_);
     if (tempChanged)
-        emit temp(tempAvr_); 
+        emit tempAvrChanged(tempAvr_); 
 }
 
 void Driver::updateStatus(comms::Status status) {
@@ -139,9 +141,9 @@ void Driver::updateStatus(comms::Status status) {
     bool thumbPosChanged = thumbX_.update(status.joyX());
     thumbPosChanged = thumbY_.update(status.joyY()) || thumbPosChanged;
 
-    bool chargingChanged = charging_ != status.charging();
+    bool chrgChanged = charging_ != status.charging();
     charging_ = status.charging();
-    bool lowBatteryChanged = lowBattery_ != status.lowBattery();
+    bool lowBattChanged = lowBattery_ != status.lowBattery();
     lowBattery_ = status.lowBattery();
 
     // release the lock and emit the necessary events
@@ -156,10 +158,10 @@ void Driver::updateStatus(comms::Status status) {
     if (thumbPosChanged)
         emit thumbstick(status.joyX(), status.joyY());
 
-    if (chargingChanged)
-        emit charging(charging_);
-    if (lowBatteryChanged)
-        emit lowBattery();
+    if (chrgChanged)
+        emit chargingChanged(charging_);
+    if (lowBattChanged)
+        emit lowBatteryChanged();
 
 }
 
@@ -167,8 +169,8 @@ void Driver::queryAccel() {
     MPU6050::AccelData d = accel_.readAccel();
     // also read the temperature so that we have one more datapoint whether the handheld overheats or not
     uint16_t t = accel_.readTemp();
-    d.x = accelTo1GUnsigned(d.x);
-    d.y = accelTo1GUnsigned(d.y);
+    d.x = accelTo1GUnsigned(- d.x);
+    d.y = accelTo1GUnsigned(- d.y);
     mState_.lock();
     bool accelChanged = accelX_.update(d.x);
     accelChanged = accelY_.update(d.y) || accelChanged;
@@ -236,7 +238,7 @@ void Driver::isrHeadphonesChange(int gpio, int level, uint32_t tick, Button * bt
             return;
         singleton_->headphones_ = level;
     }
-    emit singleton_->headphones(level);        
+    emit singleton_->headphonesChanged(level);        
 }
 
 void Driver::initializeLibevdevDevice() {

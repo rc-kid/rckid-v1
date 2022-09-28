@@ -43,6 +43,14 @@ public:
         addLine(210, 106, 310, 106, QPen{Qt::darkGray});
         addLine(260, 56, 260, 156, QPen{Qt::darkGray});
         accel_ = addEllipse(260 - 3, 106 - 3, 6,6,QPen{Qt::white});
+        newText("VBatt:", 0, 160);
+        vBatt_ = newText("0", 5, 175);
+        newText("Vcc:", 50, 160);
+        vcc_ = newText("0", 55, 175);
+        newText("tAvr:", 100, 160);
+        tempAvr_ = newText("0", 105, 175);
+        newText("tAccel:", 150, 160);
+        tempAccel_ = newText("0", 155, 175);
     }
 
 protected slots:
@@ -60,6 +68,9 @@ protected slots:
     void buttonThumb(bool state) override { updateButton(thumbBtn_, state); }
     void thumbstick(uint8_t x, uint8_t y) override { updatePoint(thumb_, x, y); }
     void accel(uint8_t x, uint8_t y) override { updatePoint(accel_, x, y); }
+    void batteryVoltage(uint16_t value) override { updateValue(vBatt_, value); }
+    void tempAvr(uint16_t value) override { updateValue(tempAvr_, value); }
+    void tempAccel(uint16_t value) override { updateValue(tempAccel_, value); }
 
 private:
 
@@ -72,6 +83,11 @@ private:
 
     void updateButton(QGraphicsSimpleTextItem * text, bool state) {
         text->setBrush(state ? Qt::white : Qt::darkGray);
+    }
+
+    void updateValue(QGraphicsSimpleTextItem * text, unsigned value) {
+        text->setBrush(Qt::white);
+        text->setText(QString::number(value, 10));
     }
 
     void updatePoint(QGraphicsEllipseItem * p, uint8_t x, uint8_t y) {
@@ -104,7 +120,8 @@ private:
     QGraphicsSimpleTextItem * accelY_;
     QGraphicsEllipseItem * thumb_;
     QGraphicsEllipseItem * accel_;
-
-
-
+    QGraphicsSimpleTextItem * vBatt_;
+    QGraphicsSimpleTextItem * vcc_;
+    QGraphicsSimpleTextItem * tempAvr_;
+    QGraphicsSimpleTextItem * tempAccel_;
 }; // Calibration
