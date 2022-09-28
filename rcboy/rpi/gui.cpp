@@ -1,7 +1,7 @@
 #include <QFrame>
 
 #include "gui.h"
-#include "debug.h"
+#include "debug_info.h"
 
 int GUI::exec(int argc, char * argv[]) {
     QApplication app(argc, argv);
@@ -30,7 +30,7 @@ GUI::GUI(QWidget *parent):
     footerView_->setFrameStyle(QFrame::NoFrame);
     headerView_->setScene(header_);
     footerView_->setScene(footer_);
-    auto c = new Calibration();
+    auto c = new DebugInfo();
     pageView_->setScene(c);
 
 }

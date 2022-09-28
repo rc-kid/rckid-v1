@@ -22,6 +22,29 @@ bool Driver::Button::update(bool newState) {
     }
 }
 
+Driver::TriState Driver::AnalogButton::update(uint8_t value) {
+    bool changed = false;
+    if (state) {
+        if (value < thresholdOff) {
+            state = false;
+            changed = true;
+        }
+    } else {
+        if (value > thresholdOn) {
+            state = true;
+            changed = true;
+        }
+    } 
+    if (changed && evdevId != KEY_RESERVED) {
+        libevdev_uinput_write_event(singleton_->uidev_, EV_KEY, evdevId, state ? 1 : 0);
+        libevdev_uinput_write_event(singleton_->uidev_, EV_SYN, SYN_REPORT, 0);
+    }
+    if (changed)
+        return state ? TriState::On : TriState::Off;
+    else
+        return TriState::Unchanged;
+}
+
 
 
 Driver * Driver::initialize() {
@@ -116,9 +139,9 @@ void Driver::queryAvrFull() {
     // update the basic status
     updateStatus(state.status);
     // update the extended state - first get lock on the data
-    LOG("VBatt: " << state.estatus.vbatt());
-    LOG("VCC: " << state.estatus.vcc());
-    LOG("Temp: " << state.estatus.temp());
+    //LOG("VBatt: " << state.estatus.vbatt());
+    //LOG("VCC: " << state.estatus.vcc());
+    //LOG("Temp: " << state.estatus.temp());
     mState_.lock();
     bool vbattChanged = batteryVoltage_ != state.estatus.vbatt();
     batteryVoltage_ = state.estatus.vbatt();
@@ -174,9 +197,14 @@ void Driver::queryAccel() {
     mState_.lock();
     bool accelChanged = accelX_.update(d.x);
     accelChanged = accelY_.update(d.y) || accelChanged;
-    mState_.unlock();
-    if (accelChanged)
-        emit accel(d.x, d.y);
+    // determine if we should emit the dpad events
+    if (accelChanged && dpadState_ == DPadState::Accel) {
+        updateDPad(d.x, d.y);
+    } else {
+        mState_.unlock();
+        if (accelChanged)
+            emit accel(d.x, d.y);
+    }
 }
 
 uint8_t Driver::accelTo1GUnsigned(int16_t v) {
@@ -308,3 +336,21 @@ void Driver::initializePins() {
 #endif
 
 }
+
+void Driver::updateDPad(uint8_t horizontal, uint8_t vertical) {
+    TriState changedUp = dpadUp_.update(vertical);
+    TriState changedDown = dpadDown_.update(vertical);
+    TriState changedLeft = dpadLeft_.update(horizontal);
+    TriState changedRight = dpadRight_.update(horizontal);
+    mState_.unlock();
+    if (changedUp != TriState::Unchanged)
+        emit dpadUp(changedUp == TriState::On);
+    if (changedDown != TriState::Unchanged)
+        emit dpadDown(changedDown == TriState::On);
+    if (changedLeft != TriState::Unchanged)
+        emit dpadLeft(changedLeft == TriState::On);
+    if (changedRight != TriState::Unchanged)
+        emit dpadRight(changedRight == TriState::On);
+
+}
+

@@ -5,22 +5,25 @@
 
 #include <iostream>
 
-class Calibration : public Page {
+class DebugInfo : public Page {
     Q_OBJECT
 public:
-    explicit Calibration() {
-        newText("Buttons:", 0, 0);
-        a_ = newText("A", 5, 16);
-        b_ = newText("B", 20, 16);
-        x_ = newText("X", 35, 16);
-        y_ = newText("Y", 50, 16); 
-        select_ = newText("SEL", 65, 16);
-        start_ = newText("START", 95, 16);
-        l_ = newText("L", 140, 16);
-        r_ = newText("R", 155, 16);
-        lVol_ = newText("L_VOL", 170, 16);
-        rVol_ = newText("R_VOL", 215, 16);
-        thumbBtn_ = newText("THUMB", 260, 16);
+    explicit DebugInfo() {
+        a_ = newText("A", 5, 0);
+        b_ = newText("B", 20, 0);
+        x_ = newText("X", 35, 0);
+        y_ = newText("Y", 50, 0); 
+        select_ = newText("SEL", 65, 0);
+        start_ = newText("START", 95, 0);
+        l_ = newText("L", 140, 0);
+        r_ = newText("R", 155, 0);
+        lVol_ = newText("L_VOL", 170, 0);
+        rVol_ = newText("R_VOL", 215, 0);
+        thumbBtn_ = newText("THUMB", 260, 0);
+        dpadUp_ = newText("UP", 5, 16);
+        dpadDown_ = newText("DOWN", 25, 16);
+        dpadLeft_ = newText("LEFT", 70, 16);
+        dpadRight_ = newText("RIGHT", 105, 16);
         newText("Thumbstick:", 0, 40);
         newText("X:", 5, 56);
         newText("Y:", 5, 72);
@@ -68,6 +71,11 @@ protected slots:
     void buttonThumb(bool state) override { updateButton(thumbBtn_, state); }
     void thumbstick(uint8_t x, uint8_t y) override { updatePoint(thumb_, x, y); }
     void accel(uint8_t x, uint8_t y) override { updatePoint(accel_, x, y); }
+    void dpadUp(bool state) override { updateButton(dpadUp_, state); }
+    void dpadDown(bool state) override { updateButton(dpadDown_, state); }
+    void dpadLeft(bool state) override { updateButton(dpadLeft_, state); }
+    void dpadRight(bool state) override { updateButton(dpadRight_, state); }
+
     void batteryVoltage(uint16_t value) override { updateValue(vBatt_, value); }
     void tempAvr(uint16_t value) override { updateValue(tempAvr_, value); }
     void tempAccel(uint16_t value) override { updateValue(tempAccel_, value); }
@@ -118,6 +126,10 @@ private:
     QGraphicsSimpleTextItem * thumbY_;
     QGraphicsSimpleTextItem * accelX_;
     QGraphicsSimpleTextItem * accelY_;
+    QGraphicsSimpleTextItem * dpadUp_;
+    QGraphicsSimpleTextItem * dpadDown_;
+    QGraphicsSimpleTextItem * dpadLeft_;
+    QGraphicsSimpleTextItem * dpadRight_;
     QGraphicsEllipseItem * thumb_;
     QGraphicsEllipseItem * accel_;
     QGraphicsSimpleTextItem * vBatt_;

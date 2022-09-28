@@ -80,6 +80,10 @@ signals:
     void buttonVolumeRight(bool state);
     void thumbstick(uint8_t x, uint8_t y);
     void accel(uint8_t x, uint8_t y); 
+    void dpadUp(bool state);
+    void dpadDown(bool state);
+    void dpadLeft(bool state);
+    void dpadRight(bool state);
     //@}
 
     void headphonesChanged(bool state);
@@ -112,6 +116,12 @@ private:
     static constexpr unsigned PIN_NRF_IRQ = 6;
     //@}
 
+    enum class TriState {
+        On, 
+        Off, 
+        Unchanged,
+    }; 
+
     /** Events the main loop responds to. These come either from IRQ handlers, or Qi or other threads requesting AVR To perform tasks. 
      */
     enum class Event {
@@ -124,14 +134,29 @@ private:
     }; // Driver::Event
     
     struct Button {
-        bool state;
+        bool state = false;
         unsigned evdevId;
 
-        Button(unsigned evdevId): state{false}, evdevId{evdevId}  {}
+        Button(unsigned evdevId): evdevId{evdevId}  {}
 
         bool update(bool newState);
 
     }; // Driver::Button
+
+    struct AnalogButton {
+        bool state = false;
+        unsigned evdevId;
+        uint8_t thresholdOn;
+        uint8_t thresholdOff;
+
+        AnalogButton(unsigned evdevId, uint8_t thresholdOn, uint8_t thresholdOff):
+            evdevId{evdevId},
+            thresholdOn{thresholdOn},
+            thresholdOff{thresholdOff} {
+        }
+
+        TriState update(uint8_t value);
+    }; // Driver::AnalogButton
 
     struct Axis {
         uint8_t state;
@@ -244,11 +269,33 @@ private:
     Axis accelX_{ABS_X};
     Axis accelY_{ABS_Y};
     Axis accelZ_{ABS_Z};
-    
-    /** Handle for the uinput device of the gamepad.
-     */
-    struct libevdev_uinput *uidev_{nullptr};
+
     //@}
+
+     /** \name Virtual DPad
+     
+      Thresholds for the virtual buttons. We have on and off triggers to provide a very basic hysteresis functionality.
+
+      If the dpads are enabled, then the analog ev outputs should be disabled. I guess 
+     */
+    //@{
+
+    enum class DPadState {
+        Off,
+        Thumbstick,
+        Accel,
+    }; // Driver::DPadState
+    AnalogButton dpadUp_{BTN_DPAD_UP, 128 + 32, 128};
+    AnalogButton dpadDown_{BTN_DPAD_DOWN, 128 - 32, 128};
+    AnalogButton dpadLeft_{BTN_DPAD_LEFT, 128 - 32, 128};
+    AnalogButton dpadRight_{BTN_DPAD_RIGHT, 128 + 32, 128};
+    uint8_t dpadThresholdOn_ = 20;
+    uint8_t dpadThresholdOff_ = 0;
+    DPadState dpadState_ = DPadState::Off;
+
+    void updateDPad(uint8_t horizontal, uint8_t vertical);
+    //@}
+   
 
     bool headphones_;
     bool charging_;
@@ -269,8 +316,12 @@ private:
      */
     uint8_t brightness_;
 
-
     NRF24L01 radio_{PIN_NRF_CS, PIN_NRF_RXTX};
     MPU6050 accel_;
+
+    /** Handle for the uinput device of the gamepad.
+     */
+    struct libevdev_uinput *uidev_{nullptr};
+
 
 }; // Controller

@@ -89,7 +89,11 @@ public:
         connect(driver, & Driver::buttonThumb, this, & Page::buttonThumb, Qt::QueuedConnection);
         connect(driver, & Driver::thumbstick, this, & Page::thumbstick, Qt::QueuedConnection);
         connect(driver, & Driver::accel, this, & Page::accel, Qt::QueuedConnection);
-
+        connect(driver, & Driver::dpadUp, this, & Page::dpadUp, Qt::QueuedConnection);
+        connect(driver, & Driver::dpadDown, this, & Page::dpadDown, Qt::QueuedConnection);
+        connect(driver, & Driver::dpadLeft, this, & Page::dpadLeft, Qt::QueuedConnection);
+        connect(driver, & Driver::dpadRight, this, & Page::dpadRight, Qt::QueuedConnection);
+        
         connect(driver, & Driver::headphonesChanged, this, & Page::headphones, Qt::QueuedConnection);
         connect(driver, & Driver::chargingChanged, this, & Page::charging, Qt::QueuedConnection);
         connect(driver, & Driver::lowBatteryChanged, this, & Page::lowBattery, Qt::QueuedConnection);
@@ -114,6 +118,10 @@ protected slots:
     virtual void buttonThumb(bool state) {}
     virtual void thumbstick(uint8_t x, uint8_t y) {}
     virtual void accel(uint8_t x, uint8_t y) {}
+    virtual void dpadUp(bool state) {}
+    virtual void dpadDown(bool state) {}
+    virtual void dpadLeft(bool state) {}
+    virtual void dpadRight(bool state) {}
 
     virtual void headphones(bool state) {}
     virtual void charging(bool state) {}
