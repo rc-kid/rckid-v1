@@ -12,7 +12,7 @@ bool Driver::Button::update(bool newState) {
     // TODO debounce
     if (state != newState) {
         state = newState;
-        if (evdevId != KEY_RESERVED) {
+        if (evdevId != KEY_RESERVED && singleton_->uidev_ != nullptr) {
             libevdev_uinput_write_event(singleton_->uidev_, EV_KEY, evdevId, state ? 1 : 0);
             libevdev_uinput_write_event(singleton_->uidev_, EV_SYN, SYN_REPORT, 0);
         }
@@ -35,7 +35,7 @@ Driver::TriState Driver::AnalogButton::update(uint8_t value) {
             changed = true;
         }
     } 
-    if (changed && evdevId != KEY_RESERVED) {
+    if (changed && evdevId != KEY_RESERVED && singleton_->uidev_ != nullptr) {
         libevdev_uinput_write_event(singleton_->uidev_, EV_KEY, evdevId, state ? 1 : 0);
         libevdev_uinput_write_event(singleton_->uidev_, EV_SYN, SYN_REPORT, 0);
     }
@@ -44,8 +44,6 @@ Driver::TriState Driver::AnalogButton::update(uint8_t value) {
     else
         return TriState::Unchanged;
 }
-
-
 
 Driver * Driver::initialize() {
     LOG("Initializing...");
@@ -303,13 +301,19 @@ void Driver::initializeLibevdevDevice() {
         libevdev_enable_event_code(dev, EV_ABS, accelX_.evdevId, & info);
         libevdev_enable_event_code(dev, EV_ABS, accelY_.evdevId, & info);
         libevdev_enable_event_code(dev, EV_ABS, accelZ_.evdevId, & info);
+
+        libevdev_enable_event_code(dev, EV_KEY, dpadUp_.evdevId, nullptr);
+        libevdev_enable_event_code(dev, EV_KEY, dpadDown_.evdevId, nullptr);
+        libevdev_enable_event_code(dev, EV_KEY, dpadLeft_.evdevId, nullptr);
+        libevdev_enable_event_code(dev, EV_KEY, dpadRight_.evdevId, nullptr);
+
         int err = libevdev_uinput_create_from_device(dev,
                                                 LIBEVDEV_UINPUT_OPEN_MANAGED,
                                                 &uidev_);
-//        if (err != 0)
-//            std::cout << "cannot do what I want to do" << std::endl;
+        // TODO where to report this error???? ANd how toreport errors in general, restart avr?
+        if (err != 0)
+            std::cout << "cannot do what I want to do: " << err << std::endl;
         libevdev_free(dev);
-
 }
 
 void Driver::initializePins() {

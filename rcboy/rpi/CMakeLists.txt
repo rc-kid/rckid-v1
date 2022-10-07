@@ -51,7 +51,7 @@ else()
     add_definitions(-DARCH_MOCK)
 endif()
 
-file(GLOB_RECURSE SRC  *.cpp *.h)
+file(GLOB_RECURSE SRC  *.cpp *.h *.qrc)
 add_executable(rcboy ${SRC})
 target_link_libraries(rcboy ${EVDEV_LIBRARY})
 target_link_libraries(rcboy Qt5::Widgets)

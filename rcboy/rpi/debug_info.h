@@ -54,6 +54,10 @@ public:
         tempAvr_ = newText("0", 105, 175);
         newText("tAccel:", 150, 160);
         tempAccel_ = newText("0", 155, 175);
+
+        QPixmap p = QPixmap{":/images/unicorn.png"}.scaled(128, 128, Qt::AspectRatioMode::IgnoreAspectRatio, Qt::TransformationMode::SmoothTransformation);
+        addPixmap(p);
+
     }
 
 protected slots:

@@ -4,6 +4,8 @@
 #include <QGraphicsView>
 #include <QGraphicsScene>
 #include <QGraphicsTextItem>
+#include <QTimer>
+#include <QTime>
 
 #include "driver.h"
 
@@ -16,6 +18,13 @@ public:
     class Footer;
 
     static int exec(int argc, char * argv[]);
+
+#if (defined ARCH_MOCK)
+protected:
+    /** Emulates the gamepad with keyboard on mock systems for easier development. 
+     */
+    void keyPressEvent(QKeyEvent *e) override;
+#endif
 
 private:
     explicit GUI(QWidget *parent = nullptr);
@@ -31,7 +40,7 @@ private:
 
 }; // GUI
 
-/** GUI Header 
+/** GUI Header that displays the status bar. 
  
     Displays the status bar with information about charging, battery levels, signal strength, volume, etc.
 
@@ -41,10 +50,19 @@ class GUI::Header : public QGraphicsScene {
     Q_OBJECT
 public:
     explicit Header() {
-        setBackgroundBrush(Qt::black);
+        setBackgroundBrush(Qt::darkGray);
         //setForegroundPen(Qt::white);
         setSceneRect(QRectF{0,0,320,24});
-        addText("Hello world!")->setDefaultTextColor(Qt::white);
+        clock_ = addSimpleText("--:--");
+        clock_->setBrush(Qt::white);
+        batt_ = addSimpleText("\uf57999");
+        batt_->setBrush(Qt::white);
+        batt_->setPos(200,0);
+        timerTimeout();
+        timer_ = new QTimer{this};        
+        connect(timer_, & QTimer::timeout, this, & Header::timerTimeout);
+        timer_->setInterval(1000);
+        timer_->start();
     }
 
 protected slots:
@@ -52,6 +70,20 @@ protected slots:
     void headphones(bool state);
     void charging(bool state);
     void batteryVoltage(uint16_t value);
+
+private:
+
+    void timerTimeout() {
+        auto t = QTime::currentTime();
+        if (t.second() % 2) 
+            clock_->setText(t.toString("hh:mm"));
+        else
+            clock_->setText(t.toString("hh mm"));
+    }
+
+    QTimer * timer_ = nullptr;
+    QGraphicsSimpleTextItem * clock_ = nullptr;
+    QGraphicsSimpleTextItem * batt_ = nullptr;
 }; 
 
 /** GUI Footer
@@ -142,12 +174,71 @@ protected slots:
 class Carousel : public QGraphicsScene {
     Q_OBJECT
 public:
+
+    /** Element in the carousel. 
+     */
+    struct Element {
+        QString text;
+        QPixmap img;
+
+        Element(char const * text, char const * img):
+            text{text},
+            img{QPixmap{img}.scaled(140, 140, Qt::AspectRatioMode::IgnoreAspectRatio, Qt::TransformationMode::SmoothTransformation)} {
+        }
+    }; // Carousel::Element
+
     explicit Carousel() {
         setBackgroundBrush(Qt::black);
         setSceneRect(QRectF{0,0,320,192});
+        img_ = addPixmap(QPixmap{});
+        img_->setPos(90, 0);
+        text_ = addSimpleText("");
+        text_->setPos(0, 145);
+        text_->setFont(QFont{"OpenDyslexic Nerd Font", 22});
+        text_->setBrush(Qt::white);
+        Driver * driver = Driver::instance();
+        connect(driver, & Driver::dpadLeft, this, & Carousel::dpadLeft, Qt::QueuedConnection);
+        connect(driver, & Driver::dpadRight, this, & Carousel::dpadRight, Qt::QueuedConnection);
     }
 
+    void addElement(Element e) {
+        elements_.push_back(e);
+    }
+
+    void setElement(size_t i) {
+        i_ = i;
+        {
+            auto element = elements_[i];
+            img_->setPixmap(element.img);
+            text_->setText(element.text);
+            auto width = text_->boundingRect().width();
+            text_->setPos((320 - width) / 2, 145);
+        }
+    }
+
+    void nextElement() {
+        setElement((i_ + 1) % elements_.size());
+    }
+
+    void prevElement() {
+        setElement((i_ - 1) % elements_.size());
+    }
+
+private slots:
+
+    virtual void dpadLeft(bool state) { if (state) prevElement(); }
+    virtual void dpadRight(bool state) { if (state) nextElement(); }
+    
+    // TODO actual select
+
 private:
+
+    QGraphicsPixmapItem * img_ = nullptr;
+    QGraphicsSimpleTextItem * text_ = nullptr;
+
+    std::vector<Element> elements_;
+    size_t i_;
+    
 };
 
 

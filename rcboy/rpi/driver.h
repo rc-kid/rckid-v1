@@ -17,6 +17,8 @@
 
 #include "common/comms.h"
 
+#include "utils/json.h"
+
 
 /** RCBoy driver
  
