@@ -4,7 +4,6 @@
 
 #include <iostream>
 #include "gui.h"
-#include "carousel.h"
 #include "debug_info.h"
 
 GUI::Footer * GUI::Footer::singleton_ = nullptr;
@@ -38,8 +37,30 @@ GUI::GUI(QWidget *parent):
     footerView_->setFrameStyle(QFrame::NoFrame);
     headerView_->setScene(header_);
     footerView_->setScene(footer_);
+
+    menu_.addItem(new Menu::Item{"Games", "assets/images/001-game-controller.png"});
+    menu_.addItem(new Menu::Item{"Music", "assets/images/003-music.png"});
+    menu_.addItem(new Menu::Item{"Videos", "assets/images/005-film-slate.png"});
+    menu_.addItem(new Menu::Item{"Walkie-talkie", "assets/images/007-baby-monitor.png"});
+    menu_.addItem(new Menu::Item{"Remote", "assets/images/002-rc-car.png"});
+
+    adminMenu_.addItem(new Menu::Item{"Power Off", "assets/images/011-power-off.png"});
+    adminMenu_.addItem(new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"});
+    adminMenu_.addItem(new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"});
+    adminMenu_.addItem(new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"});
+    auto settings = new Menu{};
+    settings->addItem(new Menu::Item{"Brightness", "assets/images/009-brightness.png"});
+    settings->addItem(new Menu::Item{"Volume", "assets/images/010-high-volume.png"});
+    settings->addItem(new Menu::Item{"WiFi", "assets/images/016-wifi.png"});
+    settings->addItem(new Menu::Item{"Information", "assets/images/014-info.png"});
+    adminMenu_.addItem(new Menu::Item{"Settings", "assets/images/013-settings.png", settings});
+
+
+    
     //auto c = new DebugInfo();
     auto c = new Carousel();
+    c->setMenu(& adminMenu_);
+    /*
     c->addElement(Carousel::Element{"Games", "assets/images/gamepad.png"});
     c->addElement(Carousel::Element{"Music", "assets/images/music.png"});
     c->addElement(Carousel::Element{"Movies", "assets/images/video.png"});
@@ -49,6 +70,7 @@ GUI::GUI(QWidget *parent):
     c->addElement(Carousel::Element{"Baby Monitor", "assets/images/baby-monitor.png"});
     c->addElement(Carousel::Element{"Settings", "assets/images/settings.png"});
     c->setElement(0);
+    */
     pageView_->setScene(c);
 
 }
@@ -61,14 +83,39 @@ GUI::~GUI() {
 #if (defined ARCH_MOCK)
 void GUI::keyPressEvent(QKeyEvent * e) {
     switch (e->key()) {
+        case Qt::Key_W:
+            emit Driver::instance()->dpadUp(true);
+            emit Driver::instance()->dpadUp(false);
+            break;
         case Qt::Key_A: 
             emit Driver::instance()->dpadLeft(true);
             emit Driver::instance()->dpadLeft(false);
+            break;
+        case Qt::Key_S:
+            emit Driver::instance()->dpadDown(true);
+            emit Driver::instance()->dpadDown(false);
             break;
         case Qt::Key_D: 
             emit Driver::instance()->dpadRight(true);
             emit Driver::instance()->dpadRight(false);
             break;
+        case Qt::Key_L:
+            emit Driver::instance()->buttonLeft(true);
+            emit Driver::instance()->buttonLeft(false);
+            break;
+        case Qt::Key_R:
+            emit Driver::instance()->buttonRight(true);
+            emit Driver::instance()->buttonRight(false);
+            break;
+        case Qt::Key_T:
+            emit Driver::instance()->buttonThumb(true);
+            emit Driver::instance()->buttonThumb(false);
+            break;
+        case Qt::Key_B:
+            emit Driver::instance()->buttonB(true);
+            emit Driver::instance()->buttonB(false);
+            break;
+
     }
 }
 #endif

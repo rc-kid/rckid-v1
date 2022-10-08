@@ -8,6 +8,7 @@
 #include <QTime>
 
 #include "driver.h"
+#include "menu.h"
 
 /** RCBoy's launcher main window. 
  */
@@ -37,6 +38,9 @@ private:
 
     Header * header_;
     Footer * footer_;
+
+    Menu menu_;
+    Menu adminMenu_;
 
 }; // GUI
 
