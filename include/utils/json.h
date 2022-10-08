@@ -9,7 +9,6 @@ namespace json {
 
     class Value;
 
-
     /** The undefined value placeholder. 
      
         Does not contain any useful information apart from the optinal comment, exists for unified creation of values via constructors. 

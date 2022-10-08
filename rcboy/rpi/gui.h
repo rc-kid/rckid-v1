@@ -50,26 +50,38 @@ class GUI::Header : public QGraphicsScene {
     Q_OBJECT
 public:
     explicit Header() {
-        setBackgroundBrush(Qt::darkGray);
+        setFont(QFont{"Iosevka", 12});
+        setBackgroundBrush(Qt::black);
         //setForegroundPen(Qt::white);
         setSceneRect(QRectF{0,0,320,24});
         clock_ = addSimpleText("--:--");
-        clock_->setBrush(Qt::white);
-        batt_ = addSimpleText("\uf57999");
-        batt_->setBrush(Qt::white);
-        batt_->setPos(200,0);
+        clock_->setBrush(Qt::gray);
+        clock_->setFont(QFont{"Iosevka", 10});
+        clock_->setPos(0, 4);
+        batt_ = addText("");
+        //batt_->setHtml("\uf579<small>99</small>");
+        batt_->setDefaultTextColor(Qt::darkGray);
+        batt_->setFont(QFont{"Iosevka", 14});
+        updateStatusLine();
         timerTimeout();
         timer_ = new QTimer{this};        
         connect(timer_, & QTimer::timeout, this, & Header::timerTimeout);
         timer_->setInterval(1000);
         timer_->start();
+        Driver * driver = Driver::instance();
+
+        connect(driver, & Driver::headphonesChanged, this, & Header::headphonesChanged, Qt::QueuedConnection);
+        connect(driver, & Driver::chargingChanged, this, & Header::chargingChanged, Qt::QueuedConnection);
+        connect(driver, & Driver::batteryVoltageChanged, this, & Header::batteryVoltageChanged, Qt::QueuedConnection);
+
+
     }
 
 protected slots:
 
-    void headphones(bool state);
-    void charging(bool state);
-    void batteryVoltage(uint16_t value);
+    void headphonesChanged(bool state);
+    void chargingChanged(bool state);
+    void batteryVoltageChanged(uint16_t value);
 
 private:
 
@@ -81,10 +93,18 @@ private:
             clock_->setText(t.toString("hh mm"));
     }
 
+    void updateStatusLine();
+
     QTimer * timer_ = nullptr;
     QGraphicsSimpleTextItem * clock_ = nullptr;
-    QGraphicsSimpleTextItem * batt_ = nullptr;
+    QGraphicsTextItem * batt_ = nullptr;
+
+    bool headphones_ = false;
+    bool charging_ = false;
+    size_t batteryPct_ = 55;
+    bool displayDetails_ = false;
 }; 
+
 
 /** GUI Footer
  
@@ -92,12 +112,20 @@ private:
  */
 class GUI::Footer : public QGraphicsScene {
     Q_OBJECT
+    friend class GUI;
 public:
+
+    static Footer * instance() { return singleton_; }
+private:
     explicit Footer() {
         setBackgroundBrush(Qt::black);
         setSceneRect(QRectF{0,0,320,24});
         addEllipse(QRectF{4,4,16,16}, QPen{Qt::red}, QBrush{Qt::red});
+        singleton_ = this;
     }
+
+    static Footer * singleton_;
+
 }; 
 
 class Page : public QGraphicsScene {
@@ -165,80 +193,5 @@ protected slots:
     
 }; 
 
-/** The carousel controller. 
- 
-    For simplicity this is the single controller used for the UI. Its items consist of an image and a text that can be swapped in/out.
-
-    TODO eventually, add some nice effects, etc., play music and so on. 
- */
-class Carousel : public QGraphicsScene {
-    Q_OBJECT
-public:
-
-    /** Element in the carousel. 
-     */
-    struct Element {
-        QString text;
-        QPixmap img;
-
-        Element(char const * text, char const * img):
-            text{text},
-            img{QPixmap{img}.scaled(140, 140, Qt::AspectRatioMode::IgnoreAspectRatio, Qt::TransformationMode::SmoothTransformation)} {
-        }
-    }; // Carousel::Element
-
-    explicit Carousel() {
-        setBackgroundBrush(Qt::black);
-        setSceneRect(QRectF{0,0,320,192});
-        img_ = addPixmap(QPixmap{});
-        img_->setPos(90, 0);
-        text_ = addSimpleText("");
-        text_->setPos(0, 145);
-        text_->setFont(QFont{"OpenDyslexic Nerd Font", 22});
-        text_->setBrush(Qt::white);
-        Driver * driver = Driver::instance();
-        connect(driver, & Driver::dpadLeft, this, & Carousel::dpadLeft, Qt::QueuedConnection);
-        connect(driver, & Driver::dpadRight, this, & Carousel::dpadRight, Qt::QueuedConnection);
-    }
-
-    void addElement(Element e) {
-        elements_.push_back(e);
-    }
-
-    void setElement(size_t i) {
-        i_ = i;
-        {
-            auto element = elements_[i];
-            img_->setPixmap(element.img);
-            text_->setText(element.text);
-            auto width = text_->boundingRect().width();
-            text_->setPos((320 - width) / 2, 145);
-        }
-    }
-
-    void nextElement() {
-        setElement((i_ + 1) % elements_.size());
-    }
-
-    void prevElement() {
-        setElement((i_ - 1) % elements_.size());
-    }
-
-private slots:
-
-    virtual void dpadLeft(bool state) { if (state) prevElement(); }
-    virtual void dpadRight(bool state) { if (state) nextElement(); }
-    
-    // TODO actual select
-
-private:
-
-    QGraphicsPixmapItem * img_ = nullptr;
-    QGraphicsSimpleTextItem * text_ = nullptr;
-
-    std::vector<Element> elements_;
-    size_t i_;
-    
-};
 
 

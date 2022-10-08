@@ -10,6 +10,8 @@
 #include "log.h"
 #include "gui.h"
 
+#include "utils/json.h"
+
 
 int main(int argc, char * argv[]) {
     // initialize the driver singleton and peripherals

@@ -7,7 +7,6 @@
 
 # PCB Updates
 
-- update the programmer add the TXB0101 buffer in the path
 - resize photoresistor holes
 
 # PCB Old
