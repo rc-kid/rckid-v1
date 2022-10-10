@@ -3,7 +3,7 @@
 sudo cp sd/config.txt /boot/config.txt
 
 # install extra packages required by the tools and rcboy itself
-sudo apt-get install xinit x11-xserver-utils pkg-config qt5-default libevdev-dev pigpio
+sudo apt-get -y install xinit x11-xserver-utils pkg-config qt5-default libevdev-dev pigpio
 
 # to make boot times slightly faster, disable the servics we are not using 
 sudo systemctl disable dphys-swapfile.service
@@ -30,7 +30,7 @@ sudo systemctl enable ili9341
 
 # Install platformio and friens so that we can use the RPi to program the AVR responsible for power management and analog inputs
 python3 -c "$(curl -fsSL https://raw.githubusercontent.com/platformio/platformio/master/scripts/get-platformio.py)"
-sudo apt-get install python3-pip
+sudo apt-get -y install python3-pip
 pip3 install https://github.com/mraardvark/pyupdi/archive/master.zip
 
 # Build rcboy driver and main app from the repo. Build on single core so that we do not OOME, memory on RPi Zero is at premium. 

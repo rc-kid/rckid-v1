@@ -23,7 +23,7 @@ include_directories(${EVDEV_INCLUDE_DIR})
 
 # QT is required for the GUI 
 
-find_package(Qt5 COMPONENTS Widgets Gamepad REQUIRED)
+find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
