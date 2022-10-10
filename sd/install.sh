@@ -3,7 +3,7 @@
 sudo cp sd/config.txt /boot/config.txt
 
 # install extra packages required by the tools and rcboy itself
-sudo apt-get -y install xinit x11-xserver-utils pkg-config qt5-default libevdev-dev pigpio
+sudo apt-get -y install xinit x11-xserver-utils pkg-config qt5-default libevdev-dev pigpio i2c-tools
 
 # to make boot times slightly faster, disable the servics we are not using 
 sudo systemctl disable dphys-swapfile.service
@@ -11,6 +11,9 @@ sudo systemctl disable keyboard-setup.service
 sudo systemctl disable apt-daily.service
 sudo systemctl disable triggerhappy.service
 sudo systemctl disable avahi-daemon
+# these too actually take a *lot*
+sudo systemctl disable nmbd.service
+sudo systemctl disable smbd.service
 # also disable bluetooth
 sudo systemctl disable hciuart-service
 sudo systemctl disable bluetooth-service

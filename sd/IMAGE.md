@@ -20,61 +20,18 @@ When done, run the rest of the SD image setup (see the script file for details):
     cd rcboy
     bash sd/install.sh
 
+Then run `raspi-config` and make the following changes:
+
+- disable wait for the network during boot
+
+# Startup Time
+
+To analyze startup time run the following commands for the overall time, for the longest hogs and for a pretty plot:
+
+    systemd-analyze
+    systemd-analyze blame
+    systemd-analyze plot > plot.svg
 
 
 
-
-Password raspberry
-
-When written, boot up the rpi, wait for a bit and then ssh to it and run the following commands to update the rpi:
-
-    
-Then install what we need, first some basic utilities to keep me happy in the image:
-
-    sudo apt-get install mc htop tmux git cmake
-
-Get rcboy:
-
-    git clone git@github.com:zduka/rcboy.git
-
-Install the ili9341 driver and build it:
-
-    git clone https://github.com/juj/fbcp-ili9341.git
-    cd fbcp-ili9341
-    mkdir build
-    cd build
-    cmake -DILI9341=ON -DARMV8A=ON -DGPIO_TFT_DATA_CONTROL=25 -DGPIO_TFT_RESET_PIN=7 -DSPI_BUS_CLOCK_DIVISOR=10 -DDISPLAY_ROTATE_180_DEGREES=ON -DSTATISTICS=0 ..
-    make -j
-
-Add fcbp as a service:
-
-    sudo cp ~/rcboy/sd/ili9341.service /lib/systemd/system/ili9341.service
-    sudo systemctl enable ili9341
-
-Software necessary for the rcboy app:
-
-    sudo apt-get install xinit x11-xserver-utils pkg-config qt5-default libevdev-dev pigpio
-
-
-
-## Software installation
-
-    sudo apt-get install xinit x11-xserver-utils
-    sudo apt-get install qt5-default libqt5gamepad5-dev
-    sudo apt-get install libevdev-dev pkg-config
-
-
-
-## Starting the gui app 
-
-Edit `/opt/retropie/configs/all/autostart.sh` to do the following:
-
-    startx -s 0
-
-Then edit `/home/pi/.xinitrc` to start the rcboy app and configure the xserver properly:
-
-    xset s off         # don't activate screensaver
-    xset -dpms         # disable DPMS (Energy Star) features.
-    xset s noblank     # don't blank the video device
-    /home/pi/rcboy/build/rcboy/rpi/rcboy/rcboy
 

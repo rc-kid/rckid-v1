@@ -1,7 +1,6 @@
 # PCB Checks
 
-- mic amplification is too great
-- loudspeaker amplification is too great for the speaker
+- mic amplification is too great, 51k seems to do the trick
 - verify thumbstick front panel hole placement
 - check if 1M pull-down resistor can be used for rpi power
 
@@ -32,6 +31,8 @@
 - micmax can't be aggregated like this since we need the max value actually
 
 ## Rpi image 
+
+- unrecognized gamepad, check the udev rules? 
 
 - how to install pyupdi directly in platformio penv? so that I do not have to set PATH in tasks
 
