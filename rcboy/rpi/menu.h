@@ -15,16 +15,22 @@ namespace foo {
 
 /** Menu implementation. 
  
-    Each menu contains a number of items, where each item is a text and a pixmap.
+    Each menu contains a number of items, where each item is a text and a pixmap. 
+
+    - static menus created by the program
+    - dynamic menus created only when selected, i.e. the menu is created, the text is filled in, but the pixmaps are only loaded as needed
+    - dynamic ones are for the games, for the music and for the videos. 
+
+    
  */
 class Menu : QObject {
     Q_OBJECT
 public:
-    class Item; 
+    class Item;
 
     Menu() = default;
 
-    ~Menu();
+    //~Menu();
 
     bool empty() const { return items_.empty(); }
 
@@ -41,9 +47,14 @@ protected:
 
 }; // Menu
 
+/** Menu item. 
+
+    Consists of the item text and item's pixmap image. The text must be known, while the pixmap can be left undefined, in which case it might be filled by the menu when needed
+
+ */
 class Menu::Item {
 public:
-    QString * text_;
+    QString text_;
     QPixmap * img_;
 }; 
 
