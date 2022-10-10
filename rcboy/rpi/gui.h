@@ -10,7 +10,28 @@
 #include "driver.h"
 #include "menu.h"
 
+#define COLOR_HEADER_DEFAULT QColor{64, 64, 64}
+
+
+#define COLOR_BATTERY_OK QColor{0, 255, 0}
+#define COLOR_BATTERY_WARN QColor{255, 127, 0}
+#define COLOR_BATTERY_CRITICAL QColor{255, 0, 0}
+
+
+
+
+
 /** RCBoy's launcher main window. 
+ 
+    Contains the overlay with header and footer displaying common information and the main page's graphics view for the actual contents. 
+
+    # Header
+
+    Information about rcboy's status. In normal mode, only the icons are displayed for a status shorthand. In the power menu details, such as actual battery and volume percentage as well as the WiFi network rcboy is connected to is displayed alongside the icons. 
+
+    # Footer
+
+    The footer always contains information about the various UI actions available under given context. 
  */
 class GUI : public QMainWindow {
     Q_OBJECT
@@ -20,6 +41,8 @@ public:
 
     static int exec(int argc, char * argv[]);
 
+    static GUI * instance() { return singleton_; }
+
 #if (defined ARCH_MOCK)
 protected:
     /** Emulates the gamepad with keyboard on mock systems for easier development. 
@@ -27,20 +50,129 @@ protected:
     void keyPressEvent(QKeyEvent *e) override;
 #endif
 
+
+private slots:
+
+    // TODO also dependning on the volume it might be muted...
+    void headphones(bool state) {
+        if (state)
+            volume_->setText("");
+        else 
+            volume_->setText("");
+        volume_->setBrush(COLOR_HEADER_DEFAULT);
+    }
+
+    void charging(bool state) {
+        batteryVoltage(Driver::instance()->batteryVoltage());
+    }
+
+    void lowBattery() {
+        // TODO Not sure what to do here
+    }
+
+    /** Displays the battery capacity icon and charging status.
+     */
+    void batteryVoltage(uint16_t value) {
+        bool charging = Driver::instance()->charging() | true;
+        uint8_t pct = (value < 330) ? 0 : (value - 330) * 100 / 90;
+        if (pct > 90) {
+            battery_->setText(charging ? "" : "");
+            battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_OK : COLOR_HEADER_DEFAULT);
+        } else if (pct > 75) {
+            battery_->setText(charging ? "" : "");
+            battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_OK : COLOR_HEADER_DEFAULT);
+        } else if (pct > 50) {
+            battery_->setText(charging ? "" : "");
+            battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_OK : COLOR_HEADER_DEFAULT);
+        } else if (pct > 25) {
+            battery_->setText(charging ? "" : "");
+            battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_WARN : COLOR_HEADER_DEFAULT);
+
+            battery_->setBrush(QColor{0xff, 0x7f, 0});
+        } else {
+            battery_->setText(charging ? "" : "");
+            battery_->setBrush(COLOR_BATTERY_CRITICAL);
+        }
+        batteryPct_->setText(QString::number(pct)); 
+    }
+
+    void tempAvr(uint16_t value) {}
+    void tempAccel(uint16_t value) {}
+
 private:
     explicit GUI(QWidget *parent = nullptr);
 
     ~GUI() override;
 
-    QGraphicsView * headerView_;
-    QGraphicsView * pageView_;
-    QGraphicsView * footerView_;
+    void initializeOverlay() {
+        overlay_->setSceneRect(QRectF{0,0,320,240});
 
-    Header * header_;
-    Footer * footer_;
+        auto iconsFont = QFont{"Iosevka", 14};
+        auto textFont = QFont{"Iosevka", 10};
+        battery_ = overlay_->addSimpleText("", iconsFont);
+        wifi_ = overlay_->addSimpleText("直", iconsFont);
+        wifi_->setBrush(COLOR_HEADER_DEFAULT);
+        volume_ = overlay_->addSimpleText("", iconsFont);
+        batteryPct_ = overlay_->addSimpleText("", textFont);
+        batteryPct_->setBrush(Qt::darkGray);
+        wifiSSID_ = overlay_->addSimpleText("Internet 10", textFont);
+        wifiSSID_->setBrush(Qt::darkGray);
+        volumePct_ = overlay_->addSimpleText("60", textFont);
+        volumePct_->setBrush(Qt::darkGray);
+        headphones(true);
+        batteryVoltage(390);
+        repositionOverlay();
+    }
+
+    void repositionOverlay() {
+        qreal left = 320;
+        if (overlayDetails_) {
+            left -= batteryPct_->boundingRect().width();
+            batteryPct_->setPos(left, 5);
+            left -= 2;
+        }
+        left -= battery_->boundingRect().width();
+        battery_->setPos(left, 0);
+        left -= 2;
+        if (overlayDetails_) {
+            left -= wifiSSID_->boundingRect().width();
+            wifiSSID_->setPos(left, 5);
+            left -= 2;
+        }
+        left -= wifi_->boundingRect().width();
+        wifi_->setPos(left, 0);
+        left -= 2;
+        if (overlayDetails_) {
+            left -= volumePct_->boundingRect().width();
+            volumePct_->setPos(left, 5);
+            left -= 2;
+        }
+        left -= volume_->boundingRect().width();
+        volume_->setPos(left, 0);
+    }
+
+    QGraphicsView * pageView_;
+    QGraphicsView * overlayView_;
+
+    // the overlay scene and its elements
+    QGraphicsScene * overlay_;
+    bool overlayDetails_ = false;
+    QGraphicsSimpleTextItem * battery_;
+    QGraphicsSimpleTextItem * batteryPct_;
+    QGraphicsSimpleTextItem * wifi_;
+    QGraphicsSimpleTextItem * wifiSSID_;
+    QGraphicsSimpleTextItem * volume_;
+    QGraphicsSimpleTextItem * volumePct_;
+
+    
+
+    //Header * header_;
+    //Footer * footer_;
 
     Menu menu_;
     Menu adminMenu_;
+
+    static GUI * singleton_;
 
 }; // GUI
 

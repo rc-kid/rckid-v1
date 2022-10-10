@@ -11,6 +11,45 @@
 
 #include "driver.h"
 
+namespace foo {
+
+/** Menu implementation. 
+ 
+    Each menu contains a number of items, where each item is a text and a pixmap.
+ */
+class Menu : QObject {
+    Q_OBJECT
+public:
+    class Item; 
+
+    Menu() = default;
+
+    ~Menu();
+
+    bool empty() const { return items_.empty(); }
+
+    size_t size() const { return items_.size(); }
+
+    Item const * operator[](size_t index) const { return items_[index]; }
+
+signals:
+
+protected:
+
+
+    std::vector<Item *> items_;
+
+}; // Menu
+
+class Menu::Item {
+public:
+    QString * text_;
+    QPixmap * img_;
+}; 
+
+
+
+} // namespace foo
 
 
 class Menu {

@@ -61,8 +61,25 @@ public:
 
     bool headphones() const { return headphones_; }
 
+
+    bool charging() const { return charging_; }
+
     uint16_t batteryVoltage() const { return batteryVoltage_; }
-    uint8_t batteryVoltagePct() const { return batteryVoltage_ - 330; }
+
+    // amixer set Headphone 90
+    // mute 
+    // unmute
+    //void setVolume(uint8_t pct);
+
+    // TODO add wifi settings same way the volume is added
+
+    // danger danger - this is permanent...
+
+    //sudo rfkill block wifi
+    //sudo rfkill block bluetooth
+
+    //sudo rfkill unblock wifi
+    //sudo rfkill unblock bluetooth
 
 signals:
 

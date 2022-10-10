@@ -6,6 +6,7 @@
 #include "gui.h"
 #include "debug_info.h"
 
+GUI * GUI::singleton_ = nullptr;
 GUI::Footer * GUI::Footer::singleton_ = nullptr;
 
 int GUI::exec(int argc, char * argv[]) {
@@ -23,21 +24,16 @@ int GUI::exec(int argc, char * argv[]) {
 
 GUI::GUI(QWidget *parent):
     QMainWindow{parent},
-    headerView_{new QGraphicsView{this}},
     pageView_{new QGraphicsView{this}},
-    footerView_{new QGraphicsView{this}},
-    header_{new Header{}},
-    footer_{new Footer{}} {
+    overlayView_{new QGraphicsView{this}},
+    overlay_{new QGraphicsScene{this}} {
+    overlayView_->setStyleSheet("background: transparent;");
+    singleton_ = this;
     setFixedSize(QSize{320,240});
-    headerView_->setGeometry(QRect{0,0,320,24});
-    headerView_->setFrameStyle(QFrame::NoFrame);
-    pageView_->setGeometry(QRect{0,24,320,192});
+    overlayView_->setGeometry(QRect{0,0,320,240});
+    overlayView_->setFrameStyle(QFrame::NoFrame);
+    pageView_->setGeometry(QRect{0,0,320,240});
     pageView_->setFrameStyle(QFrame::NoFrame);
-    footerView_->setGeometry(QRect{0,216,320,24});
-    footerView_->setFrameStyle(QFrame::NoFrame);
-    headerView_->setScene(header_);
-    footerView_->setScene(footer_);
-
     menu_.addItem(new Menu::Item{"Games", "assets/images/001-game-controller.png"});
     menu_.addItem(new Menu::Item{"Music", "assets/images/003-music.png"});
     menu_.addItem(new Menu::Item{"Videos", "assets/images/005-film-slate.png"});
@@ -56,10 +52,14 @@ GUI::GUI(QWidget *parent):
     adminMenu_.addItem(new Menu::Item{"Settings", "assets/images/013-settings.png", settings});
 
 
+    initializeOverlay();
+    overlayView_->setScene(overlay_);
+
+
     
     //auto c = new DebugInfo();
     auto c = new Carousel();
-    c->setMenu(& adminMenu_);
+    c->setMenu(& menu_);
     /*
     c->addElement(Carousel::Element{"Games", "assets/images/gamepad.png"});
     c->addElement(Carousel::Element{"Music", "assets/images/music.png"});
@@ -76,8 +76,8 @@ GUI::GUI(QWidget *parent):
 }
 
 GUI::~GUI() {
-    delete header_;
-    delete footer_;
+    //delete header_;
+    //delete footer_;
 }
 
 #if (defined ARCH_MOCK)

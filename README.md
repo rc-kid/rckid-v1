@@ -9,6 +9,8 @@ Handheld device for kids that provides the following:
 
 Based on RPi Zero 2W, SPI display and nrf24l01p and/or sx1278 for comms
 
+
+
 # Software
 
 ## Main GUI

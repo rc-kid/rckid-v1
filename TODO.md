@@ -49,3 +49,16 @@
 
 > https://martybugs.net/wireless/rubberducky.cgi -- site that seems to have decent info on antennas
 
+
+
+## RPI App
+
+- rewrite the menu hierarchy so that lazy menu is better supported
+- make footer and header directly part of GUI, no need for separate classes
+- down selects, up goes back in the menu hierarchy for nicer shortcuts 
+- add gauge control
+
+- then start playing with avr interop (brightness, etc.)
+- turn off/stuff
+- multimedia player
+- microphone reading

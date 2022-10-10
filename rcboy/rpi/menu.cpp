@@ -27,6 +27,7 @@ Carousel::Carousel():
     aItem_->setDuration(500);
     aItem_->setStartValue(0);
     aItem_->setEndValue(100);
+    aItem_->setEasingCurve(QEasingCurve::InOutQuad);    
     connect(aItem_, & QPropertyAnimation::finished, this, & Carousel::itemChangeDone);
     aMenu_ = new QPropertyAnimation{this, "menuChangeStep"};
     aMenu_->setDuration(500);
