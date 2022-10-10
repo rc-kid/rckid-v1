@@ -40,9 +40,9 @@ cmake .. -DARCH_RPI= -DCMAKE_BUILD_TYPE=Release
 make 
 # add the udev rule for the gamepad
 cd ..
-sudo cp sd/99-rcboy-gamepad.rules /etc/udev/rules/99-rcboy-gamepad.rules
+sudo cp sd/99-rcboy-gamepad.rules /etc/udev/rules.d/99-rcboy-gamepad.rules
 
 # Turn off default retropie startup, instead start X with rcboy as the only app
 sudo cp sd/autostart.sh /opt/retropie/configs/all/autostart.sh
-cp sd/.xinitrc /home/pi/.xinitrc
+sudo cp sd/.xinitrc /root/.xinitrc
 
