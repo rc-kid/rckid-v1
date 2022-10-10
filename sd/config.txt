@@ -2,59 +2,39 @@
 # http://rpf.io/configtxt
 # Some settings may impact device functionality. See link above for details
 
-# uncomment if you get no picture on HDMI for a default "safe" mode
-#hdmi_safe=1
-
-# uncomment this if your display has a black border of unused pixels visible
-# and your display can output without overscan
-#disable_overscan=1
-
-# uncomment the following to adjust overscan. Use positive numbers if console
-# goes off screen, and negative if there is too much border
-#overscan_left=16
-#overscan_right=16
-#overscan_top=16
-#overscan_bottom=16
-
-# uncomment to force a console size. By default it will be display's size minus
-# overscan.
-#framebuffer_width=1280
-#framebuffer_height=720
-
-# uncomment if hdmi display is not detected and composite is being output
-#hdmi_force_hotplug=1
-
-# uncomment to force a specific HDMI mode (this will force VGA)
-#hdmi_group=1
-#hdmi_mode=1
-
-# uncomment to force a HDMI mode rather than DVI. This can make audio work in
-# DMT (computer monitor) modes
-#hdmi_drive=2
-
-# uncomment to increase signal to HDMI, if you have interference, blanking, or
-# no display
-#config_hdmi_boost=4
-
-# uncomment for composite PAL
-#sdtv_mode=2
-
 #uncomment to overclock the arm. 700 MHz is the default.
 #arm_freq=800
 
-# Uncomment some or all of these to enable the optional hardware interfaces
+# Enable I2C, set default baud rate to 400k
 dtparam=i2c_arm=on,i2c_arm_baudrate=400000
-#dtparam=i2s=on
-#dtparam=spi=on
 
-# Uncomment this to enable infrared communication.
-#dtoverlay=gpio-ir,gpio_pin=17
-#dtoverlay=gpio-ir-tx,gpio_pin=18
+# Enable SPI 1 used for NRF, set cs0 pin. We do not enable SPI0 as that is used by the framebuffer display driver direcly and does not need to be setup
+dtoverlay=spi1-1cs,cs0_pin=16
 
-# Additional overlays and parameters are documented /boot/overlays/README
+# Enable the UART and disable bluetooth to make sure that we use the full UART on programming the AVR (does not work with the simple one)
+enable_uart=1
+dtoverlay=disable-bt
 
-# Enable audio (loads snd_bcm2835)
+# Enable audio (loads snd_bcm2835) and set PWM outputs on alternate pins
 dtparam=audio=on
+dtoverlay=audremap,enable_jack=on
+
+# Make booting a bit faster, disable splash, disable boot delay and overclock the SD card for faster disk 
+disable_splash=1
+boot_delay=0
+dtparam=sd_overclock=100
+
+# Specify the video settings, fix display size and set a HDMI mode appropriately (although it is not a valid mode and HDMI won't work). Max GPU memory (emulators will be happy)
+framebuffer_width=320
+framebuffer_height=240
+hdmi_force_hotplug=1
+hdmi_cvt=320 240 60 1 0 0 0
+hdmi_group=2
+hdmi_mode=87
+gpu_mem=128
+
+
+# TODO are those needed? 
 
 [pi4]
 # Enable DRM VC4 V3D driver on top of the dispmanx display stack
@@ -67,20 +47,3 @@ max_framebuffers=2
 #gpu_mem_512=256
 #gpu_mem_1024=256
 overscan_scale=1
-
-disable_splash=1
-boot_delay=0
-dtparam=sd_overclock=100
-
-dtoverlay=spi1-2cs,cs0_pin=16,cs1_pin=26
-dtoverlay=audremap,enable_jack=on
-dtoverlay=disable-bt
-
-framebuffer_width=320
-framebuffer_height=240
-hdmi_force_hotplug=1
-hdmi_cvt=320 240 60 1 0 0 0
-hdmi_group=2
-hdmi_mode=87
-gpu_mem=128
-enable_uart=1

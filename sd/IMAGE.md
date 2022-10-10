@@ -2,17 +2,32 @@
 
 > TODO provide a download of the full rpi image as part of the project with all this setup. Follow this guide only when building new image. 
 
-Download RaspberryPi OS Imager and select the Retropie distribution for Raspberry pi 2 W. Then press `c-s-X` before writing to the immage to set additional options. Enable SSH, set user password and set WiFi settings. 
+Download RaspberryPi OS Imager and select the Retropie distribution for Raspberry pi 2 W. Flash the image on the SD card and then reinsert the card. Its `boot` partition will be mounted. Edit the default networks the RPI should connect to in the `sd/wpa_supplicant.conf` (higher priority is better). Then copy the `wpa_supplicant.conf` and `ssh` files from the `sd` directory to the boot partition on the SD card. Insert the card to rpi and power on. 
 
-> The extra settings seem not to work for retropie. Check this: https://retropie.org.uk/docs/Wifi/
+> The extra settings dialog accessible with `c-s-X` does not seem to actually do anything, which is why the above steps are done manually. (Manual settings from [here][https://retropie.org.uk/docs/Wifi/])
+
+To connect to the board, determine its ip address and ssh with username `pi` and password `raspberry`. 
+
+Then run the following:
+
+    sudo apt-get update
+    sudo apt-get upgrade
+    sudo apt-get install mc htop tmux git cmake
+    git clone git@github.com:zduka/rcboy.git
+
+When done, run the rest of the SD image setup (see the script file for details):
+
+    cd rcboy
+    bash sd/install.sh
+
+
+
 
 
 Password raspberry
 
 When written, boot up the rpi, wait for a bit and then ssh to it and run the following commands to update the rpi:
 
-    sudo apt-get update
-    sudo apt-get upgrade
     
 Then install what we need, first some basic utilities to keep me happy in the image:
 
@@ -34,6 +49,7 @@ Install the ili9341 driver and build it:
 Add fcbp as a service:
 
     sudo cp ~/rcboy/sd/ili9341.service /lib/systemd/system/ili9341.service
+    sudo systemctl enable ili9341
 
 Software necessary for the rcboy app:
 

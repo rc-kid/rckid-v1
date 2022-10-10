@@ -1,0 +1,1 @@
+startx -s 0
