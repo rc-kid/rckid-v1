@@ -44,5 +44,5 @@ sudo cp sd/99-rcboy-gamepad.rules /etc/udev/rules.d/99-rcboy-gamepad.rules
 
 # Turn off default retropie startup, instead start X with rcboy as the only app
 sudo cp sd/autostart.sh /opt/retropie/configs/all/autostart.sh
+cp sd/.xinitrc /home/pi/.xinitrc
 sudo cp sd/.xinitrc /root/.xinitrc
-
