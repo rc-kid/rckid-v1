@@ -28,7 +28,6 @@
 ## RPI
 
 - rewrite the menu hierarchy so that lazy menu is better supported
-- down selects, up goes back in the menu hierarchy for nicer shortcuts 
 - add gauge control
 
 - then start playing with avr interop (brightness, etc.)
@@ -42,6 +41,7 @@
 - how should the volume buttons be reported on the gamepad, if at all
 - debounce buttons
 - joystick seems to work, but the responsivity is not the best and it seems some events are missed, check once not on breadboard I guess
+- add repeat to gamepad keys (configurable)
 
 # Remote 
 

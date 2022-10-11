@@ -9,7 +9,28 @@ Handheld device for kids that provides the following:
 
 Based on RPi Zero 2W, SPI display and nrf24l01p and/or sx1278 for comms
 
+## Build
 
+To build on Raspberry pi, create SD card image according to `sd/IMAGE.md`. This also installs all the prerequisites for building the rpi app and flashing the AVR. 
+
+> As building on rpi is clumsy for development, most of rcboy can be developed on a normal computer (tested on Windows 11 WSL) and then uploaded to the rpi over WiFi. The repository contains tasks and build scripts necessary for such a setup using Visual Studio Code and can be easily adapted to different IDEs/editors.
+
+### Flashing the AVR
+
+> TODO
+
+### Adding contents
+
+> TODO
+
+## Hardware Assembly
+
+
+
+### Notes to Self 
+
+- when stuff does not work, double and tripple check that all pins are properly soldered. Obviously no shorts, but weak bonds will result is horrible noise and/or non-functional elements
+- a variant of the above, when soldering multiple PCBs together via holes, be extra sure that all PCBs actually have proper contact
 
 # Software
 

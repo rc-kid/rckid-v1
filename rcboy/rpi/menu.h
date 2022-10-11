@@ -11,72 +11,16 @@
 
 #include "driver.h"
 
-namespace foo {
 
-/** Menu implementation. 
- 
-    Each menu contains a number of items, where each item is a text and a pixmap. 
-
-    - static menus created by the program
-    - dynamic menus created only when selected, i.e. the menu is created, the text is filled in, but the pixmaps are only loaded as needed
-    - dynamic ones are for the games, for the music and for the videos. 
-
-    
- */
-class Menu : QObject {
-    Q_OBJECT
-public:
-    class Item;
-
-    Menu() = default;
-
-    //~Menu();
-
-    bool empty() const { return items_.empty(); }
-
-    size_t size() const { return items_.size(); }
-
-    Item const * operator[](size_t index) const { return items_[index]; }
-
-signals:
-
-protected:
-
-
-    std::vector<Item *> items_;
-
-}; // Menu
-
-/** Menu item. 
-
-    Consists of the item text and item's pixmap image. The text must be known, while the pixmap can be left undefined, in which case it might be filled by the menu when needed
-
- */
-class Menu::Item {
-public:
-    QString text_;
-    QPixmap * img_;
-}; 
-
-
-
-} // namespace foo
 
 
 class Menu {
 public:
     class Item;
-    class LazyItem;
 
     Menu() = default;
 
     ~Menu();
-
-    Menu * parent() const {
-        return parent_;
-    }
-
-    size_t getSubmenuIndex(Menu * child) const;
 
     bool empty() const { return items_.empty(); }
 
@@ -85,7 +29,6 @@ public:
     Item const * operator[](size_t index) const { return items_[index]; }
 
     void addItem(Item * item);
-
 
 private:
 
@@ -99,62 +42,31 @@ class Menu::Item {
 public:
 
     Item(std::string const & text, std::string const & img):
-        text_{new QString{text.c_str()}},
-        img_{new QPixmap{img.c_str()}} { 
+        text_{QString{text.c_str()}},
+        imgSource_{img} { 
     }
 
-    Item(std::string const & text, std::string const & img, Menu * menu):
-        text_{new QString{text.c_str()}},
-        img_{new QPixmap{img.c_str()}},
-        menu_{menu} { 
+    QString const & text() const {
+        return text_;
     }
 
-    virtual ~Item() {
-        delete text_;
+    QPixmap const & img() const {
+        if (img_ == nullptr)
+            img_ = new QPixmap{imgSource_.c_str()};
+        return * img_;
+    }
+
+    ~Item() {
         delete img_;
-        delete menu_;
     }
-
-    virtual Menu * menu() const { return menu_; }
-
-    virtual QString const & text() const { return *text_; }  
-
-    virtual QPixmap const & img() const { return *img_; }
 
 protected:
     Item() = default;
 
-    mutable QString * text_ = nullptr;
+    QString text_;
+    std::string imgSource_; 
     mutable QPixmap * img_ = nullptr;
-    mutable Menu * menu_ = nullptr;
 }; // Menu::Item
-
-class Menu::LazyItem : public Menu::Item {
-public:
-
-    Menu * menu() const override { 
-        if (menu_ == nullptr)
-            menu_ = initializeMenu();
-        return menu_; 
-    }
-
-    QString const & text() const override { 
-        if (text_ == nullptr) 
-            text_ = initializeText();
-        return *text_; 
-    }  
-
-    QPixmap const & img() const override { 
-        if (img_ == nullptr) 
-            img_ = initializeImg();
-        return *img_; 
-    }
-
-protected:
-   virtual QString * initializeText() const = 0;
-   virtual QPixmap * initializeImg() const = 0;
-   virtual Menu * initializeMenu() const = 0;
-}; // Menu::LazyItem
 
 
 /** The carousel controller. 
@@ -170,17 +82,7 @@ class Carousel : public QGraphicsScene {
     Q_PROPERTY(qreal menuChangeStep READ getMenuChangeStep WRITE menuChangeStep)
 public:
 
-    explicit Carousel();
-
-    Menu * menu() const { return menu_; }
-
-    void setMenu(Menu * menu) { 
-        menu_ = menu;
-        if (menu_->empty())
-            showEmpty();
-        else
-            showItem(0);
-    }
+    explicit Carousel(Menu * menu);
 
     void showItem(size_t i) {
         if (menu_ == nullptr || menu_->empty())
@@ -222,42 +124,35 @@ public:
         aItem_->start();
     }
 
-    void select() {
-        if (menu_ == nullptr || menu_->empty())
-            return;
-        auto child = (*menu_)[i_]->menu();
-        if (child == nullptr)
-            return;
-        if (child->empty()) {
+    Menu * menu() const { return menu_; }
+
+    void setMenu(Menu * menu) { setMenu(menu, 0); }
+
+    void setMenu(Menu * menu, size_t item) {
+        if (menu->empty()) {
             img_[1]->setPixmap(empty_);
             text_[1]->setText("Empty...");
         } else {
-            img_[1]->setPixmap((*child)[0]->img());
-            text_[1]->setText((*child)[0]->text());
+            img_[1]->setPixmap((*menu)[item]->img());
+            text_[1]->setText((*menu)[item]->text());
         }
+        // make the new item completely opaque and place it on screen
         img_[1]->setOpacity(0);
         text_[1]->setOpacity(0);
         textWidth_[1] = text_[1]->boundingRect().width();
         text_[1]->setPos((320 - textWidth_[1]) / 2, 145);
         img_[1]->setPos(96,12);
-        aDir_ = -1;
+        menu_ = menu;
+        i_ = item;
         aMenu_->start();
     }
 
-    void back() {
-        if (menu_ == nullptr || menu_->parent() == nullptr)
-            return;
-        aDir_ = menu_->parent()->getSubmenuIndex(menu_);
-        auto prev = (*(menu_->parent()))[aDir_];
-        img_[1]->setPixmap(prev->img());
-        text_[1]->setText(prev->text());
-        img_[1]->setOpacity(0);
-        text_[1]->setOpacity(0);
-        textWidth_[1] = text_[1]->boundingRect().width();
-        text_[1]->setPos((320 - textWidth_[1]) / 2, 145);
-        img_[1]->setPos(96,12);
-        aMenu_->start();
-    }
+signals:
+
+    /** Triggered when a */
+    void selected(size_t index, Menu::Item const * item);
+
+    void back();
 
 private slots:
 
@@ -271,18 +166,16 @@ private slots:
             nextItem(); 
     }
 
-    void buttonThumb(bool state) {
+    void buttonStart(bool state) {
         if (state && ! busy()) 
-            select();
+            selectCurrent();
     }
 
     void buttonB(bool state) {
         if (state && ! busy()) 
-            back();
+            emit back();
     }
     
-    // TODO actual select
-
     void itemChangeDone() {
         std::swap(img_[0], img_[1]);
         std::swap(text_[0], text_[1]);
@@ -302,13 +195,6 @@ private slots:
         std::swap(img_[0], img_[1]);
         std::swap(text_[0], text_[1]);
         std::swap(textWidth_[0], textWidth_[1]);
-        if (aDir_ == -1) { // select
-            menu_ = (*menu_)[i_]->menu();
-            i_ = 0;
-        } else { // back, aDir is the offset of the elment
-            menu_ = menu_->parent();
-            i_ = aDir_;
-        }
     }
 
 private:
@@ -321,6 +207,10 @@ private:
         textWidth_[0] = text_[0]->boundingRect().width();
         text_[0]->setPos((320 - textWidth_[0]) / 2, 145);
         img_[0]->setPos(96,12);
+    }
+
+    void selectCurrent() {
+        emit selected(i_, (*menu_)[i_]);
     }
 
 
@@ -349,10 +239,13 @@ private:
 
     void menuChangeStep(qreal x) {
         aStep_ = x;
-        text_[0]->setOpacity((100 - aStep_) / 100);
-        img_[0]->setOpacity((100 - aStep_) / 100);
-        text_[1]->setOpacity(aStep_ / 100);
-        img_[1]->setOpacity(aStep_ / 100);
+        if (aStep_ < 100) {
+            text_[0]->setOpacity((100 - aStep_) / 100);
+            img_[0]->setOpacity((100 - aStep_) / 100);
+        } else {
+            text_[1]->setOpacity((aStep_ - 100) / 100);
+            img_[1]->setOpacity((aStep_ - 100) / 100);
+        }
     }
 
     QPropertyAnimation * aItem_ = nullptr;

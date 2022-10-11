@@ -17,10 +17,6 @@
 #define COLOR_BATTERY_WARN QColor{255, 127, 0}
 #define COLOR_BATTERY_CRITICAL QColor{255, 0, 0}
 
-
-
-
-
 /** RCBoy's launcher main window. 
  
     Contains the overlay with header and footer displaying common information and the main page's graphics view for the actual contents. 
@@ -169,7 +165,10 @@ private:
     //Header * header_;
     //Footer * footer_;
 
+    /** Main menu. 
+     */
     Menu menu_;
+    /** Admin menu (activated by simultaneous volume up and down press). Power management, wifi and advanced functions. */
     Menu adminMenu_;
 
     static GUI * singleton_;

@@ -5,21 +5,13 @@ Menu::~Menu() {
         delete item;
 }
 
-size_t Menu::getSubmenuIndex(Menu * child) const {
-    for (size_t i = 0, e = items_.size(); i < e; ++i)
-        if (items_[i]->menu_ == child)
-            return i;
-    return items_.size();
-}
-
 void Menu::addItem(Item * item) {
     items_.push_back(item);
-    if (item->menu_ != nullptr) 
-        item->menu_->parent_ = this;
 }
 
 
-Carousel::Carousel():
+Carousel::Carousel(Menu * menu):
+    menu_{menu},
     empty_{QPixmap{"assets/images/021-poo.png"}} {
     setBackgroundBrush(Qt::black);
     setSceneRect(QRectF{0,0,320,192});
@@ -32,7 +24,7 @@ Carousel::Carousel():
     aMenu_ = new QPropertyAnimation{this, "menuChangeStep"};
     aMenu_->setDuration(500);
     aMenu_->setStartValue(0);
-    aMenu_->setEndValue(100);
+    aMenu_->setEndValue(200);
     connect(aMenu_, & QPropertyAnimation::finished, this, & Carousel::menuChangeDone);
     for (size_t i = 0; i < 2; ++i) {
         img_[i] = addPixmap(QPixmap{});
@@ -41,9 +33,18 @@ Carousel::Carousel():
         text_[i]->setBrush(Qt::white);
     }
     Driver * driver = Driver::instance();
+    connect(driver, & Driver::buttonLeft, this, & Carousel::dpadLeft, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonRight, this, & Carousel::dpadRight, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonStart, this, & Carousel::buttonStart, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonB, this, & Carousel::buttonB, Qt::QueuedConnection);
+
+    connect(driver, & Driver::dpadUp, this, & Carousel::buttonB, Qt::QueuedConnection);
     connect(driver, & Driver::dpadLeft, this, & Carousel::dpadLeft, Qt::QueuedConnection);
     connect(driver, & Driver::dpadRight, this, & Carousel::dpadRight, Qt::QueuedConnection);
-    connect(driver, & Driver::buttonThumb, this, & Carousel::buttonThumb, Qt::QueuedConnection);
-    connect(driver, & Driver::buttonB, this, & Carousel::buttonB, Qt::QueuedConnection);
-    showEmpty();
+    connect(driver, & Driver::dpadDown, this, & Carousel::buttonStart, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonThumb, this, & Carousel::buttonStart, Qt::QueuedConnection);
+    if (menu_ == nullptr || menu_->empty())
+        showEmpty();
+    else
+        showItem(0);
 }

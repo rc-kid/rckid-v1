@@ -40,6 +40,7 @@ GUI::GUI(QWidget *parent):
     menu_.addItem(new Menu::Item{"Walkie-talkie", "assets/images/007-baby-monitor.png"});
     menu_.addItem(new Menu::Item{"Remote", "assets/images/002-rc-car.png"});
 
+    /*
     adminMenu_.addItem(new Menu::Item{"Power Off", "assets/images/011-power-off.png"});
     adminMenu_.addItem(new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"});
     adminMenu_.addItem(new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"});
@@ -50,7 +51,7 @@ GUI::GUI(QWidget *parent):
     settings->addItem(new Menu::Item{"WiFi", "assets/images/016-wifi.png"});
     settings->addItem(new Menu::Item{"Information", "assets/images/014-info.png"});
     adminMenu_.addItem(new Menu::Item{"Settings", "assets/images/013-settings.png", settings});
-
+    */
 
     initializeOverlay();
     overlayView_->setScene(overlay_);
@@ -58,19 +59,7 @@ GUI::GUI(QWidget *parent):
 
     
     //auto c = new DebugInfo();
-    auto c = new Carousel();
-    c->setMenu(& menu_);
-    /*
-    c->addElement(Carousel::Element{"Games", "assets/images/gamepad.png"});
-    c->addElement(Carousel::Element{"Music", "assets/images/music.png"});
-    c->addElement(Carousel::Element{"Movies", "assets/images/video.png"});
-    c->addElement(Carousel::Element{"Walkie-Talkie", "assets/images/walkie-talkie.png"});
-    c->addElement(Carousel::Element{"Remote", "assets/images/rc-car.png"});
-    c->addElement(Carousel::Element{"Torchlight", "assets/images/torch.png"});
-    c->addElement(Carousel::Element{"Baby Monitor", "assets/images/baby-monitor.png"});
-    c->addElement(Carousel::Element{"Settings", "assets/images/settings.png"});
-    c->setElement(0);
-    */
+    auto c = new Carousel(& menu_);
     pageView_->setScene(c);
 
 }
