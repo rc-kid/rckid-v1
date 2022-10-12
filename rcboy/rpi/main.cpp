@@ -11,6 +11,7 @@
 #include "gui.h"
 
 #include "utils/json.h"
+#include "utils/exec.h"
 
 
 int main(int argc, char * argv[]) {
