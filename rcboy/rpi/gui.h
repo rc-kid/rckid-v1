@@ -8,7 +8,8 @@
 #include <QTime>
 
 #include "driver.h"
-#include "menu.h"
+#include "widgets/menu.h"
+#include "widgets/page.h"
 
 #define COLOR_HEADER_DEFAULT QColor{64, 64, 64}
 
@@ -39,61 +40,48 @@ public:
 
     static GUI * instance() { return singleton_; }
 
-#if (defined ARCH_MOCK)
 protected:
-    /** Emulates the gamepad with keyboard on mock systems for easier development. 
-     */
-    void keyPressEvent(QKeyEvent *e) override;
-#endif
 
+    /** Sets active page. 
+     
+        Active page is displayed on the screen and receives user input events.
+     */
+    void setActivePage(Page * page);
 
 private slots:
 
+    void buttonA(bool state) { if (activePage_) activePage_->buttonA(state); }
+    void buttonB(bool state) { if (activePage_) activePage_->buttonB(state); }
+    void buttonX(bool state) { if (activePage_) activePage_->buttonX(state); }
+    void buttonY(bool state) { if (activePage_) activePage_->buttonY(state); }
+    void buttonStart(bool state) { if (activePage_) activePage_->buttonStart(state); }
+    void buttonSelect(bool state) { if (activePage_) activePage_->buttonSelect(state); }
+    void buttonLeft(bool state) { if (activePage_) activePage_->buttonLeft(state); }
+    void buttonRight(bool state) { if (activePage_) activePage_->buttonRight(state); }
+    void buttonVolumeLeft(bool state) {}
+    void buttonVolumeRight(bool state) {}
+    void buttonThumb(bool state) { if (activePage_) activePage_->buttonThumb(state); }
+    void thumbstick(uint8_t x, uint8_t y) { if (activePage_) activePage_->thumbstick(x, y); }
+    void accel(uint8_t x, uint8_t y) { if (activePage_) activePage_->accel(x, y); }
+    void dpadUp(bool state) { if (activePage_) activePage_->dpadUp(state); }
+    void dpadDown(bool state) {if (activePage_) activePage_->dpadDown(state); }
+    void dpadLeft(bool state) {if (activePage_) activePage_->dpadLeft(state); }
+    void dpadRight(bool state) {if (activePage_) activePage_->dpadRight(state); }
+
     // TODO also dependning on the volume it might be muted...
-    void headphones(bool state) {
-        if (state)
-            volume_->setText("");
-        else 
-            volume_->setText("");
-        volume_->setBrush(COLOR_HEADER_DEFAULT);
-    }
+    void headphones(bool state);
 
-    void charging(bool state) {
-        batteryVoltage(Driver::instance()->batteryVoltage());
-    }
+    void charging(bool state);
 
-    void lowBattery() {
-        // TODO Not sure what to do here
-    }
+    void lowBattery();
 
     /** Displays the battery capacity icon and charging status.
      */
-    void batteryVoltage(uint16_t value) {
-        bool charging = Driver::instance()->charging() | true;
-        uint8_t pct = (value < 330) ? 0 : (value - 330) * 100 / 90;
-        if (pct > 90) {
-            battery_->setText(charging ? "" : "");
-            battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_OK : COLOR_HEADER_DEFAULT);
-        } else if (pct > 75) {
-            battery_->setText(charging ? "" : "");
-            battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_OK : COLOR_HEADER_DEFAULT);
-        } else if (pct > 50) {
-            battery_->setText(charging ? "" : "");
-            battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_OK : COLOR_HEADER_DEFAULT);
-        } else if (pct > 25) {
-            battery_->setText(charging ? "" : "");
-            battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_WARN : COLOR_HEADER_DEFAULT);
+    void batteryVoltage(uint16_t value);
 
-            battery_->setBrush(QColor{0xff, 0x7f, 0});
-        } else {
-            battery_->setText(charging ? "" : "");
-            battery_->setBrush(COLOR_BATTERY_CRITICAL);
-        }
-        batteryPct_->setText(QString::number(pct)); 
-    }
+    void tempAvr(uint16_t value);
 
-    void tempAvr(uint16_t value) {}
-    void tempAccel(uint16_t value) {}
+    void tempAccel(uint16_t value);
 
 private:
     explicit GUI(QWidget *parent = nullptr);
@@ -160,173 +148,33 @@ private:
     QGraphicsSimpleTextItem * volume_;
     QGraphicsSimpleTextItem * volumePct_;
 
-    
-
-    //Header * header_;
-    //Footer * footer_;
-
     /** Main menu. 
      */
     Menu menu_;
     /** Admin menu (activated by simultaneous volume up and down press). Power management, wifi and advanced functions. */
     Menu adminMenu_;
 
+
+
+    /** The active page that is being sent gamepad events. 
+     */
+    Page * activePage_ = nullptr;
+
     static GUI * singleton_;
+
+#if (defined ARCH_MOCK)
+private:
+    /** Emulates the gamepad with keyboard on mock systems for easier development. 
+     */
+    void keyPressEvent(QKeyEvent *e) override { keyToGamepad(e, true); }
+    void keyReleaseEvent(QKeyEvent *e) override { keyToGamepad(e, false); };
+
+    void keyToGamepad(QKeyEvent * e, bool state);
+#endif
 
 }; // GUI
 
-/** GUI Header that displays the status bar. 
- 
-    Displays the status bar with information about charging, battery levels, signal strength, volume, etc.
 
-    Time (Alarm) ------------ Speaker/Mute Battery 
- */
-class GUI::Header : public QGraphicsScene {
-    Q_OBJECT
-public:
-    explicit Header() {
-        setFont(QFont{"Iosevka", 12});
-        setBackgroundBrush(Qt::black);
-        //setForegroundPen(Qt::white);
-        setSceneRect(QRectF{0,0,320,24});
-        clock_ = addSimpleText("--:--");
-        clock_->setBrush(Qt::gray);
-        clock_->setFont(QFont{"Iosevka", 10});
-        clock_->setPos(0, 4);
-        batt_ = addText("");
-        //batt_->setHtml("\uf579<small>99</small>");
-        batt_->setDefaultTextColor(Qt::darkGray);
-        batt_->setFont(QFont{"Iosevka", 14});
-        updateStatusLine();
-        timerTimeout();
-        timer_ = new QTimer{this};        
-        connect(timer_, & QTimer::timeout, this, & Header::timerTimeout);
-        timer_->setInterval(1000);
-        timer_->start();
-        Driver * driver = Driver::instance();
-
-        connect(driver, & Driver::headphonesChanged, this, & Header::headphonesChanged, Qt::QueuedConnection);
-        connect(driver, & Driver::chargingChanged, this, & Header::chargingChanged, Qt::QueuedConnection);
-        connect(driver, & Driver::batteryVoltageChanged, this, & Header::batteryVoltageChanged, Qt::QueuedConnection);
-
-
-    }
-
-protected slots:
-
-    void headphonesChanged(bool state);
-    void chargingChanged(bool state);
-    void batteryVoltageChanged(uint16_t value);
-
-private:
-
-    void timerTimeout() {
-        auto t = QTime::currentTime();
-        if (t.second() % 2) 
-            clock_->setText(t.toString("hh:mm"));
-        else
-            clock_->setText(t.toString("hh mm"));
-    }
-
-    void updateStatusLine();
-
-    QTimer * timer_ = nullptr;
-    QGraphicsSimpleTextItem * clock_ = nullptr;
-    QGraphicsTextItem * batt_ = nullptr;
-
-    bool headphones_ = false;
-    bool charging_ = false;
-    size_t batteryPct_ = 55;
-    bool displayDetails_ = false;
-}; 
-
-
-/** GUI Footer
- 
-    The footer displays hints for current controls such as 
- */
-class GUI::Footer : public QGraphicsScene {
-    Q_OBJECT
-    friend class GUI;
-public:
-
-    static Footer * instance() { return singleton_; }
-private:
-    explicit Footer() {
-        setBackgroundBrush(Qt::black);
-        setSceneRect(QRectF{0,0,320,24});
-        addEllipse(QRectF{4,4,16,16}, QPen{Qt::red}, QBrush{Qt::red});
-        singleton_ = this;
-    }
-
-    static Footer * singleton_;
-
-}; 
-
-class Page : public QGraphicsScene {
-    Q_OBJECT
-public:
-    explicit Page() {
-        setBackgroundBrush(Qt::black);
-        setSceneRect(QRectF{0,0,320,192});
-        // connect the driver
-        Driver * driver = Driver::instance();
-        connect(driver, & Driver::buttonA, this, & Page::buttonA, Qt::QueuedConnection);
-        connect(driver, & Driver::buttonB, this, & Page::buttonB, Qt::QueuedConnection);
-        connect(driver, & Driver::buttonX, this, & Page::buttonX, Qt::QueuedConnection);
-        connect(driver, & Driver::buttonY, this, & Page::buttonY, Qt::QueuedConnection);
-        connect(driver, & Driver::buttonStart, this, & Page::buttonStart, Qt::QueuedConnection);
-        connect(driver, & Driver::buttonSelect, this, & Page::buttonSelect, Qt::QueuedConnection);
-        connect(driver, & Driver::buttonLeft, this, & Page::buttonLeft, Qt::QueuedConnection);
-        connect(driver, & Driver::buttonRight, this, & Page::buttonRight, Qt::QueuedConnection);
-        connect(driver, & Driver::buttonVolumeLeft, this, & Page::buttonVolumeLeft, Qt::QueuedConnection);
-        connect(driver, & Driver::buttonVolumeRight, this, & Page::buttonVolumeRight, Qt::QueuedConnection);
-        connect(driver, & Driver::buttonThumb, this, & Page::buttonThumb, Qt::QueuedConnection);
-        connect(driver, & Driver::thumbstick, this, & Page::thumbstick, Qt::QueuedConnection);
-        connect(driver, & Driver::accel, this, & Page::accel, Qt::QueuedConnection);
-        connect(driver, & Driver::dpadUp, this, & Page::dpadUp, Qt::QueuedConnection);
-        connect(driver, & Driver::dpadDown, this, & Page::dpadDown, Qt::QueuedConnection);
-        connect(driver, & Driver::dpadLeft, this, & Page::dpadLeft, Qt::QueuedConnection);
-        connect(driver, & Driver::dpadRight, this, & Page::dpadRight, Qt::QueuedConnection);
-        
-        connect(driver, & Driver::headphonesChanged, this, & Page::headphones, Qt::QueuedConnection);
-        connect(driver, & Driver::chargingChanged, this, & Page::charging, Qt::QueuedConnection);
-        connect(driver, & Driver::lowBatteryChanged, this, & Page::lowBattery, Qt::QueuedConnection);
-        connect(driver, & Driver::batteryVoltageChanged, this, & Page::batteryVoltage, Qt::QueuedConnection);
-        connect(driver, & Driver::tempAvrChanged, this, & Page::tempAvr, Qt::QueuedConnection);
-        connect(driver, & Driver::tempAccelChanged, this, & Page::tempAccel, Qt::QueuedConnection);
-
-    }
-
-protected slots:
-
-    virtual void buttonA(bool state) {}
-    virtual void buttonB(bool state) {}
-    virtual void buttonX(bool state) {}
-    virtual void buttonY(bool state) {}
-    virtual void buttonStart(bool state) {}
-    virtual void buttonSelect(bool state) {}
-    virtual void buttonLeft(bool state) {}
-    virtual void buttonRight(bool state) {}
-    virtual void buttonVolumeLeft(bool state) {}
-    virtual void buttonVolumeRight(bool state) {}
-    virtual void buttonThumb(bool state) {}
-    virtual void thumbstick(uint8_t x, uint8_t y) {}
-    virtual void accel(uint8_t x, uint8_t y) {}
-    virtual void dpadUp(bool state) {}
-    virtual void dpadDown(bool state) {}
-    virtual void dpadLeft(bool state) {}
-    virtual void dpadRight(bool state) {}
-
-    virtual void headphones(bool state) {}
-    virtual void charging(bool state) {}
-    virtual void lowBattery() {}
-    virtual void batteryVoltage(uint16_t value) {}
-    virtual void tempAvr(uint16_t value) {}
-    virtual void tempAccel(uint16_t value) {}
-
-    
-}; 
 
 
 

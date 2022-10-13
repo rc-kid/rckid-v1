@@ -1,5 +1,6 @@
 #pragma once
 
+#include "widgets/page.h"
 #include "gui.h"
 #include "driver.h"
 
@@ -60,7 +61,7 @@ public:
 
     }
 
-protected slots:
+protected:
 
     void buttonA(bool state) override { updateButton(a_, state); }
     void buttonB(bool state) override { updateButton(b_, state); }
@@ -80,9 +81,9 @@ protected slots:
     void dpadLeft(bool state) override { updateButton(dpadLeft_, state); }
     void dpadRight(bool state) override { updateButton(dpadRight_, state); }
 
-    void batteryVoltage(uint16_t value) override { updateValue(vBatt_, value); }
-    void tempAvr(uint16_t value) override { updateValue(tempAvr_, value); }
-    void tempAccel(uint16_t value) override { updateValue(tempAccel_, value); }
+    void batteryVoltage(uint16_t value) { updateValue(vBatt_, value); }
+    void tempAvr(uint16_t value) { updateValue(tempAvr_, value); }
+    void tempAccel(uint16_t value) { updateValue(tempAccel_, value); }
 
 private:
 

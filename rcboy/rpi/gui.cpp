@@ -5,9 +5,10 @@
 #include <iostream>
 #include "gui.h"
 #include "debug_info.h"
+#include "widgets/carousel.h"
+#include "widgets/gauge.h"
 
 GUI * GUI::singleton_ = nullptr;
-GUI::Footer * GUI::Footer::singleton_ = nullptr;
 
 int GUI::exec(int argc, char * argv[]) {
     auto json = json::parse("67");
@@ -18,6 +19,9 @@ int GUI::exec(int argc, char * argv[]) {
     QFontDatabase::addApplicationFont("assets/fonts/OpenDyslexic.otf");
     QFontDatabase::addApplicationFont("assets/fonts/Iosevka.ttf");
     GUI w{};
+#if (defined ARCH_MOCK)
+    w.grabKeyboard();
+#endif
     w.show();
     return app.exec();
 }
@@ -59,8 +63,42 @@ GUI::GUI(QWidget *parent):
 
     
     //auto c = new DebugInfo();
-    auto c = new Carousel(& menu_);
-    pageView_->setScene(c);
+    //auto c = new Carousel(& menu_);
+
+
+    //pageView_->setScene(c);
+
+    // attach own slots to driver
+    Driver * driver = Driver::instance();
+    connect(driver, & Driver::buttonA, this, & GUI::buttonA, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonB, this, & GUI::buttonB, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonX, this, & GUI::buttonX, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonY, this, & GUI::buttonY, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonStart, this, & GUI::buttonStart, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonSelect, this, & GUI::buttonSelect, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonLeft, this, & GUI::buttonLeft, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonRight, this, & GUI::buttonRight, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonVolumeLeft, this, & GUI::buttonVolumeLeft, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonVolumeRight, this, & GUI::buttonVolumeRight, Qt::QueuedConnection);
+    connect(driver, & Driver::buttonThumb, this, & GUI::buttonThumb, Qt::QueuedConnection);
+    connect(driver, & Driver::thumbstick, this, & GUI::thumbstick, Qt::QueuedConnection);
+    connect(driver, & Driver::accel, this, & GUI::accel, Qt::QueuedConnection);
+    connect(driver, & Driver::dpadUp, this, & GUI::dpadUp, Qt::QueuedConnection);
+    connect(driver, & Driver::dpadDown, this, & GUI::dpadDown, Qt::QueuedConnection);
+    connect(driver, & Driver::dpadLeft, this, & GUI::dpadLeft, Qt::QueuedConnection);
+    connect(driver, & Driver::dpadRight, this, & GUI::dpadRight, Qt::QueuedConnection);
+    
+    connect(driver, & Driver::headphonesChanged, this, & GUI::headphones, Qt::QueuedConnection);
+    connect(driver, & Driver::chargingChanged, this, & GUI::charging, Qt::QueuedConnection);
+    connect(driver, & Driver::lowBatteryChanged, this, & GUI::lowBattery, Qt::QueuedConnection);
+    connect(driver, & Driver::batteryVoltageChanged, this, & GUI::batteryVoltage, Qt::QueuedConnection);
+    connect(driver, & Driver::tempAvrChanged, this, & GUI::tempAvr, Qt::QueuedConnection);
+    connect(driver, & Driver::tempAccelChanged, this, & GUI::tempAccel, Qt::QueuedConnection);
+
+
+    auto c = new Gauge();
+    
+    setActivePage(c);
 
 }
 
@@ -69,90 +107,110 @@ GUI::~GUI() {
     //delete footer_;
 }
 
-#if (defined ARCH_MOCK)
-void GUI::keyPressEvent(QKeyEvent * e) {
-    switch (e->key()) {
-        case Qt::Key_W:
-            emit Driver::instance()->dpadUp(true);
-            emit Driver::instance()->dpadUp(false);
-            break;
-        case Qt::Key_A: 
-            emit Driver::instance()->dpadLeft(true);
-            emit Driver::instance()->dpadLeft(false);
-            break;
-        case Qt::Key_S:
-            emit Driver::instance()->dpadDown(true);
-            emit Driver::instance()->dpadDown(false);
-            break;
-        case Qt::Key_D: 
-            emit Driver::instance()->dpadRight(true);
-            emit Driver::instance()->dpadRight(false);
-            break;
-        case Qt::Key_L:
-            emit Driver::instance()->buttonLeft(true);
-            emit Driver::instance()->buttonLeft(false);
-            break;
-        case Qt::Key_R:
-            emit Driver::instance()->buttonRight(true);
-            emit Driver::instance()->buttonRight(false);
-            break;
-        case Qt::Key_T:
-            emit Driver::instance()->buttonThumb(true);
-            emit Driver::instance()->buttonThumb(false);
-            break;
-        case Qt::Key_B:
-            emit Driver::instance()->buttonB(true);
-            emit Driver::instance()->buttonB(false);
-            break;
+void GUI::setActivePage(Page * page) {
+    if (! activePage_) {
+        pageView_->setScene(page);
+        activePage_ = page;
+        page->onFocus();
+    } else {
 
     }
 }
-#endif
 
 
-void GUI::Header::headphonesChanged(bool state) {
-    headphones_ = state;
-    updateStatusLine();
-}
 
-void GUI::Header::chargingChanged(bool state) {
-    charging_ = state;
-    updateStatusLine();
-}
-
-void GUI::Header::batteryVoltageChanged(uint16_t value) {
-    batteryPct_ = (value - 330);
-    updateStatusLine();
-}
-
-void GUI::Header::updateStatusLine() {
-    auto ss = std::stringstream{};
-    // volume
-    ss << "<span style='color:white'></span>&nbsp;";
-    ss << "<span style='color:white'></span>&nbsp;";
-    ss << "<span style='color:gray'>婢</span>&nbsp;";
-    if (displayDetails_)
-        ss << "<small>4</small>&nbsp;";
-    // wifi - signal strength and WiFi name
-    ss << "<span style='color:blue'>直</span> ";
-    //ss << "<span>睊</span>";
-    if (displayDetails_)
-        ss << "<small>Internet 10 </small>";
-    // battery - charging, or how much is left + pct
-    if (charging_)
-        ss << "<span style='color:white'></span>";
-    else if (batteryPct_ > 90)
-        ss << "<span style='color:green'></span>";
-    else if (batteryPct_ > 70)
-        ss << "<span style='color:green'></span>";
-    else if (batteryPct_ > 50)
-        ss << "<span style='color:green'></span>";
-    else if (batteryPct_ > 20)
-        ss << "<span style='color:orange'></span>";
+void GUI::headphones(bool state) {
+    if (state)
+        volume_->setText("");
     else 
-        ss << "<span style='color:red'></span>";
-    if (displayDetails_)
-        ss << " <small>&nbsp;" << batteryPct_ << "</small>";
-    batt_->setHtml(ss.str().c_str());
-    batt_->setPos(320 - batt_->boundingRect().width(), -4);
+        volume_->setText("");
+    volume_->setBrush(COLOR_HEADER_DEFAULT);
 }
+
+void GUI::charging(bool state) {
+    batteryVoltage(Driver::instance()->batteryVoltage());
+}
+
+void GUI::lowBattery() {
+    // TODO Not sure what to do here
+}
+
+/** Displays the battery capacity icon and charging status.
+ */
+void GUI::batteryVoltage(uint16_t value) {
+    bool charging = Driver::instance()->charging() | true;
+    uint8_t pct = (value < 330) ? 0 : (value - 330) * 100 / 90;
+    if (pct > 90) {
+        battery_->setText(charging ? "" : "");
+        battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_OK : COLOR_HEADER_DEFAULT);
+    } else if (pct > 75) {
+        battery_->setText(charging ? "" : "");
+        battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_OK : COLOR_HEADER_DEFAULT);
+    } else if (pct > 50) {
+        battery_->setText(charging ? "" : "");
+        battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_OK : COLOR_HEADER_DEFAULT);
+    } else if (pct > 25) {
+        battery_->setText(charging ? "" : "");
+        battery_->setBrush(overlayDetails_ ? COLOR_BATTERY_WARN : COLOR_HEADER_DEFAULT);
+
+        battery_->setBrush(QColor{0xff, 0x7f, 0});
+    } else {
+        battery_->setText(charging ? "" : "");
+        battery_->setBrush(COLOR_BATTERY_CRITICAL);
+    }
+    batteryPct_->setText(QString::number(pct)); 
+}
+
+void GUI::tempAvr(uint16_t value) {
+
+}
+
+void GUI::tempAccel(uint16_t value) {
+
+}
+
+#if (defined ARCH_MOCK)
+void GUI::keyToGamepad(QKeyEvent * e, bool state) {
+    switch (e->key()) {
+        case Qt::Key_Up:
+            emit Driver::instance()->dpadUp(state);
+            break;
+        case Qt::Key_Left:
+            emit Driver::instance()->dpadLeft(state);
+            break;
+        case Qt::Key_Down:
+            emit Driver::instance()->dpadDown(state);
+            break;
+        case Qt::Key_Right:
+            emit Driver::instance()->dpadRight(state);
+            break;
+        case Qt::Key_L:
+            emit Driver::instance()->buttonLeft(state);
+            break;
+        case Qt::Key_R:
+            emit Driver::instance()->buttonRight(state);
+            break;
+        case Qt::Key_T:
+            emit Driver::instance()->buttonThumb(state);
+            break;
+        case Qt::Key_A: 
+            emit Driver::instance()->buttonA(state);
+            break;
+        case Qt::Key_B:
+            emit Driver::instance()->buttonB(state);
+            break;
+        case Qt::Key_X: 
+            emit Driver::instance()->buttonX(state);
+            break;
+        case Qt::Key_Y:
+            emit Driver::instance()->buttonY(state);
+            break;
+        case Qt::Key_9:
+            emit Driver::instance()->buttonVolumeLeft(state);
+            break;
+        case Qt::Key_0:
+            emit Driver::instance()->buttonVolumeRight(state);
+            break;
+    }
+}
+#endif

@@ -27,6 +27,8 @@
 
 ## RPI
 
+- make carousel inherit from page
+
 - what is the stop-job at shutdown and how can we make shutdown faster & detect it on avr
 
 - rewrite the menu hierarchy so that lazy menu is better supported
