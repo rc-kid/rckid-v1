@@ -1,3 +1,4 @@
+#pragma once
 #include <QGraphicsView>
 #include <QGraphicsScene>
 
@@ -49,6 +50,12 @@ protected:
     void buttonRight(bool state) override { if (state) next(); }
     void dpadLeft(bool state) override { if (state) prev(); }
     void dpadRight(bool state)  override { if (state) next(); }
+
+    void setOpacity(qreal value) override {
+        text_->setOpacity(value);
+        gauge_->setOpacity(value);
+        gaugeValue_->setOpacity(value);
+    }
 
 private:
 

@@ -4,12 +4,15 @@
 #include <QGraphicsView>
 #include <QGraphicsScene>
 #include <QGraphicsTextItem>
+#include <QPropertyAnimation>
 #include <QTimer>
 #include <QTime>
 
 #include "driver.h"
 #include "widgets/menu.h"
 #include "widgets/page.h"
+#include "widgets/carousel.h"
+#include "widgets/gauge.h"
 
 #define COLOR_HEADER_DEFAULT QColor{64, 64, 64}
 
@@ -32,6 +35,8 @@
  */
 class GUI : public QMainWindow {
     Q_OBJECT
+
+    Q_PROPERTY(qreal pageChangeStep READ getPageChangeStep WRITE pageChangeStep)
 public:
     class Header;
     class Footer;
@@ -41,6 +46,13 @@ public:
     static GUI * instance() { return singleton_; }
 
 protected:
+
+    /** Displays given menu as the main page. 
+     */
+    void setMenu(Menu * menu);
+
+
+
 
     /** Sets active page. 
      
@@ -88,52 +100,24 @@ private:
 
     ~GUI() override;
 
-    void initializeOverlay() {
-        overlay_->setSceneRect(QRectF{0,0,320,240});
 
-        auto iconsFont = QFont{"Iosevka", 14};
-        auto textFont = QFont{"Iosevka", 10};
-        battery_ = overlay_->addSimpleText("", iconsFont);
-        wifi_ = overlay_->addSimpleText("直", iconsFont);
-        wifi_->setBrush(COLOR_HEADER_DEFAULT);
-        volume_ = overlay_->addSimpleText("", iconsFont);
-        batteryPct_ = overlay_->addSimpleText("", textFont);
-        batteryPct_->setBrush(Qt::darkGray);
-        wifiSSID_ = overlay_->addSimpleText("Internet 10", textFont);
-        wifiSSID_->setBrush(Qt::darkGray);
-        volumePct_ = overlay_->addSimpleText("60", textFont);
-        volumePct_->setBrush(Qt::darkGray);
-        headphones(true);
-        batteryVoltage(390);
-        repositionOverlay();
-    }
 
-    void repositionOverlay() {
-        qreal left = 320;
-        if (overlayDetails_) {
-            left -= batteryPct_->boundingRect().width();
-            batteryPct_->setPos(left, 5);
-            left -= 2;
-        }
-        left -= battery_->boundingRect().width();
-        battery_->setPos(left, 0);
-        left -= 2;
-        if (overlayDetails_) {
-            left -= wifiSSID_->boundingRect().width();
-            wifiSSID_->setPos(left, 5);
-            left -= 2;
-        }
-        left -= wifi_->boundingRect().width();
-        wifi_->setPos(left, 0);
-        left -= 2;
-        if (overlayDetails_) {
-            left -= volumePct_->boundingRect().width();
-            volumePct_->setPos(left, 5);
-            left -= 2;
-        }
-        left -= volume_->boundingRect().width();
-        volume_->setPos(left, 0);
-    }
+
+
+
+
+    QPropertyAnimation * aPage_ = nullptr;
+
+    qreal aStep_;
+
+    qreal getPageChangeStep() const { return aStep_; }
+
+    void pageChangeStep(qreal x);
+
+
+    void initializeOverlay();
+
+    void repositionOverlay();
 
     QGraphicsView * pageView_;
     QGraphicsView * overlayView_;
@@ -153,12 +137,17 @@ private:
     Menu menu_;
     /** Admin menu (activated by simultaneous volume up and down press). Power management, wifi and advanced functions. */
     Menu adminMenu_;
-
-
+    /** Settings menu.
+     */
+    Menu settingsMenu_;
 
     /** The active page that is being sent gamepad events. 
      */
     Page * activePage_ = nullptr;
+    Page * nextPage_ = nullptr;
+
+    Carousel * carousel_ = nullptr;
+    Gauge * gauge_ = nullptr;
 
     static GUI * singleton_;
 

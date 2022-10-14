@@ -6,9 +6,8 @@
 #include <QPropertyAnimation>
 #include <QTimer>
 
-#include "../driver.h"
-
 #include "menu.h"
+#include "page.h"
 
 /** The carousel controller. 
  
@@ -16,7 +15,7 @@
 
     TODO eventually, add some nice effects, etc., play music and so on. 
  */
-class Carousel : public QGraphicsScene {
+class Carousel : public Page {
     Q_OBJECT
 
     Q_PROPERTY(qreal itemChangeStep READ getItemChangeStep WRITE itemChangeStep)
@@ -44,28 +43,41 @@ signals:
 
     void back();
 
-private slots:
+protected:
 
-    void dpadLeft(bool state) { 
+    void dpadLeft(bool state) override { 
         if (state && ! busy()) 
             prevItem();
     }
     
-    void dpadRight(bool state) { 
+    void dpadRight(bool state) override { 
         if (state && ! busy()) 
             nextItem(); 
     }
 
-    void buttonStart(bool state) {
+    void buttonStart(bool state) override {
         if (state && ! busy()) 
             selectCurrent();
     }
 
-    void buttonB(bool state) {
+    void dpadDown(bool state) override {
+        if (state && ! busy())
+            selectCurrent();
+    }
+
+    void buttonB(bool state) override {
         if (state && ! busy()) 
             emit back();
     }
+
+    void setOpacity(qreal value) override {
+        text_[0]->setOpacity(value);
+        img_[0]->setOpacity(value);
+    }
+   
     
+protected slots:
+
     void itemChangeDone();
 
     void menuChangeDone();
@@ -77,6 +89,9 @@ private:
     void showEmpty();
 
     void selectCurrent() {
+        Menu::Item const * current = (*menu_)[i_];
+        if (current->onSelect())
+            current->onSelect()(current);
         emit selected(i_, (*menu_)[i_]);
     }
 

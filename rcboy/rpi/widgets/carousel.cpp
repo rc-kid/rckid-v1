@@ -22,17 +22,7 @@ Carousel::Carousel(Menu * menu):
         text_[i]->setFont(QFont{"OpenDyslexic Nerd Font", 22});
         text_[i]->setBrush(Qt::white);
     }
-    Driver * driver = Driver::instance();
-    connect(driver, & Driver::buttonLeft, this, & Carousel::dpadLeft, Qt::QueuedConnection);
-    connect(driver, & Driver::buttonRight, this, & Carousel::dpadRight, Qt::QueuedConnection);
-    connect(driver, & Driver::buttonStart, this, & Carousel::buttonStart, Qt::QueuedConnection);
-    connect(driver, & Driver::buttonB, this, & Carousel::buttonB, Qt::QueuedConnection);
 
-    connect(driver, & Driver::dpadUp, this, & Carousel::buttonB, Qt::QueuedConnection);
-    connect(driver, & Driver::dpadLeft, this, & Carousel::dpadLeft, Qt::QueuedConnection);
-    connect(driver, & Driver::dpadRight, this, & Carousel::dpadRight, Qt::QueuedConnection);
-    connect(driver, & Driver::dpadDown, this, & Carousel::buttonStart, Qt::QueuedConnection);
-    connect(driver, & Driver::buttonThumb, this, & Carousel::buttonStart, Qt::QueuedConnection);
     if (menu_ == nullptr || menu_->empty())
         showEmpty();
     else
@@ -144,11 +134,8 @@ void Carousel::itemChangeStep(qreal x) {
 
 void Carousel::menuChangeStep(qreal x) {
     aStep_ = x;
-    if (aStep_ < 100) {
-        text_[0]->setOpacity((100 - aStep_) / 100);
-        img_[0]->setOpacity((100 - aStep_) / 100);
-    } else {
-        text_[1]->setOpacity((aStep_ - 100) / 100);
-        img_[1]->setOpacity((aStep_ - 100) / 100);
-    }
+    if (aStep_ < 100)
+        setOpacity((100 - aStep_) / 1000);
+    else
+        setOpacity((aStep_ - 100) / 1000);
 }

@@ -12,6 +12,8 @@ protected:
         setSceneRect(QRectF{0,0,320,192});
     }
 
+    virtual void setOpacity(qreal value) {}
+
     virtual void onFocus() {}
     virtual void onBlur() {}
 

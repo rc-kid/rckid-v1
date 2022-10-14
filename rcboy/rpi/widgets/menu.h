@@ -32,9 +32,17 @@ class Menu::Item {
     friend class Menu;
 public:
 
+    using SelectEvent = std::function<void(Item const *)>;
+
     Item(std::string const & text, std::string const & img):
         text_{QString{text.c_str()}},
         imgSource_{img} { 
+    }
+
+    Item(std::string const & text, std::string const & img, SelectEvent onSelect):
+        text_{QString{text.c_str()}},
+        imgSource_{img},
+        onSelect_{onSelect} { 
     }
 
     QString const & text() const {
@@ -47,6 +55,10 @@ public:
         return * img_;
     }
 
+    SelectEvent const & onSelect() const {
+        return onSelect_;
+    }
+
     ~Item() {
         delete img_;
     }
@@ -56,6 +68,7 @@ protected:
 
     QString text_;
     std::string imgSource_; 
+    SelectEvent onSelect_;
     mutable QPixmap * img_ = nullptr;
 }; // Menu::Item
 

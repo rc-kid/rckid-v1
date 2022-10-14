@@ -31,6 +31,13 @@ GUI::GUI(QWidget *parent):
     pageView_{new QGraphicsView{this}},
     overlayView_{new QGraphicsView{this}},
     overlay_{new QGraphicsScene{this}} {
+
+    // page change animation (fade out old, fade in new)
+    aPage_ = new QPropertyAnimation{this, "pageChangeStep"};
+    aPage_->setDuration(500);
+    aPage_->setStartValue(0);
+    aPage_->setEndValue(200);
+
     overlayView_->setStyleSheet("background: transparent;");
     singleton_ = this;
     setFixedSize(QSize{320,240});
@@ -44,18 +51,21 @@ GUI::GUI(QWidget *parent):
     menu_.addItem(new Menu::Item{"Walkie-talkie", "assets/images/007-baby-monitor.png"});
     menu_.addItem(new Menu::Item{"Remote", "assets/images/002-rc-car.png"});
 
-    /*
     adminMenu_.addItem(new Menu::Item{"Power Off", "assets/images/011-power-off.png"});
     adminMenu_.addItem(new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"});
     adminMenu_.addItem(new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"});
     adminMenu_.addItem(new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"});
-    auto settings = new Menu{};
-    settings->addItem(new Menu::Item{"Brightness", "assets/images/009-brightness.png"});
-    settings->addItem(new Menu::Item{"Volume", "assets/images/010-high-volume.png"});
-    settings->addItem(new Menu::Item{"WiFi", "assets/images/016-wifi.png"});
-    settings->addItem(new Menu::Item{"Information", "assets/images/014-info.png"});
-    adminMenu_.addItem(new Menu::Item{"Settings", "assets/images/013-settings.png", settings});
-    */
+    adminMenu_.addItem(new Menu::Item{"Settings", "assets/images/013-settings.png", [this](Menu::Item const *) {
+        carousel_->setMenu(& settingsMenu_);
+    }});
+    
+    settingsMenu_.addItem(new Menu::Item{"Brightness", "assets/images/009-brightness.png", [this](Menu::Item const *) {
+        gauge_->reset("Brightness", 5, 0, 10, 1);
+        setActivePage(gauge_);
+    }});
+    settingsMenu_.addItem(new Menu::Item{"Volume", "assets/images/010-high-volume.png"});
+    settingsMenu_.addItem(new Menu::Item{"WiFi", "assets/images/016-wifi.png"});
+    settingsMenu_.addItem(new Menu::Item{"Information", "assets/images/014-info.png"});
 
     initializeOverlay();
     overlayView_->setScene(overlay_);
@@ -96,9 +106,15 @@ GUI::GUI(QWidget *parent):
     connect(driver, & Driver::tempAccelChanged, this, & GUI::tempAccel, Qt::QueuedConnection);
 
 
-    auto c = new Gauge();
-    
-    setActivePage(c);
+    //auto c = new Gauge();
+    carousel_ = new Carousel{& adminMenu_};
+    gauge_ = new Gauge{};
+
+    //connect(c, & Carousel::selected, this, & GUI::carousel_selected);
+    //connect(c, & Carousel::back, this, & GUI::carousel_back);
+
+
+    setActivePage(carousel_);
 
 }
 
@@ -107,17 +123,37 @@ GUI::~GUI() {
     //delete footer_;
 }
 
+/** Depending on what is the actual page, there may be transitions involved as well. 
+ */
+void GUI::setMenu(Menu * menu) {
+}
+
 void GUI::setActivePage(Page * page) {
     if (! activePage_) {
         pageView_->setScene(page);
         activePage_ = page;
         page->onFocus();
     } else {
-
+        nextPage_ = page;
+        aPage_->start();
     }
 }
 
 
+void GUI::pageChangeStep(qreal x) {
+    aStep_ = x;
+    if (aStep_ < 100) {
+        activePage_->setOpacity((100 - aStep_) / 100);
+    } else if (aStep_ == 100) {
+        activePage_->onBlur();
+        activePage_ = nextPage_;
+        activePage_->setOpacity(0);
+        pageView_->setScene(activePage_);
+        activePage_->onFocus();
+    } else {
+        activePage_->setOpacity((aStep_ - 100) / 100);
+    }
+}
 
 void GUI::headphones(bool state) {
     if (state)
@@ -168,6 +204,56 @@ void GUI::tempAvr(uint16_t value) {
 void GUI::tempAccel(uint16_t value) {
 
 }
+
+
+void GUI::initializeOverlay() {
+    overlay_->setSceneRect(QRectF{0,0,320,240});
+
+    auto iconsFont = QFont{"Iosevka", 14};
+    auto textFont = QFont{"Iosevka", 10};
+    battery_ = overlay_->addSimpleText("", iconsFont);
+    wifi_ = overlay_->addSimpleText("直", iconsFont);
+    wifi_->setBrush(COLOR_HEADER_DEFAULT);
+    volume_ = overlay_->addSimpleText("", iconsFont);
+    batteryPct_ = overlay_->addSimpleText("", textFont);
+    batteryPct_->setBrush(Qt::darkGray);
+    wifiSSID_ = overlay_->addSimpleText("Internet 10", textFont);
+    wifiSSID_->setBrush(Qt::darkGray);
+    volumePct_ = overlay_->addSimpleText("60", textFont);
+    volumePct_->setBrush(Qt::darkGray);
+    headphones(true);
+    batteryVoltage(390);
+    repositionOverlay();
+}
+
+void GUI::repositionOverlay() {
+    qreal left = 320;
+    if (overlayDetails_) {
+        left -= batteryPct_->boundingRect().width();
+        batteryPct_->setPos(left, 5);
+        left -= 2;
+    }
+    left -= battery_->boundingRect().width();
+    battery_->setPos(left, 0);
+    left -= 2;
+    if (overlayDetails_) {
+        left -= wifiSSID_->boundingRect().width();
+        wifiSSID_->setPos(left, 5);
+        left -= 2;
+    }
+    left -= wifi_->boundingRect().width();
+    wifi_->setPos(left, 0);
+    left -= 2;
+    if (overlayDetails_) {
+        left -= volumePct_->boundingRect().width();
+        volumePct_->setPos(left, 5);
+        left -= 2;
+    }
+    left -= volume_->boundingRect().width();
+    volume_->setPos(left, 0);
+}
+
+
 
 #if (defined ARCH_MOCK)
 void GUI::keyToGamepad(QKeyEvent * e, bool state) {
