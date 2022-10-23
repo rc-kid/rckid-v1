@@ -24,7 +24,6 @@ public:
 
     explicit Carousel(Menu * menu);
 
-    void showItem(size_t i);
 
     void nextItem();
 
@@ -32,9 +31,11 @@ public:
 
     Menu * menu() const { return menu_; }
 
-    void setMenu(Menu * menu) { setMenu(menu, 0); }
+    size_t index() const { return i_; }
 
-    void setMenu(Menu * menu, size_t item);
+    void setMenu(Menu * menu, bool animation = true) { setMenu(menu, 0, animation); }
+
+    void setMenu(Menu * menu, size_t item, bool animation = true);
 
 signals:
 
@@ -65,6 +66,11 @@ protected:
             selectCurrent();
     }
 
+    void dpadUp(bool state) {
+        if (state && ! busy())
+            emit back();
+    }
+
     void buttonB(bool state) override {
         if (state && ! busy()) 
             emit back();
@@ -87,6 +93,8 @@ private:
     /** Displays info that element is empty. 
      */
     void showEmpty();
+
+    void showItem(size_t i);
 
     void selectCurrent() {
         Menu::Item const * current = (*menu_)[i_];

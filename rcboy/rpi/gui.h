@@ -7,6 +7,7 @@
 #include <QPropertyAnimation>
 #include <QTimer>
 #include <QTime>
+#include <vector>
 
 #include "driver.h"
 #include "widgets/menu.h"
@@ -38,27 +39,22 @@ class GUI : public QMainWindow {
 
     Q_PROPERTY(qreal pageChangeStep READ getPageChangeStep WRITE pageChangeStep)
 public:
-    class Header;
-    class Footer;
 
     static int exec(int argc, char * argv[]);
 
     static GUI * instance() { return singleton_; }
 
-protected:
-
-    /** Displays given menu as the main page. 
-     */
-    void setMenu(Menu * menu);
 
 
+public slots:
 
+    void navigateBack();
+    void navigateTo(Page * page);
+    void navigateTo(Menu * menu) { navigateTo(menu, 0); }
+    void navigateTo(Menu * menu, size_t index);
 
-    /** Sets active page. 
-     
-        Active page is displayed on the screen and receives user input events.
-     */
-    void setActivePage(Page * page);
+private:
+
 
 private slots:
 
@@ -101,18 +97,39 @@ private:
     ~GUI() override;
 
 
+    /** \name Navigation transitions. 
+     */
+    //@{
+    void pushActivePage();
 
-
-
-
-
-    QPropertyAnimation * aPage_ = nullptr;
-
-    qreal aStep_;
+    void setActivePage(Page * page);
 
     qreal getPageChangeStep() const { return aStep_; }
 
     void pageChangeStep(qreal x);
+
+    // the active page
+    Page * activePage_ = nullptr;
+    // the page the gui is switching to, mid transition, the activaPage_ will become this one
+    Page * nextPage_ = nullptr;
+    // animation for the transition
+    QPropertyAnimation * aPage_ = nullptr;
+
+    qreal aStep_;
+    //@}
+    /** \name Navigation Stack 
+     */
+    //@{
+    // an item for the navigation stack. Can be either a carousel (with menu and index specification), or a generic page
+    struct NavigationItem {
+        Page * page;
+        Menu * menu;
+        size_t index;
+    }; // NavigationItem
+
+    // stack of the menu items
+    std::vector<NavigationItem> navStack_;
+    //@}
 
 
     void initializeOverlay();
@@ -140,11 +157,6 @@ private:
     /** Settings menu.
      */
     Menu settingsMenu_;
-
-    /** The active page that is being sent gamepad events. 
-     */
-    Page * activePage_ = nullptr;
-    Page * nextPage_ = nullptr;
 
     Carousel * carousel_ = nullptr;
     Gauge * gauge_ = nullptr;

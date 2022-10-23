@@ -44,12 +44,18 @@ public:
         setValue(step_ + value_ > max_ ? max_ : value_ + step_);
     }
 
+signals:
+
+    void back();
+
 protected:
 
     void buttonLeft(bool state) override { if (state) prev(); }
     void buttonRight(bool state) override { if (state) next(); }
     void dpadLeft(bool state) override { if (state) prev(); }
     void dpadRight(bool state)  override { if (state) next(); }
+    void dpadUp(bool state) override { if (state) emit back(); }
+    void buttonB(bool state) override { if (state) emit back(); }
 
     void setOpacity(qreal value) override {
         text_->setOpacity(value);

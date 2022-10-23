@@ -29,18 +29,6 @@ Carousel::Carousel(Menu * menu):
         showItem(0);
 }
 
-void Carousel::showItem(size_t i) {
-    if (menu_ == nullptr || menu_->empty())
-        return;
-    i_ = i;
-    auto item = (*menu_)[i];
-    img_[0]->setPixmap(item->img());
-    text_[0]->setText(item->text());
-    textWidth_[0] = text_[0]->boundingRect().width();
-    text_[0]->setPos((320 - textWidth_[0]) / 2, 145);
-    img_[0]->setPos(96,12);
-}
-
 void Carousel::nextItem() {
     if (menu_ == nullptr || menu_->empty())
         return;
@@ -69,23 +57,28 @@ void Carousel::prevItem() {
     aItem_->start();
 }
 
-void Carousel::setMenu(Menu * menu, size_t item) {
-    if (menu->empty()) {
-        img_[1]->setPixmap(empty_);
-        text_[1]->setText("Empty...");
+void Carousel::setMenu(Menu * menu, size_t item, bool animation) {
+    if (animation == false) {
+        menu_ = menu;
+        showItem(item);
     } else {
-        img_[1]->setPixmap((*menu)[item]->img());
-        text_[1]->setText((*menu)[item]->text());
+        if (menu->empty()) {
+            img_[1]->setPixmap(empty_);
+            text_[1]->setText("Empty...");
+        } else {
+            img_[1]->setPixmap((*menu)[item]->img());
+            text_[1]->setText((*menu)[item]->text());
+        }
+        // make the new item completely opaque and place it on screen
+        img_[1]->setOpacity(0);
+        text_[1]->setOpacity(0);
+        textWidth_[1] = text_[1]->boundingRect().width();
+        text_[1]->setPos((320 - textWidth_[1]) / 2, 145);
+        img_[1]->setPos(96,12);
+        menu_ = menu;
+        i_ = item;
+        aMenu_->start();
     }
-    // make the new item completely opaque and place it on screen
-    img_[1]->setOpacity(0);
-    text_[1]->setOpacity(0);
-    textWidth_[1] = text_[1]->boundingRect().width();
-    text_[1]->setPos((320 - textWidth_[1]) / 2, 145);
-    img_[1]->setPos(96,12);
-    menu_ = menu;
-    i_ = item;
-    aMenu_->start();
 }
 
 void Carousel::itemChangeDone() {
@@ -100,8 +93,8 @@ void Carousel::itemChangeDone() {
 
 void Carousel::menuChangeDone() {
     // hide the backup items and then reset their opacity
-    img_[0]->setPos(320, 240);
-    text_[0]->setPos(320, 240);
+    img_[0]->setPos(320, 0);
+    text_[0]->setPos(320, 0);
     img_[0]->setOpacity(1.0);
     text_[0]->setOpacity(1.0);
     std::swap(img_[0], img_[1]);
@@ -112,6 +105,18 @@ void Carousel::menuChangeDone() {
 void Carousel::showEmpty() {
     img_[0]->setPixmap(empty_);
     text_[0]->setText("Empty...");
+    textWidth_[0] = text_[0]->boundingRect().width();
+    text_[0]->setPos((320 - textWidth_[0]) / 2, 145);
+    img_[0]->setPos(96,12);
+}
+
+void Carousel::showItem(size_t i) {
+    if (menu_ == nullptr || menu_->empty())
+        return;
+    i_ = i;
+    auto item = (*menu_)[i];
+    img_[0]->setPixmap(item->img());
+    text_[0]->setText(item->text());
     textWidth_[0] = text_[0]->boundingRect().width();
     text_[0]->setPos((320 - textWidth_[0]) / 2, 145);
     img_[0]->setPos(96,12);
@@ -134,8 +139,10 @@ void Carousel::itemChangeStep(qreal x) {
 
 void Carousel::menuChangeStep(qreal x) {
     aStep_ = x;
-    if (aStep_ < 100)
-        setOpacity((100 - aStep_) / 1000);
-    else
-        setOpacity((aStep_ - 100) / 1000);
+    if (aStep_ < 100) {
+        setOpacity((100 - aStep_) / 100);
+    } else {
+        text_[1]->setOpacity((aStep_ - 100) / 100);
+        img_[1]->setOpacity((aStep_ - 100) / 100);
+    }
 }

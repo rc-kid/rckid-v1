@@ -26,6 +26,37 @@ int GUI::exec(int argc, char * argv[]) {
     return app.exec();
 }
 
+void GUI::navigateBack() {
+    if (navStack_.empty())
+        return;
+    NavigationItem item = navStack_.back();
+    navStack_.pop_back();
+    // switching menu for menu
+    if (activePage_ == carousel_ && item.page == carousel_) {
+        carousel_->setMenu(item.menu, item.index);
+    } else if (item.page == carousel_) {
+        carousel_->setMenu(item.menu, item.index, /* animation */ false);
+        setActivePage(carousel_);
+    } else {
+        setActivePage(item.page);
+    }
+}
+
+void GUI::navigateTo(Page * page) {
+    pushActivePage();
+    setActivePage(page);
+}
+
+void GUI::navigateTo(Menu * menu, size_t index) {
+    pushActivePage();
+    if (activePage_ == carousel_) {
+        carousel_->setMenu(menu, index);
+    } else {
+        carousel_->setMenu(menu, index, /* animation */ false);
+        setActivePage(carousel_);
+    }
+}
+
 GUI::GUI(QWidget *parent):
     QMainWindow{parent},
     pageView_{new QGraphicsView{this}},
@@ -56,12 +87,12 @@ GUI::GUI(QWidget *parent):
     adminMenu_.addItem(new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"});
     adminMenu_.addItem(new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"});
     adminMenu_.addItem(new Menu::Item{"Settings", "assets/images/013-settings.png", [this](Menu::Item const *) {
-        carousel_->setMenu(& settingsMenu_);
+        navigateTo(& settingsMenu_);
     }});
     
     settingsMenu_.addItem(new Menu::Item{"Brightness", "assets/images/009-brightness.png", [this](Menu::Item const *) {
         gauge_->reset("Brightness", 5, 0, 10, 1);
-        setActivePage(gauge_);
+        navigateTo(gauge_);
     }});
     settingsMenu_.addItem(new Menu::Item{"Volume", "assets/images/010-high-volume.png"});
     settingsMenu_.addItem(new Menu::Item{"WiFi", "assets/images/016-wifi.png"});
@@ -108,24 +139,17 @@ GUI::GUI(QWidget *parent):
 
     //auto c = new Gauge();
     carousel_ = new Carousel{& adminMenu_};
+    connect(carousel_, & Carousel::back, this, & GUI::navigateBack);
+    
     gauge_ = new Gauge{};
-
-    //connect(c, & Carousel::selected, this, & GUI::carousel_selected);
-    //connect(c, & Carousel::back, this, & GUI::carousel_back);
-
+    connect(gauge_, & Gauge::back, this, & GUI::navigateBack);
 
     setActivePage(carousel_);
-
 }
 
 GUI::~GUI() {
     //delete header_;
     //delete footer_;
-}
-
-/** Depending on what is the actual page, there may be transitions involved as well. 
- */
-void GUI::setMenu(Menu * menu) {
 }
 
 void GUI::setActivePage(Page * page) {
@@ -139,18 +163,26 @@ void GUI::setActivePage(Page * page) {
     }
 }
 
+void GUI::pushActivePage() {
+    if (activePage_ == carousel_) {
+        navStack_.push_back(NavigationItem{ carousel_, carousel_->menu(), carousel_->index()});
+    } else {
+        navStack_.push_back(NavigationItem{ activePage_, nullptr, 0});
+    }
+}
 
 void GUI::pageChangeStep(qreal x) {
     aStep_ = x;
     if (aStep_ < 100) {
         activePage_->setOpacity((100 - aStep_) / 100);
-    } else if (aStep_ == 100) {
-        activePage_->onBlur();
-        activePage_ = nextPage_;
-        activePage_->setOpacity(0);
-        pageView_->setScene(activePage_);
-        activePage_->onFocus();
     } else {
+        if (activePage_ != nextPage_) {
+            activePage_->onBlur();
+            activePage_ = nextPage_;
+            activePage_->setOpacity(0);
+            pageView_->setScene(activePage_);
+            activePage_->onFocus();
+        }
         activePage_->setOpacity((aStep_ - 100) / 100);
     }
 }
