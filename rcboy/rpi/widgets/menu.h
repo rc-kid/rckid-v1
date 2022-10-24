@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <vector>
+#include <functional>
 #include <QString>
 #include <QPixmap>
 

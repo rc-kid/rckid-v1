@@ -3,8 +3,6 @@
 Carousel::Carousel(Menu * menu):
     menu_{menu},
     empty_{QPixmap{"assets/images/021-poo.png"}} {
-    setBackgroundBrush(Qt::black);
-    setSceneRect(QRectF{0,0,320,192});
     aItem_ = new QPropertyAnimation{this, "itemChangeStep"};
     aItem_->setDuration(500);
     aItem_->setStartValue(0);
@@ -37,8 +35,8 @@ void Carousel::nextItem() {
     img_[1]->setPixmap(item->img());
     text_[1]->setText(item->text());
     textWidth_[1] = text_[1]->boundingRect().width();
-    text_[1]->setPos(320 + (320 - textWidth_[1]) / 2, 145);
-    img_[1]->setPos(320,12);
+    text_[1]->setPos(320 + (320 - textWidth_[1]) / 2, 169);
+    img_[1]->setPos(320,36);
     aDir_ = 1;
     aItem_->start();
 }
@@ -51,8 +49,8 @@ void Carousel::prevItem() {
     img_[1]->setPixmap(item->img());
     text_[1]->setText(item->text());
     textWidth_[1] = text_[1]->boundingRect().width();
-    text_[1]->setPos(-320 + (320 - textWidth_[1]) / 2, 145);
-    img_[1]->setPos(-140,12);
+    text_[1]->setPos(-320 + (320 - textWidth_[1]) / 2, 169);
+    img_[1]->setPos(-140,36);
     aDir_ = -1;
     aItem_->start();
 }
@@ -73,8 +71,8 @@ void Carousel::setMenu(Menu * menu, size_t item, bool animation) {
         img_[1]->setOpacity(0);
         text_[1]->setOpacity(0);
         textWidth_[1] = text_[1]->boundingRect().width();
-        text_[1]->setPos((320 - textWidth_[1]) / 2, 145);
-        img_[1]->setPos(96,12);
+        text_[1]->setPos((320 - textWidth_[1]) / 2, 169);
+        img_[1]->setPos(96,36);
         menu_ = menu;
         i_ = item;
         aMenu_->start();
@@ -89,6 +87,9 @@ void Carousel::itemChangeDone() {
         i_ = (i_ + 1) % menu_->size();
     else 
         i_ = (i_ == 0) ? (menu_->size() - 1) : (i_ - 1);
+    // make sure we land at the precise coordinates
+    text_[0]->setPos((320 - textWidth_[0]) / 2, 169);
+    img_[0]->setPos(96,36);
 }
 
 void Carousel::menuChangeDone() {
@@ -106,8 +107,8 @@ void Carousel::showEmpty() {
     img_[0]->setPixmap(empty_);
     text_[0]->setText("Empty...");
     textWidth_[0] = text_[0]->boundingRect().width();
-    text_[0]->setPos((320 - textWidth_[0]) / 2, 145);
-    img_[0]->setPos(96,12);
+    text_[0]->setPos((320 - textWidth_[0]) / 2, 169);
+    img_[0]->setPos(96,36);
 }
 
 void Carousel::showItem(size_t i) {
@@ -118,22 +119,22 @@ void Carousel::showItem(size_t i) {
     img_[0]->setPixmap(item->img());
     text_[0]->setText(item->text());
     textWidth_[0] = text_[0]->boundingRect().width();
-    text_[0]->setPos((320 - textWidth_[0]) / 2, 145);
-    img_[0]->setPos(96,12);
+    text_[0]->setPos((320 - textWidth_[0]) / 2, 169);
+    img_[0]->setPos(96,36);
 }
 
 void Carousel::itemChangeStep(qreal x) {
     aStep_ = x;
     if (aDir_ == 1) { // scrolling to the left
-        text_[0]->setPos((320 - textWidth_[0]) / 2 - (3.2 * aStep_), 145);
-        img_[0]->setPos(96 - 2.3 * aStep_ ,12);
-        text_[1]->setPos(3.2 * (100 - aStep_) + (320 - textWidth_[1]) / 2, 145);
-        img_[1]->setPos(320 - 2.3 * aStep_, 12);
+        text_[0]->setPos((320 - textWidth_[0]) / 2 - (3.2 * aStep_), 169);
+        img_[0]->setPos(96 - 2.3 * aStep_ ,36);
+        text_[1]->setPos(3.2 * (100 - aStep_) + (320 - textWidth_[1]) / 2, 169);
+        img_[1]->setPos(320 - 2.3 * aStep_, 36);
     } else {
-        text_[0]->setPos((320 - textWidth_[0]) / 2 + (3.2 * aStep_), 145);
-        img_[0]->setPos(96 + 2.3 * aStep_,12);
-        text_[1]->setPos(-320 + (320 - textWidth_[1]) / 2 + 3.2 * aStep_, 145);
-        img_[1]->setPos(-140 + 2.3 * aStep_,12);
+        text_[0]->setPos((320 - textWidth_[0]) / 2 + (3.2 * aStep_), 169);
+        img_[0]->setPos(96 + 2.3 * aStep_,36);
+        text_[1]->setPos(-320 + (320 - textWidth_[1]) / 2 + 3.2 * aStep_, 169);
+        img_[1]->setPos(-140 + 2.3 * aStep_,36);
     }
 }
 

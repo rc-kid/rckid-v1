@@ -9,7 +9,7 @@ protected:
 
     Page() {
         setBackgroundBrush(Qt::black);
-        setSceneRect(QRectF{0,0,320,192});
+        setSceneRect(QRectF{0,0,320,240});
     }
 
     virtual void setOpacity(qreal value) {}

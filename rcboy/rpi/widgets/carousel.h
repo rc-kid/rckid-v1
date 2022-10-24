@@ -46,6 +46,16 @@ signals:
 
 protected:
 
+    void buttonLeft(bool state) override {
+        if (state && ! busy()) 
+            prevItem();
+    } 
+
+    void buttonRight(bool state) override {
+        if (state && ! busy()) 
+            nextItem();
+    } 
+
     void dpadLeft(bool state) override { 
         if (state && ! busy()) 
             prevItem();

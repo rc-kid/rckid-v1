@@ -11,19 +11,19 @@ public:
 
     Gauge() {
         gauge_ = addRect(0, 50, 320, 75, QPen{QColor{10,10,10}}, QBrush{QColor{10,10,10}});
-        gaugeValue_ = addRect(0, 50, 0, 75, QPen{Qt::blue}, QBrush{Qt::blue});
+        gaugeValue_ = addRect(0, 74, 0, 75, QPen{Qt::blue}, QBrush{Qt::blue});
         text_ = addSimpleText("");
         text_->setFont(QFont{"OpenDyslexic Nerd Font", 22});
         text_->setBrush(Qt::white);
         mask_ = addPixmap(QPixmap{"assets/gauge_mask.png"});
-        mask_->setPos(0, 45);
+        mask_->setPos(0, 69);
         reset("Brightness", 50, 0, 100, 10);
     }
 
     void reset(std::string const & text, size_t val, size_t min, size_t max, size_t step) {
         text_->setText(text.c_str());
         textWidth_ = text_->boundingRect().width();
-        text_->setPos((320 - textWidth_) / 2, 145);
+        text_->setPos((320 - textWidth_) / 2, 169);
         min_ = min;
         max_ = max;
         step_ = step;
@@ -33,7 +33,7 @@ public:
     void setValue(size_t value) {
         value_ = value;
         qreal width = (value_ - min_) * 320.0 / (max_ - min_);
-        gaugeValue_->setRect(0, 50, width, 75);
+        gaugeValue_->setRect(0, 74, width, 75);
     }
 
     void prev() {

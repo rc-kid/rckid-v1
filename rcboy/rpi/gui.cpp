@@ -138,7 +138,7 @@ GUI::GUI(QWidget *parent):
 
 
     //auto c = new Gauge();
-    carousel_ = new Carousel{& adminMenu_};
+    carousel_ = new Carousel{& menu_};
     connect(carousel_, & Carousel::back, this, & GUI::navigateBack);
     
     gauge_ = new Gauge{};
