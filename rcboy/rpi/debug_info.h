@@ -6,6 +6,7 @@
 
 #include <iostream>
 
+
 class DebugInfo : public Page {
     Q_OBJECT
 public:
@@ -55,6 +56,19 @@ public:
         tempAvr_ = newText("0", 105, 199);
         newText("tAccel:", 150, 184);
         tempAccel_ = newText("0", 155, 199);
+        newText("audio:", 200, 184);
+        audio_ = newText("0", 205, 199);
+        newText("chrg:", 250, 184);
+        chrg_ = newText("0", 255, 199);
+
+        Driver * driver = Driver::instance();
+        connect(driver, & Driver::headphonesChanged, this, & DebugInfo::headphones, Qt::QueuedConnection);
+        connect(driver, & Driver::chargingChanged, this, & DebugInfo::charging, Qt::QueuedConnection);
+        connect(driver, & Driver::batteryVoltageChanged, this, & DebugInfo::batteryVoltage, Qt::QueuedConnection);
+        connect(driver, & Driver::vccVoltageChanged, this, & DebugInfo::vccVoltage, Qt::QueuedConnection);
+        connect(driver, & Driver::tempAvrChanged, this, & DebugInfo::tempAvr, Qt::QueuedConnection);
+        connect(driver, & Driver::tempAccelChanged, this, & DebugInfo::tempAccel, Qt::QueuedConnection);
+
     }
 
 protected:
@@ -77,6 +91,13 @@ protected:
     void dpadLeft(bool state) override { updateButton(dpadLeft_, state); }
     void dpadRight(bool state) override { updateButton(dpadRight_, state); }
 
+protected slots:
+
+    void headphones(bool state) { updateValue(audio_, state ? "hp" : "spkr"); }
+    void charging(bool state) { updateValue(chrg_, state); }
+    
+    void vccVoltage(uint16_t value) { updateValue(vcc_, value); }
+
     void batteryVoltage(uint16_t value) { updateValue(vBatt_, value); }
     void tempAvr(uint16_t value) { updateValue(tempAvr_, value); }
     void tempAccel(uint16_t value) { updateValue(tempAccel_, value); }
@@ -95,8 +116,12 @@ private:
     }
 
     void updateValue(QGraphicsSimpleTextItem * text, unsigned value) {
+        updateValue(text, QString::number(value, 10));
+    }
+
+    void updateValue(QGraphicsSimpleTextItem * text, QString value) {
         text->setBrush(Qt::white);
-        text->setText(QString::number(value, 10));
+        text->setText(value);
     }
 
     void updatePoint(QGraphicsEllipseItem * p, uint8_t x, uint8_t y) {
@@ -137,4 +162,6 @@ private:
     QGraphicsSimpleTextItem * vcc_;
     QGraphicsSimpleTextItem * tempAvr_;
     QGraphicsSimpleTextItem * tempAccel_;
+    QGraphicsSimpleTextItem * audio_;
+    QGraphicsSimpleTextItem * chrg_;
 }; // Calibration

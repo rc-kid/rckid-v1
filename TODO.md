@@ -9,6 +9,7 @@
 
 ## PCB
 
+- check that headphones detection works with 2.5V as well
 - resize photoresistor holes
 - see if different accels can fit and be used/replaced under radio
 - mic amplification is too great, 51k seems to do the trick
@@ -50,6 +51,8 @@
 
 ## AVR
 
+- temperature is not reported properly
+- charging does not seem to work reliably 
 
 # Other
 

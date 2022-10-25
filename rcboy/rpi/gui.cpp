@@ -96,7 +96,8 @@ GUI::GUI(QWidget *parent):
     }});
     
     settingsMenu_.addItem(new Menu::Item{"Brightness", "assets/images/009-brightness.png", [this](Menu::Item const *) {
-        gauge_->reset("Brightness", 5, 0, 10, 1);
+        gauge_->reset("Brightness", Driver::instance()->brightness(), 0, 255, 16);
+        connect(gauge_, & Gauge::valueChanged, Driver::instance(), & Driver::setBrightness);
         navigateTo(gauge_);
     }});
     settingsMenu_.addItem(new Menu::Item{"Volume", "assets/images/010-high-volume.png"});

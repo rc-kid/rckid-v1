@@ -39,25 +39,11 @@ public:
         Must be called *after* initialize(), otherwise returns nullptr. 
      */
     static Driver * instance() { return singleton_; }
-    
-    /** Starts the power off sequence. 
-     */
-    void poweroff() {
-        emitEvent(Event::PowerOff);
-    }
+
 
     /** Display Brightness
      */
     uint8_t brightness() const { return brightness_; }
-
-    void setBrightness(uint8_t value) {
-        {
-            std::lock_guard g_{mState_};
-            if (brightness_ != value)
-                brightness_ = value;
-        }
-        emitEvent(Event::SetBrightness);
-    }
 
     bool headphones() const { return headphones_; }
 
@@ -80,6 +66,25 @@ public:
 
     //sudo rfkill unblock wifi
     //sudo rfkill unblock bluetooth
+
+public slots:
+
+    void setBrightness(size_t value) {
+        if (value > 255) value = 255;
+        {
+            std::lock_guard g_{mState_};
+            if (brightness_ != value)
+                brightness_ = value;
+        }
+        emitEvent(Event::SetBrightness);
+    }
+    
+    /** Starts the power off sequence. 
+     */
+    void poweroff() {
+        emitEvent(Event::PowerOff);
+    }
+
 
 signals:
 
@@ -108,6 +113,7 @@ signals:
     void headphonesChanged(bool state);
     void chargingChanged(bool state);
     void lowBatteryChanged();
+    void vccVoltageChanged(uint16_t value);
     void batteryVoltageChanged(uint16_t value);
     void tempAvrChanged(uint16_t value); 
     void tempAccelChanged(uint16_t value); 
@@ -227,7 +233,10 @@ private:
      */
     void queryAvrFull();
 
-
+    template<typename T>
+    void sendAvrCommand(T const & cmd) {
+        i2c::transmit(comms::AVR_I2C_ADDRESS, reinterpret_cast<uint8_t const *>(& cmd), sizeof(T), nullptr, 0);
+    }
 
     void updateStatus(comms::Status status);
 
@@ -333,6 +342,10 @@ private:
     /** Measured voltage battery to determine the capacity. 
      */
     uint16_t batteryVoltage_;
+
+    /** The VCC voltage (power level to the AVR). 
+     */
+    uint16_t vcc_;
 
     /** Temperature measured by the AVR. 
      */

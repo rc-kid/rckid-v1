@@ -214,7 +214,7 @@ namespace comms {
 
         uint8_t vcc_ = 0;
         uint8_t vbatt_ = 0;
-        uint8_t temp_ = 0;
+        uint8_t temp_ = 0;  
         uint8_t micThreshold_ = 255;
         uint8_t brightness_ = 64;
 

@@ -108,6 +108,9 @@ void Driver::loop() {
                 case Event::PowerOff:
                     // TODO 
                     break;
+                case Event::SetBrightness:
+                    sendAvrCommand(msg::SetBrightness(brightness_));
+                    break;
             }
             g.lock();
         }
@@ -143,12 +146,16 @@ void Driver::queryAvrFull() {
     mState_.lock();
     bool vbattChanged = batteryVoltage_ != state.estatus.vbatt();
     batteryVoltage_ = state.estatus.vbatt();
+    bool vccChanged = vcc_ != state.estatus.vcc();
+    vcc_ = state.estatus.vcc(); 
     bool tempChanged = tempAvr_ != state.estatus.temp();
     tempAvr_ = state.estatus.temp();
     mState_.unlock();
     // emit events where necessary
     if (vbattChanged)
         emit batteryVoltageChanged(batteryVoltage_);
+    if (vccChanged)
+        emit vccVoltageChanged(vcc_);
     if (tempChanged)
         emit tempAvrChanged(tempAvr_); 
 }
@@ -337,6 +344,7 @@ void Driver::initializePins() {
     gpioSetISRFuncEx(PIN_BTN_SELECT, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrButtonChange, & select_);
     gpioSetISRFuncEx(PIN_BTN_START, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrButtonChange, & start_);
     gpioSetISRFuncEx(PIN_AVR_IRQ, FALLING_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrAvrIrq, this);
+    gpioSetISRFuncEx(PIN_HEADPHONES, EITHER_EDGE, 0, (gpioISRFuncEx_t) Driver::isrHeadphonesChange, this);
 #endif
 
 }
