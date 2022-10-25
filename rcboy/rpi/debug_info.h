@@ -10,55 +10,51 @@ class DebugInfo : public Page {
     Q_OBJECT
 public:
     explicit DebugInfo() {
-        a_ = newText("A", 5, 0);
-        b_ = newText("B", 20, 0);
-        x_ = newText("X", 35, 0);
-        y_ = newText("Y", 50, 0); 
-        select_ = newText("SEL", 65, 0);
-        start_ = newText("START", 95, 0);
-        l_ = newText("L", 140, 0);
-        r_ = newText("R", 155, 0);
-        lVol_ = newText("L_VOL", 170, 0);
-        rVol_ = newText("R_VOL", 215, 0);
-        thumbBtn_ = newText("THUMB", 260, 0);
-        dpadUp_ = newText("UP", 5, 16);
-        dpadDown_ = newText("DOWN", 25, 16);
-        dpadLeft_ = newText("LEFT", 70, 16);
-        dpadRight_ = newText("RIGHT", 105, 16);
-        newText("Thumbstick:", 0, 40);
-        newText("X:", 5, 56);
-        newText("Y:", 5, 72);
-        thumbX_ = newText("255", 25, 56);
-        thumbY_ = newText("0", 25, 72);
+        a_ = newText("A", 5, 24);
+        b_ = newText("B", 20, 24);
+        x_ = newText("X", 35, 24);
+        y_ = newText("Y", 50, 24); 
+        select_ = newText("SEL", 65, 24);
+        start_ = newText("START", 95, 24);
+        l_ = newText("L", 140, 24);
+        r_ = newText("R", 155, 24);
+        lVol_ = newText("L_VOL", 170, 24);
+        rVol_ = newText("R_VOL", 215, 24);
+        thumbBtn_ = newText("THUMB", 260, 24);
+        dpadUp_ = newText("UP", 5, 40);
+        dpadDown_ = newText("DOWN", 25, 40);
+        dpadLeft_ = newText("LEFT", 70, 40);
+        dpadRight_ = newText("RIGHT", 105, 40);
+        newText("Thumbstick:", 0, 64);
+        newText("X:", 5, 80);
+        newText("Y:", 5, 96);
+        thumbX_ = newText("255", 25, 80);
+        thumbY_ = newText("0", 25, 96);
         thumbX_->setBrush(Qt::white);
         thumbY_->setBrush(Qt::white);
 
-        newText("Accel:", 160, 40);
-        newText("X:", 165, 56);
-        newText("Y:", 165, 72);
-        accelX_ = newText("255", 185, 56);
-        accelY_ = newText("0", 185, 72);
+        newText("Accel:", 160, 64);
+        newText("X:", 165, 80);
+        newText("Y:", 165, 96);
+        accelX_ = newText("255", 185, 80);
+        accelY_ = newText("0", 185, 96);
         accelX_->setBrush(Qt::white);
         accelY_->setBrush(Qt::white);
-        addLine(50, 106, 150, 106, QPen{Qt::darkGray});
-        addLine(100, 56, 100, 156, QPen{Qt::darkGray});
-        thumb_ = addEllipse(100 - 3, 106 - 3, 6,6,QPen{Qt::white});
+        addLine(50, 130, 150, 130, QPen{Qt::darkGray});
+        addLine(100, 80, 100, 180, QPen{Qt::darkGray});
+        thumb_ = addEllipse(100 - 3, 130 - 3, 6,6,QPen{Qt::white});
 
-        addLine(210, 106, 310, 106, QPen{Qt::darkGray});
-        addLine(260, 56, 260, 156, QPen{Qt::darkGray});
-        accel_ = addEllipse(260 - 3, 106 - 3, 6,6,QPen{Qt::white});
-        newText("VBatt:", 0, 160);
-        vBatt_ = newText("0", 5, 175);
-        newText("Vcc:", 50, 160);
-        vcc_ = newText("0", 55, 175);
-        newText("tAvr:", 100, 160);
-        tempAvr_ = newText("0", 105, 175);
-        newText("tAccel:", 150, 160);
-        tempAccel_ = newText("0", 155, 175);
-
-        QPixmap p = QPixmap{":/images/unicorn.png"}.scaled(128, 128, Qt::AspectRatioMode::IgnoreAspectRatio, Qt::TransformationMode::SmoothTransformation);
-        addPixmap(p);
-
+        addLine(210, 130, 310, 130, QPen{Qt::darkGray});
+        addLine(260, 80, 260, 180, QPen{Qt::darkGray});
+        accel_ = addEllipse(260 - 3, 130 - 3, 6,6,QPen{Qt::white});
+        newText("VBatt:", 0, 184);
+        vBatt_ = newText("0", 5, 199);
+        newText("Vcc:", 50, 184);
+        vcc_ = newText("0", 55, 199);
+        newText("tAvr:", 100, 184);
+        tempAvr_ = newText("0", 105, 199);
+        newText("tAccel:", 150, 184);
+        tempAccel_ = newText("0", 155, 199);
     }
 
 protected:
@@ -105,7 +101,7 @@ private:
 
     void updatePoint(QGraphicsEllipseItem * p, uint8_t x, uint8_t y) {
         qreal xx = (p == thumb_ ? 50 : 210) - 3 + static_cast<qreal>(x) / 255 * 100;
-        qreal yy = 56 - 3 + static_cast<qreal>(y) / 255 * 100;
+        qreal yy = 80 - 3 + static_cast<qreal>(y) / 255 * 100;
         p->setRect(xx, yy, 6, 6);
         if (p == thumb_) {
             thumbX_->setText(QString::number(static_cast<uint>(x), 10));

@@ -27,8 +27,6 @@
 
 ## RPI
 
-- make sure menu switching works and add a stack of menu items so that we can always go back
-- make sure that menu->gauge works too
 - cleanup and comments on gui
 
 - what is the stop-job at shutdown and how can we make shutdown faster & detect it on avr

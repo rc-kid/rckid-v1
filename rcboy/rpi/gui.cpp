@@ -89,6 +89,11 @@ GUI::GUI(QWidget *parent):
     adminMenu_.addItem(new Menu::Item{"Settings", "assets/images/013-settings.png", [this](Menu::Item const *) {
         navigateTo(& settingsMenu_);
     }});
+    adminMenu_.addItem(new Menu::Item{"Debug Info", "assets/images/008-unicorn.png", [this](Menu::Item const *) {
+        if (debugInfo_ == nullptr)
+            debugInfo_ = new DebugInfo();
+        navigateTo(debugInfo_);
+    }});
     
     settingsMenu_.addItem(new Menu::Item{"Brightness", "assets/images/009-brightness.png", [this](Menu::Item const *) {
         gauge_->reset("Brightness", 5, 0, 10, 1);
@@ -138,7 +143,7 @@ GUI::GUI(QWidget *parent):
 
 
     //auto c = new Gauge();
-    carousel_ = new Carousel{& menu_};
+    carousel_ = new Carousel{& adminMenu_};
     connect(carousel_, & Carousel::back, this, & GUI::navigateBack);
     
     gauge_ = new Gauge{};

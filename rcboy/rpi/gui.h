@@ -160,6 +160,7 @@ private:
 
     Carousel * carousel_ = nullptr;
     Gauge * gauge_ = nullptr;
+    Page * debugInfo_ = nullptr;
 
     static GUI * singleton_;
 

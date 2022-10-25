@@ -113,8 +113,11 @@ namespace json {
         std::string const & comment() const { return comment_; }
         void setComment(std::string const & comment) { comment_ = comment; }
 
+        Value const & operator [] (size_t i) const { return *elements_[i]; }
+        Value & operator [] (size_t i) { return *elements_[i]; }
+
     private:
-        std::vector<Value*> elements_;
+        std::vector<Value*> elements_; // have to use ptrs (incomplete type)
         std::string comment_;
 
     }; // json::Array
@@ -128,7 +131,7 @@ namespace json {
         void setComment(std::string const & comment) { comment_ = comment; }
 
     private:
-        std::unordered_map<std::string, Value *> elements_;
+        std::unordered_map<std::string, Value*> elements_; // have to use ptrs (incomplete type)
         std::string comment_;
     }; // json::Struct
 
@@ -393,7 +396,6 @@ namespace json {
                     line{l}, col{c}, kind{kind}, valueString_{std::move(value)} {
                 }
 
-
                 ~Token() {
                     using namespace std;
                     switch (kind) {
@@ -411,7 +413,6 @@ namespace json {
                 Kind kind;
 
             private:
-
 
                 union {
                     bool valueBool_;
