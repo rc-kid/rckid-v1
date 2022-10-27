@@ -409,17 +409,24 @@ namespace adc0 {
                 ADC0.MUXPOS = MUXPOS_CHARGING;
                 break;
             case MUXPOS_CHARGING:
-                if (value < 256) {
-                    // logical 0, charging, vbatt reading tells the progress
-                    if (state.status.setCharging(true)) 
-                        rpi::setIrq();
-                } else if (value > 768) {
-                    // logical 1, battery charging finished
+                // only report charging when vcc is greter than the VUSB threshold (meaning a charger is actually connected) 
+                if (state.estatus.vcc() >= VUSB_BATTERY_THRESHOLD) {
+                    if (value < 128) {
+                        // logical 0, charging, vbatt reading tells the progress
+                        if (state.status.setCharging(true)) 
+                            rpi::setIrq();
+                    } else if (value > 896) {
+                        // logical 1, battery charging finished
+                        if (state.status.setCharging(false))
+                            rpi::setIrq();
+                    } else {
+                        // hi-Z state, battery not present, or charger in shutdown mode, we report it as not charging because we do not care that much
+                        if (state.status.setCharging(false))
+                            rpi::setIrq();
+                    }
+                } else {
                     if (state.status.setCharging(false))
                         rpi::setIrq();
-                } else {
-                    // hi-Z state, battery not present, or charger in shutdown mode
-                    // TODO
                 }
                 ADC0.MUXPOS = MUXPOS_PHOTORES;
                 break;
@@ -450,6 +457,7 @@ namespace adc0 {
                 temp -= 69926;
                 // and now loose precision to 0.5C (x10, i.e. -15 = -1.5C)
                 temp = (temp >>= 7) * 5;
+                state.estatus.setTemp(temp);
                 // fallthrough
             }
             default:

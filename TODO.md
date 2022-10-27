@@ -10,7 +10,7 @@
 ## PCB
 
 - check that headphones detection works with 2.5V as well
-- resize photoresistor holes
+- check resized photores holes
 - see if different accels can fit and be used/replaced under radio
 - mic amplification is too great, 51k seems to do the trick
 - verify thumbstick front panel hole placement
@@ -32,8 +32,7 @@
 
 - what is the stop-job at shutdown and how can we make shutdown faster & detect it on avr
 
-- then start playing with avr interop (brightness, etc.)
-- turn off/stuff
+- turn off/stuff - https://github.com/raspberrypi/firmware/blob/13691cee95902d76bc88a3f658abeb37b3c90b03/boot/overlays/README#L1335 -- can help? 
 - multimedia player
 - microphone reading
 
@@ -51,9 +50,10 @@
 
 ## AVR
 
-- temperature is not reported properly
-- charging does not seem to work reliably 
+- check that charging is turned off when charging is done
 
 # Other
+
+- accel keeps going dark... contacts? 
 
 > https://martybugs.net/wireless/rubberducky.cgi -- site that seems to have decent info on antennas

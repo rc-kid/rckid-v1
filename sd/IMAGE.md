@@ -23,6 +23,7 @@ When done, run the rest of the SD image setup (see the script file for details):
 Then run `raspi-config` and make the following changes:
 
 - disable wait for the network during boot
+- disable tty on serial console
 
 # Startup Time
 
