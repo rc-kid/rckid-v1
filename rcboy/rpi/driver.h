@@ -67,6 +67,16 @@ public:
     //sudo rfkill unblock wifi
     //sudo rfkill unblock bluetooth
 
+    bool volumeLeft() const {
+        std::lock_guard g_{mState_};
+        return volumeLeft_.state;
+    }
+
+    bool volumeRight() const {
+        std::lock_guard g_{mState_};
+        return volumeRight_.state;
+    }
+
 public slots:
 
     void setBrightness(size_t value) {
@@ -287,7 +297,7 @@ private:
 
 
 
-    SpinLock mState_;
+    mutable SpinLock mState_;
 
     /** \name Gamepad
      */

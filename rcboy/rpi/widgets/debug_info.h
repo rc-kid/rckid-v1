@@ -1,10 +1,8 @@
 #pragma once
 
-#include "widgets/page.h"
-#include "gui.h"
-#include "driver.h"
-
-#include <iostream>
+#include "page.h"
+#include "../gui.h"
+#include "../driver.h"
 
 
 class DebugInfo : public Page {

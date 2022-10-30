@@ -26,6 +26,15 @@
  
     Contains the overlay with header and footer displaying common information and the main page's graphics view for the actual contents. 
 
+    # Volume buttons
+
+    - change the volume (up, down, repeated )
+    - when both pressed, enter the power menu
+    - ideally the power menu does not change the volume
+
+    - down = set mode
+    - down while in mode: execute mode
+
     # Header
 
     Information about rcboy's status. In normal mode, only the icons are displayed for a status shorthand. In the power menu details, such as actual battery and volume percentage as well as the WiFi network rcboy is connected to is displayed alongside the icons. 
@@ -44,17 +53,12 @@ public:
 
     static GUI * instance() { return singleton_; }
 
-
-
 public slots:
 
     void navigateBack();
     void navigateTo(Page * page);
     void navigateTo(Menu * menu) { navigateTo(menu, 0); }
     void navigateTo(Menu * menu, size_t index);
-
-private:
-
 
 private slots:
 
@@ -66,8 +70,8 @@ private slots:
     void buttonSelect(bool state) { if (activePage_) activePage_->buttonSelect(state); }
     void buttonLeft(bool state) { if (activePage_) activePage_->buttonLeft(state); }
     void buttonRight(bool state) { if (activePage_) activePage_->buttonRight(state); }
-    void buttonVolumeLeft(bool state) {}
-    void buttonVolumeRight(bool state) {}
+    void buttonVolumeLeft(bool state);
+    void buttonVolumeRight(bool state);
     void buttonThumb(bool state) { if (activePage_) activePage_->buttonThumb(state); }
     void thumbstick(uint8_t x, uint8_t y) { if (activePage_) activePage_->thumbstick(x, y); }
     void accel(uint8_t x, uint8_t y) { if (activePage_) activePage_->accel(x, y); }
@@ -131,7 +135,6 @@ private:
     std::vector<NavigationItem> navStack_;
     //@}
 
-
     void initializeOverlay();
 
     void repositionOverlay();
@@ -152,14 +155,15 @@ private:
     /** Main menu. 
      */
     Menu menu_;
-    /** Admin menu (activated by simultaneous volume up and down press). Power management, wifi and advanced functions. */
-    Menu adminMenu_;
+    /** Power menu (activated by simultaneous volume up and down press). Power management, wifi and advanced functions. */
+    Menu powerMenu_;
     /** Settings menu.
      */
     Menu settingsMenu_;
 
     Carousel * carousel_ = nullptr;
     Gauge * gauge_ = nullptr;
+    Gauge * volumeGauge_ = nullptr;
     Page * debugInfo_ = nullptr;
 
     static GUI * singleton_;

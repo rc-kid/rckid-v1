@@ -28,20 +28,15 @@
 
 ## RPI
 
-- cleanup and comments on gui
-
 - what is the stop-job at shutdown and how can we make shutdown faster & detect it on avr
 
-- turn off/stuff - https://github.com/raspberrypi/firmware/blob/13691cee95902d76bc88a3f658abeb37b3c90b03/boot/overlays/README#L1335 -- can help? 
+- turn off/stuff - https://github.com/raspberrypi/firmware/blob/13691cee95902d76bc88a3f658abeb37b3c90b03/boot/overlays/README#L1335 -- can help? Not really - perhaps tell systemd to execute some app? 
 - multimedia player
 - microphone reading
 
-- unrecognized gamepad, check the udev rules? 
 - if there are errors during startup a way to show them
-- how to install pyupdi directly in platformio penv? so that I do not have to set PATH in tasks
-- how should the volume buttons be reported on the gamepad, if at all
 - debounce buttons
-- joystick seems to work, but the responsivity is not the best and it seems some events are missed, check once not on breadboard I guess
+- joystick seems to work, but the responsivity is not the best and it seems some events are missed, check once not on breadboard I guess (?)
 - add repeat to gamepad keys (configurable)
 
 # Remote 

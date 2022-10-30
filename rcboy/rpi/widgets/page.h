@@ -4,6 +4,11 @@
 
 class Page : public QGraphicsScene {
     Q_OBJECT
+
+signals:
+
+    void focused();
+    void blurred();
 protected:
     friend class GUI;
 
@@ -14,8 +19,8 @@ protected:
 
     virtual void setOpacity(qreal value) {}
 
-    virtual void onFocus() {}
-    virtual void onBlur() {}
+    virtual void onFocus() { emit focused(); }
+    virtual void onBlur() { emit blurred(); }
 
     virtual void buttonA(bool state) {}
     virtual void buttonB(bool state) {}

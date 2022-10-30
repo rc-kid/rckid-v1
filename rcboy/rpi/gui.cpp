@@ -4,7 +4,7 @@
 
 #include <iostream>
 #include "gui.h"
-#include "debug_info.h"
+#include "widgets/debug_info.h"
 #include "widgets/carousel.h"
 #include "widgets/gauge.h"
 
@@ -82,14 +82,14 @@ GUI::GUI(QWidget *parent):
     menu_.addItem(new Menu::Item{"Walkie-talkie", "assets/images/007-baby-monitor.png"});
     menu_.addItem(new Menu::Item{"Remote", "assets/images/002-rc-car.png"});
 
-    adminMenu_.addItem(new Menu::Item{"Power Off", "assets/images/011-power-off.png"});
-    adminMenu_.addItem(new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"});
-    adminMenu_.addItem(new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"});
-    adminMenu_.addItem(new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"});
-    adminMenu_.addItem(new Menu::Item{"Settings", "assets/images/013-settings.png", [this](Menu::Item const *) {
+    powerMenu_.addItem(new Menu::Item{"Power Off", "assets/images/011-power-off.png"});
+    powerMenu_.addItem(new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"});
+    powerMenu_.addItem(new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"});
+    powerMenu_.addItem(new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"});
+    powerMenu_.addItem(new Menu::Item{"Settings", "assets/images/013-settings.png", [this](Menu::Item const *) {
         navigateTo(& settingsMenu_);
     }});
-    adminMenu_.addItem(new Menu::Item{"Debug Info", "assets/images/008-unicorn.png", [this](Menu::Item const *) {
+    powerMenu_.addItem(new Menu::Item{"Debug Info", "assets/images/008-unicorn.png", [this](Menu::Item const *) {
         if (debugInfo_ == nullptr)
             debugInfo_ = new DebugInfo();
         navigateTo(debugInfo_);
@@ -144,11 +144,15 @@ GUI::GUI(QWidget *parent):
 
 
     //auto c = new Gauge();
-    carousel_ = new Carousel{& adminMenu_};
+    carousel_ = new Carousel{& menu_};
     connect(carousel_, & Carousel::back, this, & GUI::navigateBack);
     
     gauge_ = new Gauge{};
     connect(gauge_, & Gauge::back, this, & GUI::navigateBack);
+
+    volumeGauge_ = new Gauge{};
+    connect(volumeGauge_, & Gauge::back, this, & GUI::navigateBack);
+    volumeGauge_->reset("Volume", 50, 0, 100, 5);
 
     setActivePage(carousel_);
 }
@@ -183,6 +187,14 @@ void GUI::pageChangeStep(qreal x) {
         activePage_->setOpacity((100 - aStep_) / 100);
     } else {
         if (activePage_ != nextPage_) {
+            // if mid-animation we have both volumes pressed, enter the power menu instead
+            if (nextPage_ == volumeGauge_) {
+                Driver * d = Driver::instance();
+                if (d->volumeLeft() && d->volumeRight()) {
+                    carousel_->setMenu(& powerMenu_, 0, /* animation */ false);
+                    nextPage_ = carousel_;
+                }
+            }
             activePage_->onBlur();
             activePage_ = nextPage_;
             activePage_->setOpacity(0);
@@ -191,6 +203,20 @@ void GUI::pageChangeStep(qreal x) {
         }
         activePage_->setOpacity((aStep_ - 100) / 100);
     }
+}
+
+void GUI::buttonVolumeLeft(bool state) {
+    if (activePage_ != volumeGauge_)
+        navigateTo(volumeGauge_);
+    else
+        activePage_->buttonLeft(state); 
+}
+
+void GUI::buttonVolumeRight(bool state) {
+    if (activePage_ != volumeGauge_)
+        navigateTo(volumeGauge_);
+    else 
+        activePage_->buttonRight(state);
 }
 
 void GUI::headphones(bool state) {
@@ -242,7 +268,6 @@ void GUI::tempAvr(uint16_t value) {
 void GUI::tempAccel(uint16_t value) {
 
 }
-
 
 void GUI::initializeOverlay() {
     overlay_->setSceneRect(QRectF{0,0,320,240});
