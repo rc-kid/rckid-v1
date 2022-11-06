@@ -70,8 +70,6 @@ private slots:
     void buttonSelect(bool state) { if (activePage_) activePage_->buttonSelect(state); }
     void buttonLeft(bool state) { if (activePage_) activePage_->buttonLeft(state); }
     void buttonRight(bool state) { if (activePage_) activePage_->buttonRight(state); }
-    void buttonVolumeLeft(bool state);
-    void buttonVolumeRight(bool state);
     void buttonThumb(bool state) { if (activePage_) activePage_->buttonThumb(state); }
     void thumbstick(uint8_t x, uint8_t y) { if (activePage_) activePage_->thumbstick(x, y); }
     void accel(uint8_t x, uint8_t y) { if (activePage_) activePage_->accel(x, y); }
@@ -79,6 +77,15 @@ private slots:
     void dpadDown(bool state) {if (activePage_) activePage_->dpadDown(state); }
     void dpadLeft(bool state) {if (activePage_) activePage_->dpadLeft(state); }
     void dpadRight(bool state) {if (activePage_) activePage_->dpadRight(state); }
+
+    /** Volume up and down controls.   
+
+        In normal and power menu settings pressing volume buttons triggers the switch to volume gauge page. In external app mode, they should directly change the volume without displaying anything. 
+
+        When the switch to volume gauge page is underway, we check in the middle if both buttons are pressed and if so instead of volume gauge, the switch happens to the power menu (unless we already are in power menu. )
+     */
+    void buttonVolumeLeft(bool state);
+    void buttonVolumeRight(bool state);
 
     // TODO also dependning on the volume it might be muted...
     void headphones(bool state);
@@ -95,7 +102,22 @@ private slots:
 
     void tempAccel(uint16_t value);
 
+    void pageChangeDone();
+
+
 private:
+
+
+    /** Determines the mode in which the GUI runs. 
+     */
+    enum class Mode {
+        Normal, 
+        PowerMenuTransition,
+        PowerMenu,
+        ExternalApp,
+        ExternalAppPowerMenu,
+    };
+
     explicit GUI(QWidget *parent = nullptr);
 
     ~GUI() override;
@@ -151,6 +173,10 @@ private:
     QGraphicsSimpleTextItem * wifiSSID_;
     QGraphicsSimpleTextItem * volume_;
     QGraphicsSimpleTextItem * volumePct_;
+
+
+    /** Mode of the application. */
+    Mode mode_ = Mode::Normal;
 
     /** Main menu. 
      */

@@ -5,6 +5,7 @@ using namespace std::chrono_literals;
 
 constexpr auto AVR_MAX_PERIOD = 1s;
 constexpr auto ACCEL_MAX_PERIOD = 5ms;
+constexpr auto AUTO_REPEAT_TICKS = 20;
 static constexpr char const * DEVICE_NAME = "rcboy-gamepad";
 
 
@@ -16,6 +17,21 @@ bool Driver::Button::update(bool newState) {
             libevdev_uinput_write_event(singleton_->uidev_, EV_KEY, evdevId, state ? 1 : 0);
             libevdev_uinput_write_event(singleton_->uidev_, EV_SYN, SYN_REPORT, 0);
         }
+        if (state)
+            autoRepeatTicks = AUTO_REPEAT_TICKS;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Driver::Button::autoRepeat() {
+    if (state == true && --autoRepeatTicks == 0) {
+        if (evdevId != KEY_RESERVED && singleton_->uidev_ != nullptr) {
+            libevdev_uinput_write_event(singleton_->uidev_, EV_KEY, evdevId, 1);
+            libevdev_uinput_write_event(singleton_->uidev_, EV_SYN, SYN_REPORT, 0);
+        }
+        autoRepeatTicks = AUTO_REPEAT_TICKS;
         return true;
     } else {
         return false;
@@ -39,10 +55,29 @@ Driver::TriState Driver::AnalogButton::update(uint8_t value) {
         libevdev_uinput_write_event(singleton_->uidev_, EV_KEY, evdevId, state ? 1 : 0);
         libevdev_uinput_write_event(singleton_->uidev_, EV_SYN, SYN_REPORT, 0);
     }
-    if (changed)
-        return state ? TriState::On : TriState::Off;
-    else
+    if (changed) {
+        if (state) {
+            autoRepeatTicks = AUTO_REPEAT_TICKS;
+            return TriState::On;
+        } else {
+            return TriState::Off;
+        }
+    } else {
         return TriState::Unchanged;
+    }
+}
+
+bool Driver::AnalogButton::autoRepeat() {
+    if (state == true && --autoRepeatTicks == 0) {
+        if (evdevId != KEY_RESERVED && singleton_->uidev_ != nullptr) {
+            libevdev_uinput_write_event(singleton_->uidev_, EV_KEY, evdevId, 1);
+            libevdev_uinput_write_event(singleton_->uidev_, EV_SYN, SYN_REPORT, 0);
+        }
+        autoRepeatTicks = AUTO_REPEAT_TICKS;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 Driver * Driver::initialize() {
@@ -121,6 +156,7 @@ void Driver::loop() {
             queryAccel();
             nextAccel = last + ACCEL_MAX_PERIOD;
             g.lock();
+            autoRepeat();
         }
         if (last >= nextAvr) 
             events_.push_back(Event::AvrIrq); // don't call emit event since we already have lock
@@ -224,6 +260,40 @@ uint8_t Driver::accelTo1GUnsigned(int16_t v) {
 
 void Driver::queryRadio() {
 
+}
+
+void Driver::autoRepeat() {
+    bool btnA, btnB, btnX, btnY, btnL, btnR, btnLVol, btnRVol, btnThumb, dUp, dDown, dLeft, dRight;
+    {
+        std::lock_guard g_{singleton_->mState_};
+        btnA = a_.autoRepeat();
+        btnB = b_.autoRepeat();
+        btnX = x_.autoRepeat();
+        btnY = y_.autoRepeat();
+        btnL = l_.autoRepeat();
+        btnR = r_.autoRepeat();
+        btnLVol = volumeLeft_.autoRepeat();
+        btnRVol = volumeRight_.autoRepeat();
+        btnThumb = thumbBtn_.autoRepeat();
+        dUp = dpadUp_.autoRepeat();
+        dDown = dpadDown_.autoRepeat();
+        dLeft = dpadLeft_.autoRepeat();
+        dRight = dpadRight_.autoRepeat();
+    }
+    if (btnA) emit buttonA(true);
+    if (btnB) emit buttonB(true);
+    if (btnX) emit buttonX(true);
+    if (btnY) emit buttonY(true);
+    if (btnL) emit buttonLeft(true);
+    if (btnR) emit buttonRight(true);
+    if (btnLVol) emit buttonVolumeLeft(true);
+    if (btnRVol) emit buttonVolumeRight(true);
+    if (btnThumb) emit buttonThumb(true);
+    // TODO enable once we have working thumbstick
+    //if (dUp) emit dpadUp(true);
+    //if (dDown) emit dpadDown(true);
+    //if (dLeft) emit dpadLeft(true);
+    //if (dRight) emit dpadRight(true);
 }
 
 void Driver::isrButtonChange(int gpio, int level, uint32_t tick, Button * btn) {

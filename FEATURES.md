@@ -2,6 +2,11 @@
 
 > A draft of the features of the system. Work in progress, very rough. 
 
+## Controls
+
+- when either of the volume buttons are pressed, they control the volume (with repeat mode on)
+- when both are pressed we enter the admin menu. This gives the delay too
+
 ## Main Menu
 
 - play games from retroarch

@@ -28,7 +28,7 @@
 
 ## RPI
 
-- what is the stop-job at shutdown and how can we make shutdown faster & detect it on avr
+- exit from power mode should be detected and switch the status back to either normal, or externalApp
 
 - turn off/stuff - https://github.com/raspberrypi/firmware/blob/13691cee95902d76bc88a3f658abeb37b3c90b03/boot/overlays/README#L1335 -- can help? Not really - perhaps tell systemd to execute some app? 
 - multimedia player
@@ -37,7 +37,9 @@
 - if there are errors during startup a way to show them
 - debounce buttons
 - joystick seems to work, but the responsivity is not the best and it seems some events are missed, check once not on breadboard I guess (?)
-- add repeat to gamepad keys (configurable)
+
+- should button repeat be user-configurable? 
+- reenable dpad and check that it works
 
 # Remote 
 

@@ -171,10 +171,13 @@ private:
     struct Button {
         bool state = false;
         unsigned evdevId;
+        unsigned autoRepeatTicks;
 
         Button(unsigned evdevId): evdevId{evdevId}  {}
 
         bool update(bool newState);
+
+        bool autoRepeat();
 
     }; // Driver::Button
 
@@ -183,6 +186,7 @@ private:
         unsigned evdevId;
         uint8_t thresholdOn;
         uint8_t thresholdOff;
+        unsigned autoRepeatTicks;
 
         AnalogButton(unsigned evdevId, uint8_t thresholdOn, uint8_t thresholdOff):
             evdevId{evdevId},
@@ -191,6 +195,8 @@ private:
         }
 
         TriState update(uint8_t value);
+
+        bool autoRepeat();
 
     private:
 
@@ -259,6 +265,9 @@ private:
     uint8_t accelTo1GUnsigned(int16_t v); 
 
     void queryRadio();
+
+    void autoRepeat();
+
 
     /** \name Interrupt handlers. 
      

@@ -31,6 +31,15 @@ void GUI::navigateBack() {
         return;
     NavigationItem item = navStack_.back();
     navStack_.pop_back();
+    // if we are leaving the power menu, switch the app mode accordingly
+    if (activePage_ == carousel_ && carousel_->menu() == & powerMenu_) {
+        if (mode_ == Mode::PowerMenu) {
+            mode_ = Mode::Normal;
+        } else {
+            mode_ = Mode::ExternalApp;
+            // TODO go back to the app
+        }
+    }
     // switching menu for menu
     if (activePage_ == carousel_ && item.page == carousel_) {
         carousel_->setMenu(item.menu, item.index);
@@ -68,6 +77,7 @@ GUI::GUI(QWidget *parent):
     aPage_->setDuration(500);
     aPage_->setStartValue(0);
     aPage_->setEndValue(200);
+    connect(aPage_, & QPropertyAnimation::finished, this, & GUI::pageChangeDone);
 
     overlayView_->setStyleSheet("background: transparent;");
     singleton_ = this;
@@ -173,6 +183,8 @@ void GUI::setActivePage(Page * page) {
     }
 }
 
+/** Pushes the currently active page to the navigation stack, done before new page is displayed. 
+ */
 void GUI::pushActivePage() {
     if (activePage_ == carousel_) {
         navStack_.push_back(NavigationItem{ carousel_, carousel_->menu(), carousel_->index()});
@@ -187,36 +199,77 @@ void GUI::pageChangeStep(qreal x) {
         activePage_->setOpacity((100 - aStep_) / 100);
     } else {
         if (activePage_ != nextPage_) {
-            // if mid-animation we have both volumes pressed, enter the power menu instead
-            if (nextPage_ == volumeGauge_) {
-                Driver * d = Driver::instance();
-                if (d->volumeLeft() && d->volumeRight()) {
-                    carousel_->setMenu(& powerMenu_, 0, /* animation */ false);
-                    nextPage_ = carousel_;
-                }
-            }
             activePage_->onBlur();
             activePage_ = nextPage_;
             activePage_->setOpacity(0);
             pageView_->setScene(activePage_);
-            activePage_->onFocus();
+        }
+        // if during the animation we have both volumes pressed, enter the power menu instead
+        if (mode_ == Mode::Normal && activePage_ == volumeGauge_) {
+            Driver * d = Driver::instance();
+            if (d->volumeLeft() && d->volumeRight()) {
+                carousel_->setMenu(& powerMenu_, 0, /* animation */ false);
+                // set both next and active page so that the check above won't keep rewriting the page
+                activePage_ = carousel_;
+                nextPage_ = carousel_;
+                mode_ = Mode::PowerMenuTransition;
+                activePage_->setOpacity((aStep_ - 100) / 100);
+                pageView_->setScene(activePage_);
+            }
         }
         activePage_->setOpacity((aStep_ - 100) / 100);
     }
 }
 
+void GUI::pageChangeDone() {
+    activePage_->setOpacity(1);
+    activePage_->onFocus();
+}
+
 void GUI::buttonVolumeLeft(bool state) {
-    if (activePage_ != volumeGauge_)
-        navigateTo(volumeGauge_);
-    else
-        activePage_->buttonLeft(state); 
+    switch (mode_) {
+        case Mode::Normal:
+            if (state) {
+                if (activePage_ != volumeGauge_)
+                    navigateTo(volumeGauge_);
+                else
+                    activePage_->buttonLeft(state); 
+            }
+            break;
+        // if there is power menu transition in progress and the button is released, go to power menu mode. 
+        case Mode::PowerMenuTransition:
+            if (state == false)
+                mode_ = Mode::PowerMenu;
+            break;
+        case Mode::PowerMenu:
+        case Mode::ExternalAppPowerMenu:
+        case Mode::ExternalApp:
+            // TODO directly change the volume (or if second button is pressed as well, enter power menu)
+            break;
+    }
 }
 
 void GUI::buttonVolumeRight(bool state) {
-    if (activePage_ != volumeGauge_)
-        navigateTo(volumeGauge_);
-    else 
-        activePage_->buttonRight(state);
+    switch (mode_) {
+        case Mode::Normal:
+            if (state) {
+                if (activePage_ != volumeGauge_)
+                    navigateTo(volumeGauge_);
+                else 
+                    activePage_->buttonRight(state);
+            }
+            break;
+        // if there is power menu transition in progress and the button is released, go to power menu mode. 
+        case Mode::PowerMenuTransition:
+            if (state == false)
+                mode_ = Mode::PowerMenu;
+            break;
+        case Mode::PowerMenu:
+        case Mode::ExternalAppPowerMenu:
+        case Mode::ExternalApp:
+            // TODO directly change the volume (or if second button is pressed as well, enter power menu)
+            break;
+    }
 }
 
 void GUI::headphones(bool state) {
