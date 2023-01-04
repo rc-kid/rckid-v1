@@ -2,6 +2,26 @@
     "tasks": [
         // builds the avr part of rcboy locally
         {
+            "label": "rcboy-avr-bootloader-build",
+            "type": "shell",
+            "command": "~/.platformio/penv/bin/pio",
+            "args": [
+                "run", "-v"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/avr-i2c-bootloader",
+                "shell": {
+                    "executable" : "/bin/zsh",
+                    "args": ["-c"]
+                }
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+
+        // builds the avr part of rcboy locally
+        {
             "label": "rcboy-avr",
             "type": "shell",
             "command": "~/.platformio/penv/bin/pio",

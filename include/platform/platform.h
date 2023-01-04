@@ -21,6 +21,9 @@
 #if (defined __AVR_ATtiny1616__)
     #define ARCH_AVR_MEGATINY
     #define ARCH_ATTINY_1616
+#elif (defined __AVR_ATtiny1604__)
+    #define ARCH_AVR_MEGATINY
+    #define ARCH_ATTINY_1604
 #elif  (defined __AVR_ATtiny3216__)
     #define ARCH_AVR_MEGATINY
     #define ARCH_ATTINY_3216

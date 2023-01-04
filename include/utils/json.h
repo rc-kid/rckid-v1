@@ -286,6 +286,7 @@ namespace json {
         }
 
         template<typename T> T const & as() const;
+        template<typename T> T & as();
 
         Value & operator = (Value const & other) {
             detach();
@@ -350,7 +351,6 @@ namespace json {
             return *this;
         }
 
-
     private:
 
         void detach() {
@@ -395,7 +395,21 @@ namespace json {
     }
 
     template<> 
+    inline Bool & Value::as() {
+        if (kind_ != Kind::Bool)
+            throw "Expected bool but found";
+        return valueBool_;
+    }
+
+    template<> 
     inline Int const & Value::as() const {
+        if (kind_ != Kind::Int)
+            throw "Expected bool but found";
+        return valueInt_;
+    }
+
+    template<> 
+    inline Int & Value::as() {
         if (kind_ != Kind::Int)
             throw "Expected bool but found";
         return valueInt_;
@@ -781,7 +795,6 @@ namespace json {
 } // namespace json
 
 #ifdef TESTS
-
 
 
 

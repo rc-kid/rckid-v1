@@ -11,11 +11,24 @@ Based on RPi Zero 2W, SPI display and nrf24l01p and/or sx1278 for comms
 
 ## Build
 
+This section details the build & construction process of RCBoy. The process rather complex, but the steps here are in order that helps minimize problems:
+
+- first the RPi is prepared with a proper SDCard image
+- AVR and power management parts are soldered to the board
+- the AVR bootloader is flashed via the RPi
+- the rest of the board is soldered in particular order to allow accessibility
+- rpi is soldered to the board
+- the AVR application is programmed via I2C
+
+### Prepare the RPi image
+
 To build on Raspberry pi, create SD card image according to `sd/IMAGE.md`. This also installs all the prerequisites for building the rpi app and flashing the AVR. 
 
 > As building on rpi is clumsy for development, most of rcboy can be developed on a normal computer (tested on Windows 11 WSL) and then uploaded to the rpi over WiFi. The repository contains tasks and build scripts necessary for such a setup using Visual Studio Code and can be easily adapted to different IDEs/editors.
 
 ### Flashing the AVR
+
+When the RCBoy is assembled, the AVR chip is flashed via a custom I2C bootloader (the UPDI voltages would have to be translated otherwise, which is painful as the AVR runs on higher voltage than RPi). The RPi itself can be used to flash the AVR chip before soldered to the board by making a simple UPDI programmer from the serial port. After the bootloader is flashed, the RPi can be soldered to the board and the I2C programmer can be used for future updates. 
 
 > TODO
 

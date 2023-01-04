@@ -312,6 +312,10 @@ public:
         gpio::output(16); // SCK
         gpio::input(15); // MISO
         gpio::output(14); // MOSI
+    #elif (defined ARCH_ATTINY_1604)
+        gpio::output(10); // SCK
+        gpio::input(9); // MISO
+        gpio::output(8); // MOSI
     #else
         ARCH_NOT_SUPPORTED;
     #endif

@@ -9,8 +9,10 @@
 
 ## PCB
 
+- add pin connection from rpi to AVR for detecting shutdown 
+- move the USB breakout closer to the edge
+
 - check that headphones detection works with 2.5V as well
-- check resized photores holes
 - see if different accels can fit and be used/replaced under radio
 - mic amplification is too great, 51k seems to do the trick
 - verify thumbstick front panel hole placement
@@ -18,7 +20,12 @@
 - audio board is too big to be inserted comfortably (most likely it is ok)
 - ferrite beads are 1206, should be 0805, but now can also stay 1206
 
+
 ## AVR
+
+- create I2C bootloader to save the serial pins and provide uploading capabilities from RPI
+- https://docs.platformio.org/en/latest/platforms/atmelavr.html#bootloader-programming
+- https://www.microchip.com/en-us/application-notes/an2634
 
 - Status is only the first byte, then extra type for input properties, then extended state, then date time
 - this way it will be easier to ask only for a few...
@@ -27,8 +34,6 @@
 - micmax can't be aggregated like this since we need the max value actually
 
 ## RPI
-
-- exit from power mode should be detected and switch the status back to either normal, or externalApp
 
 - turn off/stuff - https://github.com/raspberrypi/firmware/blob/13691cee95902d76bc88a3f658abeb37b3c90b03/boot/overlays/README#L1335 -- can help? Not really - perhaps tell systemd to execute some app? 
 - multimedia player
