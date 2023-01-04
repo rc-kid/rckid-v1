@@ -9,7 +9,8 @@
 
 ## PCB
 
-- add pin connection from rpi to AVR for detecting shutdown 
+- move joystick btn from AVR to RPI  
+- add pin connection from rpi to AVR for detecting shutdown
 - move the USB breakout closer to the edge
 
 - check that headphones detection works with 2.5V as well
@@ -20,6 +21,12 @@
 - audio board is too big to be inserted comfortably (most likely it is ok)
 - ferrite beads are 1206, should be 0805, but now can also stay 1206
 
+## Bootloader
+
+- enable backlight
+- pull AVR_IRQ low when working
+- write the programmer
+- test by verifying the bootloader code to be what is expected
 
 ## AVR
 
