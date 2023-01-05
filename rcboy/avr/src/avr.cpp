@@ -16,7 +16,7 @@
              VBATT -- (03) PA7   PA0 (17) -- UPDI
           PHOTORES -- (04) PB5   PC3 (13) -- RGB
            MIC_OUT -- (05) PB4   PC2 (12) -- JOY_V
-          BTN_RVOL -- (06) PB3   PC1 (11) -- JOY_BTN
+          BTN_RVOL -- (06) PB3   PC1 (11) -- 
             RPI_EN -- (07) PB2   PC0 (10) -- JOY_H
          SDA (I2C) -- (08) PB1   PB0 (09) -- SCL (I2C)
 
@@ -58,7 +58,6 @@ static constexpr gpio::Pin BTN_LVOL = 14;
 /** Joystick inputs for horizontal and vertical position and the button. Their range is 0-3.3V and therefore are analog inputs. They are powered by the audio 3V3 line and so are only working the rpi is on. 
  */ 
 static constexpr gpio::Pin JOY_H = 10; // ADC1(6)
-static constexpr gpio::Pin JOY_BTN = 11; // ADC1(7)
 static constexpr gpio::Pin JOY_V = 12; // ADC1(8)
 
 /** Microphone input. The microphone is on when rpi is on. 
@@ -179,7 +178,7 @@ namespace rpi {
 
     /** I2C buffer.
      */
-    uint8_t i2cBuffer_[comms::I2C_BUFFER_SIZE];
+    uint8_t i2cBuffer_[comms::I2C_PACKET_SIZE];
 
 
     void initialize() {
@@ -239,7 +238,12 @@ namespace rpi {
                 analogWrite(BACKLIGHT, state.estatus.brightness());
                 break;
             }
-
+            case msg::PowerOff::Id: {
+                // TODO
+            }
+            case msg::AvrReset::Id: {
+                _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
+            }
         }
 
         // clear the received bytes buffer and the i2c command ready flag
@@ -256,6 +260,7 @@ namespace rpi {
         i2cReadStart_ = addr;
         sei();
     }
+
 
     /** I2C Slave handler. 
      
@@ -277,7 +282,7 @@ namespace rpi {
         #define I2C_STOP_TX (TWI_APIF_bm | TWI_DIR_bm)
         #define I2C_STOP_RX (TWI_APIF_bm)
         uint8_t status = TWI0.SSTATUS;
-        // sending data to accepting master is on our fastpath as is checked first, if there is more state to send, send next byte, otherwise go to transcaction completed mode. 
+        // sending data to accepting master is on our fastpath and is checked first, if there is more state to send, send next byte, otherwise go to transaction completed mode. 
         if ((status & I2C_DATA_MASK) == I2C_DATA_TX) {
             if (i2cBytesSent_ >= comms::I2C_PACKET_SIZE) {
                 i2cReadActual_ = reinterpret_cast<uint8_t*>(& state);
@@ -486,6 +491,7 @@ namespace audio {
     uint8_t x = 0;
 
     void startRecording() {
+        state.status.setRecording(true);
         // start the ADC first
         ADC0.CTRLA = 0; // disable ADC so that any pending read from the main app is cancelled
         // TODO set reference voltage to something useful, such as 2.5? 
@@ -513,6 +519,10 @@ namespace audio {
         ADC0.CTRLA = 0;
         ADC0.INTCTRL = 0;
         TCB1.CTRLA = 0;
+        cli(); // make sure we are not sending the last mic packet
+        state.status.setRecording(false);
+        rpi::i2cReadStart_ = reinterpret_cast<uint8_t*>(& state);
+        sei();
         adc0::start();
     }
 
@@ -595,7 +605,7 @@ namespace inputs {
     uint8_t accHSize_;
     uint8_t accVSize_;
 
-    uint8_t debounceCounter_[3] = {0,0,0};
+    uint8_t debounceCounter_[2] = {0,0};
 
     // forward declaration for the ISR
     void volumeLeft();
@@ -606,14 +616,11 @@ namespace inputs {
         // start pullups on the L and R volume buttons
         gpio::inputPullup(BTN_LVOL);
         gpio::inputPullup(BTN_RVOL);
-        gpio::input(JOY_BTN);
         // invert the button ports so that we get 1 for button pressed, 0 for released
         static_assert(BTN_LVOL == 14);
         PORTA.PIN1CTRL |= PORT_INVEN_bm;
         static_assert(BTN_RVOL == 6);
         PORTB.PIN3CTRL |= PORT_INVEN_bm;
-        static_assert(JOY_BTN == 11);
-        PORTC.PIN1CTRL |= PORT_INVEN_bm;
         // attach button interrupts on change
         attachInterrupt(digitalPinToInterrupt(BTN_LVOL), volumeLeft, CHANGE);
         attachInterrupt(digitalPinToInterrupt(BTN_RVOL), volumeRight, CHANGE);
@@ -631,8 +638,6 @@ namespace inputs {
     }
 
     void joystickStart() {
-        gpio::inputPullup(JOY_BTN);
-
         accH_ = 0;
         accV_ = 0;
         accHSize_ = 0;
@@ -646,15 +651,11 @@ namespace inputs {
         ADC1.SAMPCTRL = 31;
         ADC1.COMMAND = ADC_STCONV_bm;
         // TODO switch reference to 4V3 for better resolution? Most likely not as it might not be available when powering from less than that 
-        attachInterrupt(digitalPinToInterrupt(JOY_BTN), joystickButton, CHANGE);
     }
 
-    /** Disables ADC1 and interrupt on the joystick button so that AVR won't get interrupts from it. 
-     */
     void joystickStop() {
+        // simply disable ADC1
         ADC1.CTRLA = 0;
-        detachInterrupt(digitalPinToInterrupt(JOY_BTN));
-        gpio::input(JOY_BTN);
     }
 
     bool joystickReady() {
@@ -695,15 +696,7 @@ namespace inputs {
                 rpi::setIrq();
         }
     }
-
-    void joystickButton() {
-        if (debounceCounter_[2] == 0) {
-            debounceCounter_[2] = DEBOUNCE_TICKS;
-            if (state.status.setBtnJoystick(gpio::read(JOY_BTN)))
-                rpi::setIrq();
-        }
-    }
-
+    
     /** Each tick decrements the debounce timers and if they reach zero, the button status if updated and if it changes, irq is set (in this case press or release was shorted than the debounce interval). During the tick we also update the X and Y joystick readings (averaged over the measurements that happened during the tick for less jitter). 
      */
     void tick() {
@@ -714,10 +707,6 @@ namespace inputs {
         if (debounceCounter_[1] > 0)
             if (--debounceCounter_[1] == 0)
                 if (state.status.setBtnVolumeRight(gpio::read(BTN_RVOL)))
-                    rpi::setIrq();
-        if (debounceCounter_[2] > 0)
-            if (--debounceCounter_[2] == 0)
-                if (state.status.setBtnJoystick(gpio::read(JOY_BTN)))
                     rpi::setIrq();
         if (accHSize_ != 0) {
             accH_ = accH_ / accHSize_;

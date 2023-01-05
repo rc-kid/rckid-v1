@@ -20,6 +20,34 @@
 #include "utils/json.h"
 
 
+class AudioPacket {
+public:
+    static constexpr size_t SIZE = comms::I2C_PACKET_SIZE;
+
+    uint8_t * data;
+
+    AudioPacket():
+        data{new uint8_t[SIZE]} {
+    }
+
+    // QT does not play nicely with move 
+    AudioPacket(AudioPacket const & from):
+        data{new uint8_t[SIZE]} {
+        memcpy(data, from.data, SIZE);
+    }
+
+    AudioPacket(AudioPacket && from):
+        data{from.data} {
+        from.data = nullptr;
+    }
+
+    ~AudioPacket() {
+        delete [] data;
+    }
+}; 
+
+Q_DECLARE_METATYPE(AudioPacket);
+
 /** RCBoy driver
  
     Controls the hardware such as the AVR, accelerometer, radio, neopixels and vibration motor.
@@ -88,7 +116,16 @@ public slots:
         }
         emitEvent(Event::SetBrightness);
     }
-    
+
+    void startAudioRecording() {
+        emitEvent(Event::StartRecording);
+    }
+
+    void stopAudioRecording() {
+        emitEvent(Event::StopRecording);
+    }
+
+
     /** Starts the power off sequence. 
      */
     void poweroff() {
@@ -119,6 +156,10 @@ signals:
     void dpadLeft(bool state);
     void dpadRight(bool state);
     //@}
+
+    /** Called when an audio packet is received. Contains the number of bytes received (usually the I2C_PACKET_SIZE from comms).
+     */
+    void audioPacketReceived(AudioPacket data);
 
     void headphonesChanged(bool state);
     void chargingChanged(bool state);
@@ -163,7 +204,8 @@ private:
         AvrIrq, 
         RadioIrq,
         SetBrightness,
-
+        StartRecording, 
+        StopRecording, 
 
         PowerOff,
     }; // Driver::Event
@@ -240,14 +282,16 @@ private:
     }
 
     /** Queries avr for the current status. 
-     
-        
      */
     void queryAvrStatus();
 
     /** Queries the full AVR information. 
      */
     void queryAvrFull();
+
+    /** Queries the AVR when recording, i.e. receives the buffer and the first state status byte. 
+     */
+    void queryAvrRecording();
 
     template<typename T>
     void sendAvrCommand(T const & cmd) {
@@ -357,6 +401,9 @@ private:
     bool headphones_;
     bool charging_;
     bool lowBattery_;
+    /** True if the AVR is currently recording the microphone
+     * */
+    bool recording_; 
 
     /** Measured voltage battery to determine the capacity. 
      */

@@ -1,5 +1,7 @@
 # RCBoy
 
+- we are either sending, or receiving too many audio recordings, see why
+
 ## BOM
 
 - M1.4 screws for thumbstick
@@ -45,8 +47,9 @@
 - add microphone reading and check quality 
 
 - turn off/stuff - https://github.com/raspberrypi/firmware/blob/13691cee95902d76bc88a3f658abeb37b3c90b03/boot/overlays/README#L1335, map to one of the UART pins 
+- add joystick button direct reading
 
-
+- can we speed things up with crosscompilation? https://deardevices.com/2019/04/18/how-to-crosscompile-raspi/
 
 - multimedia player
 

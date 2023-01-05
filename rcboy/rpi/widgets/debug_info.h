@@ -66,6 +66,9 @@ public:
         connect(driver, & Driver::vccVoltageChanged, this, & DebugInfo::vccVoltage, Qt::QueuedConnection);
         connect(driver, & Driver::tempAvrChanged, this, & DebugInfo::tempAvr, Qt::QueuedConnection);
         connect(driver, & Driver::tempAccelChanged, this, & DebugInfo::tempAccel, Qt::QueuedConnection);
+        connect(driver, & Driver::buttonVolumeLeft, this, & DebugInfo::buttonVolumeLeft, Qt::QueuedConnection);
+        connect(driver, & Driver::buttonVolumeRight, this, & DebugInfo::buttonVolumeRight, Qt::QueuedConnection);
+        connect(driver, & Driver::audioPacketReceived, this, & DebugInfo::audioPacketReceived, Qt::QueuedConnection);
 
     }
 
@@ -77,10 +80,20 @@ protected:
     void buttonY(bool state) override { updateButton(y_, state); }
     void buttonStart(bool state) override { updateButton(start_, state); }
     void buttonSelect(bool state) override { updateButton(select_, state); }
-    void buttonLeft(bool state) override { updateButton(l_, state); }
-    void buttonRight(bool state) override { updateButton(r_, state); }
-    void buttonVolumeLeft(bool state) override { updateButton(lVol_, state); }
-    void buttonVolumeRight(bool state) override { updateButton(rVol_, state); }
+    void buttonLeft(bool state) override { 
+        updateButton(l_, state); 
+        Driver * driver = Driver::instance();
+        if (state)
+            driver->startAudioRecording();
+        else
+            driver->stopAudioRecording();
+    }
+    void buttonRight(bool state) override { 
+        updateButton(r_, state); 
+        audioPackets_ = 0; 
+    }
+    void buttonVolumeLeft(bool state) { updateButton(lVol_, state); }
+    void buttonVolumeRight(bool state) { updateButton(rVol_, state); }
     void buttonThumb(bool state) override { updateButton(thumbBtn_, state); }
     void thumbstick(uint8_t x, uint8_t y) override { updatePoint(thumb_, x, y); }
     void accel(uint8_t x, uint8_t y) override { updatePoint(accel_, x, y); }
@@ -88,6 +101,11 @@ protected:
     void dpadDown(bool state) override { updateButton(dpadDown_, state); }
     void dpadLeft(bool state) override { updateButton(dpadLeft_, state); }
     void dpadRight(bool state) override { updateButton(dpadRight_, state); }
+
+    void audioPacketReceived(AudioPacket data) {
+        ++audioPackets_;
+        audio_->setText(QString::number(audioPackets_, 10));
+    }
 
 protected slots:
 
@@ -135,6 +153,7 @@ private:
         }
     }
 
+    size_t audioPackets_ = 0;
     QGraphicsSimpleTextItem * a_;
     QGraphicsSimpleTextItem * b_;
     QGraphicsSimpleTextItem * x_;

@@ -30,8 +30,6 @@ protected:
     virtual void buttonSelect(bool state) {}
     virtual void buttonLeft(bool state) {}
     virtual void buttonRight(bool state) {}
-    virtual void buttonVolumeLeft(bool state) {}
-    virtual void buttonVolumeRight(bool state) {}
     virtual void buttonThumb(bool state) {}
     virtual void thumbstick(uint8_t x, uint8_t y) {}
     virtual void accel(uint8_t x, uint8_t y) {}

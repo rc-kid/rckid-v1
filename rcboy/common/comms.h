@@ -7,7 +7,6 @@ namespace comms {
 
     static constexpr uint8_t AVR_I2C_ADDRESS = 0x43;
 
-    static constexpr uint8_t I2C_BUFFER_SIZE = 32;
     static constexpr uint8_t I2C_PACKET_SIZE = 32;
 
     /** Basic AVR Status. 
@@ -24,11 +23,9 @@ namespace comms {
         //@{
         bool btnVolumeLeft() const { return status_ & BTN_LVOL; }
         bool btnVolumeRight() const { return status_ & BTN_RVOL; }
-        bool btnJoystick() const { return status_ & BTN_JOY; }
 
         bool setBtnVolumeLeft(bool value) { return checkSetOrClear(status_, BTN_LVOL, value); }
         bool setBtnVolumeRight(bool value) { return checkSetOrClear(status_, BTN_RVOL, value); }
-        bool setBtnJoystick(bool value) { return checkSetOrClear(status_, BTN_JOY, value); }
         //@}
 
         /** \name Device flags. 
@@ -44,11 +41,13 @@ namespace comms {
             TODO the power flag does not have to be in the first byte. 
          */
         //@{
+        bool recording() const { return status_ & RECORDING; }
         bool avrPowerOn() const { return status_ & POWER_ON; }
         bool charging() const { return status_ & CHARGING; }
         bool vusb() const { return status_ & VUSB; }
         bool lowBattery() const { return status_ & LOW_BATT; }
 
+        void setRecording(bool value = true) { setOrClear(status_, RECORDING, value); }
         void setAvrPowerOn(bool value = true) { setOrClear(status_, POWER_ON, value); }
         bool setCharging(bool value = true) { return checkSetOrClear(status_, CHARGING, value); }
         bool setVUsb(bool value = true) { return checkSetOrClear(status_, VUSB, value); }
@@ -106,7 +105,7 @@ namespace comms {
     //private:
         static constexpr uint8_t BTN_LVOL = 1 << 0; // 1
         static constexpr uint8_t BTN_RVOL = 1 << 1; // 2
-        static constexpr uint8_t BTN_JOY = 1 << 2; // 4
+        static constexpr uint8_t RECORDING = 1 << 2; // 4
         static constexpr uint8_t MIC_LOUD = 1 << 3; // 8
         static constexpr uint8_t POWER_ON = 1 << 4; // 16
         static constexpr uint8_t CHARGING = 1 << 5; // 32
@@ -224,7 +223,6 @@ namespace comms {
         Status status;
         ExtendedStatus estatus;
         DateTime time;
-
     } __attribute__((packed)); // FullState
 
 } // namespace comms
@@ -262,7 +260,7 @@ namespace msg {
     };
 
     template<typename T> class MessageHelper : public Message {
-    protected:
+    public:
         MessageHelper():Message{T::Id} {}
     }; // MessageHelper<T>
 
@@ -286,6 +284,12 @@ namespace msg {
         The poweroff is not immediate since RPI must 
      */
     MESSAGE(PowerOff)
+
+    /** Causes the reset of the AVR chip. 
+     
+        Useful for debugging and programming via the I2C interface. 
+     */
+    MESSAGE(AvrReset)
 
 
 } // namespace msg

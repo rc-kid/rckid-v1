@@ -52,8 +52,6 @@ void Gamepad::queryAvr() {
         isrButtonChange(0, volumeLeft_.state, 0, & volumeLeft_);
     if (volumeRight_.state != state.btnVolumeRight())
         isrButtonChange(0, volumeRight_.state, 0, & volumeRight_);
-    if (thumbBtn_.state != state.btnJoystick())
-        isrButtonChange(0, thumbBtn_.state, 0, & thumbBtn_);
 
 /*
     if (sel_ != state.btnSelect()) {

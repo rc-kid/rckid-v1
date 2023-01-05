@@ -16,12 +16,12 @@
 
 int main(int argc, char * argv[]) {
 
-    auto json = json::parse("{ \"foo\" : \"bar\" }");
+    //auto json = json::parse("{ \"foo\" : \"bar\" }");
     //std::cout << json["foo"] << std::endl;
 
 
 
-    return EXIT_SUCCESS;
+    //return EXIT_SUCCESS;
     // initialize the driver singleton and peripherals
     Driver * driver = Driver::initialize();
     

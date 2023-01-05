@@ -81,6 +81,7 @@ bool Driver::AnalogButton::autoRepeat() {
 }
 
 Driver * Driver::initialize() {
+    //qRegisterMetaType<AudioPacket>("AudioPacket");
     LOG("Initializing...");
     LOG("  gpio");
     gpio::initialize();
@@ -119,6 +120,7 @@ void Driver::loop() {
     auto last = std::chrono::system_clock::now();        
     auto nextAccel = last + ACCEL_MAX_PERIOD;
     auto nextAvr = last + AVR_MAX_PERIOD;
+    bool recording = false;
     std::unique_lock g{m_};
     while (true) {
         // while there are any events in the queue, proces them while we are under lock
@@ -129,7 +131,9 @@ void Driver::loop() {
             g.unlock();
             switch (ev) {
                 case Event::AvrIrq:
-                    if (last >= nextAvr) {
+                    if (recording) {
+                        queryAvrRecording();
+                    } else if (last >= nextAvr) {
                         queryAvrFull();
                         nextAvr = last + AVR_MAX_PERIOD;
                     } else {
@@ -144,7 +148,19 @@ void Driver::loop() {
                     // TODO 
                     break;
                 case Event::SetBrightness:
-                    sendAvrCommand(msg::SetBrightness(brightness_));
+                    sendAvrCommand(msg::SetBrightness{brightness_});
+                    break;
+                case Event::StartRecording:
+                    if (recording == false) {
+                        sendAvrCommand(msg::StartAudioRecording{});
+                        recording = true;
+                    }
+                    break;
+                case Event::StopRecording:
+                    if (recording == true) {
+                        sendAvrCommand(msg::StopAudioRecording{});
+                        recording = false;
+                    }
                     break;
             }
             g.lock();
@@ -196,12 +212,17 @@ void Driver::queryAvrFull() {
         emit tempAvrChanged(tempAvr_); 
 }
 
+void Driver::queryAvrRecording() {
+    AudioPacket packet;
+    i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, packet.data, AudioPacket::SIZE);
+    emit audioPacketReceived(std::move(packet));
+}
+
 void Driver::updateStatus(comms::Status status) {
     // get the lock on the driver's state and perform updates based on the status, remembering the events that need to be raised later on when the lock is released
     mState_.lock();
     bool volLeftChanged = volumeLeft_.update(status.btnVolumeLeft());
     bool volRightChanged = volumeRight_.update(status.btnVolumeRight());
-    bool thumbChanged = thumbBtn_.update(status.btnJoystick());
     bool thumbPosChanged = thumbX_.update(status.joyX());
     thumbPosChanged = thumbY_.update(status.joyY()) || thumbPosChanged;
 
@@ -216,8 +237,6 @@ void Driver::updateStatus(comms::Status status) {
         emit buttonVolumeLeft(status.btnVolumeLeft());
     if (volRightChanged)
         emit buttonVolumeRight(status.btnVolumeRight());
-    if (thumbChanged)
-        emit buttonVolumeLeft(status.btnJoystick());
 
     if (thumbPosChanged)
         emit thumbstick(status.joyX(), status.joyY());
