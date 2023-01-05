@@ -12,9 +12,9 @@
 - move joystick btn from AVR to RPI  
 - add pin connection from rpi to AVR for detecting shutdown
 - move the USB breakout closer to the edge
+- antenna might be too far, check that it fits
 
 - check that headphones detection works with 2.5V as well
-- see if different accels can fit and be used/replaced under radio
 - mic amplification is too great, 51k seems to do the trick
 - verify thumbstick front panel hole placement
 - check if 1M pull-down resistor can be used for rpi power
@@ -37,14 +37,18 @@
 - Status is only the first byte, then extra type for input properties, then extended state, then date time
 - this way it will be easier to ask only for a few...
 - reading the audio has lots of errors, probably too many irqs present...
-- AVR software deboucing seems not to be very robust. See if this is breadboard related & fix
+
 - micmax can't be aggregated like this since we need the max value actually
 
 ## RPI
 
-- turn off/stuff - https://github.com/raspberrypi/firmware/blob/13691cee95902d76bc88a3f658abeb37b3c90b03/boot/overlays/README#L1335 -- can help? Not really - perhaps tell systemd to execute some app? 
+- add microphone reading and check quality 
+
+- turn off/stuff - https://github.com/raspberrypi/firmware/blob/13691cee95902d76bc88a3f658abeb37b3c90b03/boot/overlays/README#L1335, map to one of the UART pins 
+
+
+
 - multimedia player
-- microphone reading
 
 - if there are errors during startup a way to show them
 - debounce buttons
