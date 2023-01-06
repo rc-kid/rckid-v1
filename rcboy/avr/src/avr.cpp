@@ -89,7 +89,7 @@ uint8_t i2cBuffer[comms::I2C_PACKET_SIZE * 2];
 volatile struct {
     /** Determines that the AVR irq is either requested, or should be requested at the next tick. 
      */
-    bool irq : 1;
+    bool requestIrq : 1;
     bool i2cReady : 1;
     bool secondTick : 1;
     bool sleep : 1;
@@ -196,25 +196,25 @@ namespace rpi {
     void off() {
         gpio::output(RPI_EN);
         gpio::high(RPI_EN);
-
     }
 
-    void setIrq() {
-        flags.irq = true;
-    }
-
-    void setIrqImmediately() {
-        flags.irq = true;
-        gpio::output(AVR_IRQ);
-        gpio::low(AVR_IRQ);
+    /** Requests the IRQ pin to be pulled down on the next tick. 
+     
+        IRQ requests are ignored while audio recording is in progress as there is no way to distingush between state change IRQ and packet ready IRQ signal. 
+     */
+    void requestIrq() {
+        if (! state.status.recording())
+            flags.requestIrq = true;
     }
 
     void tick() {
-        // force IRQ down if it's up and the irq flag is set
-        if (flags.irq == true && gpio::read(AVR_IRQ)) {
-            gpio::output(AVR_IRQ);
-            gpio::low(AVR_IRQ);
-            flags.irq = false;
+        // force IRQ down if requested and the pin is not output pin yet
+        if (flags.requestIrq == true) {
+           flags.requestIrq = false;
+            if ((PORTA.DIR & (1 << 4)) == 0) {
+                gpio::output(AVR_IRQ);
+                gpio::low(AVR_IRQ);
+            }
         }
     }
 
@@ -373,7 +373,7 @@ namespace adc0 {
         /*
         if (state.estatus.irqMic() && micMax_ >= state.estatus.micThreshold()) 
             if (state.status.setMicLoud())
-                rpi::setIrq();
+                rpi::requestIrq();
             */
         micMax_ = 0;
     }
@@ -398,10 +398,10 @@ namespace adc0 {
                     // TODO what to do? 
                 } else if (value <= LOW_BATTERY_THRESHOLD) {
                     if (state.status.setLowBattery())
-                        rpi::setIrq();
+                        rpi::requestIrq();
                 } else if (value >= VUSB_BATTERY_THRESHOLD) {
                     if (state.status.setVUsb())
-                      rpi::setIrq();
+                      rpi::requestIrq();
                 }   
                 ADC0.MUXPOS = MUXPOS_VBATT;
                 break;
@@ -419,19 +419,19 @@ namespace adc0 {
                     if (value < 128) {
                         // logical 0, charging, vbatt reading tells the progress
                         if (state.status.setCharging(true)) 
-                            rpi::setIrq();
+                            rpi::requestIrq();
                     } else if (value > 896) {
                         // logical 1, battery charging finished
                         if (state.status.setCharging(false))
-                            rpi::setIrq();
+                            rpi::requestIrq();
                     } else {
                         // hi-Z state, battery not present, or charger in shutdown mode, we report it as not charging because we do not care that much
                         if (state.status.setCharging(false))
-                            rpi::setIrq();
+                            rpi::requestIrq();
                     }
                 } else {
                     if (state.status.setCharging(false))
-                        rpi::setIrq();
+                        rpi::requestIrq();
                 }
                 ADC0.MUXPOS = MUXPOS_PHOTORES;
                 break;
@@ -439,7 +439,7 @@ namespace adc0 {
              */
             case MUXPOS_PHOTORES:
                 if (state.status.setPhotores((value >> 2) & 0xff) && state.estatus.irqPhotores())
-                    rpi::setIrq();
+                    rpi::requestIrq();
                 ADC0.MUXPOS = MUXPOS_MIC;
                 break;
             /* Measures the sound, so that we can trigger the mic loud event if necessary. 
@@ -504,7 +504,7 @@ namespace audio {
         ADC0.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc | ADC_FREERUN_bm;
         // then start the 8khz timer
         TCB1.CTRLB = TCB_CNTMODE_INT_gc;
-        TCB1.CCMP = 500; // for 8kHz
+        TCB1.CCMP = 400; // for 8kHz
         TCB1.INTCTRL = TCB_CAPT_bm;
         TCB1.CTRLA = TCB_CLKSEL_CLKDIV2_gc | TCB_ENABLE_bm;
         recAcc_ = 0;
@@ -534,8 +534,10 @@ namespace audio {
         i2cBuffer[bufferIndex_] = x++; // (recAcc_ & 0xff);
         bufferIndex_ = (bufferIndex_ + 1) % (comms::I2C_PACKET_SIZE * 2);
         if (bufferIndex_ % comms::I2C_PACKET_SIZE == 0) {
-            rpi::setNextReadAddress(bufferIndex_ == 0 ? i2cBuffer : i2cBuffer + comms::I2C_PACKET_SIZE);
-            rpi::setIrqImmediately();
+            rpi::setNextReadAddress(bufferIndex_ != 0 ? i2cBuffer : i2cBuffer + comms::I2C_PACKET_SIZE);
+            // drive the IRQ pin low immediatety
+            gpio::output(AVR_IRQ);
+            gpio::low(AVR_IRQ);
         }
         // reset the accumulator for next phase
         recAcc_ = 0;
@@ -685,7 +687,7 @@ namespace inputs {
         if (debounceCounter_[0] == 0) {
             debounceCounter_[0] = DEBOUNCE_TICKS;
             if (state.status.setBtnVolumeLeft(gpio::read(BTN_LVOL)))
-                rpi::setIrq();
+                rpi::requestIrq();
         }
     }
 
@@ -693,7 +695,7 @@ namespace inputs {
         if (debounceCounter_[1] == 0) {
             debounceCounter_[1] = DEBOUNCE_TICKS;
             if (state.status.setBtnVolumeRight(gpio::read(BTN_RVOL)))
-                rpi::setIrq();
+                rpi::requestIrq();
         }
     }
     
@@ -703,20 +705,20 @@ namespace inputs {
         if (debounceCounter_[0] > 0)
             if (--debounceCounter_[0] == 0)
                 if (state.status.setBtnVolumeLeft(gpio::read(BTN_LVOL)))
-                    rpi::setIrq();
+                    rpi::requestIrq();
         if (debounceCounter_[1] > 0)
             if (--debounceCounter_[1] == 0)
                 if (state.status.setBtnVolumeRight(gpio::read(BTN_RVOL)))
-                    rpi::setIrq();
+                    rpi::requestIrq();
         if (accHSize_ != 0) {
             accH_ = accH_ / accHSize_;
             if (state.status.setJoyX(accH_))
-                rpi::setIrq();
+                rpi::requestIrq();
         }
         if (accVSize_ != 0) {
             accV_ = accV_ / accVSize_;
             if (state.status.setJoyY(accV_))
-                rpi::setIrq();
+                rpi::requestIrq();
         }
         accH_ = 0;
         accV_ = 0;

@@ -133,6 +133,7 @@ void Driver::loop() {
                 case Event::AvrIrq:
                     if (recording) {
                         queryAvrRecording();
+                        nextAvr = last + AVR_MAX_PERIOD;
                     } else if (last >= nextAvr) {
                         queryAvrFull();
                         nextAvr = last + AVR_MAX_PERIOD;

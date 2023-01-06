@@ -1,6 +1,6 @@
 # RCBoy
 
-- we are either sending, or receiving too many audio recordings, see why
+- AVR speed is weird... Determine proper settings
 
 ## BOM
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <fstream>
+
 #include "page.h"
 #include "../gui.h"
 #include "../driver.h"
@@ -83,14 +85,19 @@ protected:
     void buttonLeft(bool state) override { 
         updateButton(l_, state); 
         Driver * driver = Driver::instance();
-        if (state)
+        if (state) {
+            audioFile_.open("audio_recording.dat");
+            audioPackets_ = 0; 
             driver->startAudioRecording();
-        else
-            driver->stopAudioRecording();
+        }
     }
     void buttonRight(bool state) override { 
         updateButton(r_, state); 
-        audioPackets_ = 0; 
+        Driver * driver = Driver::instance();
+        if (state) {
+            driver->stopAudioRecording();
+            audioFile_.close();
+        }
     }
     void buttonVolumeLeft(bool state) { updateButton(lVol_, state); }
     void buttonVolumeRight(bool state) { updateButton(rVol_, state); }
@@ -103,6 +110,10 @@ protected:
     void dpadRight(bool state) override { updateButton(dpadRight_, state); }
 
     void audioPacketReceived(AudioPacket data) {
+        audioFile_ << audioPackets_ << ": ";
+        for (size_t i = 0; i < data.SIZE; ++i)
+            audioFile_ << (int)data.data[i] << ",";
+        audioFile_ << std::endl;
         ++audioPackets_;
         audio_->setText(QString::number(audioPackets_, 10));
     }
@@ -154,6 +165,7 @@ private:
     }
 
     size_t audioPackets_ = 0;
+    std::ofstream audioFile_; 
     QGraphicsSimpleTextItem * a_;
     QGraphicsSimpleTextItem * b_;
     QGraphicsSimpleTextItem * x_;

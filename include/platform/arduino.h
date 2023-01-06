@@ -93,7 +93,7 @@ public:
 
     static bool read(Pin pin) {
         return digitalRead(pin);
-     }
+    }
 }; // gpio
 
 class i2c {
