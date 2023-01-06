@@ -2,12 +2,13 @@
 
 A simple I2C bootloader. 
 
+> https://docs.platformio.org/en/latest/platforms/atmelavr.html#bootloader-programming, https://www.microchip.com/en-us/application-notes/an2634
+
 ## Commands
 
 Each I2C command is a single byte, optionally followed by an argument. The commands are designed in such way that they allow page-by-page writing and reading the memory so that the programmer can write and verify the memory contents with minimal AVR code required. 
 
 `0x00` Reserved
-
 
 `0x01` WRITE_BUFFER
 
@@ -25,7 +26,11 @@ Each I2C command is a single byte, optionally followed by an argument. The comma
 
 > Clears the buffer index, i.e. writing and reading will start from the beginning of the buffer. 
 
-`0x05` RESET
+`0x05` INFO
+
+> Fills the buffer with information about the chip, such as fuses and so on.
+
+`0x06` RESET
 
 > Resets the chip.
 

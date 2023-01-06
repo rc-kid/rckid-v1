@@ -1,14 +1,7 @@
 #include <avr/io.h>
 
-#define I2C_ADDRESS 0x43
-#define BOOTLOADER_SIZE 0x200
 
-#define CMD_RESERVED 0x00
-#define CMD_WRITE_BUFFER 0x01
-#define CMD_WRITE_PAGE 0x02
-#define CMD_READ_PAGE 0x03
-#define CMD_CLEAR_INDEX 0x04
-#define CMD_RESET 0x05
+#include "config.h"
 
 #define I2C_DATA_MASK (TWI_DIF_bm | TWI_DIR_bm) 
 #define I2C_DATA_TX (TWI_DIF_bm | TWI_DIR_bm)
@@ -107,6 +100,8 @@ static void bootloader() {
                 }
                 case CMD_CLEAR_INDEX:
                     i = 0;
+                    break;
+                case CMD_INFO:
                     break;
                 case CMD_RESET:
                     _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);

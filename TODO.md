@@ -33,8 +33,6 @@
 ## AVR
 
 - create I2C bootloader to save the serial pins and provide uploading capabilities from RPI
-- https://docs.platformio.org/en/latest/platforms/atmelavr.html#bootloader-programming
-- https://www.microchip.com/en-us/application-notes/an2634
 
 - Status is only the first byte, then extra type for input properties, then extended state, then date time
 - this way it will be easier to ask only for a few...

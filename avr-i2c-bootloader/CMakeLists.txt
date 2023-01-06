@@ -1,0 +1,32 @@
+project(i2c-programmer)
+
+if(DEFINED ARCH_RPI)
+else()
+    add_definitions(-DARCH_MOCK)
+endif()
+
+if(CMAKE_VERSION VERSION_LESS "3.7.0")
+    set(CMAKE_INCLUDE_CURRENT_DIR ON)
+endif()
+
+if(DEFINED ARCH_RPI)
+    message(STATUS "Building for raspberry pi")
+    add_definitions(-DARCH_RPI)
+    find_path(PIGPIO_INCLUDE_DIR 
+            NAMES pigpio.h pigpiod_if.h pigpiod_if2.h
+            HINTS /usr/local/include)        
+    find_library(PIGPIO_LIBRARY 
+            NAMES libpigpio.so
+            HINTS /usr/local/lib)
+    include_directories(${PIGPIO_INCLUDE_DIR})
+else()
+    message(STATUS "Mockup build")
+    add_definitions(-DARCH_MOCK)
+endif()
+
+file(GLOB_RECURSE SRC  src/programmer.cpp)
+add_executable(i2c-programmer ${SRC})
+
+if(DEFINED ARCH_RPI)
+    target_link_libraries(i2c-programmer ${PIGPIO_LIBRARY})
+endif()
