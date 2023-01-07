@@ -1,7 +1,21 @@
 #include <avr/io.h>
 
-
 #include "config.h"
+
+/**
+                   -- VDD             GND --
+           AVR_IRQ -- (00) PA4   PA3 (16) -- 
+         BACKLIGHT -- (01) PA5   PA2 (15) -- 
+                   -- (02) PA6   PA1 (14) -- 
+                   -- (03) PA7   PA0 (17) -- UPDI
+                   -- (04) PB5   PC3 (13) -- 
+                   -- (05) PB4   PC2 (12) -- 
+                   -- (06) PB3   PC1 (11) -- 
+                   -- (07) PB2   PC0 (10) -- 
+         SDA (I2C) -- (08) PB1   PB0 (09) -- SCL (I2C)
+
+*/
+
 
 #define I2C_DATA_MASK (TWI_DIF_bm | TWI_DIR_bm) 
 #define I2C_DATA_TX (TWI_DIF_bm | TWI_DIR_bm)
@@ -102,6 +116,10 @@ static void bootloader() {
                     i = 0;
                     break;
                 case CMD_INFO:
+                    buffer[0] = SIGROW.DEVICEID0;
+                    buffer[1] = SIGROW.DEVICEID1;
+                    buffer[2] = SIGROW.DEVICEID2;
+                    i = 0;
                     break;
                 case CMD_RESET:
                     _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
@@ -128,9 +146,15 @@ __attribute__((naked)) __attribute__((constructor))
 void boot() {
     /* Initialize system for C support */
     asm volatile("clr r1");
+    // drive PA6 high to power on the red LED
+    VPORTA.DIR |= (1 << 6) | (1 << 7);
+    VPORTA.OUT |= (1 << 6);
+    VPORTA.OUT &= ~(1<< 7);
     // do we need bootloader? 
     if (bootloaderRequested()) 
         bootloader();
+    VPORTA.OUT &= ~ (1 << 6);
+    VPORTA.OUT |= (1 << 7);
     // enable the boot lock so that app can't override the bootloader and then start the app
     NVMCTRL.CTRLB = NVMCTRL_BOOTLOCK_bm;
     // start the application

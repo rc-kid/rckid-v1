@@ -2,7 +2,7 @@
     "tasks": [
         // builds the avr part of rcboy locally
         {
-            "label": "rcboy-avr-bootloader-build",
+            "label": "avr-i2c-bootloader-build",
             "type": "shell",
             "command": "~/.platformio/penv/bin/pio",
             "args": [
@@ -19,6 +19,34 @@
                 "$platformio"
             ]
         },
+        // uploads the avr bootloader via UPDI
+        {
+            "label": "avr-i2c-bootloader-upload",
+            "command": "bash",
+            "args": [
+                "bin/avr-i2c-bootloader-upload.sh",
+            ],
+            "options": {
+                "cwd": "",
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+        {
+            "label": "i2c-programmer-build",
+            "command": "bash",
+            "args": [
+                "bin/i2c-programmer-build.sh",
+            ],
+            "options": {
+                "cwd": "",
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+
 
         // builds the avr part of rcboy locally
         {

@@ -1,13 +1,14 @@
+cmake_minimum_required(VERSION 3.10)
 project(i2c-programmer)
+
+set (CMAKE_CXX_STANDARD 17)
 
 if(DEFINED ARCH_RPI)
 else()
     add_definitions(-DARCH_MOCK)
 endif()
 
-if(CMAKE_VERSION VERSION_LESS "3.7.0")
-    set(CMAKE_INCLUDE_CURRENT_DIR ON)
-endif()
+include_directories(${CMAKE_SOURCE_DIR}/../include)
 
 if(DEFINED ARCH_RPI)
     message(STATUS "Building for raspberry pi")
