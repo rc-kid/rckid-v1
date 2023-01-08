@@ -7,6 +7,8 @@
 
 #include "spinlock.h"
 
+#define STR(...) static_cast<std::stringstream &&>(std::stringstream() << __VA_ARGS__).str()
+
 class cpu {
 public:
     static void delay_us(unsigned value) {
