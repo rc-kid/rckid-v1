@@ -91,8 +91,15 @@ void enterBootloader() {
         throw STR("IO Error. Device detected but I2C communication not working:\n   Sent:     " << text << "\n" << "   Received: " << data);
     }
     sendCommand(CMD_INFO);
+    sendCommand(CMD_CLEAR_INDEX);
     readBuffer(data);
     checkAVRChip(data);
+    sendCommand(CMD_READ_PAGE, 0);
+    sendCommand(CMD_CLEAR_INDEX);
+    readBuffer(data);
+    for (int i = 0; i < 32; ++i)
+        std::cout << std::hex << (unsigned)data[i];
+    std::cout << std::endl;
 }
 
 int main(int argc, char * argv[]) {

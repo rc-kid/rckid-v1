@@ -1,7 +1,6 @@
 # RCBoy
 
 - AVR speed is weird... Determine proper settings
-- bootloader is more than 512bytes. Do we care? 
 
 ## BOM
 

@@ -16,7 +16,6 @@
 
 */
 
-
 #define I2C_DATA_MASK (TWI_DIF_bm | TWI_DIR_bm) 
 #define I2C_DATA_TX (TWI_DIF_bm | TWI_DIR_bm)
 #define I2C_DATA_RX (TWI_DIF_bm)
@@ -32,7 +31,7 @@ typedef void (*const app_t)(void);
 
 uint8_t command;
 uint8_t arg;
-uint8_t i = 0;
+uint8_t i;
 uint8_t buffer[MAPPED_PROGMEM_PAGE_SIZE];
 
 /** Bootloader initialization. 
@@ -55,8 +54,8 @@ void boot() {
 
         // initialize the I2C in slave mode w/o interrupts
         // turn I2C off in case it was running before
-        TWI0.MCTRLA = 0;
-        TWI0.SCTRLA = 0;
+        //TWI0.MCTRLA = 0;
+        //TWI0.SCTRLA = 0;
         // make sure that the pins are nout out - HW issue with the chip, will fail otherwise
         PORTB.OUTCLR = 0x03; // PB0, PB1
         // set the address and disable general call, disable second address and set no address mask (i.e. only the actual address will be responded to)
@@ -68,8 +67,6 @@ void boot() {
         TWI0.MCTRLA = TWI_ENABLE_bm;   
         // start the main loop that processes the commands
         while (true) {
-            // wait for I2C interrupt
-            while (TWI0.SSTATUS & (TWI_DIF_bm | TWI_APIF_bm) == 0) {} 
             uint8_t status = TWI0.SSTATUS;
             // sending data to accepting master is on our fastpath as is checked first, the next byte in the buffer is sent, wrapping the index on 256 bytes 
             if ((status & I2C_DATA_MASK) == I2C_DATA_TX) {
@@ -118,7 +115,6 @@ void boot() {
                         uint8_t * page = (uint8_t*)(MAPPED_PROGMEM_START + arg * MAPPED_PROGMEM_PAGE_SIZE);
                         for (uint8_t i = 0; i < MAPPED_PROGMEM_PAGE_SIZE; ++i)
                             buffer[i] = page[i];
-                        i = 0;
                         break;
                     }
                     case CMD_CLEAR_INDEX:
@@ -128,20 +124,15 @@ void boot() {
                         buffer[0] = SIGROW.DEVICEID0;
                         buffer[1] = SIGROW.DEVICEID1;
                         buffer[2] = SIGROW.DEVICEID2;
-                        buffer[3] = FUSE.WDTCFG;
-                        buffer[4] = FUSE.BODCFG;
-                        buffer[5] = FUSE.OSCCFG;
-                        buffer[6] = FUSE.TCD0CFG;
-                        buffer[7] = FUSE.SYSCFG0;
-                        buffer[8] = FUSE.SYSCFG1;
-                        buffer[9] = FUSE.APPEND;
-                        buffer[10] = FUSE.BOOTEND;
+                        for (uint8_t i = 0; i < 8; ++i)
+                            buffer[3 + i] = ((uint8_t*)(&FUSE))[i];
                         buffer[11] = CLKCTRL.MCLKCTRLA;
                         buffer[12] = CLKCTRL.MCLKCTRLB;
                         buffer[13] = CLKCTRL.MCLKLOCK;
                         buffer[14] = CLKCTRL.MCLKSTATUS;
+                        buffer[15] = MAPPED_PROGMEM_PAGE_SIZE >> 8;
+                        buffer[16] = MAPPED_PROGMEM_PAGE_SIZE & 0xff;
                         //buffer[11] = FUSE.LOCKBIT;
-                        i = 0;
                         break;
                     case CMD_RESET:
                         _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
@@ -149,24 +140,16 @@ void boot() {
                         // nothing to be done for the rest
                         break;
                 }
-            // error - not sure what to do, perhaps reset the bootloader? 
-            } else if (status & (TWI_COLL_bm | TWI_BUSERR_bm)) {
-                VPORTA.OUT |= (1 << 7);
-            // ok
+            // nothing to do, or error - not sure what to do, perhaps reset the bootloader? 
             } else {
                 // TODO
             }
         }
     }
-    #ifdef HAHA
-    // start the main app
-    VPORTA.OUT &= ~ (1 << 6);
-    VPORTA.OUT |= (1 << 7);
     // enable the boot lock so that app can't override the bootloader and then start the app
     NVMCTRL.CTRLB = NVMCTRL_BOOTLOCK_bm;
     // start the application
     app_t app = (app_t)(BOOTLOADER_SIZE / sizeof(app_t));
     app();    
-    #endif
 }
 
