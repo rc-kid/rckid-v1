@@ -2,6 +2,8 @@
 #include <iomanip>
 
 #include "platform/platform.h"
+#include "utils/intelhex.h"
+
 
 #include "config.h"
 
@@ -47,8 +49,6 @@ void fusesTinySeries1(uint8_t * data, char const * chipName) {
     std::cout << "    CLKCTRL.MCLKCTRLB:  " << (unsigned(data[12])) << std::endl;
     std::cout << "    CLKCTRL.MCLKLOCK:   " << (unsigned(data[13])) << std::endl;
     std::cout << "    CLKCTRL.MCLKSTATUS: " << (unsigned(data[14])) << std::endl;
-
-
 }
 
 void checkAVRChip(uint8_t * data) {
@@ -103,6 +103,14 @@ void enterBootloader() {
 }
 
 int main(int argc, char * argv[]) {
+
+    try {
+        hex::Program::parse(":10010000214601360121470136007EFE09D2190140");
+    } catch (char const * e) {
+        std::cout << e << std::endl;
+    }
+
+
     // initialize gpio and i2c
     gpio::initialize();
     i2c::initializeMaster();

@@ -1,6 +1,7 @@
 # RCBoy
 
 - AVR speed is weird... Determine proper settings
+- how to set fuses and how to set program file
 
 ## BOM
 
