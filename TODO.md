@@ -12,8 +12,6 @@
 
 ## PCB
 
-- move joystick btn from AVR to RPI  
-- add pin connection from rpi to AVR for detecting shutdown
 - move the USB breakout closer to the edge
 - antenna might be too far, check that it fits
 
@@ -43,6 +41,7 @@
 
 ## RPI
 
+- check JOY_BTN reading and AVR notification from the new pinout
 - add microphone reading and check quality 
 
 - turn off/stuff - https://github.com/raspberrypi/firmware/blob/13691cee95902d76bc88a3f658abeb37b3c90b03/boot/overlays/README#L1335, map to one of the UART pins 

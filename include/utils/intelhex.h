@@ -2,8 +2,9 @@
 #include <cstdint>
 #include <cassert>
 #include <cstring>
-#include <istream>
+#include <fstream>
 #include <sstream>
+#include <iomanip>
 
 #ifndef STR
 #define STR(__VA_ARGS__...) static_cast<std::stringstream &&>(std::stringstream() << __VA_ARGS__).str()
@@ -184,20 +185,18 @@ namespace hex {
         std::istream & s_;
     }; // hex::Record::Parser
 
-
-
     struct Program {
-        size_t address = 0;
-        size_t size = 0;
-        uint8_t * data;
 
         ~Program() {
-            delete [] data;
+            delete [] data_;
         }
 
+        size_t size() const { return size_; }
 
-        size_t start() const { return address; }
-        size_t end() const { return address + size; }
+        size_t start() const { return address_; }
+        size_t end() const { return address_ + size_; }
+
+        uint8_t const * data() const { return data_; }
 
         static Program parse(std::istream & s) {
             auto parser = Record::Parser{s};
@@ -208,20 +207,20 @@ namespace hex {
             while (parser.parseRecord(r)) {
                 switch (r.kind()) {
                     case RecordKind::Data: {
-                        while (p.size + r.length() > p.c_)
+                        while (p.size_ + r.length() > p.c_)
                             p.grow();
-                        if (p.size == 0)
-                            p.address = r.address();
+                        if (p.size_ == 0)
+                            p.address_ = r.address();
                         else if (r.address() != p.end())
                             throw Error{STR("Address mismatch: program expects " << p.end() << ", record specifies " << r.address()), line, col};
-                        std::memcpy(p.data + p.size, r.data(), r.length());
-                        p.size += r.length();
+                        std::memcpy(p.data_ + p.size_, r.data(), r.length());
+                        p.size_ += r.length();
                         break;
                     }
                     case RecordKind::EndOfFile:
                         return p;
                     case RecordKind::StartSegmentAddress:
-                        assert(p.address = r.address());
+                        assert(p.address_ = r.address());
                         break;
                     default:
                         throw Error{STR("Unsupported record type: " << (int) r.kind()), line, col};
@@ -235,23 +234,37 @@ namespace hex {
         static Program parse(char const * s) {
             std::stringstream ss{s};
             return parse(ss);
-
         }
+
+        static Program parseFile(char const * filename) {
+            std::ifstream f{filename,  std::ios::binary};
+            return parse(f);
+        }
+
     private:
 
+        size_t address_ = 0;
+        size_t size_ = 0;
+        uint8_t * data_;
+        size_t c_ = 1024;
+
         Program():
-            data{new uint8_t[1024]} {
+            data_{new uint8_t[1024]} {
         }
 
         void grow() {
             c_ = c_ * 2;
             uint8_t * d = new uint8_t[c_];
-            std::memcpy(d, data, size);
-            delete [] data;
-            data = d;
+            std::memcpy(d, data_, size_);
+            delete [] data_;
+            data_ = d;
         }
 
-        size_t c_ = 1024;
+
+        friend std::ostream & operator << (std::ostream & s, Program const & p) {
+            s << p.size() << " bytes, from 0x" << std::hex << p.start() << " to 0x" << p.end();
+            return s;
+        }
 
     }; // hex::Program
 
