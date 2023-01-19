@@ -41,7 +41,7 @@ struct ChipInfo {
                 family = Family::TinySeries1;
                 break;
             default:
-                throw STR("Unknown chip detected, signature: " << std::hex << (unsigned)data[0] << ":" << (unsigned)data[1] << ":" << (unsigned)data[2]);
+                throw STR("Unknown chip detected, signature: " << std::hex << (unsigned)info[0] << ":" << (unsigned)info[1] << ":" << (unsigned)info[2]);
         }
         switch (family) {
             case Family::TinySeries1:
@@ -77,14 +77,14 @@ private:
     }
 
     friend std::ostream & operator << (std::ostream & s, ChipInfo const & info) {
-        s << std::setw(20) << "chip" << ":" << info.name << std::endl;
-        s << std::setw(20) << "signature" << ":" << std::hex << info.signature << std::endl;
-        s << std::setw(20) << "family" << ":" << info.family << std::endl;
-        s << std::setw(20) << "page size" << ":" << info.pageSize << std::endl;
-        s << std::setw(20) << "program start" << ":" << std::hex << "0x" << info.progStart << std::endl;
+        s << std::setw(20) << "chip" << ": " << info.name << std::endl;
+        s << std::setw(20) << "signature" << ": " << std::hex << info.signature << std::endl;
+        s << std::setw(20) << "family" << ": " << info.family << std::endl;
+        s << std::setw(20) << "page size" << ": " << std::dec << info.pageSize << std::endl;
+        s << std::setw(20) << "program start" << ": " << std::hex << "0x" << info.progStart << std::endl;
         s << std::endl;
         for (auto fuse : info.fuses) {
-            s << std::setw(20) << fuse.first << ":" << std::hex << fuse.second << std::endl;
+            s << std::setw(20) << fuse.first << ": " << std::hex << (int)fuse.second << std::endl;
         }
         return s;
     }
@@ -152,20 +152,60 @@ ChipInfo enterBootloader() {
     */
 }
 
+void compareBatch(size_t address, size_t size, uint8_t const * expected, uint8_t const * actual) {
+    if (std::memcmp(expected, actual, size) == 0)
+        return;
+    std::cout << "MISMATCH at address: " << std::hex << "0x" << address << ":" << std::endl;
+    std::cout << "Expected: ";
+    for (size_t i = 0; i < size; ++i) 
+        std::cout << std::hex << std::setw(2) << (int)(expected[i]);
+    std::cout << std::endl;
+    std::cout << "Actual:   ";
+    for (size_t i = 0; i < size; ++i) 
+        std::cout << std::hex << std::setw(2) << (int)(actual[i]);
+    std::cout << std::endl;
+    throw STR("Verification mismatch");
+}
+
 void writeProgram(ChipInfo const & chip, hex::Program const & p) {
     assert(p.size() % chip.pageSize == 0 && "For simplicity, we expect full pages here");
-    for (size_t addr = p.start(), e = p.end(); addr < e; ) {
+    std::cout << "Writing " << std::dec << p.size() << " bytes in " << p.size() / chip.pageSize << " pages" << std::endl;
+    size_t address = p.start() / chip.pageSize;
+    for (size_t i = 0, e = p.size(); i != e; ) {
         // fill in the buffer 
         sendCommand(CMD_CLEAR_INDEX);
-        for (int i = 0; i < chip.pageSize / 32; ++i)
-            writeBuffer()
-
+        std::cout << address << ": " << std::flush;
+        for (int pi = 0, pe = chip.pageSize; pi < pe; pi += 32) {
+            //writeBuffer(p.data() + i);
+            i += 32;
+            std::cout << "." << std::flush;
+        }
+        // write the buffer
+        //sendCommand(CMD_WRITE_PAGE, address); 
+        std::cout << "\x1B[2K\r" << std::flush;
+        address += 1;
     }
-
+    std::cout << std::endl;
 }
 
 void verifyProgram(ChipInfo const & chip, hex::Program const & p) {
-
+    assert(p.size() % chip.pageSize == 0 && "For simplicity, we expect full pages here");
+    std::cout << "Verifying " << p.size() << " bytes in " << p.size() / chip.pageSize << " pages" << std::endl;
+    size_t address = p.start() / chip.pageSize;
+    uint8_t buffer[32];
+    for (size_t i = 0, e = p.size(); i != e; ) {
+        sendCommand(CMD_READ_PAGE, address);
+        sendCommand(CMD_CLEAR_INDEX);
+        std::cout << address << ": " << std::flush;
+        for (int pi = 0, pe = chip.pageSize; pi < pe; pi += 32) {
+            readBuffer(buffer);
+            compareBatch(address * chip.pageSize + pi, 32, p.data() + i, buffer);
+            i += 32;
+            std::cout << "." << std::flush;
+        }
+        std::cout << "\x1B[2K\r" << std::flush;
+        address += 1;
+    }
 }
 
 int main(int argc, char * argv[]) {
@@ -184,6 +224,7 @@ int main(int argc, char * argv[]) {
         ChipInfo chip = enterBootloader();
         std::cout << chip << std::endl;
         // flash and verify the program
+        p.padToPage(chip.pageSize, 0xff);
         std::cout << "Writing program..." << std::endl;
         writeProgram(chip, p);
         std::cout << "Verifying program..." << std::endl;

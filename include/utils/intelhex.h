@@ -17,6 +17,8 @@
  */
 namespace hex {
 
+    /** Error when reading the Intel HEX files. 
+     */
     struct Error : std::invalid_argument {
         size_t line;
         size_t col;
@@ -59,7 +61,6 @@ namespace hex {
     public:
         class Parser;
 
-
         Record() = default;
 
         ~Record() {
@@ -78,6 +79,7 @@ namespace hex {
                     return (data_[0] << 24) | (data_[1] << 16) | (data_[2] << 8) | data_[3];
                 default:
                     assert(false && "Cannot take address of a given record kind");
+                    return 0;
             }
         }
 
@@ -185,18 +187,11 @@ namespace hex {
         std::istream & s_;
     }; // hex::Record::Parser
 
+    /**A HEX program. 
+     
+       Only continous single block programs are supported for now. 
+     */
     struct Program {
-
-        ~Program() {
-            delete [] data_;
-        }
-
-        size_t size() const { return size_; }
-
-        size_t start() const { return address_; }
-        size_t end() const { return address_ + size_; }
-
-        uint8_t const * data() const { return data_; }
 
         static Program parse(std::istream & s) {
             auto parser = Record::Parser{s};
@@ -241,6 +236,41 @@ namespace hex {
             return parse(f);
         }
 
+        ~Program() {
+            delete [] data_;
+        }
+
+        /** Length of the program in bytes. 
+         */
+        size_t size() const { return size_; }
+
+        /** Start address of the program, i.e. where the flashing should begin.
+         */
+        size_t start() const { return address_; }
+ 
+        /** End address of the program, i.e. where the flashing should end. 
+         */
+        size_t end() const { return address_ + size_; }
+
+        /** Program data. 
+         */
+        uint8_t const * data() const { return data_; }
+
+        /** Pads the program from the end so that its size is divided by the specified page size. 
+         
+            The program is padded with the given fill value. Mostly useful so that entire pages can be flashed. 
+         */
+        void padToPage(size_t pageSize, uint8_t fill) {
+            if (size_ % pageSize == 0)
+                return;
+            size_t newSize = size_ + (pageSize - (size_ % pageSize));
+            assert(newSize % pageSize == 0);
+            if (c_ < newSize)
+                grow(newSize);
+            memset(data_ + size_, fill, newSize - size_);
+            size_ = newSize;
+        }
+
     private:
 
         size_t address_ = 0;
@@ -253,7 +283,11 @@ namespace hex {
         }
 
         void grow() {
-            c_ = c_ * 2;
+            grow(c_ * 2);
+        }
+
+        void grow(size_t c) {
+            c_ = c;
             uint8_t * d = new uint8_t[c_];
             std::memcpy(d, data_, size_);
             delete [] data_;
