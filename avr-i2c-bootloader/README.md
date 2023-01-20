@@ -1,6 +1,6 @@
 # I2C Bootloader
 
-A simple I2C bootloader. 
+A simple I2C bootloader that fits in 512 bytes.
 
 > https://docs.platformio.org/en/latest/platforms/atmelavr.html#bootloader-programming, https://www.microchip.com/en-us/application-notes/an2634
 
@@ -10,15 +10,17 @@ Each I2C command is a single byte, optionally followed by an argument. The comma
 
 `0x00` Reserved
 
+> Not used for anything. 
+
 `0x01` WRITE_BUFFER
 
-> Reads bytes from the comms buffer. 
+> Reads bytes from the comms buffer. Reads as many bytes as the client wishes to read wrapping around the buffer size when necessary.  
 
-`0x02 PAGE` WRITE_PAGE
+`0x02 page` WRITE_PAGE
 
 > Writes the contents of the buffer to the specified page and resets the buffer index.
 
-`0x03 PAGE` READ_PAGE
+`0x03 page` READ_PAGE
 
 > Reads the specified page into the buffer and resets the buffer index.
 
@@ -33,4 +35,12 @@ Each I2C command is a single byte, optionally followed by an argument. The comma
 `0x06` RESET
 
 > Resets the chip.
+
+## Programmer
+
+A simple i2c programmer is provided as well. Usage:
+
+    i2c-programmer write HEX_FILE
+
+`HEX_FILE` is path to the Intel HEX file that should be flashed to the chip. 
 

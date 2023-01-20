@@ -213,12 +213,6 @@ void verifyProgram(ChipInfo const & chip, hex::Program const & p) {
 
 int main(int argc, char * argv[]) {
     try {
-        if (argc != 2)
-            throw STR("HEX file expected");
-        std::cout << "Reading program in " << argv[1] << std::endl;
-        hex::Program p{hex::Program::parseFile(argv[1])};
-        std::cout << "Found " << p << std::endl;
-
         // initialize gpio and i2c
         gpio::initialize();
         i2c::initializeMaster();
@@ -226,13 +220,34 @@ int main(int argc, char * argv[]) {
         std::cout << "Detecting chip" << std::endl;
         ChipInfo chip = enterBootloader();
         std::cout << chip << std::endl;
-        // flash and verify the program
-        p.padToPage(chip.pageSize, 0xff);
-        std::cout << "Writing program..." << std::endl;
-        writeProgram(chip, p);
-        std::cout << "Verifying program..." << std::endl;
-        verifyProgram(chip, p);
-        std::cout << "OK." << std::endl;
+        if (argc > 1) {
+            if (argc < 3)
+                throw STR("Invalid number of arguments");
+            std::string cmd{argv[1]}; 
+            // write HEX_FILE
+            if (cmd == "write") {
+                std::cout << "Reading program in " << argv[2] << std::endl;
+                hex::Program p{hex::Program::parseFile(argv[2])};
+                std::cout << "Found " << p << std::endl;
+                // flash and verify the program
+                p.padToPage(chip.pageSize, 0xff);
+                std::cout << "Writing program..." << std::endl;
+                writeProgram(chip, p);
+                std::cout << "Verifying program..." << std::endl;
+                verifyProgram(chip, p);
+                std::cout << "OK." << std::endl;
+            // read HEX_FILE start bytes
+            } else if (cmd == "read") {
+                if (argc < 5)
+                    throw STR("Invalid number of arguments");
+                size_t start = std::atol(argv[3]);
+                size_t n = std::atol(argv[4]);
+                // TODO
+                throw STR("Reading chip memory not supported yet");
+            } else {
+                throw STR("Invalid command " << cmd);
+            }
+        }
         return EXIT_SUCCESS;
     } catch (hex::Error const & e) {
         std::cout << "ERROR in parsing the HEX file: " << e << std::endl;
@@ -243,5 +258,10 @@ int main(int argc, char * argv[]) {
     } catch (...) {
         std::cout << "ERROR: unknown error occured" << std::endl;
     }
+    std::cout << "Usage:" << std::endl << std::endl;
+    std::cout << "i2c-programmer" << std::endl;
+    std::cout << "    Verified the connection to the chip." << std::endl;
+    std::cout << "i2c-programmer write HEX_FILE" << std::endl;
+    std::cout << "    Writes the specified HEX file to appropriate regions of the chip." << std::endl;
     return EXIT_FAILURE;
 }
