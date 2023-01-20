@@ -65,7 +65,7 @@ private:
         fuses["CLKCTRL.MCLKLOCK"] = info[16];
         fuses["CLKCTRL.MCLKSTATUS"] = info[17];
         pageSize = (info[18] << 8) + info[19];
-        progStart = info[11] * pageSize;
+        progStart = info[11] * 256;
     }
 
     friend std::ostream & operator << (std::ostream & s, Family f) {
