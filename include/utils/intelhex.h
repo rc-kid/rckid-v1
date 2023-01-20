@@ -296,7 +296,7 @@ namespace hex {
 
 
         friend std::ostream & operator << (std::ostream & s, Program const & p) {
-            s << p.size() << " bytes, from 0x" << std::hex << p.start() << " to 0x" << p.end();
+            s << std::dec << p.size() << " bytes, from 0x" << std::hex << p.start() << " to 0x" << p.end();
             return s;
         }
 

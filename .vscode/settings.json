@@ -60,6 +60,7 @@
         "map": "cpp",
         "mutex": "cpp",
         "thread": "cpp",
-        "qgraphicsscene": "cpp"
+        "qgraphicsscene": "cpp",
+        "iomanip": "cpp"
     }
 }

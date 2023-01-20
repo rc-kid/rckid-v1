@@ -265,6 +265,18 @@ namespace msg {
     }; // MessageHelper<T>
 
 
+    /** First message is NOP. This is for compatibility with the bootloader where message 0x00 is reserved. 
+     */
+    MESSAGE(Nop)
+    static_assert(Nop::Id == 0);
+
+    /** Causes the reset of the AVR chip. 
+     
+        Useful for debugging and programming via the I2C interface. Reset in the AVR mode is the same as in the bootloader. 
+     */
+    MESSAGE(AvrReset)
+    static_assert(AvrReset::Id == 1);
+
     /** Clears the power on flag in the AVR status. 
      */
     MESSAGE(ClearPowerOnFlag)
@@ -285,11 +297,6 @@ namespace msg {
      */
     MESSAGE(PowerOff)
 
-    /** Causes the reset of the AVR chip. 
-     
-        Useful for debugging and programming via the I2C interface. 
-     */
-    MESSAGE(AvrReset)
 
 
 } // namespace msg

@@ -95,7 +95,7 @@ void sendCommand(uint8_t cmd) {
     if (! i2c::transmit(I2C_ADDRESS, & cmd, 1, nullptr, 0))
         throw STR("Cannot send command " << (int)cmd);
     while (gpio::read(PIN_AVR_IRQ) == true) {};
-    //cpu::delay_ms(10);
+    cpu::delay_ms(10);
 }
 
 void sendCommand(uint8_t cmd, uint8_t arg) {
@@ -103,7 +103,7 @@ void sendCommand(uint8_t cmd, uint8_t arg) {
     if (! i2c::transmit(I2C_ADDRESS, data, 2, nullptr, 0))
         throw STR("Cannot send command " << (int)cmd << ", arg " << (int)arg);
     while (gpio::read(PIN_AVR_IRQ) == true) {};
-    //cpu::delay_ms(10);
+    cpu::delay_ms(10);
 }
 
 void readBuffer(uint8_t * buffer) {
@@ -180,12 +180,12 @@ void writeProgram(ChipInfo const & chip, hex::Program const & p) {
         sendCommand(CMD_CLEAR_INDEX);
         std::cout << address << ": " << std::flush;
         for (int pi = 0, pe = chip.pageSize; pi < pe; pi += 32) {
-            //writeBuffer(p.data() + i);
+            writeBuffer(p.data() + i);
             i += 32;
             std::cout << "." << std::flush;
         }
         // write the buffer
-        //sendCommand(CMD_WRITE_PAGE, address); 
+        sendCommand(CMD_WRITE_PAGE, address); 
         std::cout << "\x1B[2K\r" << std::flush;
         address += 1;
     }
