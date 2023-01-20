@@ -93,14 +93,16 @@ private:
 void sendCommand(uint8_t cmd) {
     if (! i2c::transmit(I2C_ADDRESS, & cmd, 1, nullptr, 0))
         throw STR("Cannot send command " << (int)cmd);
-    cpu::delay_ms(10);
+    while (gpio::read(PIN_AVR_IRQ) == true) {};
+    //cpu::delay_ms(10);
 }
 
 void sendCommand(uint8_t cmd, uint8_t arg) {
     uint8_t data[] = { cmd, arg};
     if (! i2c::transmit(I2C_ADDRESS, data, 2, nullptr, 0))
         throw STR("Cannot send command " << (int)cmd << ", arg " << (int)arg);
-    cpu::delay_ms(10);
+    while (gpio::read(PIN_AVR_IRQ) == true) {};
+    //cpu::delay_ms(10);
 }
 
 void readBuffer(uint8_t * buffer) {
@@ -123,10 +125,14 @@ ChipInfo enterBootloader() {
         throw STR("Device not detected at I2C address " << I2C_ADDRESS);
     cpu::delay_ms(10);
     // to enter the bootloader, pull the AVR_IRQ pin low first
-    // gpio::output()
-    //
+    gpio::output(PIN_AVR_IRQ);
+    gpio::low(PIN_AVR_IRQ);
+    cpu::delay_ms(10);
     // reset the AVR
     sendCommand(CMD_RESET);
+    cpu::delay_ms(10);
+    gpio::inputPullup(PIN_AVR_IRQ);
+    cpu::delay_ms(10);
     // verify that we have proper communications available by writing some stuff and then reading it back
     sendCommand(CMD_CLEAR_INDEX);
     char const * text = "ThisIsATest_DoYouHearMe?12345678\0";
@@ -138,6 +144,7 @@ ChipInfo enterBootloader() {
         data[32] = 0;
         throw STR("IO Error. Device detected but I2C communication not working:\n   Sent:     " << text << "\n" << "   Received: " << data);
     }
+    // get chip info 
     sendCommand(CMD_INFO);
     sendCommand(CMD_CLEAR_INDEX);
     readBuffer(data);
