@@ -24,8 +24,6 @@
 
 ## Bootloader
 
-- enable backlight
-- pull AVR_IRQ low when working
 - write the programmer
 - test by verifying the bootloader code to be what is expected
 

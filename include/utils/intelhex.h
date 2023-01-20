@@ -236,6 +236,10 @@ namespace hex {
             return parse(f);
         }
 
+        Program():
+            data_{new uint8_t[1024]} {
+        }
+
         ~Program() {
             delete [] data_;
         }
@@ -277,10 +281,6 @@ namespace hex {
         size_t size_ = 0;
         uint8_t * data_;
         size_t c_ = 1024;
-
-        Program():
-            data_{new uint8_t[1024]} {
-        }
 
         void grow() {
             grow(c_ * 2);

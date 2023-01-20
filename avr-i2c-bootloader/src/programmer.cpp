@@ -14,7 +14,7 @@
 struct ChipInfo {
     enum class Family {
         TinySeries1, 
-    }; // CHipInfo::Family
+    }; // ChipInfo::Family
 
     std::string name;
     Family family;
@@ -142,14 +142,6 @@ ChipInfo enterBootloader() {
     sendCommand(CMD_CLEAR_INDEX);
     readBuffer(data);
     return ChipInfo{data};
-    /*
-    sendCommand(CMD_READ_PAGE, 0);
-    sendCommand(CMD_CLEAR_INDEX);
-    readBuffer(data);
-    for (int i = 0; i < 32; ++i)
-        std::cout << std::hex << (unsigned)data[i];
-    std::cout << std::endl;
-    */
 }
 
 void compareBatch(size_t address, size_t size, uint8_t const * expected, uint8_t const * actual) {
@@ -158,17 +150,21 @@ void compareBatch(size_t address, size_t size, uint8_t const * expected, uint8_t
     std::cout << "MISMATCH at address: " << std::hex << "0x" << address << ":" << std::endl;
     std::cout << "Expected: ";
     for (size_t i = 0; i < size; ++i) 
-        std::cout << std::hex << std::setw(2) << (int)(expected[i]);
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)(expected[i]);
     std::cout << std::endl;
     std::cout << "Actual:   ";
     for (size_t i = 0; i < size; ++i) 
-        std::cout << std::hex << std::setw(2) << (int)(actual[i]);
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)(actual[i]);
     std::cout << std::endl;
     throw STR("Verification mismatch");
 }
 
 void writeProgram(ChipInfo const & chip, hex::Program const & p) {
     assert(p.size() % chip.pageSize == 0 && "For simplicity, we expect full pages here");
+    if (chip.progStart != p.start())
+        throw STR("Incompatible settings detected: Device reports progstart at 0x" << std::hex << chip.progStart << ", program to be flashed from 0x" << p.start());
+    if (chip.progStart == 0)
+        throw STR("Incompatible settings detected: Device reports progstart at 0. Flashing would override bootloader");
     std::cout << "Writing " << std::dec << p.size() << " bytes in " << p.size() / chip.pageSize << " pages" << std::endl;
     size_t address = p.start() / chip.pageSize;
     for (size_t i = 0, e = p.size(); i != e; ) {

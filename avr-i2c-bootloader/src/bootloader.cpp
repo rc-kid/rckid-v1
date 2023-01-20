@@ -42,21 +42,18 @@ __attribute__((naked)) __attribute__((constructor))
 void boot() {
     /* Initialize system for C support */
     asm volatile("clr r1");
-    // drive PA6 high to power on the red LED
-    VPORTA.DIR |= (1 << 6) | (1 << 7);
-    VPORTA.OUT |= (1 << 6);
-    VPORTA.OUT &= ~(1<< 7);
-
+    // ensure that when PA4 (AVR_IRQ) is switched to output mode, the pin is pulled low 
+    VPORTA.OUT &= ~ (1 << 4); 
     // only enter the bootloader if PA4 (AVR_IRQ) is pulled low
     if ((VPORTA.IN & PIN4_bm) == 0) {
         // enable the display backlight when entering the bootloader for some output (like say, eventually an OTA:) Baclight is connected to PA5 and is active high
-        // TODO TODO 
-
+        VPORTA.DIR |= (1 << 5);
+        VPORTA.OUT |= (1 << 5);
         // initialize the I2C in slave mode w/o interrupts
         // turn I2C off in case it was running before
-        //TWI0.MCTRLA = 0;
-        //TWI0.SCTRLA = 0;
-        // make sure that the pins are nout out - HW issue with the chip, will fail otherwise
+        TWI0.MCTRLA = 0;
+        TWI0.SCTRLA = 0;
+        // make sure that the pins are not out - HW issue with the chip, will fail otherwise
         PORTB.OUTCLR = 0x03; // PB0, PB1
         // set the address and disable general call, disable second address and set no address mask (i.e. only the actual address will be responded to)
         TWI0.SADDR = I2C_ADDRESS << 1;
@@ -92,16 +89,17 @@ void boot() {
             } else if ((status & I2C_START_MASK) == I2C_START_TX) {
                 TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
             // master requests to write data itself, first the command code
+            // pull the AVR_IRQ low to signal we are busy with the command by enabling output on PA4
             } else if ((status & I2C_START_MASK) == I2C_START_RX) {
                 command = CMD_RESERVED; // command will be filled in 
                 TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
+                VPORTA.DIR |= (1 << 4); 
             // sending finished, there is nothing to do 
             } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
                 TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
             // receiving finished, if we are in command mode, process the command, otherwise there is nothing to be done 
             } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
                 TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
-                // TODO play with busy flag
                 switch (command) {
                     case CMD_WRITE_PAGE: {
                         uint8_t * page = (uint8_t*)(MAPPED_PROGMEM_START + arg * MAPPED_PROGMEM_PAGE_SIZE);
@@ -134,12 +132,16 @@ void boot() {
                         buffer[16] = MAPPED_PROGMEM_PAGE_SIZE & 0xff;
                         //buffer[11] = FUSE.LOCKBIT;
                         break;
+                    // Reset the AVR - first signal the command is processed, then reset the chip
                     case CMD_RESET:
+                        VPORTA.DIR &= ~(1 << 4);
                         _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
                     default:
                         // nothing to be done for the rest
                         break;
                 }
+                // switch AVR_IRQ (PA4) to input again
+                VPORTA.DIR &= ~(1 << 4);
             // nothing to do, or error - not sure what to do, perhaps reset the bootloader? 
             } else {
                 // TODO
