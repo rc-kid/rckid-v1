@@ -12,7 +12,7 @@
 
 ## PCB
 
-- move the USB breakout closer to the edge
+- check the new position of the usb
 - antenna might be too far, check that it fits
 
 - check that headphones detection works with 2.5V as well

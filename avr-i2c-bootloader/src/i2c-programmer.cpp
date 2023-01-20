@@ -54,17 +54,18 @@ private:
         fuses["FUSE.WDTCFG"] = info[3];
         fuses["FUSE.BODCFG"] = info[4];
         fuses["FUSE.OSCCFG"] = info[5];
-        fuses["FUSE.TCD0CFG"] = info[6];
-        fuses["FUSE.SYSCFG0"] = info[7];
-        fuses["FUSE.SYSCFG1"] = info[8];
-        fuses["FUSE.APPEND"] = info[9];
-        fuses["FUSE.BOOTEND"] = info[10];
-        fuses["CLKCTRL.MCLKCTRLA"] = info[11];
-        fuses["CLKCTRL.MCLKCTRLB"] = info[12];
-        fuses["CLKCTRL.MCLKLOCK"] = info[13];
-        fuses["CLKCTRL.MCLKSTATUS"] = info[14];
-        pageSize = (info[15] << 8) + info[16];
-        progStart = info[10] * pageSize;
+        fuses["FUSE.TCD0CFG"] = info[7];
+        fuses["FUSE.SYSCFG0"] = info[8];
+        fuses["FUSE.SYSCFG1"] = info[9];
+        fuses["FUSE.APPEND"] = info[10];
+        fuses["FUSE.BOOTEND"] = info[11];
+        fuses["FUSE.LOCKBIT"] = info[13];
+        fuses["CLKCTRL.MCLKCTRLA"] = info[14];
+        fuses["CLKCTRL.MCLKCTRLB"] = info[15];
+        fuses["CLKCTRL.MCLKLOCK"] = info[16];
+        fuses["CLKCTRL.MCLKSTATUS"] = info[17];
+        pageSize = (info[18] << 8) + info[19];
+        progStart = info[11] * pageSize;
     }
 
     friend std::ostream & operator << (std::ostream & s, Family f) {

@@ -122,14 +122,14 @@ void boot() {
                         buffer[0] = SIGROW.DEVICEID0;
                         buffer[1] = SIGROW.DEVICEID1;
                         buffer[2] = SIGROW.DEVICEID2;
-                        for (uint8_t i = 0; i < 8; ++i)
+                        for (uint8_t i = 0; i < 10; ++i)
                             buffer[3 + i] = ((uint8_t*)(&FUSE))[i];
-                        buffer[11] = CLKCTRL.MCLKCTRLA;
-                        buffer[12] = CLKCTRL.MCLKCTRLB;
-                        buffer[13] = CLKCTRL.MCLKLOCK;
-                        buffer[14] = CLKCTRL.MCLKSTATUS;
-                        buffer[15] = MAPPED_PROGMEM_PAGE_SIZE >> 8;
-                        buffer[16] = MAPPED_PROGMEM_PAGE_SIZE & 0xff;
+                        buffer[14] = CLKCTRL.MCLKCTRLA;
+                        buffer[15] = CLKCTRL.MCLKCTRLB;
+                        buffer[16] = CLKCTRL.MCLKLOCK;
+                        buffer[17] = CLKCTRL.MCLKSTATUS;
+                        buffer[18] = MAPPED_PROGMEM_PAGE_SIZE >> 8;
+                        buffer[19] = MAPPED_PROGMEM_PAGE_SIZE & 0xff;
                         //buffer[11] = FUSE.LOCKBIT;
                         break;
                     // Reset the AVR - first signal the command is processed, then reset the chip

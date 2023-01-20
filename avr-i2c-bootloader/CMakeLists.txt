@@ -25,7 +25,7 @@ else()
     add_definitions(-DARCH_MOCK)
 endif()
 
-file(GLOB_RECURSE SRC  src/programmer.cpp)
+file(GLOB_RECURSE SRC  src/i2c-programmer.cpp)
 add_executable(i2c-programmer ${SRC})
 
 if(DEFINED ARCH_RPI)
