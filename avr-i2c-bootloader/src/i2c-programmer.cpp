@@ -40,6 +40,10 @@ struct ChipInfo {
                 name = "ATTiny1617";
                 family = Family::TinySeries1;
                 break;
+            case 0x1e9521:
+                name = "ATTiny3216";
+                family = Family::TinySeries1;
+                break;
             default:
                 throw STR("Unknown chip detected, signature: " << std::hex << (unsigned)info[0] << ":" << (unsigned)info[1] << ":" << (unsigned)info[2]);
         }
@@ -91,11 +95,21 @@ private:
     }
 }; // ChipInfo
 
+/** Sends the reset command. 
+ 
+    Special method since reset should not wait for the AVR_IRQ busy flag (this would lead in an infinite loop when rebooting to the program)
+*/
+void resetAvr() {
+    uint8_t cmd = CMD_RESET;
+    if (! i2c::transmit(I2C_ADDRESS, & cmd, 1, nullptr, 0))
+        throw STR("Cannot reset AVR");
+}
+
 void sendCommand(uint8_t cmd) {
     if (! i2c::transmit(I2C_ADDRESS, & cmd, 1, nullptr, 0))
         throw STR("Cannot send command " << (int)cmd);
     while (gpio::read(PIN_AVR_IRQ) == true) {};
-    cpu::delay_ms(10);
+    //cpu::delay_ms(10);
 }
 
 void sendCommand(uint8_t cmd, uint8_t arg) {
@@ -103,7 +117,7 @@ void sendCommand(uint8_t cmd, uint8_t arg) {
     if (! i2c::transmit(I2C_ADDRESS, data, 2, nullptr, 0))
         throw STR("Cannot send command " << (int)cmd << ", arg " << (int)arg);
     while (gpio::read(PIN_AVR_IRQ) == true) {};
-    cpu::delay_ms(10);
+    //cpu::delay_ms(10);
 }
 
 void readBuffer(uint8_t * buffer) {
@@ -130,15 +144,15 @@ ChipInfo enterBootloader() {
     gpio::low(PIN_AVR_IRQ);
     cpu::delay_ms(10);
     // reset the AVR
-    sendCommand(CMD_RESET);
-    cpu::delay_ms(10);
+    resetAvr();
+    cpu::delay_ms(200);
     gpio::inputPullup(PIN_AVR_IRQ);
-    cpu::delay_ms(10);
+    //cpu::delay_ms(10);
     // verify that we have proper communications available by writing some stuff and then reading it back
-    sendCommand(CMD_CLEAR_INDEX);
+    sendCommand(CMD_SET_INDEX, 0);
     char const * text = "ThisIsATest_DoYouHearMe?12345678\0";
     writeBuffer((uint8_t const *)text);
-    sendCommand(CMD_CLEAR_INDEX);
+    sendCommand(CMD_SET_INDEX, 0);
     uint8_t data[33];
     readBuffer(data);
     if (strncmp(text, (char const *)data, 32) != 0) {
@@ -147,7 +161,7 @@ ChipInfo enterBootloader() {
     }
     // get chip info 
     sendCommand(CMD_INFO);
-    sendCommand(CMD_CLEAR_INDEX);
+    sendCommand(CMD_SET_INDEX, 0);
     readBuffer(data);
     return ChipInfo{data};
 }
@@ -177,7 +191,7 @@ void writeProgram(ChipInfo const & chip, hex::Program const & p) {
     size_t address = p.start() / chip.pageSize;
     for (size_t i = 0, e = p.size(); i != e; ) {
         // fill in the buffer 
-        sendCommand(CMD_CLEAR_INDEX);
+        sendCommand(CMD_SET_INDEX, 0);
         std::cout << address << ": " << std::flush;
         for (int pi = 0, pe = chip.pageSize; pi < pe; pi += 32) {
             writeBuffer(p.data() + i);
@@ -199,9 +213,9 @@ void verifyProgram(ChipInfo const & chip, hex::Program const & p) {
     uint8_t buffer[32];
     for (size_t i = 0, e = p.size(); i != e; ) {
         sendCommand(CMD_READ_PAGE, address);
-        sendCommand(CMD_CLEAR_INDEX);
         std::cout << address << ": " << std::flush;
         for (int pi = 0, pe = chip.pageSize; pi < pe; pi += 32) {
+            sendCommand(CMD_SET_INDEX, pi);
             readBuffer(buffer);
             compareBatch(address * chip.pageSize + pi, 32, p.data() + i, buffer);
             i += 32;
@@ -236,7 +250,6 @@ int main(int argc, char * argv[]) {
                 writeProgram(chip, p);
                 std::cout << "Verifying program..." << std::endl;
                 verifyProgram(chip, p);
-                std::cout << "OK." << std::endl;
             // read HEX_FILE start bytes
             } else if (cmd == "read") {
                 if (argc < 5)
@@ -249,6 +262,14 @@ int main(int argc, char * argv[]) {
                 throw STR("Invalid command " << cmd);
             }
         }
+        // reset the AVR
+        std::cout << "Resetting AVR..." << std::endl;
+        gpio::output(PIN_AVR_IRQ);
+        gpio::high(PIN_AVR_IRQ);
+        cpu::delay_ms(10);
+        resetAvr();
+        cpu::delay_ms(200);
+        gpio::inputPullup(PIN_AVR_IRQ);
         return EXIT_SUCCESS;
     } catch (hex::Error const & e) {
         std::cout << "ERROR in parsing the HEX file: " << e << std::endl;

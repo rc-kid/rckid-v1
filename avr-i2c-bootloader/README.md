@@ -4,6 +4,8 @@ A simple I2C bootloader that fits in 512 bytes.
 
 > https://docs.platformio.org/en/latest/platforms/atmelavr.html#bootloader-programming, https://www.microchip.com/en-us/application-notes/an2634
 
+Note that the UPDI programmer does not check if the chip is correct. If the chip specified in platformio and the actual chip do not match, the memory writes might not work even if everything else would (different memory will be written). 
+
 ## Commands
 
 Each I2C command is a single byte, optionally followed by an argument. The commands are designed in such way that they allow page-by-page writing and reading the memory so that the programmer can write and verify the memory contents with minimal AVR code required. 
@@ -12,29 +14,30 @@ Each I2C command is a single byte, optionally followed by an argument. The comma
 
 > Not used for anything. 
 
-`0x01` WRITE_BUFFER
+`0x01` RESET
+
+> Resets the chip.
+
+`0x02` WRITE_BUFFER
 
 > Reads bytes from the comms buffer. Reads as many bytes as the client wishes to read wrapping around the buffer size when necessary.  
 
-`0x02 page` WRITE_PAGE
+`0x03 page` WRITE_PAGE
 
 > Writes the contents of the buffer to the specified page and resets the buffer index.
 
-`0x03 page` READ_PAGE
+`0x04 page` READ_PAGE
 
 > Reads the specified page into the buffer and resets the buffer index.
 
-`0x04` CLEAR_INDEX
+`0x05 index` SET_INDEX
 
 > Clears the buffer index, i.e. writing and reading will start from the beginning of the buffer. 
 
-`0x05` INFO
+`0x06` INFO
 
 > Fills the buffer with information about the chip, such as fuses and so on.
 
-`0x06` RESET
-
-> Resets the chip.
 
 ## Programmer
 

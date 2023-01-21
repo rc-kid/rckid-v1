@@ -48,7 +48,8 @@ void boot() {
     if ((VPORTA.IN & PIN4_bm) == 0) {
         // enable the display backlight when entering the bootloader for some output (like say, eventually an OTA:) Baclight is connected to PA5 and is active high
         VPORTA.DIR |= (1 << 5);
-        VPORTA.OUT |= (1 << 5);
+        //VPORTA.OUT |= (1 << 5);
+        VPORTA.OUT &= ~(1 << 5); 
         // initialize the I2C in slave mode w/o interrupts
         // turn I2C off in case it was running before
         TWI0.MCTRLA = 0;
@@ -115,8 +116,8 @@ void boot() {
                             buffer[i] = page[i];
                         break;
                     }
-                    case CMD_CLEAR_INDEX:
-                        i = 0;
+                    case CMD_SET_INDEX:
+                        i = arg;
                         break;
                     case CMD_INFO:
                         buffer[0] = SIGROW.DEVICEID0;

@@ -8,6 +8,6 @@
 #define CMD_WRITE_BUFFER 0x02
 #define CMD_WRITE_PAGE 0x03
 #define CMD_READ_PAGE 0x04
-#define CMD_CLEAR_INDEX 0x05
+#define CMD_SET_INDEX 0x05
 #define CMD_INFO 0x06
 

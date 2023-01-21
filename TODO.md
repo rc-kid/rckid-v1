@@ -12,6 +12,8 @@
 
 ## PCB
 
+- can we make the switch thumbstich straight and bend the cable to the bottom side? 
+
 - check the new position of the usb
 - antenna might be too far, check that it fits
 
@@ -24,12 +26,10 @@
 
 ## Bootloader
 
-- write the programmer
-- test by verifying the bootloader code to be what is expected
+- how to restart AVR in normal mode? 
+
 
 ## AVR
-
-- create I2C bootloader to save the serial pins and provide uploading capabilities from RPI
 
 - Status is only the first byte, then extra type for input properties, then extended state, then date time
 - this way it will be easier to ask only for a few...
@@ -39,6 +39,8 @@
 
 ## RPI
 
+- disable serial port
+- would it make sense to use fewer cores at higher speed? 
 - check JOY_BTN reading and AVR notification from the new pinout
 - add microphone reading and check quality 
 
