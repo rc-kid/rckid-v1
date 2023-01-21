@@ -6,6 +6,8 @@ A simple I2C bootloader that fits in 512 bytes.
 
 Note that the UPDI programmer does not check if the chip is correct. If the chip specified in platformio and the actual chip do not match, the memory writes might not work even if everything else would (different memory will be written). 
 
+Both the bootloader and the programmer are pretty specific for the `rcboy`, but minimal changes should make them generic. The bootloader checks the `AVR_IRQ` pin and if 0, 
+
 ## Commands
 
 Each I2C command is a single byte, optionally followed by an argument. The commands are designed in such way that they allow page-by-page writing and reading the memory so that the programmer can write and verify the memory contents with minimal AVR code required. 
@@ -46,4 +48,5 @@ A simple i2c programmer is provided as well. Usage:
     i2c-programmer write HEX_FILE
 
 `HEX_FILE` is path to the Intel HEX file that should be flashed to the chip. 
+
 
