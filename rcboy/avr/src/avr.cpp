@@ -115,6 +115,7 @@ namespace clocks {
         //CCP = CCP_IOREG_gc;
         //CLKCTRL.MCLKCTRLA |= CLKCTRL_CLKOUT_bm;
         // disable CLK_PER prescaler, i.e. CLK_PER = CLK_MAIN
+        //_PROTECTED_WRITE(CLKCTRL.MCLKCTRLA, CLKCTRL_PEN_bm);
         CCP = CCP_IOREG_gc;
         CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm;
     }
@@ -218,9 +219,41 @@ namespace rpi {
         }
     }
 
+    /** Sets the address from which the next I2C read will be. 
+     */
+    void setNextReadAddress(uint8_t * addr) {
+        cli();
+        i2cReadStart_ = addr;
+        sei();
+    }
+
+
     void processCommand() {
         msg::Message const & m = msg::Message::fromBuffer(i2cBuffer_);
         switch (i2cBuffer_[0]) {
+            // resets the chip
+            case msg::AvrReset::Id: {
+                _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
+            }
+            // identical to the info of bootloader, next reading of data will return the chip info in the same format as the bootloader. 
+            // NOTE it is not allowed to issue this message while recording audio
+            case msg::Info::Id: {
+                uint8_t * buffer = i2cBuffer_ + 1;
+                buffer[0] = SIGROW.DEVICEID0;
+                buffer[1] = SIGROW.DEVICEID1;
+                buffer[2] = SIGROW.DEVICEID2;
+                buffer[3] = 1; // app
+                for (uint8_t i = 0; i < 10; ++i)
+                    buffer[4 + i] = ((uint8_t*)(&FUSE))[i];
+                buffer[15] = CLKCTRL.MCLKCTRLA;
+                buffer[16] = CLKCTRL.MCLKCTRLB;
+                buffer[17] = CLKCTRL.MCLKLOCK;
+                buffer[18] = CLKCTRL.MCLKSTATUS;
+                buffer[19] = MAPPED_PROGMEM_PAGE_SIZE >> 8;
+                buffer[20] = MAPPED_PROGMEM_PAGE_SIZE & 0xff;
+                setNextReadAddress(i2cBuffer_ + 1);
+                break;
+            }
             case msg::ClearPowerOnFlag::Id: {
                 state.status.setAvrPowerOn(false);
                 break;
@@ -241,9 +274,6 @@ namespace rpi {
             case msg::PowerOff::Id: {
                 // TODO
             }
-            case msg::AvrReset::Id: {
-                _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
-            }
         }
 
         // clear the received bytes buffer and the i2c command ready flag
@@ -252,15 +282,6 @@ namespace rpi {
         flags.i2cReady = false;
         sei();
     }
-
-    /** Sets the address from which the next I2C read will be. 
-     */
-    void setNextReadAddress(uint8_t * addr) {
-        cli();
-        i2cReadStart_ = addr;
-        sei();
-    }
-
 
     /** I2C Slave handler. 
      
@@ -301,6 +322,9 @@ namespace rpi {
             i2cBytesSent_ = 0;
             i2cReadActual_ = i2cReadStart_;
             TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
+            // If read start was one byte into the buffer, which we use for the chip info message buffer shared with bootloader, switch immediately to reading state in the next message
+            if (i2cReadStart_ == i2cBuffer_ + 1)
+                i2cReadStart_ = reinterpret_cast<uint8_t*>(& state);
         // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise
         } else if ((status & I2C_START_MASK) == I2C_START_RX) {
             TWI0.SCTRLB = flags.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;

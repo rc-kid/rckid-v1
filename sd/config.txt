@@ -11,9 +11,12 @@ dtparam=i2c_arm=on,i2c_arm_baudrate=400000
 # Enable SPI 1 used for NRF, set cs0 pin. We do not enable SPI0 as that is used by the framebuffer display driver direcly and does not need to be setup
 dtoverlay=spi1-1cs,cs0_pin=16
 
-# Enable the UART and disable bluetooth to make sure that we use the full UART on programming the AVR (does not work with the simple one)
+# Enable the UART and disable bluetooth to make sure that we use the full UART on programming the AVR (does not work with the simple one). Use these settings when flashing the bootloader on the AVR chip. 
 enable_uart=1
 dtoverlay=disable-bt
+
+# Disable UART so that its pins can be used for the buttons and to tell the AVR rpi is off.  
+#enable_uart=0
 
 # Enable audio (loads snd_bcm2835) and set PWM outputs on alternate pins
 dtparam=audio=on

@@ -101,6 +101,27 @@ void boot() {
             } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
                 TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
                 switch (command) {
+                    // Reset the AVR - first signal the command is processed, then reset the chip
+                    case CMD_RESET:
+                        VPORTA.DIR &= ~(1 << 4);
+                        _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
+                    case CMD_INFO:
+                        buffer[0] = SIGROW.DEVICEID0;
+                        buffer[1] = SIGROW.DEVICEID1;
+                        buffer[2] = SIGROW.DEVICEID2;
+                        buffer[3] = 0; // bootloader
+                        for (uint8_t i = 0; i < 10; ++i)
+                            buffer[4 + i] = ((uint8_t*)(&FUSE))[i];
+                        buffer[15] = CLKCTRL.MCLKCTRLA;
+                        buffer[16] = CLKCTRL.MCLKCTRLB;
+                        buffer[17] = CLKCTRL.MCLKLOCK;
+                        buffer[18] = CLKCTRL.MCLKSTATUS;
+                        buffer[19] = MAPPED_PROGMEM_PAGE_SIZE >> 8;
+                        buffer[20] = MAPPED_PROGMEM_PAGE_SIZE & 0xff;
+                        // reset the buffer
+                        i = 0;
+                        //buffer[11] = FUSE.LOCKBIT;
+                        break;
                     case CMD_WRITE_PAGE: {
                         uint8_t * page = (uint8_t*)(MAPPED_PROGMEM_START + arg * MAPPED_PROGMEM_PAGE_SIZE);
                         for (uint8_t i = 0; i < MAPPED_PROGMEM_PAGE_SIZE; ++i)
@@ -118,24 +139,6 @@ void boot() {
                     case CMD_SET_INDEX:
                         i = arg;
                         break;
-                    case CMD_INFO:
-                        buffer[0] = SIGROW.DEVICEID0;
-                        buffer[1] = SIGROW.DEVICEID1;
-                        buffer[2] = SIGROW.DEVICEID2;
-                        for (uint8_t i = 0; i < 10; ++i)
-                            buffer[3 + i] = ((uint8_t*)(&FUSE))[i];
-                        buffer[14] = CLKCTRL.MCLKCTRLA;
-                        buffer[15] = CLKCTRL.MCLKCTRLB;
-                        buffer[16] = CLKCTRL.MCLKLOCK;
-                        buffer[17] = CLKCTRL.MCLKSTATUS;
-                        buffer[18] = MAPPED_PROGMEM_PAGE_SIZE >> 8;
-                        buffer[19] = MAPPED_PROGMEM_PAGE_SIZE & 0xff;
-                        //buffer[11] = FUSE.LOCKBIT;
-                        break;
-                    // Reset the AVR - first signal the command is processed, then reset the chip
-                    case CMD_RESET:
-                        VPORTA.DIR &= ~(1 << 4);
-                        _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
                     default:
                         // nothing to be done for the rest
                         break;

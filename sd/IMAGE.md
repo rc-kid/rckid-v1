@@ -20,10 +20,11 @@ When done, run the rest of the SD image setup (see the script file for details):
     cd rcboy
     bash sd/install.sh
 
-Then run `raspi-config` and make the following changes:
+Then run `sudo raspi-config` and make the following changes:
 
 - disable wait for the network during boot
 - disable tty on serial console
+- set audio output to headphones
 
 # Startup Time
 

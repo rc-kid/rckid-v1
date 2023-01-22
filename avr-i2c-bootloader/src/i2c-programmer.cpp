@@ -19,6 +19,7 @@ struct ChipInfo {
     std::string name;
     Family family;
     uint32_t signature;
+    bool bootloader;
     size_t pageSize;
     size_t progStart; 
     std::unordered_map<std::string, uint8_t> fuses;
@@ -27,6 +28,7 @@ struct ChipInfo {
      */
     ChipInfo(uint8_t const * info) {
         signature = (info[0] << 16) + (info[1] << 8) + info[2];
+        bootloader = (info[3] == 0);
         switch (signature) {
             case 0x1e9422: 
                 name = "ATTiny1614";
@@ -55,21 +57,21 @@ struct ChipInfo {
     }
 private:
     void setFusesTinySeries1(uint8_t const * info) {
-        fuses["FUSE.WDTCFG"] = info[3];
-        fuses["FUSE.BODCFG"] = info[4];
-        fuses["FUSE.OSCCFG"] = info[5];
-        fuses["FUSE.TCD0CFG"] = info[7];
-        fuses["FUSE.SYSCFG0"] = info[8];
-        fuses["FUSE.SYSCFG1"] = info[9];
-        fuses["FUSE.APPEND"] = info[10];
-        fuses["FUSE.BOOTEND"] = info[11];
-        fuses["FUSE.LOCKBIT"] = info[13];
-        fuses["CLKCTRL.MCLKCTRLA"] = info[14];
-        fuses["CLKCTRL.MCLKCTRLB"] = info[15];
-        fuses["CLKCTRL.MCLKLOCK"] = info[16];
-        fuses["CLKCTRL.MCLKSTATUS"] = info[17];
-        pageSize = (info[18] << 8) + info[19];
-        progStart = info[11] * 256;
+        fuses["FUSE.WDTCFG"] = info[4];
+        fuses["FUSE.BODCFG"] = info[5];
+        fuses["FUSE.OSCCFG"] = info[6];
+        fuses["FUSE.TCD0CFG"] = info[8];
+        fuses["FUSE.SYSCFG0"] = info[9];
+        fuses["FUSE.SYSCFG1"] = info[10];
+        fuses["FUSE.APPEND"] = info[11];
+        fuses["FUSE.BOOTEND"] = info[12];
+        fuses["FUSE.LOCKBIT"] = info[14];
+        fuses["CLKCTRL.MCLKCTRLA"] = info[15];
+        fuses["CLKCTRL.MCLKCTRLB"] = info[16];
+        fuses["CLKCTRL.MCLKLOCK"] = info[17];
+        fuses["CLKCTRL.MCLKSTATUS"] = info[18];
+        pageSize = (info[19] << 8) + info[20];
+        progStart = info[12] * 256;
     }
 
     friend std::ostream & operator << (std::ostream & s, Family f) {
@@ -85,6 +87,7 @@ private:
         s << std::setw(20) << "chip" << ": " << info.name << std::endl;
         s << std::setw(20) << "signature" << ": " << std::hex << info.signature << std::endl;
         s << std::setw(20) << "family" << ": " << info.family << std::endl;
+        s << std::setw(20) << "mode" << ": " << (info.bootloader ? "bootloader" : "app") << std::endl;
         s << std::setw(20) << "page size" << ": " << std::dec << info.pageSize << std::endl;
         s << std::setw(20) << "program start" << ": " << std::hex << "0x" << info.progStart << std::endl;
         s << std::endl;
@@ -134,7 +137,30 @@ void writeBuffer(uint8_t const * buffer) {
         throw STR("Cannot write bootloader's buffer");
 }
 
+/** Detects whether the AVR chip is present and displays the chip info if all is ok. 
+ 
+    Since the chip can be in both app and bootloader mode, we can't use the sendCommand rountine that waits for the AVR_IRQ to be released and we have to add explicit delays. 
+*/
+ChipInfo detectAVR() {
+    // check that the avr is present
+    gpio::inputPullup(PIN_AVR_IRQ);
+    if (!i2c::transmit(I2C_ADDRESS, nullptr, 0, nullptr, 0))
+        throw STR("Device not detected at I2C address " << I2C_ADDRESS);
+    cpu::delay_ms(10);
+    uint8_t data[32];
+    // get chip info 
+    data[0] = CMD_INFO;
+    if (! i2c::transmit(I2C_ADDRESS, data, 1, nullptr, 0))
+        throw STR("Cannot send command CMD_INFO, code " << CMD_INFO);    
+    cpu::delay_ms(1);
+    readBuffer(data);
+    return ChipInfo{data};
+}
+
+/** Ensures the AVR chip is available, restarts it into a bootloader mode, checks communication and returns the chip info.
+ */
 ChipInfo enterBootloader() {
+    std::cout << "Entering bootloader..." << std::endl;
     // check that the avr is present
     if (!i2c::transmit(I2C_ADDRESS, nullptr, 0, nullptr, 0))
         throw STR("Device not detected at I2C address " << I2C_ADDRESS);
@@ -164,6 +190,17 @@ ChipInfo enterBootloader() {
     sendCommand(CMD_SET_INDEX, 0);
     readBuffer(data);
     return ChipInfo{data};
+}
+
+void resetToApplication() {
+    // reset the AVR
+    std::cout << "Resetting AVR..." << std::endl;
+    gpio::output(PIN_AVR_IRQ);
+    gpio::high(PIN_AVR_IRQ);
+    cpu::delay_ms(10);
+    resetAvr();
+    cpu::delay_ms(200);
+    gpio::inputPullup(PIN_AVR_IRQ);
 }
 
 void compareBatch(size_t address, size_t size, uint8_t const * expected, uint8_t const * actual) {
@@ -231,45 +268,44 @@ int main(int argc, char * argv[]) {
         // initialize gpio and i2c
         gpio::initialize();
         i2c::initializeMaster();
-        // enter the bootloader on AVR
-        std::cout << "Detecting chip" << std::endl;
-        ChipInfo chip = enterBootloader();
-        std::cout << chip << std::endl;
-        if (argc > 1) {
+        // determine what command to run
+        if (argc < 2)
+            throw STR("Invalid number of arguments");
+        std::string cmd{argv[1]}; 
+        // write HEX_FILE
+        if (cmd == "write") {
             if (argc < 3)
                 throw STR("Invalid number of arguments");
-            std::string cmd{argv[1]}; 
-            // write HEX_FILE
-            if (cmd == "write") {
-                std::cout << "Reading program in " << argv[2] << std::endl;
-                hex::Program p{hex::Program::parseFile(argv[2])};
-                std::cout << "Found " << p << std::endl;
-                // flash and verify the program
-                p.padToPage(chip.pageSize, 0xff);
-                std::cout << "Writing program..." << std::endl;
-                writeProgram(chip, p);
-                std::cout << "Verifying program..." << std::endl;
-                verifyProgram(chip, p);
-            // read HEX_FILE start bytes
-            } else if (cmd == "read") {
-                if (argc < 5)
-                    throw STR("Invalid number of arguments");
-                size_t start = std::atol(argv[3]);
-                size_t n = std::atol(argv[4]);
-                // TODO
-                throw STR("Reading chip memory not supported yet");
-            } else {
-                throw STR("Invalid command " << cmd);
-            }
+            ChipInfo chip = enterBootloader(); 
+            std::cout << chip << std::endl;
+            std::cout << "Reading program in " << argv[2] << std::endl;
+            hex::Program p{hex::Program::parseFile(argv[2])};
+            std::cout << "Found " << p << std::endl;
+            // flash and verify the program
+            p.padToPage(chip.pageSize, 0xff);
+            std::cout << "Writing program..." << std::endl;
+            writeProgram(chip, p);
+            std::cout << "Verifying program..." << std::endl;
+            verifyProgram(chip, p);
+            resetToApplication();
+        // read HEX_FILE start bytes
+        } else if (cmd == "read") {
+            if (argc < 5)
+                throw STR("Invalid number of arguments");
+            ChipInfo chip = enterBootloader(); 
+            std::cout << chip << std::endl;
+            size_t start = std::atol(argv[3]);
+            size_t n = std::atol(argv[4]);
+            // TODO
+            throw STR("Reading chip memory not supported yet");
+        } else if (cmd == "check") {
+            ChipInfo chip = detectAVR(); 
+            std::cout << chip << std::endl;
+        } else if (cmd == "reset") {
+            resetToApplication();
+        } else {
+            throw STR("Invalid command " << cmd);
         }
-        // reset the AVR
-        std::cout << "Resetting AVR..." << std::endl;
-        gpio::output(PIN_AVR_IRQ);
-        gpio::high(PIN_AVR_IRQ);
-        cpu::delay_ms(10);
-        resetAvr();
-        cpu::delay_ms(200);
-        gpio::inputPullup(PIN_AVR_IRQ);
         return EXIT_SUCCESS;
     } catch (hex::Error const & e) {
         std::cout << "ERROR in parsing the HEX file: " << e << std::endl;

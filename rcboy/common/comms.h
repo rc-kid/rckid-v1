@@ -277,6 +277,11 @@ namespace msg {
     MESSAGE(AvrReset)
     static_assert(AvrReset::Id == 1);
 
+    /** Returns the chip information. This is identical to the bootloader and can be used to get chip information after it has been programmed. 
+     */
+    MESSAGE(Info)
+    static_assert(Info::Id == 2);
+
     /** Clears the power on flag in the AVR status. 
      */
     MESSAGE(ClearPowerOnFlag)

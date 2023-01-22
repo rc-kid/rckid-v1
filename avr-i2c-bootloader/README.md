@@ -6,7 +6,7 @@ A simple I2C bootloader that fits in 512 bytes.
 
 Note that the UPDI programmer does not check if the chip is correct. If the chip specified in platformio and the actual chip do not match, the memory writes might not work even if everything else would (different memory will be written). 
 
-Both the bootloader and the programmer are pretty specific for the `rcboy`, but minimal changes should make them generic. The bootloader checks the `AVR_IRQ` pin and if its low, enters the bootloader mode. When high (i.e. when there is a pullup enabled on the AVR_IRQ line) runs the app instead. The bootloader also turns the screen brightness to full to ensure rcboy remains in an observable state. 
+Both the bootloader and the programmer are pretty specific for the `rcboy`, but minimal changes should make them generic. The bootloader checks the `AVR_IRQ` pin and if its low, enters the bootloader mode. When high (i.e. when there is a pullup enabled on the AVR_IRQ line, or the default upon rpi poweron) runs the app instead. The bootloader also turns the screen brightness to full to ensure rcboy remains in an observable state. 
 
 ## Commands
 

@@ -1,7 +1,6 @@
 # RCBoy
 
 - AVR speed is weird... Determine proper settings
-- how to set fuses and how to set program file
 
 ## BOM
 
@@ -13,27 +12,19 @@
 ## PCB
 
 - can we make the switch thumbstich straight and bend the cable to the bottom side? 
+- verify thumbstick front panel hole placement
 
 - check the new position of the usb
 - antenna might be too far, check that it fits
 
-- check that headphones detection works with 2.5V as well
 - mic amplification is too great, 51k seems to do the trick
-- verify thumbstick front panel hole placement
 - check if 1M pull-down resistor can be used for rpi power
 - audio board is too big to be inserted comfortably (most likely it is ok)
 - ferrite beads are 1206, should be 0805, but now can also stay 1206
 
-## Bootloader
-
-- how to restart AVR in normal mode? 
-
-
 ## AVR
 
-- Status is only the first byte, then extra type for input properties, then extended state, then date time
-- this way it will be easier to ask only for a few...
-- reading the audio has lots of errors, probably too many irqs present...
+- reading the audio has lots of errors, probably too many irqs present... (MAYBE RESOLVED)
 
 - micmax can't be aggregated like this since we need the max value actually
 
@@ -66,7 +57,7 @@
 
 - check that charging is turned off when charging is done
 
-# Other
+# Other - proto
 
 - accel keeps going dark... contacts? 
 
