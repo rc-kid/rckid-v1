@@ -33,6 +33,7 @@ public:
 class gpio {
 public:
     using Pin = unsigned;
+    static constexpr Pin UNUSED = 0xffffffff;
 
     static void initialize() {
         gpioInitialise();

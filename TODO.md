@@ -2,6 +2,8 @@
 
 - AVR speed is weird... Determine proper settings
 
+- software: raylib, lvgl, sfml, etc. See if I can write directly to fb and how soon can I do so - technically I should be able to do this as soon as the TFT driver starts
+
 ## BOM
 
 - M1.4 screws for thumbstick
@@ -11,7 +13,6 @@
 
 ## PCB
 
-- can we make the switch thumbstich straight and bend the cable to the bottom side? 
 - verify thumbstick front panel hole placement
 
 - check the new position of the usb
@@ -24,9 +25,15 @@
 
 ## AVR
 
+- joystick button detection
 - reading the audio has lots of errors, probably too many irqs present... (MAYBE RESOLVED)
-
 - micmax can't be aggregated like this since we need the max value actually
+
+## RPI-RayLib
+
+- comms with avr do not seem to work
+- current rpi library eats 8% CPU for polling, can be replaced? lowered?
+
 
 ## RPI
 
