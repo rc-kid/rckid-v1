@@ -18,7 +18,6 @@
 #include "spinlock.h"
 
 
-#include <iostream>
 
 #define STR(...) static_cast<std::stringstream &&>(std::stringstream() << __VA_ARGS__).str()
 
@@ -93,11 +92,12 @@ public:
 class i2c {
 public:
 
-    static void initializeMaster() {
+    static bool initializeMaster() {
         // TODO set speed here too
         // make sure that a write followed by a read to the same address will use repeated start as opposed to stop-start
 
         handle_ = open("/dev/i2c-1", O_RDWR);
+        return handle_ >= 0;
         // old code with pigpio
         //i2cSwitchCombined(true);
     }
@@ -119,6 +119,12 @@ public:
             msgs[nmsgs].buf = rb;
             msgs[nmsgs].len = static_cast<uint16_t>(rsize);
             msgs[nmsgs].flags = I2C_M_RD;
+            ++nmsgs;
+        }
+        // fake zero writes for checking if the chip exists
+        if (nmsgs == 0) {
+            msgs[nmsgs].addr = static_cast<uint16_t>(address);
+            msgs[nmsgs].len = 0;
             ++nmsgs;
         }
         i2c_rdwr_ioctl_data wrapper = {
@@ -155,8 +161,15 @@ public:
 
     using Device = gpio::Pin;
 
-    static void initialize(unsigned baudrate = 5000000) {
+    static bool initialize(unsigned baudrate = 5000000) {
         baudrate_ = baudrate;
+        handle_ = open("/dev/spidev1.0", O_RDWR);
+        if (handle_ >= 0) {
+            close(handle_);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /** Starts the transmission to given device. 
@@ -220,7 +233,6 @@ public:
         spi.speed_hz = baudrate_;
         spi.bits_per_word = 8;
         ioctl(handle_, SPI_IOC_MESSAGE(1), &spi);
-        //std::cout << "  transferring " << numBytes << " " << result << " (" << errno << ")" << std::endl;
         return numBytes;
         /*
         spiXfer(handle_, reinterpret_cast<char*>(const_cast<uint8_t*>(tx)), reinterpret_cast<char*>(rx), numBytes);
@@ -252,6 +264,5 @@ private:
     static inline unsigned baudrate_;
 
     static inline int handle_ = -1; 
-
     
 }; // spi

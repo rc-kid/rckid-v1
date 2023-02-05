@@ -168,6 +168,8 @@ private:
      */
     void initializeLibevdevGamepad() MAIN_THREAD;
 
+    void initializeAvr() MAIN_THREAD;
+
     void initializeAccel() MAIN_THREAD;
 
     void initializeNrf() MAIN_THREAD;

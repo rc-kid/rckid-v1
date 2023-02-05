@@ -1,13 +1,6 @@
 #include "rcboy.h"
 
-//#include <wiringPi.h>
-
 #include <iostream>
-
-void handle() {
-    std::cout << "here" << std::endl;
-}
-
 
 RCBoy * RCBoy::initialize() {
 /*
@@ -23,11 +16,13 @@ RCBoy * RCBoy::initialize() {
 */
 
     gpio::initialize();
-    spi::initialize();
-    i2c::initializeMaster();
-
+    if (!spi::initialize()) 
+        ERROR("Unable to initialize spi (errno " << errno << ")");
+    if (!i2c::initializeMaster())
+        ERROR("Unable to initialize i2c (errno " << errno << "), make sure /dev/i2c1 exists");
     RCBoy * result = instance();
     result->initializeLibevdevGamepad();
+    result->initializeAvr();
     result->initializeAccel();
     result->initializeNrf();
     result->initializeISRs();
@@ -210,16 +205,19 @@ void RCBoy::initializeLibevdevGamepad() {
     int err = libevdev_uinput_create_from_device(dev,
                                             LIBEVDEV_UINPUT_OPEN_MANAGED,
                                             &uidev_);
-    // TODO where to report this error???? ANd how toreport errors in general, restart avr?
-    //if (err != 0)
-    //    std::cout << "cannot do what I want to do: " << err << std::endl;
+    if (err != 0) 
+        ERROR("Unable to setup gamepad (result " << err << ", errno: " << errno << ")");
     libevdev_free(dev);
+}
+
+void RCBoy::initializeAvr() {
+    if (!i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, nullptr, 0))
+        ERROR("AVR not found:" << errno);
 }
 
 void RCBoy::initializeAccel() {
     if (accel_.deviceIdentification() == 104) {
         accel_.reset();
-        LOG("Accel ready");
     } else {
         ERROR("Accel not found");
     }
@@ -228,7 +226,6 @@ void RCBoy::initializeAccel() {
 void RCBoy::initializeNrf() {
     if (radio_.initialize("TEST1", "TEST2")) {
         radio_.standby();
-        LOG("Radio standby");
     } else {
         ERROR("Radio not found");
     }

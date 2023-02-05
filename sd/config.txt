@@ -6,10 +6,11 @@
 #arm_freq=800
 
 # Enable I2C, set default baud rate to 400k
-dtparam=i2c_arm=on,i2c_arm_baudrate=400000
+#dtparam=i2c_arm=on,i2c_arm_baudrate=400000
+dtparam=i2c_arm=on
 
 # Enable SPI 1 used for NRF, set cs0 pin. We do not enable SPI0 as that is used by the framebuffer display driver direcly and does not need to be setup
-dtoverlay=spi1-1cs,cs0_pin=16
+dtoverlay=spi1-1cs,cs0_pin=44
 
 # Enable the UART and disable bluetooth to make sure that we use the full UART on programming the AVR (does not work with the simple one). Use these settings when flashing the bootloader on the AVR chip. 
 enable_uart=1

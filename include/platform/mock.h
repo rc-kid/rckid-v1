@@ -59,7 +59,7 @@ public:
 class i2c {
 public:
 
-    static void initializeMaster() {}
+    static bool initializeMaster() { return true; }
 
     static void initializeSlave(uint8_t address_) {}
 
@@ -74,7 +74,7 @@ public:
 
     using Device = unsigned;
 
-    static void initialize() {}
+    static bool initialize() { return true; }
 
     static void begin(Device device) {}
 
