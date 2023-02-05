@@ -98,7 +98,7 @@ void RCBoy::processAvrStatus(comms::Status const & status) {
         isrButton(!status.btnVolumeLeft(), btnVolDown_);
     if (btnVolUp_.current != status.btnVolumeRight())
         isrButton(!status.btnVolumeRight(), btnVolUp_);
-    // TODO joystik button is missing
+    // TODO joystick button is missing
     
     /*
     bool volLeftChanged = volumeLeft_.update(status.btnVolumeLeft());
@@ -219,6 +219,7 @@ void RCBoy::initializeLibevdevGamepad() {
 void RCBoy::initializeAccel() {
     if (accel_.deviceIdentification() == 104) {
         accel_.reset();
+        LOG("Accel ready");
     } else {
         ERROR("Accel not found");
     }
@@ -227,6 +228,7 @@ void RCBoy::initializeAccel() {
 void RCBoy::initializeNrf() {
     if (radio_.initialize("TEST1", "TEST2")) {
         radio_.standby();
+        LOG("Radio standby");
     } else {
         ERROR("Radio not found");
     }

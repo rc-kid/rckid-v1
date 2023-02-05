@@ -163,15 +163,13 @@ public:
      */
     static void begin(Device device) {
         handle_ = open("/dev/spidev1.0", O_RDWR);
-        std::cout << "SPI handle: " << handle_ << std::endl;
         int mode = SPI_MODE_0;
         uint8_t bpw = 8;
 
 
-        std::cout << "  mode: " << ioctl(handle_, SPI_IOC_WR_MODE, & mode) << " (" << errno << ")";
-        std::cout << ", bpw: " << ioctl(handle_, SPI_IOC_WR_BITS_PER_WORD, & bpw) << " (" << errno << ")";
-        std::cout << ", speed:" << ioctl(handle_, SPI_IOC_WR_MAX_SPEED_HZ, & baudrate_) << " (" << errno << ")";
-        std::cout << std::endl;
+        ioctl(handle_, SPI_IOC_WR_MODE, & mode);
+        ioctl(handle_, SPI_IOC_WR_BITS_PER_WORD, & bpw);
+        ioctl(handle_, SPI_IOC_WR_MAX_SPEED_HZ, & baudrate_);
 
 
 
@@ -191,7 +189,6 @@ public:
     /** Terminates the SPI transmission and pulls the CE high. 
      */
     static void end(Device device) {
-        std::cout << "closed" << std::endl;
         gpio::high(device);
         close(handle_);
         /*
@@ -220,10 +217,10 @@ public:
         spi.rx_buf = (unsigned long) rx;
         spi.len = numBytes;
         //spi.delay_usecs = 0;
-        //spi.speed_hz = baudrate_;
-        //spi.bits_per_word = 8;
-        auto result = ioctl (handle_, SPI_IOC_MESSAGE(1), &spi) ;
-        std::cout << "  transferring " << numBytes << " " << result << " (" << errno << ")" << std::endl;
+        spi.speed_hz = baudrate_;
+        spi.bits_per_word = 8;
+        ioctl(handle_, SPI_IOC_MESSAGE(1), &spi);
+        //std::cout << "  transferring " << numBytes << " " << result << " (" << errno << ")" << std::endl;
         return numBytes;
         /*
         spiXfer(handle_, reinterpret_cast<char*>(const_cast<uint8_t*>(tx)), reinterpret_cast<char*>(rx), numBytes);
