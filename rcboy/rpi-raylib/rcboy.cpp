@@ -26,7 +26,7 @@ RCBoy * RCBoy::initialize() {
     spi::initialize();
     i2c::initializeMaster();
 
-    RCBoy * result = new RCBoy{};
+    RCBoy * result = instance();
     result->initializeLibevdevGamepad();
     result->initializeAccel();
     result->initializeNrf();
@@ -60,8 +60,16 @@ void RCBoy::hwLoop() {
         HWEvent e = hwEvents_.waitReceive();
         switch (e) {
             case HWEvent::Tick: {
-                for (Button & b : buttons_)
-                    buttonTick(&b);
+                buttonTick(btnVolDown_);
+                buttonTick(btnVolUp_);
+                buttonTick(btnA_);
+                buttonTick(btnB_);
+                buttonTick(btnX_);
+                buttonTick(btnY_);
+                buttonTick(btnL_);
+                buttonTick(btnR_);
+                buttonTick(btnSelect_);
+                buttonTick(btnStart_);
                 break;
             }
             case HWEvent::AvrIrq: {
@@ -86,10 +94,10 @@ void RCBoy::avrQueryFullState() {
 void RCBoy::processAvrStatus(comms::Status const & status) {
     //std::cout << (int) *((uint8_t*) & status) << std::endl;
  
-    if (buttons_[0].current != status.btnVolumeLeft())
-        isrButton(gpio::UNUSED, !status.btnVolumeLeft(), 0, & buttons_[0]);
-    if (buttons_[1].current != status.btnVolumeRight())
-        isrButton(gpio::UNUSED, !status.btnVolumeRight(), 0, & buttons_[1]);
+    if (btnVolDown_.current != status.btnVolumeLeft())
+        isrButton(!status.btnVolumeLeft(), btnVolDown_);
+    if (btnVolUp_.current != status.btnVolumeRight())
+        isrButton(!status.btnVolumeRight(), btnVolUp_);
     // TODO joystik button is missing
     
     /*
@@ -110,14 +118,29 @@ void RCBoy::processAvrStatus(comms::Status const & status) {
 
 void RCBoy::initializeISRs() {
     gpio::inputPullup(PIN_AVR_IRQ);
+    gpio::attachInterrupt(PIN_AVR_IRQ, gpio::Edge::Falling, & isrAvrIrq);
+
     gpio::input(PIN_HEADPHONES);
-    for (Button & b : buttons_) {
-        if (b.pin != gpio::UNUSED) {
-            gpio::inputPullup(b.pin);
-            gpioSetISRFuncEx(b.pin, EITHER_EDGE, 0, (gpioISRFuncEx_t) RCBoy::isrButton, & b);
-        }
-    }
-    gpioSetISRFuncEx(PIN_AVR_IRQ, FALLING_EDGE, 0,  (gpioISRFuncEx_t) RCBoy::isrAvrIrq, this);
+    gpio::attachInterrupt(PIN_HEADPHONES, gpio::Edge::Both, & isrHeadphones);
+
+    gpio::inputPullup(PIN_BTN_A);
+    gpio::inputPullup(PIN_BTN_B);
+    gpio::inputPullup(PIN_BTN_X);
+    gpio::inputPullup(PIN_BTN_Y);
+    gpio::inputPullup(PIN_BTN_L);
+    gpio::inputPullup(PIN_BTN_R);
+    gpio::inputPullup(PIN_BTN_SELECT);
+    gpio::inputPullup(PIN_BTN_START);
+    gpio::attachInterrupt(PIN_BTN_A, gpio::Edge::Both, & isrButtonA);
+    gpio::attachInterrupt(PIN_BTN_B, gpio::Edge::Both, & isrButtonB);
+    gpio::attachInterrupt(PIN_BTN_X, gpio::Edge::Both, & isrButtonX);
+    gpio::attachInterrupt(PIN_BTN_Y, gpio::Edge::Both, & isrButtonY);
+    gpio::attachInterrupt(PIN_BTN_L, gpio::Edge::Both, & isrButtonL);
+    gpio::attachInterrupt(PIN_BTN_R, gpio::Edge::Both, & isrButtonR);
+    gpio::attachInterrupt(PIN_BTN_SELECT, gpio::Edge::Both, & isrButtonSelect);
+    gpio::attachInterrupt(PIN_BTN_START, gpio::Edge::Both, & isrButtonStart);
+
+    //gpioSetISRFuncEx(PIN_AVR_IRQ, FALLING_EDGE, 0,  (gpioISRFuncEx_t) RCBoy::isrAvrIrq, this);
     //gpioSetISRFuncEx(PIN_HEADPHONES, EITHER_EDGE, 0, (gpioISRFuncEx_t) Driver::isrHeadphonesChange, this);
     /*
 
@@ -152,8 +175,16 @@ void RCBoy::initializeLibevdevGamepad() {
     libevdev_set_id_product(dev, 0xbabe);
     // enable keys for the buttons
     libevdev_enable_event_type(dev, EV_KEY);
-    for (Button & b : buttons_)
-        libevdev_enable_event_code(dev, EV_KEY, b.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnVolDown_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnVolUp_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnA_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnB_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnX_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnY_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnL_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnR_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnSelect_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnStart_.evdevId, nullptr);
     // enable the thumbstick and accelerometer
     libevdev_enable_event_type(dev, EV_ABS);
     input_absinfo info {

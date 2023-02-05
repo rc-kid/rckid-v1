@@ -5,6 +5,9 @@ sudo cp sd/config.txt /boot/config.txt
 # install extra packages required by the tools and rcboy itself
 sudo apt-get -y install xinit x11-xserver-utils pkg-config qt5-default libevdev-dev pigpio i2c-tools
 
+# use wiringPi instead of pigpio wich polls all the time
+sudo apt-get install wiringpi libi2c-dev 
+
 # to make boot times slightly faster, disable the servics we are not using 
 sudo systemctl disable dphys-swapfile.service
 sudo systemctl disable keyboard-setup.service

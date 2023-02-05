@@ -1,11 +1,24 @@
 #pragma once
 #include <cstdint>
 #include <cstring>
-#include <pigpio.h>
+#include <wiringPi.h>
+#include <wiringPiI2C.h>
+#include <wiringPiSPI.h>
 #include <thread>
 #include <chrono>
+#include <unistd.h>
+#include <fcntl.h>
+#include <linux/i2c-dev.h>
+#include <i2c/smbus.h>
+#include <sys/ioctl.h>
+#include <linux/types.h>
+#include <linux/spi/spidev.h>
+#include <errno.h>
 
 #include "spinlock.h"
+
+
+#include <iostream>
 
 #define STR(...) static_cast<std::stringstream &&>(std::stringstream() << __VA_ARGS__).str()
 
@@ -35,49 +48,84 @@ public:
     using Pin = unsigned;
     static constexpr Pin UNUSED = 0xffffffff;
 
+    enum class Edge {
+        Rising = INT_EDGE_RISING, 
+        Falling = INT_EDGE_FALLING, 
+        Both = INT_EDGE_BOTH,
+    }; 
+
     static void initialize() {
-        gpioInitialise();
+        wiringPiSetupGpio();
     }
 
     static void output(Pin pin) {
-        gpioSetMode(pin, PI_OUTPUT);
+        pinMode(pin, OUTPUT);
     }
 
     static void input(Pin pin) {
-        gpioSetMode(pin, PI_INPUT);
-        gpioSetPullUpDown(pin, PI_PUD_OFF);
+        pinMode(pin, INPUT);
+        pullUpDnControl(pin, PUD_OFF);
     }
 
     static void inputPullup(Pin pin) {
-        gpioSetMode(pin, PI_OUTPUT);
-        gpioSetPullUpDown(pin, PI_PUD_UP);
+        pinMode(pin, INPUT);
+        pullUpDnControl(pin, PUD_UP);
     }
 
     static void high(Pin pin) {
-        gpioWrite(pin, 1);
+        digitalWrite(pin, HIGH);
     }
 
     static void low(Pin pin) {
-        gpioWrite(pin, 0);
+        digitalWrite(pin, LOW);
     }
 
     static bool read(Pin pin) { 
-        return gpioRead(pin) == 1;
+        return digitalRead(pin) == HIGH;
      }
+
+    static void attachInterrupt(Pin pin, Edge edge, void(*handler)()) {
+        wiringPiISR(pin, (int) edge, handler);
+    } 
 }; // gpio
 
+// https://stackoverflow.com/questions/75246900/sending-i2c-command-from-c-application
 class i2c {
 public:
 
     static void initializeMaster() {
         // TODO set speed here too
         // make sure that a write followed by a read to the same address will use repeated start as opposed to stop-start
-        i2cSwitchCombined(true);
+
+        handle_ = open("/dev/i2c-1", O_RDWR);
+        // old code with pigpio
+        //i2cSwitchCombined(true);
     }
 
     // static void initializeSlave(uint8_t address_) {}
 
     static bool transmit(uint8_t address, uint8_t const * wb, uint8_t wsize, uint8_t * rb, uint8_t rsize) {
+        i2c_msg msgs[2];
+        memset(msgs, 0, sizeof(msgs));
+        unsigned nmsgs = 0;
+        if (wsize > 0) {
+            msgs[nmsgs].addr = static_cast<uint16_t>(address);
+            msgs[nmsgs].buf = const_cast<uint8_t*>(wb);
+            msgs[nmsgs].len = static_cast<uint16_t>(wsize);
+            ++nmsgs;
+        }
+        if (rsize > 0) {
+            msgs[nmsgs].addr = static_cast<uint16_t>(address);
+            msgs[nmsgs].buf = rb;
+            msgs[nmsgs].len = static_cast<uint16_t>(rsize);
+            msgs[nmsgs].flags = I2C_M_RD;
+            ++nmsgs;
+        }
+        i2c_rdwr_ioctl_data wrapper = {
+            .msgs = msgs,
+            .nmsgs = nmsgs};
+        return ioctl(handle_, I2C_RDWR, &wrapper) >= 0;
+        /* // old code with pigpio
         int h = i2cOpen(1, address, 0);
         if (h < 0)
             return false;
@@ -92,7 +140,11 @@ public:
                 return false;
             }
         return i2cClose(h) == 0;
+        */
     }
+
+    static inline int handle_ = -1; 
+
 }; // i2c
 
 
@@ -110,37 +162,88 @@ public:
     /** Starts the transmission to given device. 
      */
     static void begin(Device device) {
+        handle_ = open("/dev/spidev1.0", O_RDWR);
+        std::cout << "SPI handle: " << handle_ << std::endl;
+        int mode = SPI_MODE_0;
+        uint8_t bpw = 8;
+
+
+        std::cout << "  mode: " << ioctl(handle_, SPI_IOC_WR_MODE, & mode) << " (" << errno << ")";
+        std::cout << ", bpw: " << ioctl(handle_, SPI_IOC_WR_BITS_PER_WORD, & bpw) << " (" << errno << ")";
+        std::cout << ", speed:" << ioctl(handle_, SPI_IOC_WR_MAX_SPEED_HZ, & baudrate_) << " (" << errno << ")";
+        std::cout << std::endl;
+
+
+
+        //ioctl(handle_, SPI_IOC_WR_MODE, 0);
+        //ioctl(handle_, SPI_IOC_WR_BITS_PER_WORD, 8);
+        //ioctl(handle_, SPI_IOC_WR_MAX_SPEED_HZ, baudrate_);
+        // maybe this is the issue... see about it (???) 
+        gpio::output(device);
+        gpio::low(device);
+
+        /*
         handle_ = spiOpen(0, baudrate_, SPI_AUX | SPI_RES_CE0 | SPI_RES_CE1 | SPI_RES_CE2);
         gpio::low(device);
+        */
     }
 
     /** Terminates the SPI transmission and pulls the CE high. 
      */
     static void end(Device device) {
+        std::cout << "closed" << std::endl;
+        gpio::high(device);
+        close(handle_);
+        /*
         spiClose(handle_);
         gpio::high(device);
+        */
     }
 
     /** Transfers a single byte.
      */
     static uint8_t transfer(uint8_t value) { 
+        uint8_t result = 0;
+        transfer(& value, & result, 1);
+        return result;
+        /*
         uint8_t result;
         spiXfer(handle_, reinterpret_cast<char*>(& value), reinterpret_cast<char*>(& result), 1);
         return result;
+        */
     }
 
     static size_t transfer(uint8_t const * tx, uint8_t * rx, size_t numBytes) { 
+        struct spi_ioc_transfer spi;
+        memset(&spi, 0, sizeof(spi));
+        spi.tx_buf = (unsigned long) tx;
+        spi.rx_buf = (unsigned long) rx;
+        spi.len = numBytes;
+        //spi.delay_usecs = 0;
+        //spi.speed_hz = baudrate_;
+        //spi.bits_per_word = 8;
+        auto result = ioctl (handle_, SPI_IOC_MESSAGE(1), &spi) ;
+        std::cout << "  transferring " << numBytes << " " << result << " (" << errno << ")" << std::endl;
+        return numBytes;
+        /*
         spiXfer(handle_, reinterpret_cast<char*>(const_cast<uint8_t*>(tx)), reinterpret_cast<char*>(rx), numBytes);
         return numBytes;
+        */
     }
 
     static void send(uint8_t const * data, size_t size) {
-        spiWrite(handle_, reinterpret_cast<char*>(const_cast<uint8_t*>(data)), size);
+        transfer(data, nullptr, size);
+        //for (size_t i = 0; i < size; ++i)
+        //    transfer(data[i]);
+        //spiWrite(handle_, reinterpret_cast<char*>(const_cast<uint8_t*>(data)), size);
     }
 
     static void receive(uint8_t * data, size_t size) {
-        spiRead(handle_, reinterpret_cast<char*>(data), size);
+        transfer(nullptr, data, size);
+        //wiringPiSPIDataRW (handle_, data, size);
+        //spiRead(handle_, reinterpret_cast<char*>(data), size);
     }
+
 
 private:
 
@@ -151,7 +254,7 @@ private:
 
     static inline unsigned baudrate_;
 
-    static inline int handle_ = PI_SPI_OPEN_FAILED;
+    static inline int handle_ = -1; 
 
     
 }; // spi

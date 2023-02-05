@@ -34,12 +34,6 @@ if(DEFINED ARCH_RPI)
     find_path(PIGPIO_INCLUDE_DIR 
             NAMES pigpio.h pigpiod_if.h pigpiod_if2.h
             HINTS /usr/local/include)        
-    find_library(PIGPIO_LIBRARY 
-            NAMES libpigpio.so
-            HINTS /usr/local/lib)
-    #find_library(WIRINGPI_LIBRARY 
-    #        NAMES wiringPi.so
-    #        HINTS /usr/local/lib)
     include_directories(${PIGPIO_INCLUDE_DIR})
 else()
     message(STATUS "Mockup build")
@@ -53,6 +47,5 @@ target_link_libraries(rcboy Threads::Threads)
 #target_link_libraries(rcboy ${CMAKE_SOURCE_DIR}/raylib/libraylib.a)
 
 if(DEFINED ARCH_RPI)
-    target_link_libraries(rcboy ${PIGPIO_LIBRARY})
-#    target_link_libraries(rcboy wiringPi)
+    target_link_libraries(rcboy wiringPi)
 endif()

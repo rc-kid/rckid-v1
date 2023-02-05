@@ -23,6 +23,13 @@
 
 # Setup
 
+To run locally in WSL, when starting `XLaunch` make sure that _Native opengl_ is disabled and then run the following before the app:
+
+    export LIBGL_ALWAYS_INDIRECT=0
+
+That should make raylib happy. 
+
+
 ## App
 
 ### Status Bar

@@ -32,6 +32,12 @@ public:
     using Pin = uint16_t;
     static constexpr Pin UNUSED = 0xffff;
 
+    enum class Edge {
+        Rising, 
+        Falling, 
+        Both
+    }; 
+
     static void initialize() {}
 
     static void output(Pin pin) {}
@@ -45,6 +51,9 @@ public:
     static void low(Pin pin) {}
 
     static bool read(Pin pin) { return false; }
+
+    static void attachInterrupt(Pin pin, Edge edge, void (*handler)()) {}
+
 }; // gpio
 
 class i2c {
@@ -80,9 +89,3 @@ public:
     static void receive(uint8_t * data, size_t size) {}
 }; // spi
 
-// extra definitions so that we can mock rpi gpio
-static constexpr int RISING_EDGE = 0;
-static constexpr int FALLING_EDGE = 0;
-static constexpr int EITHER_EDGE = 0;
-typedef  void (*gpioISRFuncEx_t)(int, int, uint32_t, void*); 
-inline int gpioSetISRFuncEx(unsigned gpio, unsigned edge, int timeout, gpioISRFuncEx_t f, void *userdata) { return 0; }

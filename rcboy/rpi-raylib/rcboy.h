@@ -80,6 +80,8 @@ public:
      */
     static RCBoy * initialize() MAIN_THREAD; 
 
+    static RCBoy * instance(); 
+
 
 private:
 
@@ -100,12 +102,11 @@ private:
         bool reported = false ISR_THREAD DRIVER_THREAD;
         unsigned debounce = 0 ISR_THREAD DRIVER_THREAD;
         unsigned autorepeat = 0 ISR_THREAD DRIVER_THREAD;
-        gpio::Pin const pin;
         unsigned const evdevId;
 
         /** Creates new button, parametrized by the pin and its evdev id. 
          */
-        Button(gpio::Pin pin, unsigned evdevId): pin{pin}, evdevId{evdevId} { }
+        Button(unsigned evdevId): evdevId{evdevId} { }
 
     }; // RCBoy::Button
 
@@ -178,41 +179,87 @@ private:
         i2c::transmit(comms::AVR_I2C_ADDRESS, reinterpret_cast<uint8_t const *>(& cmd), sizeof(T), nullptr, 0);
     }
 
-    static void isrAvrIrq(int gpio, int level, uint32_t tick, RCBoy * self) ISR_THREAD {
+    static void isrAvrIrq() ISR_THREAD {
+        RCBoy * self = RCBoy::instance();
         self->hwEvents_.send(HWEvent::AvrIrq);
     }
 
-    static void isrNrfIrq(int gpio, int level, uint32_t tick, RCBoy * self) ISR_THREAD {
+    static void isrNrfIrq() ISR_THREAD {
+        RCBoy * self = RCBoy::instance();
         self->hwEvents_.send(HWEvent::NrfIrq);
+    }
+
+    static void isrHeadphones() {
+        // TODO
+    }
+
+    static void isrButtonA() {
+        RCBoy * i = RCBoy::instance();
+        i->isrButton(gpio::read(PIN_BTN_A), i->btnA_);
+    }
+
+    static void isrButtonB() {
+        RCBoy * i = RCBoy::instance();
+        i->isrButton(gpio::read(PIN_BTN_B), i->btnB_);
+    }
+
+    static void isrButtonX() {
+        RCBoy * i = RCBoy::instance();
+        i->isrButton(gpio::read(PIN_BTN_X), i->btnX_);
+    }
+
+    static void isrButtonY() {
+        RCBoy * i = RCBoy::instance();
+        i->isrButton(gpio::read(PIN_BTN_Y), i->btnY_);
+    }
+
+    static void isrButtonL() {
+        RCBoy * i = RCBoy::instance();
+        i->isrButton(gpio::read(PIN_BTN_L), i->btnL_);
+    }
+
+    static void isrButtonR() {
+        RCBoy * i = RCBoy::instance();
+        i->isrButton(gpio::read(PIN_BTN_R), i->btnR_);
+    }
+
+    static void isrButtonSelect() {
+        RCBoy * i = RCBoy::instance();
+        i->isrButton(gpio::read(PIN_BTN_SELECT), i->btnSelect_);
+    }
+
+    static void isrButtonStart() {
+        RCBoy * i = RCBoy::instance();
+        i->isrButton(gpio::read(PIN_BTN_START), i->btnStart_);
     }
 
     /** ISR for the hardware buttons and the headphones. 
      
         Together with the driver thread's ticks, the isr is responsibel for debouncing.
      */
-    static void isrButton(int gpio, int level, uint32_t tick, Button * btn) ISR_THREAD {
+    static void isrButton(int level, Button & btn) ISR_THREAD {
         // always set the state
-        btn->current = ! level;
+        btn.current = ! level;
         // if debounce is 0, take action and set the debounce timer, otherwise do nothing
-        if (btn->debounce == 0) {
-            btn->debounce = BTN_DEBOUNCE_DURATION;
+        if (btn.debounce == 0) {
+            btn.debounce = BTN_DEBOUNCE_DURATION;
             buttonAction(btn);
         }
     }
 
-    static void buttonAction(Button * btn) ISR_THREAD DRIVER_THREAD {
-        btn->reported = btn->current;
-        btn->autorepeat = BTN_AUTOREPEAT_DURATION;
-        libevdev_uinput_write_event(uidev_, EV_KEY, btn->evdevId, btn->reported ? 1 : 0);
+    static void buttonAction(Button & btn) ISR_THREAD DRIVER_THREAD {
+        btn.reported = btn.current;
+        btn.autorepeat = BTN_AUTOREPEAT_DURATION;
+        libevdev_uinput_write_event(uidev_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
         libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
         // TODO send the appropriate action to the main thread
     }
 
-    static void buttonTick(Button * btn) DRIVER_THREAD {
-        if (btn->debounce > 0 && --(btn->debounce) == 0)
-            if (btn->reported != btn->current)
+    static void buttonTick(Button & btn) DRIVER_THREAD {
+        if (btn.debounce > 0 && --(btn.debounce) == 0)
+            if (btn.reported != btn.current)
                 buttonAction(btn);
-        if (btn->reported && btn->autorepeat > 0 && --(btn->autorepeat) == 0)
+        if (btn.reported && btn.autorepeat > 0 && --(btn.autorepeat) == 0)
             buttonAction(btn);
     }
 
@@ -222,19 +269,17 @@ private:
 
     /** The button state objects. 
      */
-    Button buttons_[11] = {
-        Button{gpio::UNUSED, KEY_VOLUMEDOWN},
-        Button{gpio::UNUSED, KEY_VOLUMEUP},
-        Button{gpio::UNUSED, BTN_JOYSTICK},
-        Button{PIN_BTN_A, BTN_A},
-        Button{PIN_BTN_B, BTN_B},
-        Button{PIN_BTN_X, BTN_X},
-        Button{PIN_BTN_Y, BTN_Y},
-        Button{PIN_BTN_L, BTN_LEFT},
-        Button{PIN_BTN_R, BTN_RIGHT},
-        Button{PIN_BTN_SELECT, BTN_SELECT},
-        Button{PIN_BTN_START, BTN_START},
-    };
+    Button btnVolDown_{KEY_VOLUMEDOWN};
+    Button btnVolUp_{KEY_VOLUMEUP};
+    Button btnJoy_{BTN_JOYSTICK};
+    Button btnA_{BTN_A};
+    Button btnB_{BTN_B}; 
+    Button btnX_{BTN_X};
+    Button btnY_{BTN_Y};
+    Button btnL_{BTN_LEFT};
+    Button btnR_{BTN_RIGHT};
+    Button btnSelect_{BTN_SELECT};
+    Button btnStart_{BTN_START};
 
     /** Axes. 
      */
@@ -250,13 +295,9 @@ private:
      */
     static inline struct libevdev_uinput * uidev_{nullptr};
 
-
-
 }; // RCBoy
 
-/*
-inline Driver & Driver::instance() {
-    static Driver instance;
+inline RCBoy * RCBoy::instance() {
+    static RCBoy * instance = new RCBoy{};
     return instance;
 } 
-*/

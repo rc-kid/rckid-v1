@@ -16,10 +16,10 @@ if(DEFINED ARCH_RPI)
     find_path(PIGPIO_INCLUDE_DIR 
             NAMES pigpio.h pigpiod_if.h pigpiod_if2.h
             HINTS /usr/local/include)        
-    find_library(PIGPIO_LIBRARY 
-            NAMES libpigpio.so
-            HINTS /usr/local/lib)
-    include_directories(${PIGPIO_INCLUDE_DIR})
+    #find_library(PIGPIO_LIBRARY 
+    #        NAMES libpigpio.so
+    #        HINTS /usr/local/lib)
+    #include_directories(${PIGPIO_INCLUDE_DIR})
 else()
     message(STATUS "Mockup build")
     add_definitions(-DARCH_MOCK)
@@ -29,5 +29,6 @@ file(GLOB_RECURSE SRC  src/i2c-programmer.cpp)
 add_executable(i2c-programmer ${SRC})
 
 if(DEFINED ARCH_RPI)
-    target_link_libraries(i2c-programmer ${PIGPIO_LIBRARY})
+    #target_link_libraries(i2c-programmer ${PIGPIO_LIBRARY})
+    target_link_libraries(i2c-programmer wiringPi)
 endif()
