@@ -8,7 +8,7 @@
             "name": "rcboy - local",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/rcboy/rpi/rcboy",
+            "program": "${workspaceFolder}/build/rcboy/rpi-raylib/rcboy",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

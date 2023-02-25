@@ -29,6 +29,11 @@ To run locally in WSL, when starting `XLaunch` make sure that _Native opengl_ is
 
 That should make raylib happy. 
 
+## Building raylib on RPi
+
+The cmake build is broken, run using the [wiki](https://github.com/raysan5/raylib/wiki/Working-on-Raspberry-Pi), i.e. `-PLATFORM=RPI` being told to make. 
+
+> Note that raylib is expected to live next to rcboy
 
 ## App
 
@@ -39,3 +44,7 @@ That should make raylib happy.
 ### Bottom Help
 
 - here just show what buttons do what action
+
+
+
+https://www.raylib.com/cheatsheet/cheatsheet.html

@@ -184,12 +184,6 @@ public:
         ioctl(handle_, SPI_IOC_WR_BITS_PER_WORD, & bpw);
         ioctl(handle_, SPI_IOC_WR_MAX_SPEED_HZ, & baudrate_);
 
-
-
-        //ioctl(handle_, SPI_IOC_WR_MODE, 0);
-        //ioctl(handle_, SPI_IOC_WR_BITS_PER_WORD, 8);
-        //ioctl(handle_, SPI_IOC_WR_MAX_SPEED_HZ, baudrate_);
-        // maybe this is the issue... see about it (???) 
         gpio::output(device);
         gpio::low(device);
 

@@ -15,7 +15,12 @@ Then run the following:
     sudo apt-get install mc htop tmux git cmake
     git clone git@github.com:zduka/rcboy.git
 
-Then run `sudo racpi-config`, enable audio jack audio and i2c.
+Then run `sudo racpi-config`, enable audio jack audio and i2c, disable the experimental gl driver. 
+
+To configure _retropie_, run the following:
+
+    sudo ~/RetroPie-Setup/retropie_setup.sh
+
 
 When done, run the rest of the SD image setup (see the script file for details):
 

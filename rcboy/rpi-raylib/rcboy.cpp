@@ -3,18 +3,6 @@
 #include <iostream>
 
 RCBoy * RCBoy::initialize() {
-/*
-   wiringPiSetupGpio();
-	pinMode(PIN_BTN_A, INPUT);
-    pullUpDnControl(PIN_BTN_A, PUD_UP);
-
-	// Bind to interrupt
-	wiringPiISR(PIN_BTN_A, INT_EDGE_BOTH, &handle);
-
-
-    return nullptr;
-*/
-
     gpio::initialize();
     if (!spi::initialize()) 
         ERROR("Unable to initialize spi (errno " << errno << ")");
@@ -50,7 +38,6 @@ RCBoy::RCBoy() {
 void RCBoy::hwLoop() {
     // query avr status
     avrQueryStatus();
-
     while (true) {
         HWEvent e = hwEvents_.waitReceive();
         switch (e) {
@@ -65,6 +52,7 @@ void RCBoy::hwLoop() {
                 buttonTick(btnR_);
                 buttonTick(btnSelect_);
                 buttonTick(btnStart_);
+                accelQueryStatus();
                 break;
             }
             case HWEvent::AvrIrq: {
@@ -73,6 +61,22 @@ void RCBoy::hwLoop() {
             }
         }
     }
+}
+
+uint8_t accelTo1GUnsigned(int16_t v) {
+    if (v < -16384)
+        v = -16384;
+    if (v >= 16384)
+        v = 16383;
+    v += 16384;
+    return (v >> 7);    
+}
+
+void RCBoy::accelQueryStatus() {
+    MPU6050::AccelData d = accel_.readAccel();
+    uint16_t t = accel_.readTemp();
+    //axisChange(accelTo1GUnsigned(-d.x), accelX_);
+    //axisChange(accelTo1GUnsigned(-d.y), accelY_);
 }
 
 void RCBoy::avrQueryStatus() {
@@ -90,10 +94,12 @@ void RCBoy::processAvrStatus(comms::Status const & status) {
     //std::cout << (int) *((uint8_t*) & status) << std::endl;
  
     if (btnVolDown_.current != status.btnVolumeLeft())
-        isrButton(!status.btnVolumeLeft(), btnVolDown_);
+        buttonChange(!status.btnVolumeLeft(), btnVolDown_);
     if (btnVolUp_.current != status.btnVolumeRight())
-        isrButton(!status.btnVolumeRight(), btnVolUp_);
+        buttonChange(!status.btnVolumeRight(), btnVolUp_);
     // TODO joystick button is missing
+    axisChange(status.joyX(), thumbX_);
+    axisChange(status.joyY(), thumbY_);
     
     /*
     bool volLeftChanged = volumeLeft_.update(status.btnVolumeLeft());

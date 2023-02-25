@@ -1,3 +1,28 @@
+# RCKid
+
+> The vertical version with DPAD
+
+- determine resistors for dpad
+- determine enclosure for joystick
+- move volume buttons to rpi and select & start to avr
+- dpad & sel & start on reistors for AVR so that we have 3 btns per pin
+- can audio PCB be simplified? 
+- position for the accelerometer, radio, RGB led and rumbler
+
+# OLD
+
+
+- RCBoy/Girl (!)
+- can the PCB be simplified? horizontal vs vertical? 
+
+# PCB v2
+
+- less complicated design (fewer boards)
+- better access to the SD card
+- being able to disconnect the battery via cable
+- fit an inductor to the screen brightness driver for better performance in low batt
+- possibly better layout
+
 # RCBoy
 
 - AVR speed is weird... Determine proper settings
@@ -13,7 +38,8 @@
 
 ## PCB
 
-- verify thumbstick front panel hole placement
+- should the accel be moved so that there is space for the nrf connector? 
+- verify thumbstick front panel hole placement (and thumbstick pattern dimensions)
 
 - check the new position of the usb
 - antenna might be too far, check that it fits
@@ -25,15 +51,14 @@
 
 ## AVR
 
+- thumbstick reading does not seem to be working properly
 - joystick button detection
 - reading the audio has lots of errors, probably too many irqs present... (MAYBE RESOLVED)
 - micmax can't be aggregated like this since we need the max value actually
 
 ## RPI-RayLib
 
-- comms with avr do not seem to work
-- current rpi library eats 8% CPU for polling, can be replaced? lowered?
-
+- accelerometer is very noisy
 
 ## RPI
 
@@ -65,7 +90,5 @@
 - check that charging is turned off when charging is done
 
 # Other - proto
-
-- accel keeps going dark... contacts? 
 
 > https://martybugs.net/wireless/rubberducky.cgi -- site that seems to have decent info on antennas

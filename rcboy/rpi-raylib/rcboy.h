@@ -148,6 +148,10 @@ private:
      */
     void hwLoop() DRIVER_THREAD;
 
+    /** Queries the accelerometer status and updates the X and Y accel axes. 
+     */
+    void accelQueryStatus() DRIVER_THREAD;
+
     /** Requests the fast AVR status update and processes the result.
      */
     void avrQueryStatus() DRIVER_THREAD;
@@ -197,49 +201,49 @@ private:
 
     static void isrButtonA() {
         RCBoy * i = RCBoy::instance();
-        i->isrButton(gpio::read(PIN_BTN_A), i->btnA_);
+        i->buttonChange(gpio::read(PIN_BTN_A), i->btnA_);
     }
 
     static void isrButtonB() {
         RCBoy * i = RCBoy::instance();
-        i->isrButton(gpio::read(PIN_BTN_B), i->btnB_);
+        i->buttonChange(gpio::read(PIN_BTN_B), i->btnB_);
     }
 
     static void isrButtonX() {
         RCBoy * i = RCBoy::instance();
-        i->isrButton(gpio::read(PIN_BTN_X), i->btnX_);
+        i->buttonChange(gpio::read(PIN_BTN_X), i->btnX_);
     }
 
     static void isrButtonY() {
         RCBoy * i = RCBoy::instance();
-        i->isrButton(gpio::read(PIN_BTN_Y), i->btnY_);
+        i->buttonChange(gpio::read(PIN_BTN_Y), i->btnY_);
     }
 
     static void isrButtonL() {
         RCBoy * i = RCBoy::instance();
-        i->isrButton(gpio::read(PIN_BTN_L), i->btnL_);
+        i->buttonChange(gpio::read(PIN_BTN_L), i->btnL_);
     }
 
     static void isrButtonR() {
         RCBoy * i = RCBoy::instance();
-        i->isrButton(gpio::read(PIN_BTN_R), i->btnR_);
+        i->buttonChange(gpio::read(PIN_BTN_R), i->btnR_);
     }
 
     static void isrButtonSelect() {
         RCBoy * i = RCBoy::instance();
-        i->isrButton(gpio::read(PIN_BTN_SELECT), i->btnSelect_);
+        i->buttonChange(gpio::read(PIN_BTN_SELECT), i->btnSelect_);
     }
 
     static void isrButtonStart() {
         RCBoy * i = RCBoy::instance();
-        i->isrButton(gpio::read(PIN_BTN_START), i->btnStart_);
+        i->buttonChange(gpio::read(PIN_BTN_START), i->btnStart_);
     }
 
     /** ISR for the hardware buttons and the headphones. 
      
-        Together with the driver thread's ticks, the isr is responsibel for debouncing.
+        Together with the driver thread's ticks, the isr is responsibel for debouncing. Called by the ISR or driver thread depending on the button. 
      */
-    static void isrButton(int level, Button & btn) ISR_THREAD {
+    void buttonChange(int level, Button & btn) ISR_THREAD DRIVER_THREAD {
         // always set the state
         btn.current = ! level;
         // if debounce is 0, take action and set the debounce timer, otherwise do nothing
@@ -249,20 +253,32 @@ private:
         }
     }
 
-    static void buttonAction(Button & btn) ISR_THREAD DRIVER_THREAD {
+    void buttonAction(Button & btn) ISR_THREAD DRIVER_THREAD {
         btn.reported = btn.current;
         btn.autorepeat = BTN_AUTOREPEAT_DURATION;
-        libevdev_uinput_write_event(uidev_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
-        libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
+        if (uidev_ != nullptr) {
+            libevdev_uinput_write_event(uidev_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
+            libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
+        }
         // TODO send the appropriate action to the main thread
     }
 
-    static void buttonTick(Button & btn) DRIVER_THREAD {
+    void buttonTick(Button & btn) DRIVER_THREAD {
         if (btn.debounce > 0 && --(btn.debounce) == 0)
             if (btn.reported != btn.current)
                 buttonAction(btn);
         if (btn.reported && btn.autorepeat > 0 && --(btn.autorepeat) == 0)
             buttonAction(btn);
+    }
+
+    void axisChange(uint8_t value, Axis & axis) DRIVER_THREAD {
+        if (axis.current != value) {
+            axis.current = value;
+            if (uidev_ != nullptr) {
+                libevdev_uinput_write_event(uidev_, EV_ABS, axis.evdevId, value);
+                libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
+            }
+        }
     }
 
     /** Hardware events sent to the driver's main loop. 

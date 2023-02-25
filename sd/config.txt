@@ -6,8 +6,7 @@
 #arm_freq=800
 
 # Enable I2C, set default baud rate to 400k
-#dtparam=i2c_arm=on,i2c_arm_baudrate=400000
-dtparam=i2c_arm=on
+dtparam=i2c_arm=on,i2c_arm_baudrate=400000
 
 # Enable SPI 1 used for NRF, set cs0 pin. We do not enable SPI0 as that is used by the framebuffer display driver direcly and does not need to be setup
 dtoverlay=spi1-1cs,cs0_pin=44
@@ -42,7 +41,7 @@ gpu_mem=128
 
 [pi4]
 # Enable DRM VC4 V3D driver on top of the dispmanx display stack
-dtoverlay=vc4-fkms-v3d
+#dtoverlay=vc4-fkms-v3d
 max_framebuffers=2
 
 [all]

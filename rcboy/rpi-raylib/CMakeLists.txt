@@ -14,6 +14,11 @@ find_package(Threads REQUIRED)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PC_EVDEV libevdev REQUIRED)
+#pkg_check_modules(EGL REQUIRED egl)
+#pkg_check_modules(GLES2 REQUIRED glesv2)    
+find_library(M_LIBRARY libm.so)
+find_library(DL_LIBRARY libdl.so)
+find_library(RT_LIBRARY librt.so)
 
 find_path(EVDEV_INCLUDE_DIR libevdev/libevdev.h
           HINTS ${PC_EVDEV_INCLUDE_DIRS} ${PC_EVDEV_INCLUDEDIR})
@@ -21,8 +26,13 @@ find_library(EVDEV_LIBRARY
         NAMES evdev libevdev)
 include_directories(${EVDEV_INCLUDE_DIR})
 
+# libraries required for raylib
+
+#find_package(OpenGL REQUIRED)
+
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
-#include_directories(${CMAKE_SOURCE_DIR}/raylib)
+include_directories(${CMAKE_SOURCE_DIR}/../raylib/src)
 
 if(CMAKE_VERSION VERSION_LESS "3.7.0")
     set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -31,21 +41,37 @@ endif()
 if(DEFINED ARCH_RPI)
     message(STATUS "Building for raspberry pi")
     add_definitions(-DARCH_RPI)
-    find_path(PIGPIO_INCLUDE_DIR 
-            NAMES pigpio.h pigpiod_if.h pigpiod_if2.h
-            HINTS /usr/local/include)        
-    include_directories(${PIGPIO_INCLUDE_DIR})
+    find_library(GLES_LIBRARY libbrcmGLESv2.so HINTS /opt/vc/lib)
+    find_library(EGL_LIBRARY libbrcmEGL.so HINTS /opt/vc/lib)
+    find_library(BCM_LIBRARY libbcm_host.so HINTS /opt/vc/lib)
+    #find_library(ATOMIC_LIBRARY libatomic.so)
+        #find_path(PIGPIO_INCLUDE_DIR 
+    #        NAMES pigpio.h pigpiod_if.h pigpiod_if2.h
+    #        HINTS /usr/local/include)        
+    #include_directories(${PIGPIO_INCLUDE_DIR})
 else()
     message(STATUS "Mockup build")
     add_definitions(-DARCH_MOCK)
-endif()
+    pkg_check_modules(GL REQUIRED gl)
+    endif()
 
 file(GLOB_RECURSE SRC  *.cpp *.h)
 add_executable(rcboy ${SRC})
 target_link_libraries(rcboy ${EVDEV_LIBRARY})
 target_link_libraries(rcboy Threads::Threads)
-#target_link_libraries(rcboy ${CMAKE_SOURCE_DIR}/raylib/libraylib.a)
+target_link_libraries(rcboy 
+    ${CMAKE_SOURCE_DIR}/../raylib/src/libraylib.a 
+    ${M_LIBRARY} 
+    ${DL_LIBRARY} 
+    ${RT_LIBRARY})
 
 if(DEFINED ARCH_RPI)
-    target_link_libraries(rcboy wiringPi)
+    target_link_libraries(rcboy 
+        ${GLES_LIBRARY}
+        ${EGL_LIBRARY}
+        ${BCM_LIBRARY}
+        #${ATOMIC_LIBRARY}
+        wiringPi)
+else()
+    target_link_libraries(rcboy ${GL_LIBRARIES})
 endif()

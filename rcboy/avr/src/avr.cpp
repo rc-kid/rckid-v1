@@ -689,7 +689,7 @@ namespace inputs {
     }
 
     void processJoystick() {
-        uint8_t value = ADC1.RES / 64;
+        uint8_t value = (ADC1.RES / 64) >> 2;
         switch (ADC1.MUXPOS) {
             case MUXPOS_JOY_H:
                 accH_ += value;

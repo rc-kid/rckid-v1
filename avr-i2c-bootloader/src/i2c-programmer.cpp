@@ -111,16 +111,16 @@ void resetAvr() {
 void sendCommand(uint8_t cmd) {
     if (! i2c::transmit(I2C_ADDRESS, & cmd, 1, nullptr, 0))
         throw STR("Cannot send command " << (int)cmd);
-    while (gpio::read(PIN_AVR_IRQ) == true) {};
-    //cpu::delay_ms(10);
+    //while (gpio::read(PIN_AVR_IRQ) == true) {};
+    cpu::delay_ms(10);
 }
 
 void sendCommand(uint8_t cmd, uint8_t arg) {
     uint8_t data[] = { cmd, arg};
     if (! i2c::transmit(I2C_ADDRESS, data, 2, nullptr, 0))
         throw STR("Cannot send command " << (int)cmd << ", arg " << (int)arg);
-    while (gpio::read(PIN_AVR_IRQ) == true) {};
-    //cpu::delay_ms(10);
+    //while (gpio::read(PIN_AVR_IRQ) == true) {};
+    cpu::delay_ms(10);
 }
 
 void readBuffer(uint8_t * buffer) {
