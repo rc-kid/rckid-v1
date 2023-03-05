@@ -2,12 +2,11 @@
 
 > The vertical version with DPAD
 
-- determine resistors for dpad
+
+- change pin mapping on ATTiny
+- update the joycon connector
 - determine enclosure for joystick
-- move volume buttons to rpi and select & start to avr
-- dpad & sel & start on reistors for AVR so that we have 3 btns per pin
 - can audio PCB be simplified? 
-- position for the accelerometer, radio, RGB led and rumbler
 
 # OLD
 
