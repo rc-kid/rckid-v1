@@ -1,3 +1,27 @@
+# RCKid
+
+Handheld device mostly for kids that works as a retro games player, remote control for lego models and other stuff, walkie talkie, and a simple music/video player. Based on Rpi Zero 2W, ATTiny and NRF24L01P+ with a 320x240 SPI display, a selection of input controls (ABXY, DPAD, Thumbstick, Sel, Start, shoulder buttons, dedicated volume control buttons and a Home button), rumbler, light sensor, RGB torch and a custom software tailored towards the little ones. 
+
+## BOM
+
+Part                 | Quantity | Link 
+---------------------|----------|------
+Rpi Zero 2W          | 1        |
+ATTiny1616           | 1        | (ATTiny3216 would work too)
+ILI9341 320x240 SPI  | 1        |
+Tactile Switch       | 9        |
+NRF24L01P+           | 1        | Any module should work (*)
+
+
+## Assembly
+
+> This repository contains all that is necessary to assemble and program your own _RCKid_. Please note that doing so is likely not a beginner project, at the very least, you will need access to a soldering station and some soldering practice. If there will be any errors during the assembly, multimeter, oscilloscope and some basic electronics knowledge would be required.
+
+
+
+
+
+
 # RCBoy
 
 Handheld device for kids that provides the following:
@@ -61,16 +85,6 @@ ATTiny is always on, but mostly sleeping. Talks to the RPI via I2C and
 To launch a serial console, connect the serial to USB adapter to the TX RX and GND pins (for my setup it is white/green/black wires) and then launch the following command in terminal:
 
     minicom -b 115200 -o -D /dev/ttyUSB0
-
-### Test Points
-
-TP1  | VUSB
-TP2  | VBATT
-TP3  | VCC
-TP4  | VRPI
-TP5  | Photoresistor 
-TP6  | Mic
-TP7  | Charge
 
 https://www.flaticon.com/
 

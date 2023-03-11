@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "rcboy - local",
+            "name": "rckid - local",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/rcboy/rpi-raylib/rcboy",
+            "program": "${workspaceFolder}/build/rckid/rpi-raylib/rckid",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

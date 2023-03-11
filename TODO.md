@@ -8,11 +8,6 @@
 - determine enclosure for joystick
 - can audio PCB be simplified? 
 
-# OLD
-
-
-- RCBoy/Girl (!)
-- can the PCB be simplified? horizontal vs vertical? 
 
 # PCB v2
 
@@ -22,7 +17,7 @@
 - fit an inductor to the screen brightness driver for better performance in low batt
 - possibly better layout
 
-# RCBoy
+# RCKid
 
 - AVR speed is weird... Determine proper settings
 

@@ -13,7 +13,7 @@ Then run the following:
     sudo apt-get update
     sudo apt-get upgrade
     sudo apt-get install mc htop tmux git cmake
-    git clone git@github.com:zduka/rcboy.git
+    git clone git@github.com:zduka/rckid.git
 
 Then run `sudo racpi-config`, enable audio jack audio and i2c, disable the experimental gl driver. 
 
@@ -24,7 +24,7 @@ To configure _retropie_, run the following:
 
 When done, run the rest of the SD image setup (see the script file for details):
 
-    cd rcboy
+    cd rckid
     bash sd/install.sh
 
 Then run `sudo raspi-config` and make the following changes:

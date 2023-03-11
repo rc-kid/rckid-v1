@@ -1,4 +1,4 @@
-# RCBoy Documentation
+# RCKid Documentation
 
 ## MP3 Player / Audio Player
 
