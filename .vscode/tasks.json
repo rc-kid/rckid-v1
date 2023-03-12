@@ -95,6 +95,22 @@
                 "$gcc"
             ]
         },
+        // uploads the rckid via UPDI using the devel server for experimentation
+        {
+            "label": "rckid-devel-server",
+            "command": "bash",
+            "args": [
+                "bin/rckid-avr-devel-server.sh",
+            ],
+            "options": {
+                "cwd": "",
+            },
+            "problemMatcher": [
+                "$platformio"
+            ]
+        },
+
+
         // locally builds the lego remote avr program
         {
             "label": "lego-remote",

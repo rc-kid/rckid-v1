@@ -13,12 +13,17 @@ Tactile Switch       | 9        |
 NRF24L01P+           | 1        | Any module should work (*)
 
 
+## SD Card Preparation
+
 ## Assembly
 
-> This repository contains all that is necessary to assemble and program your own _RCKid_. Please note that doing so is likely not a beginner project, at the very least, you will need access to a soldering station and some soldering practice. If there will be any errors during the assembly, multimeter, oscilloscope and some basic electronics knowledge would be required.
+> This repository contains all that is necessary to assemble and program your own _RCKid_. Please note that doing so is likely not a beginner project, at the very least, you will need access to a soldering station and some soldering practice. If there will be any errors during the assembly, multimeter, oscilloscope and some basic electronics knowledge would be required. Some software skills, such as SSH connection and flashing is necessary as well. 
 
+First we are going to add the `ATTiny1616` and basic `I2C` communication to program the bootloader and verify its presence. To do so, the following must be soldered:
 
+> TODO
 
+When the bootloader is flashed, verify that the `I2C` communication is working by running the AVR programmer in query mode. 
 
 
 

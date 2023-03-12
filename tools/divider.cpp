@@ -31,11 +31,10 @@ struct Solution {
     unsigned r1;
     unsigned r2;
     unsigned r3;
-    unsigned r4;
 
 
 
-    double simulateValue(bool r1, bool r2, bool r3, bool r4) {
+    double simulateValue(bool r1, bool r2, bool r3) {
         double x = 0;
         if (r1) 
             x += 1.0 / this->r1;
@@ -43,21 +42,17 @@ struct Solution {
             x += 1.0 / this->r2;
         if (r3) 
             x += 1.0 / this->r3;
-        //if (r4) 
-        //    x += 1.0 / this->r4;
         if (x == 0) 
             return 1;
         x = 1.0 / x;
         x = x / ( x + rgnd); // buttons close to ground
-        //x = (rgnd * 1.0) / (x + rgnd);
-        //return static_cast<unsigned>(x * 1023);
         return x;
     }
 
     unsigned simulateSolution(double vcc = 0) {
         std::vector<double> values;
         for (unsigned x = 0; x < 8; ++x) 
-            values.push_back(simulateValue(x & 1, x & 2, x & 4, x & 8));
+            values.push_back(simulateValue(x & 1, x & 2, x & 4));
         if (vcc != 0) {
             for (unsigned i = 0; i < values.size(); ++i)
             std::cout << "    " << (i & 1) << (i & 2) << (i & 4) << " : " << values[i] * vcc << std::endl;
@@ -73,27 +68,16 @@ struct Solution {
 
 };
 
-// Best solution (diff : 42)
-//   RGND: 8, RA: 8, RB: 15, RC: 27, RD: 1
-
-// Best solution (diff : 18)
-//   RGND: 18, RA: 27, RB: 39, RC: 68, RD: 150
-//     0 : 0
-//     1 : 1.98972
-//     2 : 2.08951
-//     3 : 2.224
-//     4 : 2.3494
-//     5 : 2.43739
-//     6 : 2.58883
-//     7 : 2.7082
-//     8 : 2.79851
-//     9 : 2.89646
-//     10 : 3
-//     11 : 3.16148
-//     12 : 3.42105
-//     13 : 3.61088
-//     14 : 3.95349
-//     15 : 4.46429
+//Best solution (diff : 41)
+//  RGND: 82, RA: 82, RB: 150, RC: 270
+//    000 : 255
+//    100 : 127.5
+//    020 : 164.871
+//    120 : 100.131
+//    004 : 195.597
+//    104 : 110.691
+//    024 : 137.81
+//    124 : 89.4621
 
 int main(int argc, char * argv[]) {
     unsigned minDiff = 0;
@@ -101,15 +85,13 @@ int main(int argc, char * argv[]) {
         for (unsigned ra : REG_VALUES) {
             for (unsigned rb : REG_VALUES){
                 for (unsigned rc : REG_VALUES) {
-                    for (unsigned rd : REG_VALUES) {
-                        Solution s{ rgnd, ra, rb, rc, rd};
-                        uint8_t d = s.simulateSolution();
-                        if (d > minDiff) {
-                            minDiff = d;
-                            std::cout << "Best solution (diff : " << (int)d << ")" << std::endl;
-                            std::cout << "  RGND: " << rgnd << ", RA: " << ra << ", RB: " << rb << ", RC: " << rc <<  ", RD: " << rd << std::endl;
-                            s.simulateSolution(5);
-                        }
+                    Solution s{ rgnd, ra, rb, rc};
+                    uint8_t d = s.simulateSolution();
+                    if (d > minDiff) {
+                        minDiff = d;
+                        std::cout << "Best solution (diff : " << (int)d << ")" << std::endl;
+                        std::cout << "  RGND: " << rgnd << ", RA: " << ra << ", RB: " << rb << ", RC: " << rc <<  std::endl;
+                        s.simulateSolution(255);
                     }
                 }
             }

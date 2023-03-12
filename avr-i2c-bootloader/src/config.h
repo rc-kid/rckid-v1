@@ -1,7 +1,7 @@
 #define I2C_ADDRESS 0x43
 #define BOOTLOADER_SIZE 0x200
 
-#define PIN_AVR_IRQ 4
+#define PIN_AVR_IRQ 9
 
 #define CMD_RESERVED 0x00
 #define CMD_RESET 0x01

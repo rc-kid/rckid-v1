@@ -7,20 +7,680 @@
 
 #include "peripherals/neopixel.h"
 
-/** Chip pinout and considerations
+
+/** DEBUG: A very simple test that just makes the clock frequencies observable. It is not to be used when AVR is soldered on the RCKid board as it enables the CLKOUT on PB5 and reconfigures other pins. 
+ */
+#define TEST_CLOCK_
+
+/** DEBUG: When enabled, the AVR will use the I2C bus in a master mode and will communicate with an OLED screen attached to it to display various statistics. DISABLE IN PRODUCTION
+ */
+#define TEST_I2C_DISPLAY
+#if (defined TEST_I2C_DISPLAY)
+#include "peripherals/ssd1306.h"
+SSD1306 display;
+#endif
+
+
+/** RCKid AVR Controller
+ 
+    The AVR is connected diretly to the battery/usb-c power line and manages the power and many peripherals. To the RPI, AVR presents itself as an I2C slave and 2 dedicated pins are used to signal interrupts from AVR to RPI and to signal safe shutdown from RPI to AVR. The AVR is intended to run an I2C bootloader that can be used to update the AVR's firmware when necessary.
 
                    -- VDD             GND --
-           AVR_IRQ -- (00) PA4   PA3 (16) -- VIB_EN
-         BACKLIGHT -- (01) PA5   PA2 (15) -- CHARGE
-            RGB_EN -- (02) PA6   PA1 (14) -- BTN_LVOL
-             VBATT -- (03) PA7   PA0 (17) -- UPDI
-          PHOTORES -- (04) PB5   PC3 (13) -- RGB
-           MIC_OUT -- (05) PB4   PC2 (12) -- JOY_V
-          BTN_RVOL -- (06) PB3   PC1 (11) -- 
-            RPI_EN -- (07) PB2   PC0 (10) -- JOY_H
-         SDA (I2C) -- (08) PB1   PB0 (09) -- SCL (I2C)
+             VBATT -- (00) PA4   PA3 (16) -- VIB_EN
+           MIC_OUT -- (01) PA5   PA2 (15) -- SCL (I2C)
+            BTNS_2 -- (02) PA6   PA1 (14) -- SDA (I2C)
+            BTNS_1 -- (03) PA7   PA0 (17) -- (reserved for UPDI)
+             JOY_H -- (04) PB5   PC3 (13) -- BTN_HOME
+             JOY_V -- (05) PB4   PC2 (12) -- RGB
+            RGB_EN -- (06) PB3   PC1 (11) -- RPI_POWEROFF
+            RPI_EN -- (07) PB2   PC0 (10) -- AVR_IRQ
+            CHARGE -- (08) PB1   PB0 (09) -- BACKLIGHT
+
+    # Design Blocks
+
+    `RTC` is used to generate a 1 second interrupt for real time clock timekeeping, active even in sleep. 
+
+    `ADC0` is used to capture the analog controls (JOY_H, JOY_V, BTNS_1, BTNS_2), power information (VBATT, CHARGE) and internally the VCC and temperature on AVR. ADC also generates a rough estimate of a tick when all measurements are cycled though. 
+
+    `ADC1` is reserved for the microphone input at 8kHz. The ADC is left in a free running mode to accumulate as many results as possible, and `TCB0` is used to generate a precise 8kHz signal to average and capture the signal. 
+
+    `TCA0` is used in split mode to generate PWM signals for the rumbler and screen backlight. 
+
+    `TWI` (I2C) is used to talk to the RPi. When AVR wants attention, the AVR_IRQ pin is pulled low (otherwise it is left floating as RPI pulls it high). A fourth wire, RPI_POWEROFF is used to notify the AVR that RPi's power can be safely shut down. 
+
+    `RPI_EN` must be pulled high to cut the power to RPI, Radio, screen, light sensor, thumbstick and rumbler off. The power is on by default (pulled low externally) so that RPi can be used to re-program the AVR via I2C and to ensure that RPi survives any possible AVR crashes. 
+
+    `RGB_EN` controls a RGB led's power (it takes about 1mA when on even if dark). Its power source is independednt so that it can be used to signal error conditions such as low battery, etc. 
+ */
+class RCKid {
+public:
+
+    static constexpr gpio::Pin VBATT = 0; // ADC0, channel 4
+    static constexpr gpio::Pin MIC_OUT = 1; // ADC1, channel 1
+    static constexpr gpio::Pin BTNS_2 = 2; // ADC0, channel 6
+    static constexpr gpio::Pin BTNS_1 = 3; // ADC0, channel 7
+    static constexpr gpio::Pin JOY_H = 4; // ADC0, channel 8
+    static constexpr gpio::Pin JOY_V = 5; // ADC0, channel 9
+    static constexpr gpio::Pin RGB_EN = 6; // digital, floating
+    static constexpr gpio::Pin RPI_EN = 7; // digital, floating
+    static constexpr gpio::Pin CHARGE = 8; // ADC0, channel 10
+
+    static constexpr gpio::Pin VIB_EN = 16; // TCA W3
+    static constexpr gpio::Pin SCL = 15; // I2C alternate
+    static constexpr gpio::Pin SDA = 14; // I2C alternate
+    static constexpr gpio::Pin BTN_HOME = 13; // digital
+    static constexpr gpio::Pin RGB = 12; // digital
+    static constexpr gpio::Pin RPI_POWEROFF = 11; // digital input
+    static constexpr gpio::Pin AVR_IRQ = 10; // digital 
+    static constexpr gpio::Pin BACKLIGHT = 9; // TCA W0
+
+    static void initialize() {
+        // ensure pins are floating if for whatever reason they would not be
+        gpio::input(RPI_EN);
+        gpio::input(AVR_IRQ);
+        gpio::input(RGB_EN);
+        gpio::input(BTN_HOME);
+        gpio::input(RGB);
+        gpio::input(RPI_POWEROFF);
+        // initialize the ADC connected pins for better performance (turn of pullups, digital I/O, etc.)
+        static_assert(VBATT == 0); // PA4
+        PORTA.PIN4CTRL &= ~PORT_ISC_gm;
+        PORTA.PIN4CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+        PORTA.PIN4CTRL &= ~PORT_PULLUPEN_bm;
+        static_assert(MIC_OUT == 1); // PA5
+        PORTA.PIN5CTRL &= ~PORT_ISC_gm;
+        PORTA.PIN5CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+        PORTA.PIN5CTRL &= ~PORT_PULLUPEN_bm;
+        static_assert(BTNS_2 == 2); // PA6
+        PORTA.PIN6CTRL &= ~PORT_ISC_gm;
+        PORTA.PIN6CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+        PORTA.PIN6CTRL &= ~PORT_PULLUPEN_bm;
+        static_assert(BTNS_1 == 3); // PA7
+        PORTA.PIN7CTRL &= ~PORT_ISC_gm;
+        PORTA.PIN7CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+        PORTA.PIN7CTRL &= ~PORT_PULLUPEN_bm;
+        static_assert(JOY_H == 4); // PB5
+        PORTB.PIN5CTRL &= ~PORT_ISC_gm;
+        PORTB.PIN5CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+        PORTB.PIN5CTRL &= ~PORT_PULLUPEN_bm;
+        static_assert(JOY_V == 5); // PB4
+        PORTB.PIN4CTRL &= ~PORT_ISC_gm;
+        PORTB.PIN4CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+        PORTB.PIN4CTRL &= ~PORT_PULLUPEN_bm;
+        static_assert(CHARGE == 8); // PB1
+        PORTB.PIN1CTRL &= ~PORT_ISC_gm;
+        PORTB.PIN1CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+        PORTB.PIN1CTRL &= ~PORT_PULLUPEN_bm;
+        // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
+        CCP = CCP_IOREG_gc;
+        CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
+        // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
+        RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
+        RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
+        RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc | RTC_PITEN_bm;
+        // initialize TCA for the backlight and rumbler PWM without turning it on
+        // TODO
+        // initialize the I2C in alternate position
+        // make sure that SDA and SCL pins are not out - HW issue with the chip, will fail otherwise
+        PORTA.OUTCLR = 0x06; // PA1, PA2
+        // switch to the I2C to the alternate pins
+        PORTMUX.CTRLB |= PORTMUX_TWI0_bm;
+#if (!defined TEST_I2C_DISPLAY)
+        // initalize the i2c slave with our address
+        i2c::initializeSlave(comms::AVR_I2C_ADDRESS);
+#else
+        i2c::initializeMaster();
+        display.initialize128x32();
+        display.clear32();
+        display.write(0, 0, "Ticks: ");
+        display.write(0, 1, "VCC:   ");
+        display.write(0, 2, "Temp:  ");
+        display.write(0, 3, "VBatt: ");
+        display.write(64, 0, "8kHz: ");
+
+#endif
+        gpio::output(9);
 
 
+
+        adcStart();
+        startRecording();
+        sei();
+    }
+
+    static void loop() {
+        if (adcReady()) {
+            //gpio::high(9);
+            tick();
+            //gpio::low(9);
+        }
+        if (flags_.secondTick)
+            secondTick();
+    }
+
+    static void secondTick() {
+        flags_.secondTick = false;
+    #if (defined TEST_I2C_DISPLAY)
+        display.write(35, 0, ticks_, ' ');
+        display.write(64 + 35, 0, micTicks_, ' ');
+        micTicks_ = 0;
+    #endif
+
+
+        ticks_ = 0;
+    }
+
+    /** \name ADC0 and ticks 
+
+        `ADC0` handles all the analog inputs and their periodic reading. Since we need to change the MUXPOS after each reading, the reading is done in a polling mode. When the ADC cycles through all of its inputs, a tick is initiated (roughly at 200Hz), during which the real values are computed from the raw readings and appropriate action is taken (or the RPI is notified). 
+
+        The ADC cycles through the following measurements: 
+
+        - VCC for critical battery warning
+        - TEMP
+        - VBATT
+        - CHARGE
+        - BTNS_2
+        - BTNS_1
+        - JOY_H
+        - JOY_V  
+
+        `BTNS_1` and `BTNS_2` are connected to a custom voltage divider that allows us to sample multiple presses of 3 buttons using a single pin. The ladder assumes a 8k2 resistor fro VCC to common junction that is beaing read and is connected via the three buttons and three different resistors (8k2, 15k, 27k) to ground.  
+
+     */
+    //@{
+
+    static inline uint16_t vcc_;
+    static inline uint16_t temp_;
+    static inline uint16_t vBatt_;
+    static inline uint8_t charge_;
+    static inline uint8_t btns2_;
+    static inline uint8_t btns1_;
+    static inline uint8_t joyH_;
+    static inline uint8_t joyV_;
+
+    /** Starts the measurements on ADC0. 
+    */
+    static void adcStart() {
+        // delay 32us and sampctrl of 32 us for the temperature sensor, do averaging over 64 values, full precission
+        ADC0.CTRLB = ADC_SAMPNUM_ACC64_gc;
+        ADC0.MUXPOS = ADC_MUXPOS_INTREF_gc;
+        ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; // use VDD as reference for VCC sensing, 1.25MHz
+        ADC0.CTRLD = ADC_INITDLY_DLY32_gc;
+        ADC0.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_10BIT_gc;
+         // start new conversion
+        ADC0.COMMAND = ADC_STCONV_bm;
+    }
+
+    /** Checks if the ADC0 is ready and processes its output if so. Returns true if the ADC has cycled through the entire list. 
+      */
+    static bool adcReady() {
+        // if ADC is not ready, return immediately
+        if (! (ADC0.INTFLAGS & ADC_RESRDY_bm))
+            return false;
+        bool isTick = false;
+        uint16_t value = ADC0.RES / 64;
+        switch (ADC0.MUXPOS) {
+            // for the VCC we simply store the calculated value and move on to the temperature measurement. 
+            case ADC_MUXPOS_INTREF_gc:
+                vcc_ = value;
+                ADC0.MUXPOS = ADC_MUXPOS_TEMPSENSE_gc;
+                ADC0.SAMPCTRL = 31;
+                ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm; // internal reference
+                break;
+            // simply stores the temperature reading and moves to the next measurement
+            case ADC_MUXPOS_TEMPSENSE_gc:
+                temp_ = value;
+                ADC0.MUXPOS = ADC_MUXPOS_AIN4_gc;
+                ADC0.SAMPCTRL = 0;
+                ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; 
+                break;
+            // VBATT
+            case ADC_MUXPOS_AIN4_gc:
+                vBatt_ = value;
+                ADC0.MUXPOS = ADC_MUXPOS_AIN10_gc;
+                break;
+            // CHARGE 
+            case ADC_MUXPOS_AIN10_gc:
+                charge_ = (value >> 2) & 0xff;
+                ADC0_MUXPOS = ADC_MUXPOS_AIN6_gc;
+                break;
+            // BTNS_2 
+            case ADC_MUXPOS_AIN6_gc:
+                btns2_ = (value >> 2) & 0xff;
+                ADC0_MUXPOS = ADC_MUXPOS_AIN7_gc;
+                break;
+            // BTNS_1 
+            case ADC_MUXPOS_AIN7_gc:
+                btns1_ = (value >> 2) & 0xff;
+                ADC0_MUXPOS = ADC_MUXPOS_AIN8_gc;
+                break;
+            // JOY_H 
+            case ADC_MUXPOS_AIN8_gc:
+                joyH_ = (value >> 2) & 0xff;
+                ADC0_MUXPOS = ADC_MUXPOS_AIN9_gc;
+                break;
+            // JOY_V 
+            case ADC_MUXPOS_AIN9_gc:
+                joyV_ = (value >> 2) & 0xff;
+                isTick = true;
+                // fallthrough to default case
+            /** Reset the ADC to take VCC measurements */
+            default:
+                ADC0.MUXPOS = ADC_MUXPOS_INTREF_gc;
+                ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; // use VDD as reference for VCC sensing
+                ADC0.SAMPCTRL = 0;
+                break;
+        }
+        // start new conversion
+        ADC0.COMMAND = ADC_STCONV_bm;
+        return isTick;
+    }
+
+    /** Called when the ADC cycles through all its measurements. Tick calculates the input controls and other ADC measurements and determines whether the RPi should be notified by the AVR_IRQ if there is a change. The function also performs more complex post processing to make sure the ADC is restarted as quickly as possible in the adcReady() function so that we do not waste cycles as the tick() function runs when the ADC is already busy.
+     */
+    static void tick() {
+        // convert vcc reading to voltage
+        vcc_ = 110 * 512 / vcc_;
+        vcc_ = vcc_ * 2;
+        // convert temperature reading to temperature, the code is taken from the ATTiny datasheet example
+        int8_t sigrow_offset = SIGROW.TEMPSENSE1; 
+        uint8_t sigrow_gain = SIGROW.TEMPSENSE0;
+        int32_t t = temp_ - sigrow_offset; // Result might overflow 16 bit variable (10bit+8bit)
+        t *= sigrow_gain;
+        // temp is now in kelvin range, to convert to celsius, remove -273.15 (x256)
+        t -= 69926;
+        // and now loose precision to 0.5C (x10, i.e. -15 = -1.5C)
+        temp_ = (t >>= 7) * 5;
+        // TODO
+        // convert battery reading to voltage. The battery reading is relative to VCC
+        // TODO will this work? when we run on batteries, there might be a voltage drop on the switch? 
+        // convert charge to digital 
+        // decode BTNS_1
+        uint8_t btns = decodeAnalogButtons(btns1_);
+        // decode BTNS_2
+        btns = decodeAnalogButtons(btns2_);
+        // update the thumbstick position 
+                /*
+                // taken from the ATTiny datasheet example
+                int8_t sigrow_offset = SIGROW.TEMPSENSE1; 
+                uint8_t sigrow_gain = SIGROW.TEMPSENSE0;
+                int32_t temp = value - sigrow_offset; // Result might overflow 16 bit variable (10bit+8bit)
+                temp *= sigrow_gain;
+                // temp is now in kelvin range, to convert to celsius, remove -273.15 (x256)
+                temp -= 69926;
+                // and now loose precision to 0.5C (x10, i.e. -15 = -1.5C)
+                temp = (temp >>= 7) * 5;
+                state.estatus.setTemp(temp);
+                */
+        ++ticks_;
+#if (defined TEST_I2C_DISPLAY)
+        //display.write(35, 1, vcc_, ' ');
+        //display.write(35, 2, temp_, ' ');
+        //display.write(35, 3, vBatt_, ' ');
+#endif
+    }
+
+    /** Decodes the raw analog value read into the states of three buttons returned as LSB bits. The analog value is a result of a custom voltage divider ladder so that simultaneous button presses can be detected.
+     */
+    static uint8_t decodeAnalogButtons(uint8_t raw) {
+        if (raw <= 94)
+            return 0b111; 
+        if (raw <= 105)
+            return 0b110;
+        if (raw <= 118)
+            return 0b101;
+        if (raw <= 132)
+            return 0b100;
+        if (raw <= 150)
+            return 0b011;
+        if (raw <= 179)
+            return 0b010;
+        if (raw <= 225)
+            return 0b001;
+        return 0;
+    }
+
+    //@}
+
+
+
+    /** \name I2C Communication
+      
+    */
+    //@{
+
+    //@}
+
+    /** \name Audio Recording
+     */
+    //@{
+
+    static inline uint16_t micTicks_ = 0;
+    static inline uint16_t micAcc_ = 0;
+    static inline uint8_t micSamples_ = 0;
+
+    static void startRecording() {
+        // initialize ADC1
+        ADC1.CTRLA = 0; // disable ADC so that any pending read from the main app is cancelled
+        // TODO set reference voltage to something useful, such as 2.5? 
+        ADC1.MUXPOS = ADC_MUXPOS_AIN1_gc;
+        ADC1.INTCTRL |= ADC_RESRDY_bm;
+        ADC1.CTRLB = ADC_SAMPNUM_ACC4_gc; 
+        ADC1.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm;
+        ADC1.CTRLD = 0; // no sample delay, no init delay
+        ADC1.SAMPCTRL = 0;
+        ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc | ADC_FREERUN_bm;
+        ADC1.COMMAND = ADC_STCONV_bm;
+        // start the 8kHz timer on TCB0
+        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
+        TCB0.CCMP = 625; // for 8kHz
+        TCB0.INTCTRL = TCB_CAPT_bm;
+        TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc | TCB_ENABLE_bm;
+    }
+
+    static void stopRecording() {
+        TCB0.CTRLA = 0;
+        ADC1.CTRLA = 0;
+        ADC1.INTCTRL = 0;
+    }
+
+    //@}
+
+    static inline volatile struct {
+        bool secondTick : 1;
+    } flags_;
+
+    static inline uint16_t ticks_ = 0; 
+
+
+}; // RCKid
+
+/** The RTC one second interval tick ISR. 
+ */
+ISR(RTC_PIT_vect) {
+    RTC.PITINTFLAGS = RTC_PI_bm; // clear the interrupt
+    //state.time.secondTick();
+    //flags.secondTick = true;
+    RCKid::flags_.secondTick = true;
+}
+
+ISR(ADC1_RESRDY_vect) {
+    gpio::high(9);
+    RCKid::micAcc_ += ADC1.RES;
+    ++RCKid::micSamples_;
+    gpio::low(9);
+}
+
+ISR(TCB0_INT_vect) {
+    //gpio::high(9);
+    TCB0.INTFLAGS = TCB_CAPT_bm;
+    RCKid::micAcc_ = (RCKid::micSamples_ > 0) ? (RCKid::micAcc_ / RCKid::micSamples_) : 0;
+    //++RCKid::micTicks_;
+    RCKid::micTicks_ = RCKid::micSamples_;
+    RCKid::micSamples_ = 0;
+    //gpio::low(9);
+}
+
+
+
+
+#if (defined TEST_CLOCK) 
+
+void setup() {
+    // initialize the master clock, allow its output on pin PB5
+    CCP = CCP_IOREG_gc;
+    CLKCTRL.MCLKCTRLA = CLKCTRL_CLKOUT_bm;
+    CCP = CCP_IOREG_gc;
+    CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
+    // enable 8kHz timer identical to that of the audio recording and output it somewhere
+}
+
+void loop() {
+
+}
+
+
+#else 
+void setup() {
+    RCKid::initialize();
+}
+
+void loop() {
+    RCKid::loop();
+
+}
+
+#endif
+
+
+#ifdef OLD
+
+/** RCKid AVR Controller
+ 
+    The AVR is connected diretly to the battery/usb-c power line and manages the power and many peripherals. To the RPI, AVR presents itself as an I2C slave and 2 dedicated pins are used to signal interrupts from AVR to RPI and to signal safe shutdown from RPI to AVR. The AVR is intended to run an I2C bootloader that can be used to update the AVR's firmware when necessary.
+
+                   -- VDD             GND --
+             VBATT -- (00) PA4   PA3 (16) -- VIB_EN
+          BTN_HOME -- (01) PA5   PA2 (15) -- SCL (I2C)
+            BTNS_2 -- (02) PA6   PA1 (14) -- SDA (I2C)
+            BTNS_1 -- (03) PA7   PA0 (17) -- (reserved for UPDI)
+           MIC_OUT -- (04) PB5   PC3 (13) -- JOY_H
+            CHARGE -- (05) PB4   PC2 (12) -- JOY_V
+            RGB_EN -- (06) PB3   PC1 (11) -- RPI_POWEROFF
+            RPI_EN -- (07) PB2   PC0 (10) -- BACKLIGHT
+               RGB -- (08) PB1   PB0 (09) -- AVR_IRQ
+
+    # Power Management
+
+    The chip monitors the current battery voltage (VBATT), temperature (via ADC0), VCC (via internal intref on ADC1) and charging status via the CHARGE pin that is pulled low when charging and HIGH when charge done, if the USB-DC voltage is present, which is only true when VCC is greater than 4.3
+
+    
+
+
+
+    Implementation-wise the code is organized in a single all-static class to spare ourselves the pain of forward declarations. 
+
+
+
+ */
+class RCKid {
+public:
+
+    /** Power monitoring uses the analog VBATT and CHARGE pins. CHARGE pin is only useful when DC voltage is applied (VCC > 4.3), when low, the battery is charging, when charge is complete the pin goes to high. 
+     */
+    static constexpr gpio::Pin VBATT = 0; // PA4, ADC0 channel 4, or ADC1 channel 0
+    static constexpr gpio::Pin CHARGE = 5; // PB4, ADC0 channel 9
+
+    /** RPI Management & Communication 
+     
+        The RPI_EN is connected to an external pull-down resistor so that without an explicit interference from the avr, the RPI is powered on. This is useful for allowing the RPI to program the AVR via I2C. To turn RPI off, the pin must be driven high. Almost all other peripherals derive their power from the RPI_EN as well, including the radio and backlight. The RGB LED is one notable exception. 
+
+        The I2C is used to communicate with the RPI. The RPI is the sole master of the I2C bus. The AVR_IRQ should be left floating and pulled low to signal an event from the AVR. The pin is pulled up by the RPI and should never be held high by the AVR, since the AVR is on larger voltage, the RPI might be damaged in such case. 
+
+        The RPI_POWEROFF pin is used by the RPI to tell it's save to shutdown. 
+
+    */
+    static constexpr gpio::Pin RPI_EN = 7;
+    static constexpr gpio::Pin AVR_IRQ = 9; // never pull high!!
+    static constexpr gpio::Pin RPI_POWEROFF = 11; // never pull high!!
+    static constexpr gpio::Pin I2C_SDA = 14; // PA2, (alt) never pull high!!
+    static constexpr gpio::Pin I2C_SCL = 15; // PA1, (alt) never pull high!!
+
+    /** Display backlight is only working when RPI_EN is on and is connected to a PWM pin so that its intensity can vary. Uses the alternate position for TCB0.
+     */
+    static constexpr gpio::Pin BACKLIGHT = 10; // PC0, TCB0 (alt)
+
+    /** Rumbler can be turned both on and off, or being TCB1, the pin can be used to output PWM. Since the rumbler motor is connected to RPI's 3V3 it only works when RPI is enabled. 
+     */
+    static constexpr gpio::Pin VIB_EN = 16; // PA3, TCB1
+
+    /** The RGB led can be turned on and off independently of the RPI so that it can be used to signal battery conditions and function as a torch without the need to power up the RPI itself. 
+     */
+
+    static constexpr gpio::Pin RGB_EN = 6;
+    static constexpr gpio::Pin RGB = 8;
+
+    /** Input Controls 
+     
+        The BTN_HOME pin is pulled up and connected to the home button. It is wired to a dedicated pin so that it can be used to wake up the AVR from deep sleep to power on the device.  
+
+        The BTNS_1 and BTNS_2 pins are connected to ADC1 and they are responsible for reading the dpad and Select & Start buttons. Each button has three of the buttons connected to it a resistor ladder so that multiple presses can be determined based on the value read. BTNS_1 handles left, top and bottom dpad buttons, while BTNS2 handles right dpad and select and start buttons. The pins are pulled up externally and work even without RPI_EN. 
+
+        Finally, the JOY_H and JOY_V are used to read the thumbstick position. Since the thumbstick is powered by the 3.3V from the RPI (RPI is responsible for its button and we might save some power by the resistors being not powered in sleep mode) its value must be adjusted for the changing VCC on AVR and the thumbstick only works if RPI is powered on.  
+    */
+    static constexpr gpio::Pin BTN_HOME = 1;
+    static constexpr gpio::Pin BTNS_1 = 3; // PA7, ADC1 channel 3
+    static constexpr gpio::Pin BTNS_2 = 2; // PA6, ADC1 channel 2
+    static constexpr gpio::Pin JOY_H = 13; // PC3, ADC1 channel 9
+    static constexpr gpio::Pin JOY_V = 12; // PC2, ADC1 channel 8
+
+    /** The microphone is amplified and connected to the MIC_OUT pin. When enabled, the recorder takes full control of ADC0 and samples the output as fast as possible for best resolution. The sampled data is then sent to the RPI via I2C.
+     */  
+    static constexpr gpio::Pin MIC_OUT = 4; // PB5, ADC0 channel 8
+
+    /** Power modes.
+     
+        In order 
+     */
+    enum class Mode {
+        PowerOff,
+        Booting,
+        PowerOn,
+        PowerOnCancelled,
+        PoweringDown,
+        Torch, 
+    }; // Mode
+
+
+
+
+
+    /** Initializes the chip. 
+        
+     */
+    static void initialize() {
+        cli();
+        // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
+        CCP = CCP_IOREG_gc;
+        CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
+        // rpi
+        gpio::input(RPI_EN);
+        gpio::input(AVR_IRQ);
+        gpio::input(RPI_POWEROFF);
+        // rumbler
+        gpio::input(VIB_EN);
+        // rgb led
+        gpio::input(RGB_EN);
+        gpio::input(RGB);
+        // inputs
+        gpio::inputPullup(BTN_HOME);
+        // initialize the pins connected to ADCs, disable buffers, disable pullup, etc. 
+        // initialize the various subsystems
+        initializeClocks();
+        initializeI2C();
+
+
+
+        sei();
+
+    }
+
+    /** Initializes the various clocks used by the AVR. 
+
+        The RTC fires with 1 second period so that we can keep track of real time. TCB0 is used for he 200Hz times at which the input controls are summed up and RPI is notified about state changes. TCB1 is used for the 8kHz signal used for audio recording and TCA is used for the PWM outputs to the backlight and rumbler.  
+     */
+    static void initializeClocks() {
+        // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR
+        RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
+        RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
+        RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc + RTC_PITEN_bm;
+        // initialize the 200Hz timer for controls (5ms interval). Assuming CLK_PER of 10Mhz, prescale to 5MHz
+        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
+        TCB0.CCMP = 25000; // for 200Hz
+        TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc; // | TCB_ENABLE_bm;
+        // initialize the audio timer 
+        TCB1.CTRLB = TCB_CNTMODE_INT_gc;
+        TCB1.CCMP = 625; // for 8kHz
+        TCB1.INTCTRL = TCB_CAPT_bm;
+        TCB1.CTRLA = TCB_CLKSEL_CLKDIV2_gc; // | TCB_ENABLE_bm;
+        // initialize TCA which we use for the backlight and rumbler PWM output
+        // TODO
+    }
+
+    static inline void adc0ready() {
+
+    }
+
+    /** ADC1 is used to read the input buttons, joystick measurements and VCC. It cycles through the */
+    static inline void adc1ready() {
+
+    }
+
+
+    static inline volatile struct {
+        bool secondTick : 1;
+    } flags;
+
+
+
+}; // RCKid
+
+/** The RTC one second interval tick ISR. 
+ */
+ISR(RTC_PIT_vect) {
+    RTC.PITINTFLAGS = RTC_PI_bm; // clear the interrupt
+    //state.time.secondTick();
+    //flags.secondTick = true;
+    RCKid::flags.secondTick = true;
+}
+
+
+
+#define TEST0
+
+#if (defined TEST0)
+/** Test 0 is used to determine the clock speed of the AVR and how to set it up properly. It is not to be used when AVR is used inside RCKid but is intended for standalone measurements. 
+*/
+void setup() {
+    // initialize the master clock, allow its output on pin PB5
+    CCP = CCP_IOREG_gc;
+    CLKCTRL.MCLKCTRLA = CLKCTRL_CLKOUT_bm;
+    CCP = CCP_IOREG_gc;
+    CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
+    // enable 8kHz timer identical to that of the audio recording and output it somewhere
+}
+
+void loop() {
+
+}
+
+#elif (defined TEST1)
+/** A simple test that checks the various connections to the AVR without the need to communicate with the RPI that should be run before the RPI is soldered as the last piece to avoid soldering a rather rare RPi Zero to a defunct board. */
+void setup() {
+
+}
+
+void loop() {
+
+}
+
+#else
+/** The main app. Delegates all processing to RCKid. 
+ */
+void setup() {
+    RCKid::initialize();
+
+}
+
+void loop() {
+
+}
+
+#endif
+
+
+/**
     Powering on 
 
     The AVR is in sleep mode, registering changes on the L and R volume buttons and waking up every second via the RTC timer. When either button is pressed, AVR switches to standby mode, enables the tick timer at 10ms and attempts to determine what 
@@ -30,19 +690,14 @@
  
     Connected to a 100k pull-down resistor this means that when rpi is turned off, we need 0.05mA. 
  */
-static constexpr gpio::Pin RPI_EN = 7;
 
 /** Communication with the rpi is done via I2C and an IRQ pin. The rpi is the sole master of the i2c bus. When avr wants to signal rpi a need to communicate, it drives the AVR_IRQ pin low. Otherwise the pin should be left floating as it is pulled up by the rpi. 
 
 TODO can this be used to check rpi is off?  
  */
-static constexpr gpio::Pin I2C_SDA = 8;
-static constexpr gpio::Pin I2C_SCL = 9;
-static constexpr gpio::Pin AVR_IRQ = 0;
 
 /** The backlight and vibration motor can be PWM signals using the TCB timer. 
  */
-static constexpr gpio::Pin BACKLIGHT = 1; // TCB0
 static constexpr gpio::Pin VIB_EN = 16; // TCB1
 
 /** The RGB light can be turned off as the LED consumes quite a lot of power (mA) even when idle. Once turned on the RGB pin can be used to signal the color. The RGB power is independent of the RPI power and can therefore be used even when the rpi is off (such as flashlight, or low battery warning).
@@ -928,3 +1583,6 @@ void loop() {
     if (flags.sleep)
         mode::sleep();
 }
+
+
+#endif

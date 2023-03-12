@@ -1,27 +1,8 @@
 # RCKid
 
-> The vertical version with DPAD
-
-
-- change pin mapping on ATTiny
-- update the joycon connector
-- determine enclosure for joystick
-- can audio PCB be simplified? 
-
-
-# PCB v2
-
-- less complicated design (fewer boards)
-- better access to the SD card
-- being able to disconnect the battery via cable
-- fit an inductor to the screen brightness driver for better performance in low batt
-- possibly better layout
-
-# RCKid
-
-- AVR speed is weird... Determine proper settings
-
-- software: raylib, lvgl, sfml, etc. See if I can write directly to fb and how soon can I do so - technically I should be able to do this as soon as the TFT driver starts
+- update JOYCON connector (!!)
+- which antenna to buy? 
+- how can screen brightness flicker in low battery mode be minimized? 
 
 ## BOM
 
@@ -30,23 +11,24 @@
 - extra mosfet switches (if available)
 - extra buffers (if available)
 
+
+# AVR
+
+- VERIFY THE CURRENT PINOUT, THEN UPDATE SCHEMATICS & LAYOUT ACCORDINGLY!!!!!
+- make mic reading faster, offload publishing from timer so that we get more reliable audio sampling
+- check pwm channels 
+- check buttons
+- fix VCC and temp calculation
+- verify we can still control neopixel
+
 ## PCB
-
-- should the accel be moved so that there is space for the nrf connector? 
-- verify thumbstick front panel hole placement (and thumbstick pattern dimensions)
-
-- check the new position of the usb
-- antenna might be too far, check that it fits
 
 - mic amplification is too great, 51k seems to do the trick
 - check if 1M pull-down resistor can be used for rpi power
-- audio board is too big to be inserted comfortably (most likely it is ok)
 - ferrite beads are 1206, should be 0805, but now can also stay 1206
 
 ## AVR
 
-- thumbstick reading does not seem to be working properly
-- joystick button detection
 - reading the audio has lots of errors, probably too many irqs present... (MAYBE RESOLVED)
 - micmax can't be aggregated like this since we need the max value actually
 

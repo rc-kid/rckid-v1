@@ -3,6 +3,54 @@
 #include "platform/platform.h"
 #include "utils/time.h"
 
+namespace comms2 {
+
+    static constexpr uint8_t AVR_I2C_ADDRESS = 0x43;
+
+    static constexpr uint8_t I2C_PACKET_SIZE = 32;
+
+    /** The AVR status. 
+     
+     */
+    class Status {
+    public:
+
+
+    private:
+        static constexpr uint8_t DPAD_LEFT = 1 << 0;
+        static constexpr uint8_t DPAD_RIGHT = 1 << 1;
+        static constexpr uint8_t DPAD_TOP = 1 << 2;
+        static constexpr uint8_t DPAR_BOTTOM = 1 << 3;
+        static constexpr uint8_t SELECT = 1 << 4;
+        static constexpr uint8_t START = 1 << 5;
+        static constexpr uint8_t HOME = 1 << 6;
+        static constexpr uint8_t EXTENDED_EVENT = 1 << 7;
+        uint8_t status_;
+        uint8_t thumbH_;
+        uint8_t thumbV_;
+    }; // comms::Status
+
+    class ExtendedState {
+    public:
+        Status status;
+    private:
+        static constexpr uint8_t RECORDING = 1 << 0;
+        static constexpr uint8_t USB_DC = 1 << 1;
+        static constexpr uint8_t CHARGING = 1 << 2;
+        static constexpr uint8_t ALARM = 1 << 3;
+
+        uint8_t status_;
+        uint8_t temp_;
+        uint8_t vbatt_;
+        uint8_t vcc_;
+        uint8_t brightness_;
+
+    }; // comms::ExtendedState
+
+} // namespace comms
+
+
+
 namespace comms {
 
     static constexpr uint8_t AVR_I2C_ADDRESS = 0x43;

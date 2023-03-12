@@ -97,6 +97,11 @@ public:
         }
     }
 
+    void write(uint8_t col, uint8_t row, uint16_t x, char fill = '\0') {
+        gotoXY(col, row);
+        write(x, fill);
+    }
+
 
 private:
 

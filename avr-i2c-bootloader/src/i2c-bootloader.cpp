@@ -4,15 +4,15 @@
 
 /**
                    -- VDD             GND --
-           AVR_IRQ -- (00) PA4   PA3 (16) -- 
-         BACKLIGHT -- (01) PA5   PA2 (15) -- 
-                   -- (02) PA6   PA1 (14) -- 
+                   -- (00) PA4   PA3 (16) -- 
+                   -- (01) PA5   PA2 (15) -- SCL (I2C)
+                   -- (02) PA6   PA1 (14) -- SDA (I2C)
                    -- (03) PA7   PA0 (17) -- UPDI
                    -- (04) PB5   PC3 (13) -- 
                    -- (05) PB4   PC2 (12) -- 
                    -- (06) PB3   PC1 (11) -- 
-                   -- (07) PB2   PC0 (10) -- 
-         SDA (I2C) -- (08) PB1   PB0 (09) -- SCL (I2C)
+                   -- (07) PB2   PC0 (10) -- BACKLIGHT
+                   -- (08) PB1   PB0 (09) -- AVR_IRQ
 
 */
 
@@ -42,19 +42,20 @@ __attribute__((naked)) __attribute__((constructor))
 void boot() {
     /* Initialize system for C support */
     asm volatile("clr r1");
-    // ensure that when PA4 (AVR_IRQ) is switched to output mode, the pin is pulled low 
-    VPORTA.OUT &= ~ (1 << 4); 
-    // only enter the bootloader if PA4 (AVR_IRQ) is pulled low
-    if ((VPORTA.IN & PIN4_bm) == 0) {
-        // enable the display backlight when entering the bootloader for some output (like say, eventually an OTA:) Baclight is connected to PA5 and is active high
-        VPORTA.DIR |= (1 << 5);
-        VPORTA.OUT |= (1 << 5);
-        // initialize the I2C in slave mode w/o interrupts
+    // ensure that when PB0 (AVR_IRQ) is switched to output mode, the pin is pulled low 
+    VPORTB.OUT &= ~ (1 << 0); 
+    // only enter the bootloader if PB0 (AVR_IRQ) is pulled low
+    if ((VPORTB.IN & PIN0_bm) == 0) {
+        // enable the display backlight when entering the bootloader for some output (like say, eventually an OTA:) Baclight is connected to PC0 and is active high
+        VPORTC.DIR |= (1 << 0);
+        VPORTC.OUT |= (1 << 0);
+        // initialize the I2C in slave mode w/o interrupts, first switch to the alternate pins
+        PORTMUX.CTRLB |= PORTMUX_TWI0_bm;
         // turn I2C off in case it was running before
         TWI0.MCTRLA = 0;
         TWI0.SCTRLA = 0;
         // make sure that the pins are not out - HW issue with the chip, will fail otherwise
-        PORTB.OUTCLR = 0x03; // PB0, PB1
+        PORTA.OUTCLR = 0x06; // PA1, PA2
         // set the address and disable general call, disable second address and set no address mask (i.e. only the actual address will be responded to)
         TWI0.SADDR = I2C_ADDRESS << 1;
         TWI0.SADDRMASK = 0;
@@ -93,7 +94,7 @@ void boot() {
             } else if ((status & I2C_START_MASK) == I2C_START_RX) {
                 command = CMD_RESERVED; // command will be filled in 
                 TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
-                VPORTA.DIR |= (1 << 4); 
+                VPORTB.DIR |= (1 << 0); 
             // sending finished, there is nothing to do 
             } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
                 TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
@@ -103,7 +104,7 @@ void boot() {
                 switch (command) {
                     // Reset the AVR - first signal the command is processed, then reset the chip
                     case CMD_RESET:
-                        VPORTA.DIR &= ~(1 << 4);
+                        VPORTB.DIR &= ~(1 << 0);
                         _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
                     case CMD_INFO:
                         buffer[0] = SIGROW.DEVICEID0;
@@ -143,8 +144,8 @@ void boot() {
                         // nothing to be done for the rest
                         break;
                 }
-                // switch AVR_IRQ (PA4) to input again
-                VPORTA.DIR &= ~(1 << 4);
+                // switch AVR_IRQ (PB0) to input again
+                VPORTB.DIR &= ~(1 << 0);
             // nothing to do, or error - not sure what to do, perhaps reset the bootloader? 
             } else {
                 // TODO

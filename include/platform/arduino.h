@@ -1,7 +1,9 @@
 #pragma once
 #include <Arduino.h>
+#if (!defined ARCH_AVR_MEGATINY)
 #include <Wire.h>
 #include <SPI.h>
+#endif
 
 #if (defined ARCH_AVR_MEGA) || (defined ARCH_AVR_MEGATINY)
 #include <avr/sleep.h>
