@@ -20,6 +20,9 @@
 SSD1306 display;
 #endif
 
+#define ENTER_IRQ //gpio::high(RCKid::RGB)
+#define LEAVE_IRQ //gpio::low(RCKid::RGB)
+
 
 /** RCKid AVR Controller
  
@@ -75,6 +78,9 @@ public:
     static constexpr gpio::Pin BACKLIGHT = 9; // TCA W0
 
     static void initialize() {
+        // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
+        CCP = CCP_IOREG_gc;
+        CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
         // ensure pins are floating if for whatever reason they would not be
         gpio::input(RPI_EN);
         gpio::input(AVR_IRQ);
@@ -82,6 +88,8 @@ public:
         gpio::input(BTN_HOME);
         gpio::input(RGB);
         gpio::input(RPI_POWEROFF);
+        gpio::output(BACKLIGHT);
+        gpio::output(VIB_EN);
         // initialize the ADC connected pins for better performance (turn of pullups, digital I/O, etc.)
         static_assert(VBATT == 0); // PA4
         PORTA.PIN4CTRL &= ~PORT_ISC_gm;
@@ -111,15 +119,16 @@ public:
         PORTB.PIN1CTRL &= ~PORT_ISC_gm;
         PORTB.PIN1CTRL |= PORT_ISC_INPUT_DISABLE_gc;
         PORTB.PIN1CTRL &= ~PORT_PULLUPEN_bm;
-        // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
-        CCP = CCP_IOREG_gc;
-        CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
         // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
         RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
         RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
         RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc | RTC_PITEN_bm;
-        // initialize TCA for the backlight and rumbler PWM without turning it on
-        // TODO
+        // initialize TCA for the backlight and rumbler PWM without turning it on, remeber that for the waveform generator to work on the respective pins, they must be configured as output pins (!)
+        TCA0.SPLIT.CTRLD = TCA_SPLIT_SPLITM_bm; // enable split mode
+        TCA0.SPLIT.CTRLB = TCA_SPLIT_LCMP0EN_bm | TCA_SPLIT_HCMP0EN_bm; // enable W0 and W3 outputs on pins
+        TCA0.SPLIT.LCMP0 = 64; // backlight at 1/4
+        TCA0.SPLIT.HCMP0 = 128; // rumbler at 1/2
+        TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc | TCA_SPLIT_ENABLE_bm; 
         // initialize the I2C in alternate position
         // make sure that SDA and SCL pins are not out - HW issue with the chip, will fail otherwise
         PORTA.OUTCLR = 0x06; // PA1, PA2
@@ -137,15 +146,18 @@ public:
         display.write(0, 2, "Temp:  ");
         display.write(0, 3, "VBatt: ");
         display.write(64, 0, "8kHz: ");
+        display.write(64, 1, "B1:   ");
+        display.write(64, 2, "B2:   ");
 
 #endif
-        gpio::output(9);
+        //gpio::output(RGB);
 
 
 
         adcStart();
         startRecording();
         sei();
+        criticalBatteryWarning();
     }
 
     static void loop() {
@@ -297,9 +309,9 @@ public:
         // TODO will this work? when we run on batteries, there might be a voltage drop on the switch? 
         // convert charge to digital 
         // decode BTNS_1
-        uint8_t btns = decodeAnalogButtons(btns1_);
+        uint8_t btns1 = decodeAnalogButtons(btns1_);
         // decode BTNS_2
-        btns = decodeAnalogButtons(btns2_);
+        uint8_t btns2 = decodeAnalogButtons(btns2_);
         // update the thumbstick position 
                 /*
                 // taken from the ATTiny datasheet example
@@ -318,6 +330,8 @@ public:
         //display.write(35, 1, vcc_, ' ');
         //display.write(35, 2, temp_, ' ');
         //display.write(35, 3, vBatt_, ' ');
+        display.write(64 + 35, 1, btns1);
+        display.write(64 + 35, 2, btns2);
 #endif
     }
 
@@ -347,6 +361,8 @@ public:
 
     /** \name I2C Communication
       
+        - always start with status (1byte), 
+        - followed by the rest of status in normal mode, or by recording buffer in recording mode
     */
     //@{
 
@@ -359,6 +375,8 @@ public:
     static inline uint16_t micTicks_ = 0;
     static inline uint16_t micAcc_ = 0;
     static inline uint8_t micSamples_ = 0;
+    static inline uint8_t recBuffer_[256];
+    static inline uint8_t recIndex_ = 0;
 
     static void startRecording() {
         // initialize ADC1
@@ -387,8 +405,34 @@ public:
 
     //@}
 
+
+    /** \name RGB LED
+     */
+    //@{
+
+    static inline NeopixelStrip<1> rgb_{RGB};
+
+    static void criticalBatteryWarning() {
+        gpio::output(RGB);
+        cpu::delay_ms(10);
+        for (int i = 0; i < 5; ++i) {
+            rgb_.fill(Color::Red());
+            rgb_.update();
+            cpu::delay_ms(100);
+            rgb_.fill(Color::Black());
+            rgb_.update();
+            cpu::delay_ms(100);
+        }
+        rgb_[0] = Color::Black();
+        rgb_.update();
+        gpio::input(RGB);
+    }
+
+    //@}
+
     static inline volatile struct {
         bool secondTick : 1;
+        bool recReady : 1;
     } flags_;
 
     static inline uint16_t ticks_ = 0; 
@@ -399,31 +443,83 @@ public:
 /** The RTC one second interval tick ISR. 
  */
 ISR(RTC_PIT_vect) {
+    ENTER_IRQ;
     RTC.PITINTFLAGS = RTC_PI_bm; // clear the interrupt
-    //state.time.secondTick();
-    //flags.secondTick = true;
     RCKid::flags_.secondTick = true;
+    LEAVE_IRQ;
 }
 
+/** Critical code, just accumulate the sampled value.
+ */
 ISR(ADC1_RESRDY_vect) {
-    gpio::high(9);
+    ENTER_IRQ;
     RCKid::micAcc_ += ADC1.RES;
-    ++RCKid::micSamples_;
-    gpio::low(9);
+    RCKid::micSamples_ += 4; // we do four samples per interrupt
+    LEAVE_IRQ;
 }
 
 ISR(TCB0_INT_vect) {
-    //gpio::high(9);
+    ENTER_IRQ;
     TCB0.INTFLAGS = TCB_CAPT_bm;
-    RCKid::micAcc_ = (RCKid::micSamples_ > 0) ? (RCKid::micAcc_ / RCKid::micSamples_) : 0;
-    //++RCKid::micTicks_;
-    RCKid::micTicks_ = RCKid::micSamples_;
+    RCKid::recBuffer_[RCKid::recIndex_++] = (RCKid::micSamples_ > 0) ? (RCKid::micAcc_ / RCKid::micSamples_) : 0;
+    RCKid::micAcc_ = 0;
     RCKid::micSamples_ = 0;
-    //gpio::low(9);
+    if (RCKid::recIndex_ % 32 == 0)
+        RCKid::flags_.recReady = true;
+    LEAVE_IRQ;
 }
 
-
-
+ISR(TWI0_TWIS_vect) {
+    #define I2C_DATA_MASK (TWI_DIF_bm | TWI_DIR_bm) 
+    #define I2C_DATA_TX (TWI_DIF_bm | TWI_DIR_bm)
+    #define I2C_DATA_RX (TWI_DIF_bm)
+    #define I2C_START_MASK (TWI_APIF_bm | TWI_AP_bm | TWI_DIR_bm)
+    #define I2C_START_TX (TWI_APIF_bm | TWI_AP_bm | TWI_DIR_bm)
+    #define I2C_START_RX (TWI_APIF_bm | TWI_AP_bm)
+    #define I2C_STOP_MASK (TWI_APIF_bm | TWI_DIR_bm)
+    #define I2C_STOP_TX (TWI_APIF_bm | TWI_DIR_bm)
+    #define I2C_STOP_RX (TWI_APIF_bm)
+    ENTER_IRQ;
+    uint8_t status = TWI0.SSTATUS;
+#ifdef TODO    
+    // sending data to accepting master is on our fastpath and is checked first, if there is more state to send, send next byte, otherwise go to transaction completed mode. 
+    if ((status & I2C_DATA_MASK) == I2C_DATA_TX) {
+        if (i2cBytesSent_ >= comms::I2C_PACKET_SIZE) {
+            i2cReadActual_ = reinterpret_cast<uint8_t*>(& state);
+            i2cBytesSent_ = 0;
+        }
+        TWI0.SDATA = i2cReadActual_[i2cBytesSent_++];
+        TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
+        //TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
+    // a byte has been received from master. Store it and send either ACK if we can store more, or NACK if we can't store more
+    } else if ((status & I2C_DATA_MASK) == I2C_DATA_RX) {
+        i2cBuffer_[i2cBytesRecvd_++] = TWI0.SDATA;
+        TWI0.SCTRLB = (i2cBytesRecvd_ == sizeof(i2cBuffer_)) ? TWI_SCMD_COMPTRANS_gc : TWI_SCMD_RESPONSE_gc;
+    // master requests slave to write data, reset the sent bytes counter, initialize the actual read address from the read start and reset the IRQ
+    } else if ((status & I2C_START_MASK) == I2C_START_TX) {
+        gpio::input(AVR_IRQ);
+        i2cBytesSent_ = 0;
+        i2cReadActual_ = i2cReadStart_;
+        TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
+        // If read start was one byte into the buffer, which we use for the chip info message buffer shared with bootloader, switch immediately to reading state in the next message
+        if (i2cReadStart_ == i2cBuffer_ + 1)
+            i2cReadStart_ = reinterpret_cast<uint8_t*>(& state);
+    // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise
+    } else if ((status & I2C_START_MASK) == I2C_START_RX) {
+        TWI0.SCTRLB = flags.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
+    // sending finished
+    } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
+        TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
+    // receiving finished, inform main loop we have message waiting
+    } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
+        TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
+        flags.i2cReady = true;
+    } else {
+        // error - a state we do not know how to handle
+    }
+#endif
+    LEAVE_IRQ;
+}
 
 #if (defined TEST_CLOCK) 
 

@@ -18,7 +18,7 @@ public:
     NeopixelStrip(gpio::Pin pin):
         pin_{pin},
         port_{portOutputRegister(digitalPinToPort(pin_))} {
-        pinMode(pin,OUTPUT);
+        //pinMode(pin,OUTPUT);
     }
 
     /** Updates the neopixels. 
@@ -143,11 +143,9 @@ public:
             : [port]   "e" (port_),
             [hi]     "r" (hi),
             [lo]     "r" (lo));
-
         #elif (F_CPU >= 9500000UL) && (F_CPU <= 11100000UL)
             /*
             volatile uint8_t n1, n2 = 0;  // First, next bits out
-
             */
             // 14 instruction clocks per bit: HHHHxxxxLLLLL
             // ST instructions:               ^   ^   ^   (T=0,4,7)

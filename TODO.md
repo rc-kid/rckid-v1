@@ -7,7 +7,7 @@
 ## BOM
 
 - M1.4 screws for thumbstick
-- black M2.5 screws for top 
+- black M2.5 screws for top
 - extra mosfet switches (if available)
 - extra buffers (if available)
 
@@ -16,8 +16,6 @@
 
 - VERIFY THE CURRENT PINOUT, THEN UPDATE SCHEMATICS & LAYOUT ACCORDINGLY!!!!!
 - make mic reading faster, offload publishing from timer so that we get more reliable audio sampling
-- check pwm channels 
-- check buttons
 - fix VCC and temp calculation
 - verify we can still control neopixel
 
