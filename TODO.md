@@ -17,7 +17,6 @@
 - VERIFY THE CURRENT PINOUT, THEN UPDATE SCHEMATICS & LAYOUT ACCORDINGLY!!!!!
 - make mic reading faster, offload publishing from timer so that we get more reliable audio sampling
 - fix VCC and temp calculation
-- verify we can still control neopixel
 
 ## PCB
 

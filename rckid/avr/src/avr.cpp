@@ -423,8 +423,6 @@ public:
             rgb_.update();
             cpu::delay_ms(100);
         }
-        rgb_[0] = Color::Black();
-        rgb_.update();
         gpio::input(RGB);
     }
 
