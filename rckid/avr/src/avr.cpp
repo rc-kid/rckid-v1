@@ -90,6 +90,9 @@ public:
         gpio::input(RPI_POWEROFF);
         gpio::output(BACKLIGHT);
         gpio::output(VIB_EN);
+        // enable BTN_HOME interrupt and internal pull-up, invert the pin's value so that we read the button nicely
+        static_assert(BTN_HOME == 13); // PC3
+        PORTC.PIN3CTRL |= PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm | PORT_INVEN_bm;
         // initialize the ADC connected pins for better performance (turn of pullups, digital I/O, etc.)
         static_assert(VBATT == 0); // PA4
         PORTA.PIN4CTRL &= ~PORT_ISC_gm;
@@ -141,13 +144,12 @@ public:
         i2c::initializeMaster();
         display.initialize128x32();
         display.clear32();
-        display.write(0, 0, "Ticks: ");
-        display.write(0, 1, "VCC:   ");
-        display.write(0, 2, "Temp:  ");
-        display.write(0, 3, "VBatt: ");
-        display.write(64, 0, "8kHz: ");
-        display.write(64, 1, "B1:   ");
-        display.write(64, 2, "B2:   ");
+        display.write(0, 0, "Ticks:");
+        display.write(0, 1, "VCC: ");
+        display.write(0, 2, "Temp:");
+        display.write(0, 3, "VBatt:");
+        display.write(64, 0, "8kHz:");
+        display.write(64, 1, "BTNS:");
 
 #endif
         //gpio::output(RGB);
@@ -168,6 +170,10 @@ public:
         }
         if (flags_.secondTick)
             secondTick();
+        if (flags_.btnHome) {
+            flags_.btnHome = false;
+            display.write(64 + 51, 1, gpio::read(BTN_HOME));
+        }
     }
 
     static void secondTick() {
@@ -331,7 +337,7 @@ public:
         //display.write(35, 2, temp_, ' ');
         //display.write(35, 3, vBatt_, ' ');
         display.write(64 + 35, 1, btns1);
-        display.write(64 + 35, 2, btns2);
+        display.write(64 + 43, 1, btns2);
 #endif
     }
 
@@ -431,12 +437,22 @@ public:
     static inline volatile struct {
         bool secondTick : 1;
         bool recReady : 1;
+        bool btnHome : 1;
     } flags_;
 
     static inline uint16_t ticks_ = 0; 
 
 
 }; // RCKid
+
+/** BTN_HOME
+ */
+ISR(PORTC_PORT_vect) {
+    ENTER_IRQ;
+    VPORTC.INTFLAGS |= (1 << 3); // PC3
+    RCKid::flags_.btnHome = true;
+    LEAVE_IRQ;
+}
 
 /** The RTC one second interval tick ISR. 
  */
