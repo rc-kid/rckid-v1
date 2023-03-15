@@ -49,7 +49,7 @@ SSD1306 display;
 
     `TCA0` is used in split mode to generate PWM signals for the rumbler and screen backlight. 
 
-    `TWI` (I2C) is used to talk to the RPi. When AVR wants attention, the AVR_IRQ pin is pulled low (otherwise it is left floating as RPI pulls it high). A fourth wire, RPI_POWEROFF is used to notify the AVR that RPi's power can be safely shut down. 
+    `TWI` (I2C) is used to talk to the RPi. When AVR wants attention, the AVR_IRQ pin is pulled low (otherwise it is left floating as RPI pulls it high). A fourth wire, RPI_POWEROFF is used to notify the AVR that RPi's power can be safely shut down. As per the gpio-poweroff overlay, once RPI is ready to be shutdown, it will drive the pin high for 100ms, then low and then high again. Shutdown is possible immediately after the pin goes up. 
 
     `RPI_EN` must be pulled high to cut the power to RPI, Radio, screen, light sensor, thumbstick and rumbler off. The power is on by default (pulled low externally) so that RPi can be used to re-program the AVR via I2C and to ensure that RPi survives any possible AVR crashes. 
 
@@ -187,6 +187,20 @@ public:
 
         ticks_ = 0;
     }
+
+
+    /** \name Power On/Off routines 
+     
+        `PoweringDown`
+
+        In this state the the RPi is powering itself down. We are waiting for high on the RPI_POWEROFF pin after which we can cut power to the RPi by driving the RPI_EN pin high and then going to sleep. 
+     
+    */
+    //@{
+
+
+
+    //}@
 
     /** \name ADC0 and ticks 
 

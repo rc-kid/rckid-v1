@@ -9,6 +9,21 @@ namespace comms2 {
 
     static constexpr uint8_t I2C_PACKET_SIZE = 32;
 
+    /** States the RCKid can be in. 
+
+        Upon power-up we enter the `PoweringUp` state, in which 
+     */
+    enum class State {
+        PoweringUp,
+        On,
+        PoweringDown,
+        PoweringDownTorch, 
+        Torch,
+        Sleeping, 
+    }; // comms::State
+
+
+
     /** The AVR status. 
      
      */

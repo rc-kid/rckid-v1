@@ -20,6 +20,7 @@
 
 ## PCB
 
+- transorb should be before the charger for protection (!) 
 - mic amplification is too great, 51k seems to do the trick
 - check if 1M pull-down resistor can be used for rpi power
 - ferrite beads are 1206, should be 0805, but now can also stay 1206
