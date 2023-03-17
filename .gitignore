@@ -3,3 +3,6 @@ sdk
 */.vscode/*
 */.pio/*
 OLD
+*.dch~
+*.dip~
+

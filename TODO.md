@@ -1,8 +1,14 @@
 # RCKid
 
 - update JOYCON connector (!!)
+
+# Questions
+
+- transient voltage protection, which one to get?
 - which antenna to buy? 
 - how can screen brightness flicker in low battery mode be minimized? 
+- pcb design ideas?
+- mic amp ideas?
 
 ## BOM
 
@@ -14,8 +20,6 @@
 
 # AVR
 
-- VERIFY THE CURRENT PINOUT, THEN UPDATE SCHEMATICS & LAYOUT ACCORDINGLY!!!!!
-- make mic reading faster, offload publishing from timer so that we get more reliable audio sampling
 - fix VCC and temp calculation
 
 ## PCB
