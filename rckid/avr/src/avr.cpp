@@ -90,8 +90,8 @@ public:
         gpio::input(RGB_EN);
         gpio::input(BTN_HOME);
         gpio::input(RGB);
-        gpio::output(BACKLIGHT);
-        gpio::output(VIB_EN);
+        gpio::input(BACKLIGHT); // do not leak voltage
+        gpio::input(VIB_EN); // do not leak voltage
         // enable BTN_HOME interrupt and internal pull-up, invert the pin's value so that we read the button nicely
         static_assert(BTN_HOME == 13); // PC3
         PORTC.PIN3CTRL |= PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm | PORT_INVEN_bm;
@@ -134,20 +134,21 @@ public:
         RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc | RTC_PITEN_bm;
         // initialize TCB1 for a 1ms interval so that we can have a millisecond timer for the user interface (can't use cpu::delay_ms as arduino's default implementation uses own timers)
         TCB1.CTRLB = TCB_CNTMODE_INT_gc;
-        TCB1.CCMP = 78; // for 1kHz, 1ms interval
+        TCB1.CCMP = 5000; // for 1kHz, 1ms interval
         TCB1.INTCTRL = 0;
         TCB1.CTRLA = TCB_CLKSEL_CLKDIV2_gc | TCB_ENABLE_bm;
         // initialize TCA for the backlight and rumbler PWM without turning it on, remeber that for the waveform generator to work on the respective pins, they must be configured as output pins (!)
         TCA0.SPLIT.CTRLD = TCA_SPLIT_SPLITM_bm; // enable split mode
-        TCA0.SPLIT.CTRLB = TCA_SPLIT_LCMP0EN_bm | TCA_SPLIT_HCMP0EN_bm; // enable W0 and W3 outputs on pins
-        TCA0.SPLIT.LCMP0 = 64; // backlight at 1/4
-        TCA0.SPLIT.HCMP0 = 128; // rumbler at 1/2
+        TCA0.SPLIT.CTRLB = 0;    
+        //TCA0.SPLIT.CTRLB = TCA_SPLIT_LCMP0EN_bm | TCA_SPLIT_HCMP0EN_bm; // enable W0 and W3 outputs on pins
+        //TCA0.SPLIT.LCMP0 = 64; // backlight at 1/4
+        //TCA0.SPLIT.HCMP0 = 128; // rumbler at 1/2
         TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc | TCA_SPLIT_ENABLE_bm; 
         // initialize the I2C in alternate position
         PORTMUX.CTRLB |= PORTMUX_TWI0_bm;
 #if (!defined TEST_I2C_DISPLAY)
         // initalize the i2c slave with our address
-        i2c::initializeSlave(comms::AVR_I2C_ADDRESS);
+        i2c::initializeSlave(AVR_I2C_ADDRESS);
 #else
         i2c::initializeMaster();
         display.initialize128x32();
@@ -161,6 +162,7 @@ public:
         adcStart();
         //startRecording();
         sei();
+        rumblerFail();
         criticalBatteryWarning();
         *((uint8_t*)(&flags_)) = 0;
         // TODO change to powerup
@@ -223,12 +225,14 @@ public:
         flags_.secondTick = false;
         state_.time.secondTick();
 #if (defined TEST_I2C_DISPLAY)
-        display.write(0, 0, state_.time.hour(), '0');
-        display.write(24, 0, state_.time.minute(), '0');
-        display.write(48, 0, state_.time.second(), '0');
-        display.write(35, 1, state_.einfo.vcc(), ' ');
-        display.write(35, 2, state_.einfo.temp(), ' ');
-        display.write(35, 3, state_.einfo.vbatt(), ' ');
+        display.writeNumber(0, 0, state_.time.hour(), 2, '0');
+        display.writeNumber(15, 0, state_.time.minute(), 2, '0');
+        display.writeNumber(30, 0, state_.time.second(), 2, '0');
+        if (state_.status.mode() != Mode::Sleep) {
+            display.write(35, 1, state_.einfo.vcc(), ' ');
+            display.write(35, 2, state_.einfo.temp(), ' ');
+            display.write(35, 3, state_.einfo.vbatt(), ' ');
+        }
 #endif
     }
 
@@ -301,17 +305,20 @@ public:
 #endif
         // enable the ADC but instead of real ticks, just measure the VCC 10 times making sure that it never gets below the critical battery threshold
         adcStart();
+        int bad = 0;
         for (uint8_t i = 0; i < 10; ++i) {
-            while (! ADC0.INTFLAGS & ADC_RESRDY_bm);
+            while (! (ADC0.INTFLAGS & ADC_RESRDY_bm));
             uint16_t vcc = ADC0.RES / 64;
             vcc = 110 * 512 / vcc;
             vcc = vcc * 2;
-            if (vcc <= BATTERY_THRESHOLD_CRITICAL) {
-                ADC0.CTRLA = 0;
-                criticalBatteryWarning();
-                return false;
-            }
+            if (vcc <= BATTERY_THRESHOLD_CRITICAL)
+                ++bad;
             ADC0.COMMAND = ADC_STCONV_bm;
+        }
+        // only fail to start if the voltage is really low. 
+        if (bad > 3) {
+            criticalBatteryWarning();
+            return false;
         }
         // we have ok voltage, turn on the rpi and get ready for normal operation, set the timer for the long power button press
         gpio::input(RPI_EN);
@@ -606,6 +613,74 @@ public:
     }
 
     static void processCommand() {
+        using namespace msg;
+        switch (i2cBuffer_[0]) {
+            // nothing, as expected
+            case Nop::ID: {
+                break;
+            }
+            // resets the chip
+            case AvrReset::ID: {
+                _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
+                // unreachable here
+            }
+            // sends the information about the chip in the same way the bootloader does
+            case msg::Info::ID:
+                // TODO
+                break;
+
+            case msg::StartAudioRecording::ID: {
+                // TODO
+                //audio::startRecording();
+                break;
+            }
+            case msg::StopAudioRecording::ID: {
+                // TODO
+                //audio::stopRecording();
+                break;
+            }
+
+
+            case SetBrightness::ID: {
+                auto & m = SetBrightness::fromBuffer(i2cBuffer_);
+                state_.einfo.setBrightness(m.value);
+                setBacklight(m.value);
+                break;
+            }
+
+            case SetTime::ID: {
+                auto & m = SetTime::fromBuffer(i2cBuffer_);
+                state_.time = m.value;
+                break;
+            }
+            case SetAlarm::ID: {
+                auto & m = SetAlarm::fromBuffer(i2cBuffer_);
+                state_.alarm = m.value;
+                break;
+            }
+
+            case RumblerOk::ID: {
+                rumblerOk();
+                break;
+            }
+
+            case RumblerFail::ID: {
+                rumblerFail();
+                break;
+            }
+
+            case Rumbler::ID: {
+                auto & m = Rumbler::fromBuffer(i2cBuffer_);
+                setRumbler(m.intensity);
+                // TODO deal with the timeout
+                break;
+            }
+
+            case PowerDown::ID: {
+                // TODO
+            }
+
+        }
 
         // be ready for next command to be received
         i2cBufferIdx_ = 0;
@@ -636,8 +711,9 @@ public:
     static void setBacklight(uint8_t value) {
         if (value == 0) { // turn off
             TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP0EN_bm;
-            gpio::low(BACKLIGHT); // TODO or is this active low? 
+            gpio::input(BACKLIGHT);
         } else {
+            gpio::output(BACKLIGHT);
             TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP0EN_bm;
             TCA0.SPLIT.LCMP0 = value;
         }
@@ -646,16 +722,17 @@ public:
     static void setRumbler(uint8_t value) {
         if (value == 0) { // turn off
             TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_HCMP0EN_bm;
-            gpio::low(VIB_EN); // TODO or is this active low? 
+            gpio::input(VIB_EN);
         } else {
+            gpio::output(VIB_EN);
             TCA0.SPLIT.CTRLB |= TCA_SPLIT_HCMP0EN_bm;
-            TCA0.SPLIT.HCMP0 = value;
+            TCA0.SPLIT.HCMP0 = 255 - value;
         }
     }
 
     static void rumblerOk() {
         setRumbler(128);
-        delayMs(500);
+        delayMs(750);
         setRumbler(0);
     }
 
@@ -664,7 +741,7 @@ public:
             setRumbler(255);
             delayMs(100);
             setRumbler(0);
-            delayMs(100);
+            delayMs(230);
         }
     }
 
@@ -802,7 +879,6 @@ void setup() {
 
 void loop() {
     RCKid::loop();
-
 }
 
 #endif

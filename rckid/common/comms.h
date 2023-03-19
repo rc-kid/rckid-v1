@@ -237,7 +237,97 @@ namespace comms {
 
 } // namespace comms
 
+/** \name Messages
+ 
+    The AVR and RPi communicate with each other via typed messages whose kinds and payloads are defined below. All messages have automatically assigned id numbers. As a side-effect the avr and rpi versions must be identical or the message ids may differ, which would lead to problems. 
+ */
 
+#define MESSAGE(NAME, ...) \
+    class NAME : public msg::MessageHelper<NAME> { \
+    public: \
+        static uint8_t constexpr ID = __COUNTER__ - COUNTER_OFFSET; \
+        static NAME const & fromBuffer(uint8_t const * buffer) { return * reinterpret_cast<NAME const *>(buffer); } \
+        __VA_ARGS__ \
+    } __attribute__((packed))
+
+namespace msg {
+
+    class Message {
+    public:
+        uint8_t const id;
+
+        /*
+        template<typename T> T const & fromBuffer(uint8_t const * buffer) {
+            return * reinterpret_cast<T const *>(buffer);
+        } */
+
+    protected:
+        Message(uint8_t id): id{id} {}
+        static int constexpr COUNTER_OFFSET = __COUNTER__ + 1;
+    };
+
+    template<typename T> class MessageHelper : public Message {
+    public:
+        MessageHelper():Message{T::ID} {}
+    }; // MessageHelper<T>
+
+    /** First message is NOP. This is for compatibility with the bootloader where message 0x00 is reserved. 
+     */
+    MESSAGE(Nop);
+    static_assert(Nop::ID == 0);
+
+    /** Causes the reset of the AVR chip. 
+     
+        Useful for debugging and programming via the I2C interface. Reset in the AVR mode is the same as in the bootloader. 
+     */
+    MESSAGE(AvrReset);
+    static_assert(AvrReset::ID == 1);
+
+    /** Returns the chip information. This is identical to the bootloader and can be used to get chip information after it has been programmed. 
+     */
+    MESSAGE(Info);
+    static_assert(Info::ID == 2);
+
+    MESSAGE(StartAudioRecording);
+    MESSAGE(StopAudioRecording);
+
+    /** Sets the brightness of the TFT screen. 
+     */
+    MESSAGE(SetBrightness,
+        uint8_t value;
+        SetBrightness(uint8_t value): value{value} {}
+    );
+
+    MESSAGE(SetTime, 
+        DateTime value;
+        SetTime(DateTime value): value{value} {}
+    );
+
+    MESSAGE(SetAlarm, 
+        DateTime value;
+        SetAlarm(DateTime value): value{value} {}
+    );
+
+    MESSAGE(RumblerOk);
+    MESSAGE(RumblerFail);
+    MESSAGE(Rumbler,
+        uint8_t intensity;
+        uint16_t duration;
+        Rumbler(uint8_t intensity, uint16_t duration): intensity{intensity}, duration{duration} {}
+    );
+
+    /** Powers the raspberry pi off and moves the avr into a standby state. 
+     
+        The poweroff is not immediate since RPI must 
+     */
+    MESSAGE(PowerDown);
+
+
+
+} // namespace msg
+
+
+#undef MESSAGE
 
 
 

@@ -10,6 +10,8 @@
 #endif
 
 /** Missing features of the standard library. 
+ 
+    Extending the std namespace is undefined behavior, but it works...
  */
 namespace std {
     template<typename T1, typename T2>
@@ -25,6 +27,14 @@ namespace std {
         return pair<T1, T2>{first, second};
     }
 
+}
+
+template<typename T>
+T pow(T base, uint8_t exp) {
+    T result = 1;
+    while (exp-- != 0) 
+        result *= base;
+    return result;
 }
 
 class cpu {

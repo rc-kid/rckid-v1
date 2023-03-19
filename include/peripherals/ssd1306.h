@@ -86,7 +86,16 @@ public:
         If the fill character is '\0' (default), the number will be left-justified, if ' ' it will be right justified, '0' will print all leading zeros as well. 
      */
     void write(uint16_t x, char fill = '\0') {
-        for (uint16_t i = 10000; i > 0; i = i / 10) {
+        writeNumber(x, 5, fill);
+    }
+
+    void write(uint8_t col, uint8_t row, uint16_t x, char fill = '\0') {
+        gotoXY(col, row);
+        writeNumber(x, 5, fill);
+    }
+
+    void writeNumber(uint16_t x, uint8_t digits, char fill = '\0') {
+        for (uint16_t i = pow(10, digits - 1); i > 0; i = i / 10) {
             if (x > i || i == 1) {
                 writeChar((x / i) + '0');
                 fill = '0';
@@ -97,10 +106,11 @@ public:
         }
     }
 
-    void write(uint8_t col, uint8_t row, uint16_t x, char fill = '\0') {
+    void writeNumber(uint8_t col, uint8_t row, uint16_t n, uint8_t digits, char fill = '\0') {
         gotoXY(col, row);
-        write(x, fill);
+        writeNumber(n, digits, fill);
     }
+
 
 
 private:
