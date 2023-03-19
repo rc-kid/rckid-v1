@@ -113,7 +113,10 @@ public:
         TWI0.MCTRLA = 0;
         TWI0.SCTRLA = 0;
         // make sure that the pins are nout out - HW issue with the chip, will fail otherwise
-        PORTB.OUTCLR = 0x03; // PB0, PB1
+        if (PORTMUX.CTRLB | PORTMUX_TWI0_bm)
+            PORTA.OUTCLR = 0x06; // PA1, PA2
+        else
+            PORTB.OUTCLR = 0x03; // PB0, PB1
         uint32_t baud = ((F_CPU/400000) - (((F_CPU* /* rise time */300)/1000)/1000)/1000 - 10)/2;
         TWI0.MBAUD = (uint8_t)baud;
         TWI0.MCTRLA = TWI_ENABLE_bm;         
@@ -132,7 +135,10 @@ public:
         TWI0.MCTRLA = 0;
         TWI0.SCTRLA = 0;
         // make sure that the pins are nout out - HW issue with the chip, will fail otherwise
-        PORTB.OUTCLR = 0x03; // PB0, PB1
+        if (PORTMUX.CTRLB | PORTMUX_TWI0_bm)
+            PORTA.OUTCLR = 0x06; // PA1, PA2
+        else
+            PORTB.OUTCLR = 0x03; // PB0, PB1
         // set the address and disable general call, disable second address and set no address mask (i.e. only the actual address will be responded to)
         TWI0.SADDR = address << 1;
         TWI0.SADDRMASK = 0;

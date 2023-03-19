@@ -8,6 +8,9 @@
 #include "peripherals/neopixel.h"
 
 
+using namespace comms;
+
+
 /** DEBUG: A very simple test that just makes the clock frequencies observable. It is not to be used when AVR is soldered on the RCKid board as it enables the CLKOUT on PB5 and reconfigures other pins. 
  */
 #define TEST_CLOCK_
@@ -73,7 +76,7 @@ public:
     static constexpr gpio::Pin SDA = 14; // I2C alternate
     static constexpr gpio::Pin BTN_HOME = 13; // digital
     static constexpr gpio::Pin RGB = 12; // digital
-    static constexpr gpio::Pin RPI_POWEROFF = 11; // digital input
+    static constexpr gpio::Pin RPI_POWEROFF = 11; // analog input, ADC1 channel 7
     static constexpr gpio::Pin AVR_IRQ = 10; // digital 
     static constexpr gpio::Pin BACKLIGHT = 9; // TCA W0
 
@@ -87,7 +90,6 @@ public:
         gpio::input(RGB_EN);
         gpio::input(BTN_HOME);
         gpio::input(RGB);
-        gpio::input(RPI_POWEROFF);
         gpio::output(BACKLIGHT);
         gpio::output(VIB_EN);
         // enable BTN_HOME interrupt and internal pull-up, invert the pin's value so that we read the button nicely
@@ -122,10 +124,19 @@ public:
         PORTB.PIN1CTRL &= ~PORT_ISC_gm;
         PORTB.PIN1CTRL |= PORT_ISC_INPUT_DISABLE_gc;
         PORTB.PIN1CTRL &= ~PORT_PULLUPEN_bm;
+        static_assert(RPI_POWEROFF == 11); // PC1
+        PORTC.PIN1CTRL &= ~PORT_ISC_gm;
+        PORTC.PIN1CTRL |= PORT_ISC_INPUT_DISABLE_gc;
+        PORTC.PIN1CTRL &= ~PORT_PULLUPEN_bm;
         // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
         RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
         RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
         RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc | RTC_PITEN_bm;
+        // initialize TCB1 for a 1ms interval so that we can have a millisecond timer for the user interface (can't use cpu::delay_ms as arduino's default implementation uses own timers)
+        TCB1.CTRLB = TCB_CNTMODE_INT_gc;
+        TCB1.CCMP = 78; // for 1kHz, 1ms interval
+        TCB1.INTCTRL = 0;
+        TCB1.CTRLA = TCB_CLKSEL_CLKDIV2_gc | TCB_ENABLE_bm;
         // initialize TCA for the backlight and rumbler PWM without turning it on, remeber that for the waveform generator to work on the respective pins, they must be configured as output pins (!)
         TCA0.SPLIT.CTRLD = TCA_SPLIT_SPLITM_bm; // enable split mode
         TCA0.SPLIT.CTRLB = TCA_SPLIT_LCMP0EN_bm | TCA_SPLIT_HCMP0EN_bm; // enable W0 and W3 outputs on pins
@@ -133,9 +144,6 @@ public:
         TCA0.SPLIT.HCMP0 = 128; // rumbler at 1/2
         TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc | TCA_SPLIT_ENABLE_bm; 
         // initialize the I2C in alternate position
-        // make sure that SDA and SCL pins are not out - HW issue with the chip, will fail otherwise
-        PORTA.OUTCLR = 0x06; // PA1, PA2
-        // switch to the I2C to the alternate pins
         PORTMUX.CTRLB |= PORTMUX_TWI0_bm;
 #if (!defined TEST_I2C_DISPLAY)
         // initalize the i2c slave with our address
@@ -144,52 +152,106 @@ public:
         i2c::initializeMaster();
         display.initialize128x32();
         display.clear32();
-        display.write(0, 0, "Ticks:");
+        display.write(0, 0, "  :  :");
         display.write(0, 1, "VCC: ");
         display.write(0, 2, "Temp:");
         display.write(0, 3, "VBatt:");
-        display.write(64, 0, "8kHz:");
-        display.write(64, 1, "BTNS:");
-
 #endif
         //gpio::output(RGB);
-
-
-
         adcStart();
-        startRecording();
+        //startRecording();
         sei();
         criticalBatteryWarning();
+        *((uint8_t*)(&flags_)) = 0;
+        // TODO change to powerup
+        state_.status.setMode(Mode::On);
+        gpio::output(RGB);
+        cpu::delay_ms(10);
+        rgb_.fill(Color::Black());
+        rgb_.update(true);
+        gpio::input(RGB);
+
     }
 
     static void loop() {
-        if (adcReady()) {
-            //gpio::high(9);
-            tick();
-            //gpio::low(9);
+        switch (state_.status.mode()) {
+            // all the sleep logic is in the sleep function, we simply call it from the main loop here
+            case Mode::Sleep:
+                sleep();
+                break;
+            // we have to check two things during the wake up mode, if the home button has been released before the timeout, then this was fake wakeup, and we go to powering down mode immediately. If the timeout has been reached, it means the pres was long enough and we switch to PowerUp mode
+            case Mode::WakeUp:
+                if (flags_.countdownTimeout)
+                    powerUp();
+                else if (flags_.btnHome)
+                    powerDown();
+                break;
+            // monitor the timeout flag, if triggered, then RPi failed to start properly in the specified time and we must react
+            case Mode::PowerUp:
+                if (flags_.countdownTimeout)
+                    forceRPIRestart();
+                break;
+            // in power on, monitor the ping timeout, if triggered, do a RPI restart.  
+            case Mode::On:
+                // TODO
+                if (flags_.btnHome && gpio::read(BTN_HOME))
+                    powerDown();
+                break;
+            // in power down, monitor the RPI_POWEROFF line to see when it gets high and so its safe to turn the RPi off. If the timeout is triggered, force power off.  
+            case Mode::PowerDown:
+                if (ADC1.INTFLAGS & ADC_RESRDY_bm) {
+                    if ((ADC1.RES / 64) >= 150) // > 2.9V at 5V VCC, or > 1.9V at 3V3, should be enough including some margin
+                        state_.status.setMode(Mode::Sleep);
+                    else
+                        ADC1.COMMAND = ADC_STCONV_bm;
+                }
+                // TODO keep the error somewhere or some such
+                if (flags_.countdownTimeout)
+                    state_.status.setMode(Mode::Sleep);
+                break;
         }
+        // in all modes, process any received I2C commands, ADC0 results and check second tick flag. If the ADC goes full circle, perform tick as well
+        if (flags_.i2cReady)
+            processCommand();
+        if (adcReady())
+            tick();
         if (flags_.secondTick)
             secondTick();
-        if (flags_.btnHome) {
-            flags_.btnHome = false;
-            display.write(64 + 51, 1, gpio::read(BTN_HOME));
-        }
     }
 
     static void secondTick() {
         flags_.secondTick = false;
-    #if (defined TEST_I2C_DISPLAY)
-        display.write(35, 0, ticks_, ' ');
-        display.write(64 + 35, 0, micTicks_, ' ');
-        micTicks_ = 0;
-    #endif
-
-
-        ticks_ = 0;
+        state_.time.secondTick();
+#if (defined TEST_I2C_DISPLAY)
+        display.write(0, 0, state_.time.hour(), '0');
+        display.write(24, 0, state_.time.minute(), '0');
+        display.write(48, 0, state_.time.second(), '0');
+        display.write(35, 1, state_.einfo.vcc(), ' ');
+        display.write(35, 2, state_.einfo.temp(), ' ');
+        display.write(35, 3, state_.einfo.vbatt(), ' ');
+#endif
     }
 
 
-    /** \name Power On/Off routines 
+    /** Clears the timeout flag and sets a new timeout value. 
+     */
+    static void setTimeout(uint16_t value) {
+        flags_.countdownTimeout = false;
+        countdownTicks_ = value;
+    }
+
+    /** Busy delays the given amount of milliseconds using the otherwise unused TCB1. 
+     */
+    static void delayMs(uint16_t value) {
+        while (value > 0) {
+            while (! TCB1.INTFLAGS & TCB_CAPT_bm);
+            TCB1.INTFLAGS |= TCB_CAPT_bm;
+            --value;
+        }
+    }
+
+
+    /** \name State Transitions 
      
         `PoweringDown`
 
@@ -198,6 +260,108 @@ public:
     */
     //@{
 
+    /** Cuts power to the RPi and all other peripherals and puts the AVR to sleep. 
+     */
+    static void sleep() {
+#if (defined TEST_I2C_DISPLAY)
+        display.write(64, 1, "SLEEP");
+#endif
+        // cut power to RPI
+        gpio::output(RPI_EN);
+        gpio::high(RPI_EN);
+        // cut power to the RGB
+        gpio::input(RGB_EN);
+        // turn of ADCs
+        ADC1.CTRLA = 0;
+        ADC0.CTRLA = 0;
+        // TODO turn off backlight & rumbler
+
+#if (defined TEST_I2C_DISPLAY)
+        display.clear32();
+#endif
+        while (true) {
+            wdt::disable();
+            cpu::sleep();
+            if (flags_.secondTick)
+                secondTick();
+            if (flags_.btnHome && gpio::read(BTN_HOME)) {
+                flags_.btnHome = false;
+                if (wakeUp())
+                    break;
+            }
+        }
+        // when we get here, we are leaving the power down mode
+    }
+
+    /** Enters the WakeUp state. Called when BTN_HOME is pressed in Sleep state. 
+     */
+    static bool wakeUp() {
+#if (defined TEST_I2C_DISPLAY)
+        display.write(64, 1, "WAKE_UP");
+#endif
+        // enable the ADC but instead of real ticks, just measure the VCC 10 times making sure that it never gets below the critical battery threshold
+        adcStart();
+        for (uint8_t i = 0; i < 10; ++i) {
+            while (! ADC0.INTFLAGS & ADC_RESRDY_bm);
+            uint16_t vcc = ADC0.RES / 64;
+            vcc = 110 * 512 / vcc;
+            vcc = vcc * 2;
+            if (vcc <= BATTERY_THRESHOLD_CRITICAL) {
+                ADC0.CTRLA = 0;
+                criticalBatteryWarning();
+                return false;
+            }
+            ADC0.COMMAND = ADC_STCONV_bm;
+        }
+        // we have ok voltage, turn on the rpi and get ready for normal operation, set the timer for the long power button press
+        gpio::input(RPI_EN);
+        setTimeout(BTN_HOME_POWERON_PRESS);
+        state_.status.setMode(Mode::WakeUp);
+        // and return success;
+        return true; 
+    }
+
+    /** Enters the PowerUp mode. Fire the rumbler to signal we are powering on and set the timeout for the power up seuence. */
+    static void powerUp() {
+#if (defined TEST_I2C_DISPLAY)
+        display.write(64, 1, "POWER_UP");
+#endif
+        rumblerOk();
+        flags_.countdownTimeout = false;
+        setTimeout(RPI_POWERUP_TIMEOUT);
+        state_.status.setMode(Mode::PowerUp);
+    }
+
+    /** Enters the powering down mode. Turns on ADC1 on the RPI_POWEROFF pin where we wait for 3V3 high signal that informs the AVR that it can cut RPi's power safely. 
+     */
+    static void powerDown() {
+#if (defined TEST_I2C_DISPLAY)
+        display.write(64, 1, "POWER_DOWN");
+#endif
+        setTimeout(RPI_POWERDOWN_TIMEOUT);
+        state_.status.setMode(Mode::PowerDown);
+        // start ADC1 in normal mode, read RPI_POWEROFF pin, start the conversion
+        ADC1.CTRLB = ADC_SAMPNUM_ACC64_gc; 
+        ADC1.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm;
+        ADC1.CTRLD = ADC_INITDLY_DLY32_gc;
+        ADC1.SAMPCTRL = 0;
+        ADC1.INTCTRL = 0; // no interrupts
+        ADC1.MUXPOS = ADC_MUXPOS_AIN7_gc;
+        ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc;
+        ADC1.COMMAND = ADC_STCONV_bm;
+    }
+
+    /** Restarts the RPI*/
+    static void forceRPIRestart() {
+        // turn off RPI
+        gpio::output(RPI_EN);
+        gpio::high(RPI_EN);
+        // inform user
+        rumblerFail();
+
+        // turn rpi on, enter the PowerOn phase 
+
+    }
 
 
     //}@
@@ -222,6 +386,8 @@ public:
      */
     //@{
 
+    static inline uint16_t countdownTicks_ = 0; 
+
     static inline uint16_t vcc_;
     static inline uint16_t temp_;
     static inline uint16_t vBatt_;
@@ -234,6 +400,9 @@ public:
     /** Starts the measurements on ADC0. 
     */
     static void adcStart() {
+        // voltage reference to 1.1V (internal for the temperature sensor)
+        VREF.CTRLA &= ~ VREF_ADC0REFSEL_gm;
+        VREF.CTRLA |= VREF_ADC0REFSEL_1V1_gc;
         // delay 32us and sampctrl of 32 us for the temperature sensor, do averaging over 64 values, full precission
         ADC0.CTRLB = ADC_SAMPNUM_ACC64_gc;
         ADC0.MUXPOS = ADC_MUXPOS_INTREF_gc;
@@ -312,9 +481,18 @@ public:
     /** Called when the ADC cycles through all its measurements. Tick calculates the input controls and other ADC measurements and determines whether the RPi should be notified by the AVR_IRQ if there is a change. The function also performs more complex post processing to make sure the ADC is restarted as quickly as possible in the adcReady() function so that we do not waste cycles as the tick() function runs when the ADC is already busy.
      */
     static void tick() {
+        // check the timeout, measured in ticks
+        if (countdownTicks_ > 0 && --countdownTicks_ == 0)
+            flags_.countdownTimeout = true;
         // convert vcc reading to voltage
         vcc_ = 110 * 512 / vcc_;
         vcc_ = vcc_ * 2;
+        state_.einfo.setVcc(vcc_);
+        // convert the battery reading to voltage. The battery reading is relative to vcc, which we already have
+        // TODO will this work? when we run on batteries, there might be a voltage drop on the switch? 
+        vBatt_ = vBatt_ * 64; 
+        // TODO
+        state_.einfo.setVBatt(vBatt_);
         // convert temperature reading to temperature, the code is taken from the ATTiny datasheet example
         int8_t sigrow_offset = SIGROW.TEMPSENSE1; 
         uint8_t sigrow_gain = SIGROW.TEMPSENSE0;
@@ -324,28 +502,25 @@ public:
         t -= 69926;
         // and now loose precision to 0.5C (x10, i.e. -15 = -1.5C)
         temp_ = (t >>= 7) * 5;
-        // TODO
-        // convert battery reading to voltage. The battery reading is relative to VCC
-        // TODO will this work? when we run on batteries, there might be a voltage drop on the switch? 
-        // convert charge to digital 
-        // decode BTNS_1
+        state_.einfo.setTemp(temp_);
+        // get the events and controls and determine wherther to raise IRQ
+        bool irq = false;
+        irq = state_.status.setCharging(charge_ < 32) | irq;
+        irq = state_.status.setUsb(vcc_ >= VCC_THRESHOLD_VUSB) | irq;
+        irq = state_.status.setLowBatt(vcc_ <= BATTERY_THRESHOLD_LOW) | irq; 
+        // decode the buttons and set the controls
+        // TODO debounce? 
         uint8_t btns1 = decodeAnalogButtons(btns1_);
-        // decode BTNS_2
         uint8_t btns2 = decodeAnalogButtons(btns2_);
-        // update the thumbstick position 
-                /*
-                // taken from the ATTiny datasheet example
-                int8_t sigrow_offset = SIGROW.TEMPSENSE1; 
-                uint8_t sigrow_gain = SIGROW.TEMPSENSE0;
-                int32_t temp = value - sigrow_offset; // Result might overflow 16 bit variable (10bit+8bit)
-                temp *= sigrow_gain;
-                // temp is now in kelvin range, to convert to celsius, remove -273.15 (x256)
-                temp -= 69926;
-                // and now loose precision to 0.5C (x10, i.e. -15 = -1.5C)
-                temp = (temp >>= 7) * 5;
-                state.estatus.setTemp(temp);
-                */
-        ++ticks_;
+        irq = state_.controls.setButtons(btns1, btns2, gpio::read(BTN_HOME));
+        // set the thumbstick position
+        // TODO debounce? 
+        irq = state_.controls.setJoyH(joyH_) | irq;
+        irq = state_.controls.setJoyV(joyV_) | irq;
+        // if there has been a change in the irq, request IRQ
+        if (irq)
+            setIrq();
+
 #if (defined TEST_I2C_DISPLAY)
         //display.write(35, 1, vcc_, ' ');
         //display.write(35, 2, temp_, ' ');
@@ -374,17 +549,6 @@ public:
             return 0b001;
         return 0;
     }
-
-    //@}
-
-
-
-    /** \name I2C Communication
-      
-        - always start with status (1byte), 
-        - followed by the rest of status in normal mode, or by recording buffer in recording mode
-    */
-    //@{
 
     //@}
 
@@ -426,7 +590,30 @@ public:
     //@}
 
 
-    /** \name RGB LED
+    /** \name Communication with RPI
+     */
+    //@{
+
+    static inline uint8_t i2cBuffer_[I2C_BUFFER_SIZE];
+    static inline uint8_t i2cBufferIdx_ = 0;
+
+    //@}
+
+    static void setIrq() {
+        // TODO ensure this actually outputs low and never high
+        gpio::output(AVR_IRQ);
+        gpio::low(AVR_IRQ);
+    }
+
+    static void processCommand() {
+
+        // be ready for next command to be received
+        i2cBufferIdx_ = 0;
+        flags_.i2cReady = false;
+    }
+
+
+    /** \name Outputs - RGB Light, rumbler and the backlight
      */
     //@{
 
@@ -434,32 +621,73 @@ public:
 
     static void criticalBatteryWarning() {
         gpio::output(RGB);
-        cpu::delay_ms(10);
+        delayMs(10);
         for (int i = 0; i < 5; ++i) {
             rgb_.fill(Color::Red());
             rgb_.update();
-            cpu::delay_ms(100);
+            delayMs(100);
             rgb_.fill(Color::Black());
             rgb_.update();
-            cpu::delay_ms(100);
+            delayMs(100);
         }
         gpio::input(RGB);
     }
 
+    static void setBacklight(uint8_t value) {
+        if (value == 0) { // turn off
+            TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP0EN_bm;
+            gpio::low(BACKLIGHT); // TODO or is this active low? 
+        } else {
+            TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP0EN_bm;
+            TCA0.SPLIT.LCMP0 = value;
+        }
+    }
+
+    static void setRumbler(uint8_t value) {
+        if (value == 0) { // turn off
+            TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_HCMP0EN_bm;
+            gpio::low(VIB_EN); // TODO or is this active low? 
+        } else {
+            TCA0.SPLIT.CTRLB |= TCA_SPLIT_HCMP0EN_bm;
+            TCA0.SPLIT.HCMP0 = value;
+        }
+    }
+
+    static void rumblerOk() {
+        setRumbler(128);
+        delayMs(500);
+        setRumbler(0);
+    }
+
+    static void rumblerFail() {
+        for (int i = 0; i < 3; ++i) {
+            setRumbler(255);
+            delayMs(100);
+            setRumbler(0);
+            delayMs(100);
+        }
+    }
+
     //@}
 
+    static inline ExtendedState state_;
+
     static inline volatile struct {
+        /// RTC one second tick ready
         bool secondTick : 1;
-        bool recReady : 1;
+        /// BTN_HOME pin change detected
         bool btnHome : 1;
+        /// set when countdown timeout reaches 0
+        bool countdownTimeout : 1;
+        /// set when I2C command has been received
+        bool i2cReady : 1;
+        /// TODO
+        bool recReady : 1;
     } flags_;
-
-    static inline uint16_t ticks_ = 0; 
-
 
 }; // RCKid
 
-/** BTN_HOME
+/** Interrupt handler for BTN_HOME (PC3), rising and falling.
  */
 ISR(PORTC_PORT_vect) {
     ENTER_IRQ;
@@ -509,9 +737,9 @@ ISR(TWI0_TWIS_vect) {
     #define I2C_STOP_RX (TWI_APIF_bm)
     ENTER_IRQ;
     uint8_t status = TWI0.SSTATUS;
-#ifdef TODO    
     // sending data to accepting master is on our fastpath and is checked first, if there is more state to send, send next byte, otherwise go to transaction completed mode. 
     if ((status & I2C_DATA_MASK) == I2C_DATA_TX) {
+        /*
         if (i2cBytesSent_ >= comms::I2C_PACKET_SIZE) {
             i2cReadActual_ = reinterpret_cast<uint8_t*>(& state);
             i2cBytesSent_ = 0;
@@ -519,12 +747,14 @@ ISR(TWI0_TWIS_vect) {
         TWI0.SDATA = i2cReadActual_[i2cBytesSent_++];
         TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
         //TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
+        */
     // a byte has been received from master. Store it and send either ACK if we can store more, or NACK if we can't store more
     } else if ((status & I2C_DATA_MASK) == I2C_DATA_RX) {
-        i2cBuffer_[i2cBytesRecvd_++] = TWI0.SDATA;
-        TWI0.SCTRLB = (i2cBytesRecvd_ == sizeof(i2cBuffer_)) ? TWI_SCMD_COMPTRANS_gc : TWI_SCMD_RESPONSE_gc;
+        RCKid::i2cBuffer_[RCKid::i2cBufferIdx_++] = TWI0.SDATA;
+        TWI0.SCTRLB = (RCKid::i2cBufferIdx_ == sizeof(RCKid::i2cBuffer_)) ? TWI_SCMD_COMPTRANS_gc : TWI_SCMD_RESPONSE_gc;
     // master requests slave to write data, reset the sent bytes counter, initialize the actual read address from the read start and reset the IRQ
     } else if ((status & I2C_START_MASK) == I2C_START_TX) {
+        /*
         gpio::input(AVR_IRQ);
         i2cBytesSent_ = 0;
         i2cReadActual_ = i2cReadStart_;
@@ -532,20 +762,20 @@ ISR(TWI0_TWIS_vect) {
         // If read start was one byte into the buffer, which we use for the chip info message buffer shared with bootloader, switch immediately to reading state in the next message
         if (i2cReadStart_ == i2cBuffer_ + 1)
             i2cReadStart_ = reinterpret_cast<uint8_t*>(& state);
-    // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise
+        */
+    // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise. The buffer is reset to 
     } else if ((status & I2C_START_MASK) == I2C_START_RX) {
-        TWI0.SCTRLB = flags.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
+        TWI0.SCTRLB = RCKid::flags_.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
     // sending finished
     } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
         TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
     // receiving finished, inform main loop we have message waiting
     } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
         TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
-        flags.i2cReady = true;
+        RCKid::flags_.i2cReady = true;
     } else {
         // error - a state we do not know how to handle
     }
-#endif
     LEAVE_IRQ;
 }
 

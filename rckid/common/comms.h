@@ -3,68 +3,245 @@
 #include "platform/platform.h"
 #include "utils/time.h"
 
-namespace comms2 {
+#include "config.h"
 
-    static constexpr uint8_t AVR_I2C_ADDRESS = 0x43;
+namespace comms {
 
-    static constexpr uint8_t I2C_PACKET_SIZE = 32;
+    /** Power-related Modes the RCKid can be in. 
 
-    /** States the RCKid can be in. 
+        When the BTN_HOME button is pressed, we enter the `PoweringUp` mode, in which the power to RPI is enabled and the RPI starts to boot. The AVR also times the length of the BTN_HOME press. If the press duration goes over the POWER_ON_PRESS_THRESHOLD_TICKS, the rumbler is signalled. If the btn button is pressed for a shorter period, mode changes to `PoweringDown`.
 
-        Upon power-up we enter the `PoweringUp` state, in which 
+        Eventually the RPi will contact the AVR, changing the mode from `PoweringOn` to `On`.  If the mode is already `PoweringDown`, the RPi should power itself off immediately, otherwise it starts working normally and AVR enabled the backlight.   
+
+        When in the `PoweringDown` mode, the AVR waits for the `RPI_POWEROFF` signal to go up, at which point it turns the power to Rpi off and changes mode to sleep.  
+
+        After power on, the default mode is `On`.  
      */
-    enum class State {
-        PoweringUp,
-        On,
-        PoweringDown,
-        PoweringDownTorch, 
-        Torch,
-        Sleeping, 
-    }; // comms::State
-
-
+    enum class Mode {
+        Sleep, 
+        WakeUp,
+        PowerUp,
+        On, 
+        PowerDown,
+    }; // comms::Mode
 
     /** The AVR status. 
-     
+
+        Every I2C communication with the AVR always returns the status as the first byte. 
      */
     class Status {
     public:
 
+        Mode mode() const { return static_cast<Mode>(status_ & MODE); }
+
+        bool recording() const { return status_ & RECORDING; }
+
+        bool usb() const { return status_ & USB_DC; }
+
+        bool setUsb(bool value) {
+            if (value == usb())
+                return false;
+            value ? (status_ |= USB_DC) : (status_ &= ~USB_DC);
+            return true;
+        }
+
+        bool charging() const { return status_ & CHARGING; }
+
+        bool setCharging(bool value) { 
+            if (value == charging())
+                return false;
+            value ? (status_ |= CHARGING) : (status_ &= ~CHARGING);
+            return true;
+        }
+
+        bool lowBatt() const { return status_ & LOW_BATT; }
+
+        bool setLowBatt(bool value) { 
+            if (value == lowBatt())
+                return false;
+            value ? (status_ |= LOW_BATT) : (status_ &= ~LOW_BATT);
+            return true;
+        }
+
+        bool alarm() const { return status_ & ALARM; }
+
+        bool setAlarm(bool value) { 
+            if (value == alarm())
+                return false;
+            value ? (status_ |= ALARM) : (status_ &= ~ALARM);
+            return true;
+        }
+
+        void setMode(Mode mode) {
+            status_ = status_ & ~MODE;
+            status_ |= static_cast<uint8_t>(mode);
+        }
+
+    private:
+
+        static constexpr uint8_t MODE = 7;
+        static constexpr uint8_t RECORDING = 1 << 3;
+        static constexpr uint8_t USB_DC = 1 << 4;
+        static constexpr uint8_t CHARGING = 1 << 5;
+        static constexpr uint8_t LOW_BATT = 1 << 6;
+        static constexpr uint8_t ALARM = 1 << 7;
+
+        uint8_t status_ = 0;
+    }; // comms::Status
+
+    /** Information about the input controls connected to the RPi. 
+    */
+    class Controls {
+    public:
+
+        bool dpadLeft() const { return buttons_ & DPAD_LEFT; }
+        bool dpadRight() const { return buttons_ & DPAD_RIGHT; }
+        bool dpadTop() const { return buttons_ & DPAD_TOP; }
+        bool dpadBottom() const { return buttons_ & DPAD_BOTTOM; }
+        bool select() const { return buttons_ & SELECT; }
+        bool start() const { return buttons_ & START; }
+        bool home() const { return buttons_ & HOME; }
+
+        /** Sets the button values all at once. 
+         
+            Note that this "hacky" function requires the button's bits to align with the bits reported by the analog button decoder. 
+        */
+        bool setButtons(uint8_t btns1, uint8_t btns2, bool btnHome) {
+            uint8_t btns = (btnHome ? HOME : 0) | (btns1 & 0x7) | ((btns2 & 0x7) << 3);
+            if (btns == buttons_)
+                return false;
+            buttons_ = btns;
+            return true;
+        }
+
+        uint8_t joyH() const { return joyH_; }
+
+        bool setJoyH(uint8_t value) {
+            if (value == joyH_)
+                return false;
+            joyH_ = value;
+            return true;
+        }
+
+        uint8_t joyV() const { return joyV_; }
+
+        bool setJoyV(uint8_t value) {
+            if (value == joyV_)
+                return false;
+            joyV_ = value;
+            return true;
+        }
 
     private:
         static constexpr uint8_t DPAD_LEFT = 1 << 0;
         static constexpr uint8_t DPAD_RIGHT = 1 << 1;
         static constexpr uint8_t DPAD_TOP = 1 << 2;
-        static constexpr uint8_t DPAR_BOTTOM = 1 << 3;
+        static constexpr uint8_t DPAD_BOTTOM = 1 << 3;
         static constexpr uint8_t SELECT = 1 << 4;
         static constexpr uint8_t START = 1 << 5;
         static constexpr uint8_t HOME = 1 << 6;
-        static constexpr uint8_t EXTENDED_EVENT = 1 << 7;
-        uint8_t status_;
-        uint8_t thumbH_;
-        uint8_t thumbV_;
-    }; // comms::Status
+
+        uint8_t buttons_;
+        uint8_t joyH_;
+        uint8_t joyV_;
+    }; // comms::Controls 
+
+    class ExtendedInfo {
+    public:
+
+        /** \name VCC
+         
+            The voltage to the AVR measured in 0.01[V]. Value of 0 means any voltage below 2.46V, value of 500 5V or more, otherwise the number returnes is volatge * 100. 
+         */
+        //@{
+        uint16_t vcc() const { return (vcc_ == 0) ? 0 : (vcc_ + 245); }
+
+        void setVcc(uint16_t vx100) {
+            if (vx100 < 250)
+                vcc_ = 0;
+            else if (vx100 >= 500)
+                vcc_ = 255;
+            else 
+                vcc_ = (vx100 - 245) & 0xff;
+        }
+        //@}
+
+        /** \name VBATT
+         
+            Battery voltage. Measured in 0.01[V] in rangle from 1.7V to 4.2V. 420 means 4.2V or more, 0 means 1.7V or less.
+         */
+        //@{
+        uint16_t vbatt() const { return (vbatt_ == 0) ? 0 : vbatt_ + 165; }
+
+        void setVBatt(uint16_t vx100) {
+            if (vx100 >= 420)
+                vbatt_ = 255;
+            else if (vx100 < 170)
+                vbatt_ = 0;
+            else 
+                vbatt_ = (vx100 - 165) & 0xff;
+        }
+        //@}
+
+        /** \name Temperature 
+         
+            Returns the temperature as measured by the chip with 0.1[C] intervals. -200 is -20C or less, 1080 is 108[C] or more. 0 is 0C. 
+         */
+        //@{
+        int16_t temp() const { return -200 + (temp_ * 5); }
+
+        void setTemp(int32_t tempx10) {
+            if (tempx10 <= -200)
+                temp_ = 0;
+            else if (tempx10 >= 1080)
+                temp_ = 255;
+            else 
+                temp_ = (tempx10 + 200) / 5;
+        }
+        //@}
+
+        /** \name LCD Brightness. 
+         */
+        //@{
+        uint8_t brightness() const { return brightness_; }
+
+        void setBrightness(uint8_t value) { brightness_ = value; }
+        //@}
+
+    private:
+        uint8_t vcc_;
+        uint8_t vbatt_;
+        uint8_t temp_;
+        uint8_t brightness_;
+    }; // comms::ExtendedInfo;
+
+    /** State consists  */
+    class State {
+    public:
+       Status status;
+       Controls controls;
+    }; // comms::State
+
+    static_assert(sizeof(State) == 4);
 
     class ExtendedState {
     public:
         Status status;
-    private:
-        static constexpr uint8_t RECORDING = 1 << 0;
-        static constexpr uint8_t USB_DC = 1 << 1;
-        static constexpr uint8_t CHARGING = 1 << 2;
-        static constexpr uint8_t ALARM = 1 << 3;
-
-        uint8_t status_;
-        uint8_t temp_;
-        uint8_t vbatt_;
-        uint8_t vcc_;
-        uint8_t brightness_;
-
+        Controls controls;
+        ExtendedInfo einfo;
+        DateTime time;
+        DateTime alarm;
     }; // comms::ExtendedState
+
+    static_assert(sizeof(ExtendedState) <= 32);
 
 } // namespace comms
 
 
+
+
+
+#ifdef OLD
 
 namespace comms {
 
@@ -371,3 +548,4 @@ namespace msg {
 
 #undef MESSAGE
 
+#endif

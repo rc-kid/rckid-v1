@@ -25,9 +25,9 @@ public:
      
         Note that the neopixels need a 50us gap after the updte to latch and one must be given (by e.g. never calling the update method too often).
      */
-    void update() {
+    void update(bool force = false) {
         // don't do anything if we don't need to
-        if (!changed_)
+        if (!changed_ && !force)
             return;
 #if (defined ARCH_AVR_MEGATINY)
         uint8_t pinMask = digitalPinToBitMask(pin_);
