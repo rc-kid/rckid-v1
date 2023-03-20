@@ -640,7 +640,6 @@ public:
                 break;
             }
 
-
             case SetBrightness::ID: {
                 auto & m = SetBrightness::fromBuffer(i2cBuffer_);
                 state_.einfo.setBrightness(m.value);

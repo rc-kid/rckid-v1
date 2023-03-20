@@ -130,28 +130,21 @@
                 "$platformio"
             ]
         },
-        // locally builds the lego remote avr program and flashes it to the chip using the rpi dev server and pio remote
+        // uploads the rckid via UPDI using the devel server for experimentation
         {
-            "label": "lego-remote-upload",
-            "type": "shell",
-            "command": "~/.platformio/penv/bin/pio",
+            "label": "lego-remote-devel-server",
+            "command": "bash",
             "args": [
-                "remote",
-                "run",
-                "--target",
-                "upload"
+                "bin/lego-remote-devel-server.sh",
             ],
             "options": {
-                "cwd": "${workspaceFolder}/lego-remote",
-                "shell": {
-                    "executable" : "/bin/zsh",
-                    "args": ["-c"]
-                }
+                "cwd": "",
             },
             "problemMatcher": [
                 "$platformio"
             ]
         },
+
         // locally builds the radio test receiver for range and compatibility testing
 //        {
 //            "label": "test-radio",

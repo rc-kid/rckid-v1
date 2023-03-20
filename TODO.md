@@ -68,6 +68,8 @@
 
 ## AVR
 
+- write servo code & channels
+- verify motors & servos
 - actually write the code
 
 # Other - proto

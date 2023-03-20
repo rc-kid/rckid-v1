@@ -3,7 +3,39 @@
 #include "peripherals/nrf24l01.h"
 #include "peripherals/neopixel.h"
 
-/** Chip Pinout
+/** DEBUG: When enabled, the AVR will use the I2C bus in a master mode and will communicate with an OLED screen attached to it to display various statistics. DISABLE IN PRODUCTION
+ */
+#define TEST_I2C_DISPLAY
+#if (defined TEST_I2C_DISPLAY)
+#include "peripherals/ssd1306.h"
+SSD1306 display;
+#endif
+
+/** Information about a motor channel. 
+ 
+    The motor knows its mode and speed. 
+ */
+class MotorChannel {
+public:
+    enum class Mode {
+        Coast, 
+        Brake, 
+        CW, 
+        CCW
+    }; 
+    Mode mode;
+    uint8_t speed;
+
+}; // MotorChannel
+
+
+
+
+
+/** LEGO Remote
+ 
+    A remote controller to be used mainly with lego. Supports DC motors at 5 or 9V, servo motors, PWM channels, digital and analog inputs, neopixels and tones. 
+
                -- VDD             GND --
      ML1 (WOA) -- (00) PA4   PA3 (16) -- SCK
      MR1 (WOB) -- (01) PA5   PA2 (15) -- MISO
@@ -19,10 +51,210 @@
 
     - 20ms intervals for the servo control (RTC)
     - 2.5ms interval for the servo control pulse (TCB0)
-    - 20kHz PWM for motors (TCD)
     - 2 8bit timers in TCA split mode
     - 1 16bit timer in TCB1 
  */
+
+class Remote {
+public:
+    static constexpr gpio::Pin ML1 = 0; // TCD, WOA
+    static constexpr gpio::Pin MR1 = 1; // TCD, WOB
+    static constexpr gpio::Pin ML2 = 10; // TCD, WOC
+    static constexpr gpio::Pin MR2 = 11; // TCD, WOD
+
+    // PA6 ADC0-6, ADC1-2
+    // PA7 ADC0-7, ADC1-3
+    // PB5 ADC0-8, TCA-WO2*
+    // PB4 ADC0-9, TCA-WO1*
+    // PB3 TCA-WO0 
+    // PB2 TCA-WO2
+    // PC3 ADC1-9, TCA-W03
+    // PC2 ADC1-8
+    // 
+
+    static void initialize() {
+        // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
+        CCP = CCP_IOREG_gc;
+        CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
+        // ensure motor pins output low so that any connected motors are floating
+        gpio::output(ML1);
+        gpio::low(ML1);
+        gpio::output(ML2);
+        gpio::low(ML2);
+        gpio::output(MR1);
+        gpio::low(MR1);
+        gpio::output(MR2);
+        gpio::low(MR2);
+        // initialize TCD used to control the two motors, disable prescalers, set one ramp waveform and set WOC to WOA and WOD to WOB. 
+        TCD0.CTRLA = TCD_CLKSEL_20MHZ_gc | TCD_CNTPRES_DIV1_gc | TCD_SYNCPRES_DIV1_gc;
+        TCD0.CTRLB = TCD_WGMODE_ONERAMP_gc;
+        TCD0.CTRLC = TCD_CMPCSEL_PWMA_gc | TCD_CMPDSEL_PWMB_gc;
+        // disconnect the pins from the timer
+        CPU_CCP = CCP_IOREG_gc;
+        TCD0.FAULTCTRL = 0;
+        // ensure motor pins output low so that any connected motors are floating
+        gpio::output(ML1);
+        gpio::low(ML1);
+        gpio::output(ML2);
+        gpio::low(ML2);
+        gpio::output(MR1);
+        gpio::low(MR1);
+        gpio::output(MR2);
+        gpio::low(MR2);
+        // set the reset counter to 255 for both A and B. This gives us 78.4kHz PWM frequency. It is important for both values to be the same. By setting max to 255 we can simply set 
+        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+        TCD0.CMPACLR = 255;
+        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+        TCD0.CMPBCLR = 255;
+        // initialize the RTC to fire every 5ms which gives us a tick that can be used to switch the servo controls, 4 servos max, multiplexed gives the freuency of updates for each at 20ms
+        RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
+        RTC.PER = 164;
+        while (RTC.STATUS != 0) {};
+        RTC.CTRLA = RTC_RTCEN_bm;
+        // initialize TCB0 which is used to time the servo control interval precisely
+        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
+        TCB0.INTCTRL = TCB_CAPT_bm;
+        TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc; // | TCB_ENABLE_bm;
+    }
+
+
+    /** \name DC Motors 
+     
+        To engage break, disconnect the timer from both pins and set both to high. To let the motor coast, disconnect the timer from both pins and set both to low. The forward / backward operation is enabled by directing the PWM output to one of the pins only.
+     */
+    //@{
+
+    static inline MotorChannel m1_;
+    static inline MotorChannel m2_;
+
+
+    static void motorCW(uint8_t i, uint8_t speed) {
+        MotorChannel & m = (i == 0) ? m1_ : m2_;
+        if (i == 0) {
+            while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+            TCD0.CMPASET = speed;
+            if (m.mode != MotorChannel::Mode::CW) {
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL &= ~(TCD_CMPAEN_bm | TCD_CMPCEN_bm);
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL |= TCD_CMPAEN_bm;
+            }
+        } else {
+            while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+            TCD0.CMPBSET = speed;
+            if (m.mode != MotorChannel::Mode::CW) {
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL &= ~(TCD_CMPBEN_bm | TCD_CMPDEN_bm);
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL |= TCD_CMPBEN_bm;
+            }
+        }
+    }   
+
+    static void motorCCW(uint8_t i, uint8_t speed) {
+        MotorChannel & m = (i == 0) ? m1_ : m2_;
+        if (i == 0) {
+            while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+            TCD0.CMPASET = speed;
+            if (m.mode != MotorChannel::Mode::CCW) {
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL &= ~(TCD_CMPAEN_bm | TCD_CMPCEN_bm);
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL |= TCD_CMPCEN_bm;
+            }
+        } else {
+            while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+            TCD0.CMPBSET = speed;
+            if (m.mode != MotorChannel::Mode::CCW) {
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL &= ~(TCD_CMPBEN_bm | TCD_CMPDEN_bm);
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL |= TCD_CMPDEN_bm;
+            }
+        }
+
+    } 
+
+    static void motorBrake(uint8_t i) {
+        MotorChannel & m = (i == 0) ? m1_ : m2_;
+        if (i == 0) {
+            if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL &= ~(TCD_CMPAEN_bm | TCD_CMPCEN_bm);
+            }
+            gpio::high(ML1);
+            gpio::high(ML2);
+        } else {
+            if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL &= ~(TCD_CMPBEN_bm | TCD_CMPDEN_bm);
+            }
+            gpio::high(MR1);
+            gpio::high(MR2);
+        }
+    }
+
+    static void motorCoast(uint8_t i) {
+        MotorChannel & m = (i == 0) ? m1_ : m2_;
+        if (i == 0) {
+            if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL &= ~(TCD_CMPAEN_bm | TCD_CMPCEN_bm);
+            }
+            gpio::low(ML1);
+            gpio::low(ML2);
+        } else {
+            if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+                CPU_CCP = CCP_IOREG_gc;
+                TCD0.FAULTCTRL &= ~(TCD_CMPBEN_bm | TCD_CMPDEN_bm);
+            }
+            gpio::low(MR1);
+            gpio::low(MR2);
+
+        }
+    }
+    //@}
+
+    /** \name Servo Motors
+     */
+    //@{
+
+    static inline gpio::Pin activeServoPin_;
+
+    static void servoTick() {
+        // if the index'th output is servo, then calculate the duration of the pulse 
+        uint8_t value = 67;
+        TCB0.CCMP = 5000 + (157 * 67) / 2; 
+        //activeServoPin_ = pin;
+        TCB0.CNT = 0;
+        //gpio::high(pin);
+        TCB0.CTRLA |= TCB_ENABLE_bm;
+    }
+
+    //@}
+
+}; // Remote
+
+/** The TCB only fires when the currently multiplexed output is a servo motor. When it fires, we first pull the output low to terminate the control pulse and then disable the timer.
+ */
+ISR(TCB0_INT_vect) {
+    gpio::low(Remote::activeServoPin_);
+    TCB0.INTFLAGS = TCB_CAPT_bm;
+    TCB0.CTRLA &= ~TCB_ENABLE_bm;
+}
+
+
+void setup() {
+    Remote::initialize();
+}
+
+void loop() {
+
+}
+
+
+
+#ifdef OLD
 constexpr gpio::Pin NRF_CS_PIN = 13;
 constexpr gpio::Pin NRF_RXTX_PIN = 12;
 constexpr gpio::Pin NRF_IRQ_PIN = 6;
@@ -86,13 +318,13 @@ namespace motor {
         TCD0.FAULTCTRL = TCD_CMPAEN_bm;
         // set the counters to reset at 1024 for roughly 20kHz 
         while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPACLR = 1024;
+        TCD0.CMPACLR = 256;
         while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPBCLR = 1024;
+        TCD0.CMPBCLR = 256;
         while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPASET = 512;
+        TCD0.CMPASET = 128;
         while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPBSET = 512;
+        TCD0.CMPBSET = 128;
         // enable the timer
         while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
         TCD0.CTRLA |= TCD_ENABLE_bm;
@@ -267,3 +499,6 @@ void loop() {
     }
     */
 }
+
+
+#endif
