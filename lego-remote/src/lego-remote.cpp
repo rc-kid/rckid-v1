@@ -11,9 +11,31 @@
 SSD1306 display;
 #endif
 
+namespace channel {
+
+    /** Motor channel that controls a single DC motor via an H-bridge. Supports direction, 64 levels of speed, coasting and braking mode. 
+    */
+    class Motor {
+
+
+    }; // channel::Motor
+
+    /** Configurable channel can take different roles, such as digital and analog controls or feedbacks, tone control, RGB light control, servo, etc. 
+     */
+    class Configurable {
+
+    }; // channel::Configurable
+
+
+
+} // namespace channel
+
+
+
+
 /** Information about a motor channel. 
  
-    The motor knows its mode and speed. 
+    The motor knows its mode and speed.
  */
 class MotorChannel {
 public:
@@ -28,7 +50,38 @@ public:
 
 }; // MotorChannel
 
+class DigitalChannel {
+public:
+    bool value;
+}; // DigitalChannel
 
+class PWMChannel {
+public:
+    uint8_t value;
+}; // PWMChannel
+
+class ServoChannel {
+public:
+    uint8_t value;
+}; // ServoChannel
+
+class RGBChannel {
+
+}; // RGBChannel
+
+class ToneChannel {
+
+}; // ToneChannel
+
+class AnalogInput {
+public:
+    uint8_t value;
+}; 
+
+class DigitalInput {
+public:
+    bool value;
+};
 
 
 
@@ -47,6 +100,25 @@ public:
   NEOPIXEL_PIN -- (07) PB2   PC0 (10) -- ML2(WOC)
            SDA -- (08) PB1   PB0 (09) -- SCL
 
+    Motor Channels
+
+    2 motor channels (ML and MR) are supported. Each channel controls a single DC motor with two PWM pins for CW and CCW operation in 64 speed steps and braking & coasting. TCD is used to drive the motors' PWM signals. The motor channels use 3x4 pin connectors where the connector can select whether the pin will use 5V or 9V. The connectors can be inserted either way and have the following pinout:
+
+        5V   +   -   9V
+        SEL GND GND SEL
+        9V   -   +   5V
+
+    Configurable Channels
+
+    4 extra channels are provided, XL1, XL2 and XR1 and XR2. The channels use a 2x3 connector that provides 5V, GND and one pin that can be configured as either of:
+
+    - digital input
+    - analog input (ADC)
+    - digital output
+    - analog output (PWM)
+
+
+
     Timers
 
     - 20ms intervals for the servo control (RTC)
@@ -62,29 +134,30 @@ public:
     static constexpr gpio::Pin ML2 = 10; // TCD, WOC
     static constexpr gpio::Pin MR2 = 11; // TCD, WOD
 
+    static constexpr gpio::Pin XL1 = 4; // PB5, ADC0-8, TCA-WO2* (low channel 2)
+    static constexpr gpio::Pin XL2 = 5; // PB4, ADC0-9, TCA-WO1* (low channel 1)
+    static constexpr gpio::Pin XR1 = 13; // PC3, ADC1-9, TCA-W03 (high channel 0)
+    static constexpr gpio::Pin XR2 = 12; // PC2, ADC1-8, uses TCA-W0 (low channel 0) cmp and ovf interrupt to drive the pin
+
     // PA6 ADC0-6, ADC1-2
     // PA7 ADC0-7, ADC1-3
-    // PB5 ADC0-8, TCA-WO2*
-    // PB4 ADC0-9, TCA-WO1*
+    // PB5 ADC0-8, TCA-WO2* -----
+    // PB4 ADC0-9, TCA-WO1* -----
     // PB3 TCA-WO0 
     // PB2 TCA-WO2
-    // PC3 ADC1-9, TCA-W03
-    // PC2 ADC1-8
+    // PC3 ADC1-9, TCA-W03 ------
+    // PC2 ADC1-8, will use TCA-W0 interrupt to change pin value 
     // 
 
     static void initialize() {
         // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
         CCP = CCP_IOREG_gc;
         CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
-        // ensure motor pins output low so that any connected motors are floating
-        gpio::output(ML1);
-        gpio::low(ML1);
-        gpio::output(ML2);
-        gpio::low(ML2);
-        gpio::output(MR1);
-        gpio::low(MR1);
-        gpio::output(MR2);
-        gpio::low(MR2);
+        // set configurable channel pins to input 
+        gpio::input(XL1);
+        gpio::input(XL2);
+        gpio::input(XR1);
+        gpio::input(XR2);
         // initialize TCD used to control the two motors, disable prescalers, set one ramp waveform and set WOC to WOA and WOD to WOB. 
         TCD0.CTRLA = TCD_CLKSEL_20MHZ_gc | TCD_CNTPRES_DIV1_gc | TCD_SYNCPRES_DIV1_gc;
         TCD0.CTRLB = TCD_WGMODE_ONERAMP_gc;
@@ -92,6 +165,9 @@ public:
         // disconnect the pins from the timer
         CPU_CCP = CCP_IOREG_gc;
         TCD0.FAULTCTRL = 0;
+        // enable the timer
+        while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+        TCD0.CTRLA |= TCD_ENABLE_bm;
         // ensure motor pins output low so that any connected motors are floating
         gpio::output(ML1);
         gpio::low(ML1);
@@ -103,9 +179,9 @@ public:
         gpio::low(MR2);
         // set the reset counter to 255 for both A and B. This gives us 78.4kHz PWM frequency. It is important for both values to be the same. By setting max to 255 we can simply set 
         while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPACLR = 255;
+        TCD0.CMPACLR = 127;
         while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPBCLR = 255;
+        TCD0.CMPBCLR = 127;
         // initialize the RTC to fire every 5ms which gives us a tick that can be used to switch the servo controls, 4 servos max, multiplexed gives the freuency of updates for each at 20ms
         RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
         RTC.PER = 164;
@@ -115,6 +191,20 @@ public:
         TCB0.CTRLB = TCB_CNTMODE_INT_gc;
         TCB0.INTCTRL = TCB_CAPT_bm;
         TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc; // | TCB_ENABLE_bm;
+        // initialize TCA for PWM outputs on the configurable channels. We use split mode
+        TCA0.SPLIT.CTRLD = TCA_SPLIT_SPLITM_bm; // enable split mode
+        TCA0.SPLIT.CTRLB = 0;    
+        //TCA0.SPLIT.CTRLB = TCA_SPLIT_LCMP0EN_bm | TCA_SPLIT_HCMP0EN_bm; // enable W0 and W3 outputs on pins
+        //TCA0.SPLIT.LCMP0 = 64; // backlight at 1/4
+        //TCA0.SPLIT.HCMP0 = 128; // rumbler at 1/2
+        TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc | TCA_SPLIT_ENABLE_bm; 
+        // initialize the I2C in alternate position
+
+
+
+        motorCW(0, 4);
+        motorCW(0, 144);
+        motorCoast(0);
     }
 
 
@@ -132,86 +222,120 @@ public:
         MotorChannel & m = (i == 0) ? m1_ : m2_;
         if (i == 0) {
             while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-            TCD0.CMPASET = speed;
+            TCD0.CMPASET = 255 - speed;
             if (m.mode != MotorChannel::Mode::CW) {
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL &= ~(TCD_CMPAEN_bm | TCD_CMPCEN_bm);
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL |= TCD_CMPAEN_bm;
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA |= TCD_ENABLE_bm;
             }
         } else {
             while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-            TCD0.CMPBSET = speed;
+            TCD0.CMPBSET = 255 - speed;
             if (m.mode != MotorChannel::Mode::CW) {
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL &= ~(TCD_CMPBEN_bm | TCD_CMPDEN_bm);
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL |= TCD_CMPBEN_bm;
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA |= TCD_ENABLE_bm;
             }
         }
+        m.mode = MotorChannel::Mode::CW;
     }   
 
     static void motorCCW(uint8_t i, uint8_t speed) {
         MotorChannel & m = (i == 0) ? m1_ : m2_;
         if (i == 0) {
             while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-            TCD0.CMPASET = speed;
+            TCD0.CMPASET = 255 - speed;
             if (m.mode != MotorChannel::Mode::CCW) {
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL &= ~(TCD_CMPAEN_bm | TCD_CMPCEN_bm);
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL |= TCD_CMPCEN_bm;
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA |= TCD_ENABLE_bm;
             }
         } else {
             while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-            TCD0.CMPBSET = speed;
+            TCD0.CMPBSET = 255 - speed;
             if (m.mode != MotorChannel::Mode::CCW) {
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL &= ~(TCD_CMPBEN_bm | TCD_CMPDEN_bm);
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL |= TCD_CMPDEN_bm;
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA |= TCD_ENABLE_bm;
             }
         }
-
+        m.mode = MotorChannel::Mode::CCW;
     } 
 
     static void motorBrake(uint8_t i) {
         MotorChannel & m = (i == 0) ? m1_ : m2_;
         if (i == 0) {
             if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL &= ~(TCD_CMPAEN_bm | TCD_CMPCEN_bm);
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA |= TCD_ENABLE_bm;
             }
             gpio::high(ML1);
             gpio::high(ML2);
         } else {
             if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL &= ~(TCD_CMPBEN_bm | TCD_CMPDEN_bm);
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA |= TCD_ENABLE_bm;
             }
             gpio::high(MR1);
             gpio::high(MR2);
         }
+        m.mode = MotorChannel::Mode::Brake;
     }
 
     static void motorCoast(uint8_t i) {
         MotorChannel & m = (i == 0) ? m1_ : m2_;
         if (i == 0) {
             if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL &= ~(TCD_CMPAEN_bm | TCD_CMPCEN_bm);
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA |= TCD_ENABLE_bm;
             }
             gpio::low(ML1);
             gpio::low(ML2);
         } else {
             if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
                 TCD0.FAULTCTRL &= ~(TCD_CMPBEN_bm | TCD_CMPDEN_bm);
+                while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+                TCD0.CTRLA |= TCD_ENABLE_bm;
             }
             gpio::low(MR1);
             gpio::low(MR2);
-
         }
+        m.mode = MotorChannel::Mode::Coast;
     }
     //@}
 

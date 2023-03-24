@@ -36,8 +36,8 @@ SSD1306 display;
            MIC_OUT -- (01) PA5   PA2 (15) -- SCL (I2C)
             BTNS_2 -- (02) PA6   PA1 (14) -- SDA (I2C)
             BTNS_1 -- (03) PA7   PA0 (17) -- (reserved for UPDI)
-             JOY_H -- (04) PB5   PC3 (13) -- BTN_HOME
-             JOY_V -- (05) PB4   PC2 (12) -- RGB
+             JOY_V -- (04) PB5   PC3 (13) -- BTN_HOME
+             JOY_H -- (05) PB4   PC2 (12) -- RGB
             RGB_EN -- (06) PB3   PC1 (11) -- RPI_POWEROFF
             RPI_EN -- (07) PB2   PC0 (10) -- AVR_IRQ
             CHARGE -- (08) PB1   PB0 (09) -- BACKLIGHT
@@ -65,8 +65,8 @@ public:
     static constexpr gpio::Pin MIC_OUT = 1; // ADC1, channel 1
     static constexpr gpio::Pin BTNS_2 = 2; // ADC0, channel 6
     static constexpr gpio::Pin BTNS_1 = 3; // ADC0, channel 7
-    static constexpr gpio::Pin JOY_H = 4; // ADC0, channel 8
-    static constexpr gpio::Pin JOY_V = 5; // ADC0, channel 9
+    static constexpr gpio::Pin JOY_V = 4; // ADC0, channel 8
+    static constexpr gpio::Pin JOY_H = 5; // ADC0, channel 9
     static constexpr gpio::Pin RGB_EN = 6; // digital, floating
     static constexpr gpio::Pin RPI_EN = 7; // digital, floating
     static constexpr gpio::Pin CHARGE = 8; // ADC0, channel 10
@@ -112,11 +112,11 @@ public:
         PORTA.PIN7CTRL &= ~PORT_ISC_gm;
         PORTA.PIN7CTRL |= PORT_ISC_INPUT_DISABLE_gc;
         PORTA.PIN7CTRL &= ~PORT_PULLUPEN_bm;
-        static_assert(JOY_H == 4); // PB5
+        static_assert(JOY_V == 4); // PB5
         PORTB.PIN5CTRL &= ~PORT_ISC_gm;
         PORTB.PIN5CTRL |= PORT_ISC_INPUT_DISABLE_gc;
         PORTB.PIN5CTRL &= ~PORT_PULLUPEN_bm;
-        static_assert(JOY_V == 5); // PB4
+        static_assert(JOY_H == 5); // PB4
         PORTB.PIN4CTRL &= ~PORT_ISC_gm;
         PORTB.PIN4CTRL |= PORT_ISC_INPUT_DISABLE_gc;
         PORTB.PIN4CTRL &= ~PORT_PULLUPEN_bm;
@@ -463,14 +463,14 @@ public:
                 btns1_ = (value >> 2) & 0xff;
                 ADC0_MUXPOS = ADC_MUXPOS_AIN8_gc;
                 break;
-            // JOY_H 
+            // JOY_V 
             case ADC_MUXPOS_AIN8_gc:
-                joyH_ = (value >> 2) & 0xff;
+                joyV_ = (value >> 2) & 0xff;
                 ADC0_MUXPOS = ADC_MUXPOS_AIN9_gc;
                 break;
-            // JOY_V 
+            // JOY_H 
             case ADC_MUXPOS_AIN9_gc:
-                joyV_ = (value >> 2) & 0xff;
+                joyH_ = (value >> 2) & 0xff;
                 isTick = true;
                 // fallthrough to default case
             /** Reset the ADC to take VCC measurements */

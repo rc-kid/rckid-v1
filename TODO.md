@@ -1,14 +1,11 @@
 # Questions
 
-- transient voltage protection, which one to get?
+- transient voltage protection, which one to get? (up to 10v)
 - which antenna to buy? 
-- how can screen brightness flicker in low battery mode be minimized? 
-- pcb design ideas?
-- mic amp design ok?
-- clean voltage design ok?
-- lego remote motor protection?  
-- lego remote power, INA219 ok? 
-- how to charge Li-Ion 2S? Is it worth it? 
+- mic amp design ok? - no
+- lego remote motor protection?  - led
+- how to charge Li-Ion 2S? Is it worth it? - battery ballancers exist
+- PWM motor control frequency - 20kHz should be enough
 
 ## BOM
 
@@ -16,6 +13,11 @@
 - black M2.5 screws for top
 - extra mosfet switches (if available)
 - extra buffers (if available)
+- better 3.0V LDO (cleaner, higher voltage better for mic & speed, such as https://cz.mouser.com/ProductDetail/Texas-Instruments/TPS7A2030PDBVR?qs=hd1VzrDQEGgZMtQinkbhYw%3D%3D)
+- solder tips, solder flux
+- kapton tape? 
+- 5pin 0.5mm pitch connector (https://cz.mouser.com/ProductDetail/Molex/505278-0533?qs=c8NFF48pVsCY0CQNgl3Xjw%3D%3D or https://cz.mouser.com/ProductDetail/Molex/505110-0592?qs=RawsiUxJOFR577kELw3Dww%3D%3D)
+- ATTiny1616
 
 # RCKid
 
@@ -68,6 +70,7 @@
 
 ## AVR
 
+- maybe use only 0..63 values for the motor speed with higher frequency, then whole motor fits in single byte 
 - write servo code & channels
 - verify motors & servos
 - actually write the code
