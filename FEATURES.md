@@ -1,6 +1,30 @@
-# RCBoy Features
+# RCKid Features
 
 > A draft of the features of the system. Work in progress, very rough. 
+
+
+## Powering On
+
+Long press of the _Home_ button initiates the power-on sequence of the device. Press the _Home_ button down and hold it until the device rumbles for start. After the button is pressed, RCKid runs internal diagnostics and the following outcomes, signalled by the rumbler and/or the RGB are possible:
+
+RGB     | Rumbler | Description
+--------|---------|-------------
+none    | none    | Normal startup sequence, no errors detected. Wait for the rumbler's ok signal to release the _home_ button. 
+3 x red | none    | Critical battery level. RCKid will not start, connect charger to the USB-C port and recharge the battery.
+blue    | none    | Attempting to power on normally, but last power down timed out. 
+green   | none    | Immediate power on retry after the RPi failed to boot in time previous. 2 retries will be attempted with progressively longer boot timeouts. If all are unsuccessful, the device enters the repair mode. 
+1x red  | fail    | Device is in repair mode, but not connected to the charger. Connect to the charger and start again to start RCKid in repair mode. 
+red     | none    | Device starts in repair mode. Must be connected to the charger. 
+
+## Repair Mode
+
+The repair mode is activated when the AVR is unable to wake up the Rpi and therefore RCKid cannot resume normal operation. During the repair mode the timeouts are disabled and the RPi is constantly powered so that debugging it can be enabled. 
+
+
+
+
+
+
 
 ## Controls
 

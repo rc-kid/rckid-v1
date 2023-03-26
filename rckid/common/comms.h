@@ -23,7 +23,30 @@ namespace comms {
         PowerUp,
         On, 
         PowerDown,
+        RepairMode, 
     }; // comms::Mode
+
+
+    /** Error codes. 
+     
+        The extended state also contains an information about the error state the RCKid is in. While not all states are really errors (such as initial power on), they should all be inspected, reported and logged by the RPi appropriately. Depending on the error state. For some states, the RGB LED also illustrates what is going on. 
+    */
+    enum class ErrorCode : uint8_t {
+        /// no error condition present
+        NoError, 
+        /// initial power on (not an error condition)
+        InitialPowerOn,
+        /// AVR watchdog timed out
+        WatchdogTimeout,
+        /// RPi failed to power down in the specified timeout
+        RPiPowerDownTimeout,
+        /// RPi failed to start, retrying once
+        RPiBootRetry1,
+        /// RPi failed to start, second retry
+        RPiBootRetry2,
+        /// RPi failed to start three times, repair mode active
+        RepairMode, 
+    }; 
 
     /** The AVR status. 
 
@@ -229,6 +252,7 @@ namespace comms {
         Status status;
         Controls controls;
         ExtendedInfo einfo;
+        ErrorCode error;
         DateTime time;
         DateTime alarm;
     }; // comms::ExtendedState

@@ -146,6 +146,8 @@ public:
         TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc | TCA_SPLIT_ENABLE_bm; 
         // initialize the I2C in alternate position
         PORTMUX.CTRLB |= PORTMUX_TWI0_bm;
+        // initialize flags as empty
+        *((uint8_t*)(&flags_)) = 0;
 #if (!defined TEST_I2C_DISPLAY)
         // initalize the i2c slave with our address
         i2c::initializeSlave(AVR_I2C_ADDRESS);
@@ -158,21 +160,11 @@ public:
         display.write(0, 2, "Temp:");
         display.write(0, 3, "VBatt:");
 #endif
-        //gpio::output(RGB);
-        adcStart();
-        //startRecording();
-        sei();
-        rumblerFail();
-        criticalBatteryWarning();
-        *((uint8_t*)(&flags_)) = 0;
-        // TODO change to powerup
-        state_.status.setMode(Mode::On);
-        gpio::output(RGB);
-        cpu::delay_ms(10);
-        rgb_.fill(Color::Black());
-        rgb_.update(true);
-        gpio::input(RGB);
-
+        // verify that wakeup conditions have been met, i.e. that we have enough voltage, etc. and go to sleep immediately if that is not the case. Repeat until we can wakeup. NOTE going to sleep here cuts the power to RPi immediately which can be harmful, but if we are powering on with low battery, there is not much else we can do and the idea is that this ends long time before the RPi gets far enough in the booting process to be able to actually cause an SD card damage  
+        while (!wakeUp())
+            sleep();
+        // wakeup checks have passed, switch to powerUp phase immediately (no waiting for the home button long press in the case of power on)
+        powerUp();
     }
 
     static void loop() {
@@ -183,6 +175,8 @@ public:
                 break;
             // we have to check two things during the wake up mode, if the home button has been released before the timeout, then this was fake wakeup, and we go to powering down mode immediately. If the timeout has been reached, it means the pres was long enough and we switch to PowerUp mode
             case Mode::WakeUp:
+                if (state_.error == ErrorCode::RepairMode)
+                    repairMode();
                 if (flags_.countdownTimeout)
                     powerUp();
                 else if (flags_.btnHome)
@@ -191,7 +185,7 @@ public:
             // monitor the timeout flag, if triggered, then RPi failed to start properly in the specified time and we must react
             case Mode::PowerUp:
                 if (flags_.countdownTimeout)
-                    forceRPIRestart();
+                    rpiBootTimeout();
                 break;
             // in power on, monitor the ping timeout, if triggered, do a RPI restart.  
             case Mode::On:
@@ -210,6 +204,11 @@ public:
                 // TODO keep the error somewhere or some such
                 if (flags_.countdownTimeout)
                     state_.status.setMode(Mode::Sleep);
+                break;
+            // in repair mode there are no timeouts, just behave "normally"
+            case Mode::RepairMode:
+                // TODO long press to remove, 
+                // TODO maybe share with on, just make the timeoout disable? 
                 break;
         }
         // in all modes, process any received I2C commands, ADC0 results and check second tick flag. If the ADC goes full circle, perform tick as well
@@ -255,7 +254,7 @@ public:
     }
 
 
-    /** \name State Transitions 
+    /** \name State Transitions
      
         `PoweringDown`
 
@@ -303,9 +302,12 @@ public:
 #if (defined TEST_I2C_DISPLAY)
         display.write(64, 1, "WAKE_UP");
 #endif
+        // ensure interrupts are allowed
+        sei();
         // enable the ADC but instead of real ticks, just measure the VCC 10 times making sure that it never gets below the critical battery threshold
         adcStart();
         int bad = 0;
+        uint16_t avgVcc;
         for (uint8_t i = 0; i < 10; ++i) {
             while (! (ADC0.INTFLAGS & ADC_RESRDY_bm));
             uint16_t vcc = ADC0.RES / 64;
@@ -313,6 +315,7 @@ public:
             vcc = vcc * 2;
             if (vcc <= BATTERY_THRESHOLD_CRITICAL)
                 ++bad;
+            avgVcc += vcc;
             ADC0.COMMAND = ADC_STCONV_bm;
         }
         // only fail to start if the voltage is really low. 
@@ -320,10 +323,30 @@ public:
             criticalBatteryWarning();
             return false;
         }
+        switch (state_.error) {
+            case ErrorCode::RPiPowerDownTimeout:
+                showColor(Color::Blue());
+                break;
+            case ErrorCode::RPiBootRetry1:
+            case ErrorCode::RPiBootRetry2:
+                showColor(Color::Green());
+                break;
+            // if in repair mode, signal by LED and verify that charger is connected
+            case ErrorCode::RepairMode:
+                showColor(Color::Red());
+                avgVcc = avgVcc / 10;
+                if (avgVcc < VCC_THRESHOLD_VUSB) 
+                    rumblerFail();
+                    return false;
+            default:
+                break; // no signal for the rest of error codes
+        }
         // we have ok voltage, turn on the rpi and get ready for normal operation, set the timer for the long power button press
         gpio::input(RPI_EN);
         setTimeout(BTN_HOME_POWERON_PRESS);
         state_.status.setMode(Mode::WakeUp);
+        // reset the comms state for the power up
+        setDefaultTxAddress();
         // and return success;
         return true; 
     }
@@ -358,7 +381,41 @@ public:
         ADC1.COMMAND = ADC_STCONV_bm;
     }
 
+    /** Called when the RPi does not boot in the set time. Three retries are available, after which the device enters */
+    static void rpiBootTimeout() {
+        flags_.countdownTimeout = false;
+        // turn off RPI
+        gpio::output(RPI_EN);
+        gpio::high(RPI_EN);
+        // inform the user while the RPi is off
+        showColor(state_.error == ErrorCode::RPiBootRetry2 ? Color::Red() : Color::Green());
+        rumblerFail();
+        // depending on the number of retries, either increase the timeout, or set error to repair mode and enter sleep  
+        switch (state_.error) {
+            case ErrorCode::RPiBootRetry1:
+                state_.error = ErrorCode::RPiBootRetry2;
+                setTimeout(RPI_POWERUP_TIMEOUT * 4);
+                gpio::input(RPI_EN);
+                break;
+            case ErrorCode::RPiBootRetry2:
+                state_.error = ErrorCode::RepairMode;
+                state_.status.setMode(Mode::Sleep);
+                return;
+            default:
+                state_.error = ErrorCode::RPiBootRetry1;
+                setTimeout(RPI_POWERUP_TIMEOUT * 2);
+                gpio::input(RPI_EN);
+                return;
+        }
+    }
+
+    // TODO Called when entering the repair mode, what to do? 
+    static void repairMode() {
+
+    }
+
     /** Restarts the RPI*/
+    // TODO is needed? 
     static void forceRPIRestart() {
         // turn off RPI
         gpio::output(RPI_EN);
@@ -598,11 +655,19 @@ public:
 
 
     /** \name Communication with RPI
+     
+        The RPI communication works over the I2C connection and a decidated AVR_IRQ pin, which the RPi pulls high to 3V3 and the AVR outputs low when it wants to signal to the RPi.
+        
      */
     //@{
 
+    static constexpr uint8_t TX_START = 0xff;
+
     static inline uint8_t i2cBuffer_[I2C_BUFFER_SIZE];
     static inline uint8_t i2cBufferIdx_ = 0;
+
+    static inline uint8_t * i2cTxAddress_ = nullptr;
+    static inline uint8_t i2cNumTxBytes_ = TX_START;
 
     //@}
 
@@ -610,6 +675,12 @@ public:
         // TODO ensure this actually outputs low and never high
         gpio::output(AVR_IRQ);
         gpio::low(AVR_IRQ);
+    }
+
+    /** Sets the default tx address when the initial status byte is followed by the rest of the state. To do so, the tx address is set to the state's address + 1 to account for the already sent status byte.
+     */
+    static void setDefaultTxAddress() {
+        i2cTxAddress_ = ((uint8_t *) (& state_)) + 1;
     }
 
     static void processCommand() {
@@ -624,11 +695,24 @@ public:
                 _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
                 // unreachable here
             }
-            // sends the information about the chip in the same way the bootloader does
+            // sends the information about the chip in the same way the bootloader does. The command first stores the information in the i2cCommand buffer and then sets the command buffer as the tx address
             case msg::Info::ID:
-                // TODO
+                i2cBuffer_[0] = SIGROW.DEVICEID0;
+                i2cBuffer_[1] = SIGROW.DEVICEID1;
+                i2cBuffer_[2] = SIGROW.DEVICEID2;
+                i2cBuffer_[3] = 1; // app
+                for (uint8_t i = 0; i < 10; ++i)
+                    i2cBuffer_[4 + i] = ((uint8_t*)(&FUSE))[i];
+                i2cBuffer_[15] = CLKCTRL.MCLKCTRLA;
+                i2cBuffer_[16] = CLKCTRL.MCLKCTRLB;
+                i2cBuffer_[17] = CLKCTRL.MCLKLOCK;
+                i2cBuffer_[18] = CLKCTRL.MCLKSTATUS;
+                i2cBuffer_[19] = MAPPED_PROGMEM_PAGE_SIZE >> 8;
+                i2cBuffer_[20] = MAPPED_PROGMEM_PAGE_SIZE & 0xff;
+                i2cTxAddress_ = (uint8_t *)(& i2cBuffer_);
+                // let the RPi know we have processed the command
+                setIrq();
                 break;
-
             case msg::StartAudioRecording::ID: {
                 // TODO
                 //audio::startRecording();
@@ -705,6 +789,14 @@ public:
             delayMs(100);
         }
         gpio::input(RGB);
+    }
+
+    // TODO add timeout
+    static void showColor(Color c) {
+        gpio::output(RGB);
+        gpio::low(RGB);
+        rgb_.fill(c);
+        rgb_.update(true);
     }
 
     static void setBacklight(uint8_t value) {
@@ -813,38 +905,34 @@ ISR(TWI0_TWIS_vect) {
     #define I2C_STOP_RX (TWI_APIF_bm)
     ENTER_IRQ;
     uint8_t status = TWI0.SSTATUS;
-    // sending data to accepting master is on our fastpath and is checked first, if there is more state to send, send next byte, otherwise go to transaction completed mode. 
+    // sending data to accepting master is on our fastpath and is checked first. For the first byte we always send the status, followed by the data located at the txAddress. It is the responsibility of the master to ensure that only valid data sizes are reqested. 
     if ((status & I2C_DATA_MASK) == I2C_DATA_TX) {
-        /*
-        if (i2cBytesSent_ >= comms::I2C_PACKET_SIZE) {
-            i2cReadActual_ = reinterpret_cast<uint8_t*>(& state);
-            i2cBytesSent_ = 0;
-        }
-        TWI0.SDATA = i2cReadActual_[i2cBytesSent_++];
+        if (RCKid::i2cNumTxBytes_ == RCKid::TX_START)
+            TWI0.SDATA = * (uint8_t*) (& RCKid::state_.status);
+        else
+            TWI0.SDATA = RCKid::i2cTxAddress_[RCKid::i2cNumTxBytes_];
+        ++RCKid::i2cNumTxBytes_;
         TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
-        //TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
-        */
     // a byte has been received from master. Store it and send either ACK if we can store more, or NACK if we can't store more
     } else if ((status & I2C_DATA_MASK) == I2C_DATA_RX) {
         RCKid::i2cBuffer_[RCKid::i2cBufferIdx_++] = TWI0.SDATA;
         TWI0.SCTRLB = (RCKid::i2cBufferIdx_ == sizeof(RCKid::i2cBuffer_)) ? TWI_SCMD_COMPTRANS_gc : TWI_SCMD_RESPONSE_gc;
     // master requests slave to write data, reset the sent bytes counter, initialize the actual read address from the read start and reset the IRQ
     } else if ((status & I2C_START_MASK) == I2C_START_TX) {
-        /*
-        gpio::input(AVR_IRQ);
-        i2cBytesSent_ = 0;
-        i2cReadActual_ = i2cReadStart_;
+        gpio::input(RCKid::AVR_IRQ);
         TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
-        // If read start was one byte into the buffer, which we use for the chip info message buffer shared with bootloader, switch immediately to reading state in the next message
-        if (i2cReadStart_ == i2cBuffer_ + 1)
-            i2cReadStart_ = reinterpret_cast<uint8_t*>(& state);
-        */
     // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise. The buffer is reset to 
     } else if ((status & I2C_START_MASK) == I2C_START_RX) {
         TWI0.SCTRLB = RCKid::flags_.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
-    // sending finished
+    // sending finished, reset the tx bytes counter
     } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
         TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
+        RCKid::i2cNumTxBytes_ = RCKid::TX_START;
+        if (! RCKid::state_.status.recording())
+            RCKid::setDefaultTxAddress();
+        else
+            ; // TODO TODO TODO - set address according to the recorded buffer's state, update the recording status, etc.
+        // TODO if recording, move to next bytes 
     // receiving finished, inform main loop we have message waiting
     } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
         TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;

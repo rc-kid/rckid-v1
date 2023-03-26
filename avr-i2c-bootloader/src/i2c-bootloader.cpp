@@ -11,8 +11,8 @@
                    -- (04) PB5   PC3 (13) -- 
                    -- (05) PB4   PC2 (12) -- 
                    -- (06) PB3   PC1 (11) -- 
-                   -- (07) PB2   PC0 (10) -- BACKLIGHT
-                   -- (08) PB1   PB0 (09) -- AVR_IRQ
+                   -- (07) PB2   PC0 (10) -- AVR_IRQ
+                   -- (08) PB1   PB0 (09) -- BACKLIGHT
 
 */
 
@@ -42,13 +42,13 @@ __attribute__((naked)) __attribute__((constructor))
 void boot() {
     /* Initialize system for C support */
     asm volatile("clr r1");
-    // ensure that when PB0 (AVR_IRQ) is switched to output mode, the pin is pulled low 
-    VPORTB.OUT &= ~ (1 << 0); 
-    // only enter the bootloader if PB0 (AVR_IRQ) is pulled low
-    if ((VPORTB.IN & PIN0_bm) == 0) {
-        // enable the display backlight when entering the bootloader for some output (like say, eventually an OTA:) Baclight is connected to PC0 and is active high
-        VPORTC.DIR |= (1 << 0);
-        VPORTC.OUT |= (1 << 0);
+    // ensure that when PC0 (AVR_IRQ) is switched to output mode, the pin is pulled low 
+    VPORTC.OUT &= ~ (1 << 0); 
+    // only enter the bootloader if PC0 (AVR_IRQ) is pulled low
+    if ((VPORTC.IN & PIN0_bm) == 0) {
+        // enable the display backlight when entering the bootloader for some output (like say, eventually an OTA:) Baclight is connected to PB0 and is active high
+        VPORTB.DIR |= (1 << 0);
+        VPORTB.OUT |= (1 << 0);
         // initialize the I2C in slave mode w/o interrupts, first switch to the alternate pins
         PORTMUX.CTRLB |= PORTMUX_TWI0_bm;
         // turn I2C off in case it was running before
@@ -94,7 +94,7 @@ void boot() {
             } else if ((status & I2C_START_MASK) == I2C_START_RX) {
                 command = CMD_RESERVED; // command will be filled in 
                 TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
-                VPORTB.DIR |= (1 << 0); 
+                VPORTC.DIR |= (1 << 0); 
             // sending finished, there is nothing to do 
             } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
                 TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
@@ -107,18 +107,18 @@ void boot() {
                         VPORTB.DIR &= ~(1 << 0);
                         _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
                     case CMD_INFO:
-                        buffer[0] = SIGROW.DEVICEID0;
-                        buffer[1] = SIGROW.DEVICEID1;
-                        buffer[2] = SIGROW.DEVICEID2;
-                        buffer[3] = 0; // bootloader
+                        buffer[1] = SIGROW.DEVICEID0;
+                        buffer[2] = SIGROW.DEVICEID1;
+                        buffer[3] = SIGROW.DEVICEID2;
+                        buffer[4] = 0; // bootloader
                         for (uint8_t i = 0; i < 10; ++i)
-                            buffer[4 + i] = ((uint8_t*)(&FUSE))[i];
-                        buffer[15] = CLKCTRL.MCLKCTRLA;
-                        buffer[16] = CLKCTRL.MCLKCTRLB;
-                        buffer[17] = CLKCTRL.MCLKLOCK;
-                        buffer[18] = CLKCTRL.MCLKSTATUS;
-                        buffer[19] = MAPPED_PROGMEM_PAGE_SIZE >> 8;
-                        buffer[20] = MAPPED_PROGMEM_PAGE_SIZE & 0xff;
+                            buffer[5 + i] = ((uint8_t*)(&FUSE))[i];
+                        buffer[16] = CLKCTRL.MCLKCTRLA;
+                        buffer[17] = CLKCTRL.MCLKCTRLB;
+                        buffer[18] = CLKCTRL.MCLKLOCK;
+                        buffer[19] = CLKCTRL.MCLKSTATUS;
+                        buffer[20] = MAPPED_PROGMEM_PAGE_SIZE >> 8;
+                        buffer[21] = MAPPED_PROGMEM_PAGE_SIZE & 0xff;
                         // reset the buffer
                         i = 0;
                         //buffer[11] = FUSE.LOCKBIT;
@@ -144,8 +144,8 @@ void boot() {
                         // nothing to be done for the rest
                         break;
                 }
-                // switch AVR_IRQ (PB0) to input again
-                VPORTB.DIR &= ~(1 << 0);
+                // switch AVR_IRQ (PC0) to input again
+                VPORTC.DIR &= ~(1 << 0);
             // nothing to do, or error - not sure what to do, perhaps reset the bootloader? 
             } else {
                 // TODO

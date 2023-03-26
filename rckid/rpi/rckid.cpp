@@ -37,7 +37,7 @@ RCKid::RCKid() {
  
 void RCKid::hwLoop() {
     // query avr status
-    avrQueryStatus();
+    avrQueryState();
     while (true) {
         HWEvent e = hwEvents_.waitReceive();
         switch (e) {
@@ -56,7 +56,7 @@ void RCKid::hwLoop() {
                 break;
             }
             case HWEvent::AvrIrq: {
-                avrQueryStatus();
+                avrQueryState();
                 break;
             }
         }
@@ -79,27 +79,43 @@ void RCKid::accelQueryStatus() {
     //axisChange(accelTo1GUnsigned(-d.y), accelY_);
 }
 
-void RCKid::avrQueryStatus() {
-    comms::Status status;
-    i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& status, sizeof(status));
-    processAvrStatus(status);
+void RCKid::avrQueryState() {
+    comms::State state;
+    i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
+    processAvrStatus(state.status);
+    processAvrControls(state.controls);
 }
 
-void RCKid::avrQueryFullState() {
-    comms::FullState state;
-    i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
+void RCKid::avrQueryExtendedState() {
+    comms::ExtendedState state;
+    i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
 }
 
 void RCKid::processAvrStatus(comms::Status const & status) {
+
+}
+
+void RCKid::processAvrControls(comms::Controls const & controls) {
     //std::cout << (int) *((uint8_t*) & status) << std::endl;
- 
-    if (btnVolDown_.current != status.btnVolumeLeft())
-        buttonChange(!status.btnVolumeLeft(), btnVolDown_);
-    if (btnVolUp_.current != status.btnVolumeRight())
-        buttonChange(!status.btnVolumeRight(), btnVolUp_);
-    // TODO joystick button is missing
-    axisChange(status.joyX(), thumbX_);
-    axisChange(status.joyY(), thumbY_);
+
+    if (btnDpadLeft_.current != controls.dpadLeft())
+        buttonChange(!controls.dpadLeft(), btnDpadLeft_);
+    if (btnDpadRight_.current != controls.dpadRight())
+        buttonChange(!controls.dpadRight(), btnDpadRight_);
+    if (btnDpadUp_.current != controls.dpadTop())
+        buttonChange(!controls.dpadTop(), btnDpadUp_);
+    if (btnDpadDown_.current != controls.dpadBottom())
+        buttonChange(!controls.dpadBottom(), btnDpadDown_);
+
+    if (btnSelect_.current != controls.select())
+        buttonChange(!controls.select(), btnSelect_);
+    if (btnStart_.current != controls.start())
+        buttonChange(!controls.start(), btnStart_);
+    if (btnHome_.current != controls.home())
+        buttonChange(!controls.home(), btnHome_);
+
+    axisChange(controls.joyH(), thumbX_);
+    axisChange(controls.joyV(), thumbY_);
     
     /*
     bool volLeftChanged = volumeLeft_.update(status.btnVolumeLeft());
@@ -130,16 +146,16 @@ void RCKid::initializeISRs() {
     gpio::inputPullup(PIN_BTN_Y);
     gpio::inputPullup(PIN_BTN_L);
     gpio::inputPullup(PIN_BTN_R);
-    gpio::inputPullup(PIN_BTN_SELECT);
-    gpio::inputPullup(PIN_BTN_START);
+    gpio::inputPullup(PIN_BTN_LVOL);
+    gpio::inputPullup(PIN_BTN_RVOL);
     gpio::attachInterrupt(PIN_BTN_A, gpio::Edge::Both, & isrButtonA);
     gpio::attachInterrupt(PIN_BTN_B, gpio::Edge::Both, & isrButtonB);
     gpio::attachInterrupt(PIN_BTN_X, gpio::Edge::Both, & isrButtonX);
     gpio::attachInterrupt(PIN_BTN_Y, gpio::Edge::Both, & isrButtonY);
     gpio::attachInterrupt(PIN_BTN_L, gpio::Edge::Both, & isrButtonL);
     gpio::attachInterrupt(PIN_BTN_R, gpio::Edge::Both, & isrButtonR);
-    gpio::attachInterrupt(PIN_BTN_SELECT, gpio::Edge::Both, & isrButtonSelect);
-    gpio::attachInterrupt(PIN_BTN_START, gpio::Edge::Both, & isrButtonStart);
+    gpio::attachInterrupt(PIN_BTN_LVOL, gpio::Edge::Both, & isrButtonLVol);
+    gpio::attachInterrupt(PIN_BTN_RVOL, gpio::Edge::Both, & isrButtonRVol);
 
     //gpioSetISRFuncEx(PIN_AVR_IRQ, FALLING_EDGE, 0,  (gpioISRFuncEx_t) RCKid::isrAvrIrq, this);
     //gpioSetISRFuncEx(PIN_HEADPHONES, EITHER_EDGE, 0, (gpioISRFuncEx_t) Driver::isrHeadphonesChange, this);
@@ -217,7 +233,7 @@ void RCKid::initializeLibevdevGamepad() {
 }
 
 void RCKid::initializeAvr() {
-    if (!i2c::transmit(comms::AVR_I2C_ADDRESS, nullptr, 0, nullptr, 0))
+    if (!i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, nullptr, 0))
         ERROR("AVR not found:" << errno);
 }
 

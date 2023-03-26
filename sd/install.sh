@@ -29,7 +29,7 @@ git clone https://github.com/juj/fbcp-ili9341.git
 cd fbcp-ili9341
 mkdir build
 cd build
-cmake -DILI9341=ON -DARMV8A=ON -DGPIO_TFT_DATA_CONTROL=25 -DGPIO_TFT_RESET_PIN=7 -DSPI_BUS_CLOCK_DIVISOR=10 -DDISPLAY_ROTATE_180_DEGREES=ON -DSTATISTICS=0 ..
+cmake -DILI9341=ON -DARMV8A=ON -DGPIO_TFT_DATA_CONTROL=22 -DGPIO_TFT_RESET_PIN=27 -DSPI_BUS_CLOCK_DIVISOR=10 -DDISPLAY_ROTATE_180_DEGREES=ON -DSTATISTICS=0 ..
 make -j
 cd ../../rckid
 # enable as service so that the driver starts after reboot

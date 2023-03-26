@@ -32,6 +32,19 @@
 
 > 8
 
+Wired display pinout:
+
+red = 3V3
+pink = MOSI
+yellow = MISO ???????
+green = SCLK
+blue = D/C
+white = CE
+  = RESET?
+brown = to gnd with 10R  
+
+
+
 # AVR Pinout
 
 

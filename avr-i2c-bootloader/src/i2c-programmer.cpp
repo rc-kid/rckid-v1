@@ -154,7 +154,7 @@ ChipInfo detectAVR() {
         throw STR("Cannot send command CMD_INFO, code " << CMD_INFO);    
     cpu::delay_ms(1);
     readBuffer(data);
-    return ChipInfo{data};
+    return ChipInfo{data + 1}; // skip the first byte of the info which is the status byte in RCKid and garbage for compatibility in the bootloader
 }
 
 /** Ensures the AVR chip is available, restarts it into a bootloader mode, checks communication and returns the chip info.

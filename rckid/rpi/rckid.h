@@ -22,41 +22,40 @@
                            3V3     5V
                 I2C SDA -- 2       5V
                 I2C SCL -- 3      GND
-                AVR_IRQ -- 4*      14 -- UART TX
-                           GND     15 -- UART RX
-             HEADPHONES -- 17      18 -- BTN_L
-                  BTN_R -- 27*    GND
-                  BTN_B -- 22*    *23 -- BTN_SELECT 
-                           3V3    *24 -- BTN_A
+                NRF_IRQ -- 4*      14 -- NRF_RXTX / UART TX
+                           GND     15 -- BTN_X / UART RX
+                  BTN_B -- 17      18 -- BTN_A
+            DISPLAY_RST -- 27*    GND
+             DISPLAY_DC -- 22*    *23 -- BTN_Y 
+                           3V3    *24 -- RPI_POWEROFF
     DISPLAY MOSI (SPI0) -- 10     GND
-    DISPLAY MISO (SPI0) -- 9      *25 -- DISPLAY D/C
+    DISPLAY MISO (SPI0) -- 9      *25 -- AVR_IRQ
     DISPLAY SCLK (SPI0) -- 11       8 -- DISPLAY CE (SPI0 CE0)
-                           GND      7 -- DISPLAY RESET (SPI0 CE1)
-                  BTN_X -- 0        1 -- BTN_START
-               NRF_RXTX -- 5*     GND
-                NRF_IRQ -- 6*      12 -- AUDIO L
+                           GND      7 -- BTN_L
+                  BTN_R -- 0        1 -- BTN_RVOL
+               BTN_RVOL -- 5*     GND
+             HEADPHONES -- 6*      12 -- AUDIO L
                 AUDIO R -- 13     GND
               SPI1 MISO -- 19      16 -- SPI1 CE0
-                  BTN_Y -- 26      20 -- SPI1 MOSI
+                JOY_BTN -- 26      20 -- SPI1 MOSI
                            GND     21 -- SPI1 SCLK
 
 */
 
-#define PIN_AVR_IRQ 4
-#define PIN_HEADPHONES 17
+#define PIN_AVR_IRQ 25
+#define PIN_HEADPHONES 6
 #define PIN_NRF_CS 16
-#define PIN_NRF_RXTX 5
-#define PIN_NRF_IRQ 6
+#define PIN_NRF_RXTX 14
+#define PIN_NRF_IRQ 4
 
-#define PIN_BTN_A 24
-#define PIN_BTN_B 22
-#define PIN_BTN_X 0
-#define PIN_BTN_Y 26
-#define PIN_BTN_L 18
-#define PIN_BTN_R 27
-#define PIN_BTN_SELECT 23
-#define PIN_BTN_START 1
-
+#define PIN_BTN_A 18
+#define PIN_BTN_B 17
+#define PIN_BTN_X 15
+#define PIN_BTN_Y 23
+#define PIN_BTN_L 7
+#define PIN_BTN_R 0
+#define PIN_BTN_LVOL 23
+#define PIN_BTN_RVOL 1
 
 #define MAIN_THREAD
 #define DRIVER_THREAD
@@ -125,17 +124,17 @@ private:
     */
     enum class HWEvent {
         Tick,
-        AvrIrq = 4, 
-        Headphones = 17, 
-        ButtonA = 24, 
-        ButtonB = 22, 
-        ButtonX = 0, 
-        ButtonY = 26, 
-        ButtonL = 18, 
-        ButtonR = 27, 
-        ButtonSelect = 23, 
-        ButtonStart = 1, 
-        NrfIrq = 6, 
+        AvrIrq = PIN_AVR_IRQ, 
+        Headphones = PIN_HEADPHONES, 
+        ButtonA = PIN_BTN_A, 
+        ButtonB = PIN_BTN_B, 
+        ButtonX = PIN_BTN_X, 
+        ButtonY = PIN_BTN_Y, 
+        ButtonL = PIN_BTN_L, 
+        ButtonR = PIN_BTN_R, 
+        ButtonLVol = PIN_BTN_LVOL, 
+        ButtonRVol = PIN_BTN_RVOL, 
+        NrfIrq = PIN_NRF_IRQ, 
 
     }; // Driver::Event
 
@@ -154,15 +153,19 @@ private:
 
     /** Requests the fast AVR status update and processes the result.
      */
-    void avrQueryStatus() DRIVER_THREAD;
+    void avrQueryState() DRIVER_THREAD;
 
     /** Requests the full AVR state update and processes the result. 
      */
-    void avrQueryFullState() DRIVER_THREAD;
+    void avrQueryExtendedState() DRIVER_THREAD;
 
     /** Processes the avr status. 
      */
     void processAvrStatus(comms::Status const & status) DRIVER_THREAD;
+
+    /** Processes the controls information sent by the AVR (buttons, thumbstick).
+     */
+    void processAvrControls(comms::Controls const & controls) DRIVER_THREAD;
 
     /** Initializes the ISRs on the rpi pins so that the driver can respond properly.
      */
@@ -182,7 +185,7 @@ private:
      */
     template<typename T>
     void sendAvrCommand(T const & cmd) DRIVER_THREAD {
-        i2c::transmit(comms::AVR_I2C_ADDRESS, reinterpret_cast<uint8_t const *>(& cmd), sizeof(T), nullptr, 0);
+        i2c::transmit(AVR_I2C_ADDRESS, reinterpret_cast<uint8_t const *>(& cmd), sizeof(T), nullptr, 0);
     }
 
     static void isrAvrIrq() ISR_THREAD {
@@ -229,14 +232,14 @@ private:
         i->buttonChange(gpio::read(PIN_BTN_R), i->btnR_);
     }
 
-    static void isrButtonSelect() {
+    static void isrButtonLVol() {
         RCKid * i = RCKid::instance();
-        i->buttonChange(gpio::read(PIN_BTN_SELECT), i->btnSelect_);
+        i->buttonChange(gpio::read(PIN_BTN_LVOL), i->btnVolDown_);
     }
 
-    static void isrButtonStart() {
+    static void isrButtonRVol() {
         RCKid * i = RCKid::instance();
-        i->buttonChange(gpio::read(PIN_BTN_START), i->btnStart_);
+        i->buttonChange(gpio::read(PIN_BTN_RVOL), i->btnVolUp_);
     }
 
     /** ISR for the hardware buttons and the headphones. 
@@ -298,6 +301,11 @@ private:
     Button btnR_{BTN_RIGHT};
     Button btnSelect_{BTN_SELECT};
     Button btnStart_{BTN_START};
+    Button btnHome_{BTN_MODE};
+    Button btnDpadUp_{BTN_DPAD_UP};
+    Button btnDpadDown_{BTN_DPAD_DOWN};
+    Button btnDpadLeft_{BTN_DPAD_LEFT};
+    Button btnDpadRight_{BTN_DPAD_RIGHT};
 
     /** Axes. 
      */

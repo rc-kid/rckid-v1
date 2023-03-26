@@ -25,21 +25,24 @@
 
 ## PCB
 
-- update JOYCON connector (!!)
-- transorb should be before the charger for protection (!) 
+- can there be room for MAX9814 breakout with mic? 
+- right angle buttons on the bottom instead of the boards
+- cutout possibility & mounting holes for PSP1000 thumbstick instead of joycon
+- verify joycon connection
 - mic amplification is too great, 51k seems to do the trick
 - ferrite beads are 1206, should be 0805, but now can also stay 1206
 - decent I2C header
 
 # AVR
 
+- ensure that the modes and powering on & off works reliably so that we can switch off the I2C display and test comms
 - add errors (debug mode), alarm, recording, commands, etc. 
 - add effects for rumbler & rgb 
 
 ## RPI - RayLib
 
-- validate new pinout 
-- add joystick button direct reading
+- validate new pinout for NRF & buttons
+- very AVR comms
 - accelerometer is very noisy
 - add microphone reading and check quality 
 - if there are errors during startup a way to show them
