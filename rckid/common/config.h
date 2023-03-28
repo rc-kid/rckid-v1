@@ -1,7 +1,12 @@
 
 
 #define BTN_HOME_POWERON_PRESS 250
-#define RPI_POWERUP_TIMEOUT 10000
+
+#define BTN_HOME_POWEROFF_PRESS 500
+
+/** RPi power up timeout in ticks 
+ */
+#define RPI_POWERUP_TIMEOUT 1000
 #define RPI_POWERDOWN_TIMEOUT 10000
 
 #define RPI_PING_TIMEOUT 10000

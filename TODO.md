@@ -11,8 +11,6 @@
 
 - M1.4 screws for thumbstick
 - black M2.5 screws for top
-- extra mosfet switches (if available)
-- extra buffers (if available)
 - better 3.0V LDO (cleaner, higher voltage better for mic & speed, such as https://cz.mouser.com/ProductDetail/Texas-Instruments/TPS7A2030PDBVR?qs=hd1VzrDQEGgZMtQinkbhYw%3D%3D)
 - solder tips, solder flux
 - kapton tape? 
@@ -35,9 +33,13 @@
 
 # AVR
 
-- ensure that the modes and powering on & off works reliably so that we can switch off the I2C display and test comms
-- add errors (debug mode), alarm, recording, commands, etc. 
+- check that long home works in repair mode as well
+- add low and critical battery warnings and proper actions
 - add effects for rumbler & rgb 
+- add alarm wakeup
+- add reset cause detection
+
+- ensure that the modes and powering on & off works reliably so that we can switch off the I2C display and test comms
 
 ## RPI - RayLib
 

@@ -173,9 +173,12 @@ public:
             case Mode::Sleep:
                 sleep();
                 break;
-            // we have to check two things during the wake up mode, if the home button has been released before the timeout, then this was fake wakeup, and we go to powering down mode immediately. If the timeout has been reached, it means the pres was long enough and we switch to PowerUp mode
+            // we have to check two things during the wake up mode, if the home button has been released before the timeout, then this was fake wakeup, and we go to powering down mode immediately. If the timeout has been reached, it means the pres was long enough and we switch to PowerUp mode. If wakeup occurs in the repairMode, deal with repair mode instead. 
             case Mode::WakeUp:
-                if (state_.error == ErrorCode::RepairMode)
+                // if the select has been released (or never pressed), disable transition to repair mode
+                if (!state_.controls.select())
+                    flags_.manualRepairMode = false;
+                if (state_.dinfo.repairMode())
                     repairMode();
                 if (flags_.countdownTimeout)
                     powerUp();
@@ -189,9 +192,8 @@ public:
                 break;
             // in power on, monitor the ping timeout, if triggered, do a RPI restart.  
             case Mode::On:
-                // TODO
-                if (flags_.btnHome && gpio::read(BTN_HOME))
-                    powerDown();
+                if (flags_.countdownTimeout)
+                    rpiPingTimeout();
                 break;
             // in power down, monitor the RPI_POWEROFF line to see when it gets high and so its safe to turn the RPi off. If the timeout is triggered, force power off.  
             case Mode::PowerDown:
@@ -203,12 +205,7 @@ public:
                 }
                 // TODO keep the error somewhere or some such
                 if (flags_.countdownTimeout)
-                    state_.status.setMode(Mode::Sleep);
-                break;
-            // in repair mode there are no timeouts, just behave "normally"
-            case Mode::RepairMode:
-                // TODO long press to remove, 
-                // TODO maybe share with on, just make the timeoout disable? 
+                    rpiPowerDownTimeout();
                 break;
         }
         // in all modes, process any received I2C commands, ADC0 results and check second tick flag. If the ADC goes full circle, perform tick as well
@@ -218,6 +215,13 @@ public:
             tick();
         if (flags_.secondTick)
             secondTick();
+        // home button long press detection (we use the tick method and its regular sampling of the button pins to inform the RPi of the event. This code is solely for the long press to power off detection. 
+        if (flags_.btnHome) {
+            flags_.btnHome = false;
+            if (gpio::read(BTN_HOME))
+                btnHomeLongPressTimeout_ = BTN_HOME_POWEROFF_PRESS;
+            setIrq(); // set IRQ since btn home has been pressed/release and it might just be a short UI press
+        }
     }
 
     static void secondTick() {
@@ -253,7 +257,6 @@ public:
         }
     }
 
-
     /** \name State Transitions
      
         `PoweringDown`
@@ -262,6 +265,13 @@ public:
      
     */
     //@{
+
+    static inline uint16_t btnHomeLongPressTimeout_ = 0;
+
+    static void btnHomePowerOff() {
+        if (state_.status.mode() == Mode::On)
+            powerDown();
+    }
 
     /** Cuts power to the RPi and all other peripherals and puts the AVR to sleep. 
      */
@@ -293,7 +303,9 @@ public:
                     break;
             }
         }
-        // when we get here, we are leaving the power down mode
+        // when we get here, we are leaving the power down mode, set status to have Home and Select button both pressed (Home because power on, select tentatively to detect manual transition to repair mode)
+        state_.controls.setButtons(0, 1, true);
+        flags_.manualRepairMode = true;
     }
 
     /** Enters the WakeUp state. Called when BTN_HOME is pressed in Sleep state. 
@@ -323,23 +335,24 @@ public:
             criticalBatteryWarning();
             return false;
         }
-        switch (state_.error) {
-            case ErrorCode::RPiPowerDownTimeout:
-                showColor(Color::Blue());
-                break;
-            case ErrorCode::RPiBootRetry1:
-            case ErrorCode::RPiBootRetry2:
-                showColor(Color::Green());
-                break;
-            // if in repair mode, signal by LED and verify that charger is connected
-            case ErrorCode::RepairMode:
-                showColor(Color::Red());
-                avgVcc = avgVcc / 10;
-                if (avgVcc < VCC_THRESHOLD_VUSB) 
-                    rumblerFail();
-                    return false;
-            default:
-                break; // no signal for the rest of error codes
+        if (state_.dinfo.repairMode()) {
+            showColor(Color::Red());
+            avgVcc = avgVcc / 10;
+            if (avgVcc < VCC_THRESHOLD_VUSB) {
+                rumblerFail();
+                return false;
+            }
+        } else {
+            switch (state_.dinfo.errorCode()) {
+                case ErrorCode::RPiPowerDownTimeout:
+                    showColor(Color::Blue());
+                    break;
+                case ErrorCode::RPiPingTimeout:
+                    showColor(Color::Green());
+                    break;
+                default:
+                    break;
+            }
         }
         // we have ok voltage, turn on the rpi and get ready for normal operation, set the timer for the long power button press
         gpio::input(RPI_EN);
@@ -357,9 +370,13 @@ public:
         display.write(64, 1, "POWER_UP");
 #endif
         rumblerOk();
-        flags_.countdownTimeout = false;
-        setTimeout(RPI_POWERUP_TIMEOUT);
-        state_.status.setMode(Mode::PowerUp);
+        if (flags_.manualRepairMode) {
+            repairMode();
+        } else {
+            flags_.countdownTimeout = false;
+            setTimeout(RPI_POWERUP_TIMEOUT);
+            state_.status.setMode(Mode::PowerUp);
+        }
     }
 
     /** Enters the powering down mode. Turns on ADC1 on the RPI_POWEROFF pin where we wait for 3V3 high signal that informs the AVR that it can cut RPi's power safely. 
@@ -368,6 +385,7 @@ public:
 #if (defined TEST_I2C_DISPLAY)
         display.write(64, 1, "POWER_DOWN");
 #endif
+        stopRecording();
         setTimeout(RPI_POWERDOWN_TIMEOUT);
         state_.status.setMode(Mode::PowerDown);
         // start ADC1 in normal mode, read RPI_POWEROFF pin, start the conversion
@@ -381,52 +399,71 @@ public:
         ADC1.COMMAND = ADC_STCONV_bm;
     }
 
-    /** Called when the RPi does not boot in the set time. Three retries are available, after which the device enters */
+    static void powerOn() {
+#if (defined TEST_I2C_DISPLAY)
+        display.write(64, 1, "ON  ");
+#endif
+        setTimeout(RPI_PING_TIMEOUT);
+        state_.status.setMode(Mode::On);
+    }
+
+    /** Called when the RPi does not boot in the set time. Three retries are available, after which the device enters the repair mode and turns itself off. 
+     */
     static void rpiBootTimeout() {
         flags_.countdownTimeout = false;
         // turn off RPI
         gpio::output(RPI_EN);
         gpio::high(RPI_EN);
-        // inform the user while the RPi is off
-        showColor(state_.error == ErrorCode::RPiBootRetry2 ? Color::Red() : Color::Green());
-        rumblerFail();
-        // depending on the number of retries, either increase the timeout, or set error to repair mode and enter sleep  
-        switch (state_.error) {
-            case ErrorCode::RPiBootRetry1:
-                state_.error = ErrorCode::RPiBootRetry2;
-                setTimeout(RPI_POWERUP_TIMEOUT * 4);
-                gpio::input(RPI_EN);
-                break;
-            case ErrorCode::RPiBootRetry2:
-                state_.error = ErrorCode::RepairMode;
-                state_.status.setMode(Mode::Sleep);
-                return;
-            default:
-                state_.error = ErrorCode::RPiBootRetry1;
-                setTimeout(RPI_POWERUP_TIMEOUT * 2);
-                gpio::input(RPI_EN);
-                return;
+        // set the debug info and error state
+        if (state_.dinfo.errorCode() != ErrorCode::RPiBootTimeout)
+            state_.dinfo.setErrorCode(ErrorCode::RPiBootTimeout);
+        else
+            state_.dinfo.setRepairMode(true);
+        if (state_.dinfo.repairMode()) {
+            showColor(Color::Red());
+            rumblerFail();
+            state_.status.setMode(Mode::Sleep);
+        } else {
+            showColor(Color::Green());
+            setTimeout(RPI_POWERUP_TIMEOUT * 2);
+            rumblerFail();
+            gpio::input(RPI_EN);
         }
     }
 
-    // TODO Called when entering the repair mode, what to do? 
-    static void repairMode() {
-
-    }
-
-    /** Restarts the RPI*/
-    // TODO is needed? 
-    static void forceRPIRestart() {
-        // turn off RPI
-        gpio::output(RPI_EN);
-        gpio::high(RPI_EN);
-        // inform user
+    /** Called when the RPI times out during power down (i.e. we do not see the transition to high on RPI_POWEROFF pin). We simply set the error code and go to sleep immediately. 
+    */
+    static void rpiPowerDownTimeout() {
+        flags_.countdownTimeout = false;
+        if (state_.dinfo.repairMode())
+            return;
         rumblerFail();
-
-        // turn rpi on, enter the PowerOn phase 
-
+        state_.status.setMode(Mode::Sleep);
+        state_.dinfo.setErrorCode(ErrorCode::RPiPowerDownTimeout);
     }
 
+    /** Called when the RPI fails to talk to the AVR in a timely manner indicating errors with the RPi application. As this means that the RPi has effectively become unresponsible, we set the error and enter sleep mode. 
+     */
+    static void rpiPingTimeout() {
+        flags_.countdownTimeout = false;
+        if (state_.dinfo.repairMode())
+            return;
+        rumblerFail();
+        state_.status.setMode(Mode::Sleep);
+    }
+
+    /** Repair mode when we have trouble entering booting up the RPi. 
+     
+        Since the RPi might not be able to it itself, set the brightness to max here to make the boot process possibly observable. 
+     */
+    static void repairMode() {
+#if (defined TEST_I2C_DISPLAY)
+        display.write(64, 1, "WAKE_UP");
+#endif
+        state_.status.setMode(Mode::On);
+        showColor(Color::Red());
+        setBrightness(255);
+    }
 
     //}@
 
@@ -545,6 +582,9 @@ public:
     /** Called when the ADC cycles through all its measurements. Tick calculates the input controls and other ADC measurements and determines whether the RPi should be notified by the AVR_IRQ if there is a change. The function also performs more complex post processing to make sure the ADC is restarted as quickly as possible in the adcReady() function so that we do not waste cycles as the tick() function runs when the ADC is already busy.
      */
     static void tick() {
+        // check the home button timeout 
+        if (gpio::read(BTN_HOME) && (btnHomeLongPressTimeout_ > 0) && (--btnHomeLongPressTimeout_ == 0))
+            btnHomePowerOff();
         // check the timeout, measured in ticks
         if (countdownTicks_ > 0 && --countdownTicks_ == 0)
             flags_.countdownTimeout = true;
@@ -581,6 +621,8 @@ public:
         // TODO debounce? 
         irq = state_.controls.setJoyH(joyH_) | irq;
         irq = state_.controls.setJoyV(joyV_) | irq;
+        // check the battery levels and take appropriate actions
+        // TODO
         // if there has been a change in the irq, request IRQ
         if (irq)
             setIrq();
@@ -617,16 +659,27 @@ public:
     //@}
 
     /** \name Audio Recording
+     
+        When audio recording is enabled, the ADC1 is started in a continuous mode that collects as many of the readings as possible. When the TCB0 fires (8kHz), the accumulated samples are averaged and stored to a circular buffer. The buffer is divided into 8 32byte long batches. Each time there is 32 sampled bytes available, the AVR_IRQ is set informing the RPi to read the batch.  
+
+        While in recording mode, when RPi starts reading, a status byte is sent first, followed by the recording buffer contents. The status byte contains a flag that the AVR is in recording mode and a batch index that will be returned. When 32 bytes after the status byte are read and the batch currently being read has been valid at the beginning of the read sequence (i.e. the whole batch was sent), the batch index is incremented. If the next batch is also available in full, the AVR_IRQ is set, otherwise it will be set when the recorder crosses the batch boundary. 
+
+        The 8 batches and AVR_IRQ combined should allow enough time for the RPi to be able to read and buffer the data as needed without skipping any batches - but if a skip occurs the batch index in the status byte should be enough to detect it. 
      */
     //@{
 
-    static inline uint16_t micTicks_ = 0;
+    /// this is where we accumulate the recorder samples
     static inline uint16_t micAcc_ = 0;
+    // number of samples accumulated so far
     static inline uint8_t micSamples_ = 0;
+    /// circular buffer for the mic recorder and the write index
     static inline uint8_t recBuffer_[256];
-    static inline uint8_t recIndex_ = 0;
+    static inline uint8_t wrIndex_ = 0;
 
     static void startRecording() {
+        wrIndex_ = 0;
+        state_.status.setRecording(true);
+        setTxAddress(recBuffer_);
         // initialize ADC1
         ADC1.CTRLA = 0; // disable ADC so that any pending read from the main app is cancelled
         // TODO set reference voltage to something useful, such as 2.5? 
@@ -646,18 +699,21 @@ public:
     }
 
     static void stopRecording() {
+        // restore the mode
         TCB0.CTRLA = 0;
         ADC1.CTRLA = 0;
         ADC1.INTCTRL = 0;
+        // restore mode and then disable the recording mode, order is important as otherwise we might read the recording batch index and interpret it as mode
+        state_.status.setMode(Mode::On);
+        state_.status.setRecording(false);
     }
-
     //@}
-
 
     /** \name Communication with RPI
      
         The RPI communication works over the I2C connection and a decidated AVR_IRQ pin, which the RPi pulls high to 3V3 and the AVR outputs low when it wants to signal to the RPi.
-        
+
+        Any master-write operations simply store the data in the i2cBuffer which, when done is interpreted as an I2C command. All master-read operations send first the status byte itself, followed by the memory contents form an i2cTxAddress. By default, the i2cTxAddress points right after the status byte of the extended state, so that the whole state is returned, but it can be temporarily chaned by various I2C commands, or recording mode, in which case the appropriate batch from the recording buffer will be sent. 
      */
     //@{
 
@@ -681,6 +737,10 @@ public:
      */
     static void setDefaultTxAddress() {
         i2cTxAddress_ = ((uint8_t *) (& state_)) + 1;
+    }
+
+    static void setTxAddress(uint8_t * address) {
+        i2cTxAddress_ = address;
     }
 
     static void processCommand() {
@@ -713,35 +773,39 @@ public:
                 // let the RPi know we have processed the command
                 setIrq();
                 break;
+            // starts the audio recording 
             case msg::StartAudioRecording::ID: {
-                // TODO
-                //audio::startRecording();
+                if (state_.status.mode() == Mode::On && state_.status.recording() == false)
+                    startRecording();
                 break;
             }
+            // stops the recording
             case msg::StopAudioRecording::ID: {
-                // TODO
-                //audio::stopRecording();
+                if (state_.status.recording())
+                    stopRecording();
                 break;
             }
-
+            // sets the display brightness
             case SetBrightness::ID: {
                 auto & m = SetBrightness::fromBuffer(i2cBuffer_);
                 state_.einfo.setBrightness(m.value);
-                setBacklight(m.value);
+                setBrightness(m.value);
                 break;
             }
-
+            // sets the time
             case SetTime::ID: {
                 auto & m = SetTime::fromBuffer(i2cBuffer_);
+                cli(); // avoid corruption by the RTC interrupt
                 state_.time = m.value;
+                sei();
                 break;
             }
+            // sets the alarm time
             case SetAlarm::ID: {
                 auto & m = SetAlarm::fromBuffer(i2cBuffer_);
                 state_.alarm = m.value;
                 break;
             }
-
             case RumblerOk::ID: {
                 rumblerOk();
                 break;
@@ -759,8 +823,25 @@ public:
                 break;
             }
 
+            case PowerOn::ID: {
+                if (state_.status.mode() == Mode::PowerUp)
+                    powerOn();
+                break;
+            }
             case PowerDown::ID: {
-                // TODO
+                if (state_.status.mode() == Mode::On || state_.status.mode() == Mode::PowerUp)
+                    powerDown();
+                break;
+            }
+            case EnterRepairMode::ID: {
+                state_.dinfo.setRepairMode(true);
+                repairMode();
+                break;
+            }
+            case LeaveRepairMode::ID: {
+                state_.dinfo.setRepairMode(false);
+                powerOn();
+                break;
             }
 
         }
@@ -799,7 +880,7 @@ public:
         rgb_.update(true);
     }
 
-    static void setBacklight(uint8_t value) {
+    static void setBrightness(uint8_t value) {
         if (value == 0) { // turn off
             TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP0EN_bm;
             gpio::input(BACKLIGHT);
@@ -829,7 +910,7 @@ public:
 
     static void rumblerFail() {
         for (int i = 0; i < 3; ++i) {
-            setRumbler(255);
+            setRumbler(128); // TODO go back to 255
             delayMs(100);
             setRumbler(0);
             delayMs(230);
@@ -840,7 +921,8 @@ public:
 
     static inline ExtendedState state_;
 
-    static inline volatile struct {
+    // TODO does this need to be volatile? 
+    static inline struct {
         /// RTC one second tick ready
         bool secondTick : 1;
         /// BTN_HOME pin change detected
@@ -849,8 +931,10 @@ public:
         bool countdownTimeout : 1;
         /// set when I2C command has been received
         bool i2cReady : 1;
-        /// TODO
-        bool recReady : 1;
+        /// true if there is at least one valid batch
+        bool validBatch : 1;
+        /// during wake-up, if this keeps true, we enter repair mode instead of power up. Cleared when SELECT is released before the end of wakeup cycle
+        bool manualRepairMode : 1;
     } flags_;
 
 }; // RCKid
@@ -885,11 +969,12 @@ ISR(ADC1_RESRDY_vect) {
 ISR(TCB0_INT_vect) {
     ENTER_IRQ;
     TCB0.INTFLAGS = TCB_CAPT_bm;
-    RCKid::recBuffer_[RCKid::recIndex_++] = (RCKid::micSamples_ > 0) ? (RCKid::micAcc_ / RCKid::micSamples_) : 0;
+    RCKid::recBuffer_[RCKid::wrIndex_++] = (RCKid::micSamples_ > 0) ? (RCKid::micAcc_ / RCKid::micSamples_) : 0;
     RCKid::micAcc_ = 0;
     RCKid::micSamples_ = 0;
-    if (RCKid::recIndex_ % 32 == 0)
-        RCKid::flags_.recReady = true;
+    // if we have accumulated a batch of readings, set the IRQ, do not change the batch index and whether we have a valid batch as this is always determined by the I2C routine when slave tx starts/ends.
+    if (RCKid::wrIndex_ % 32 == 0)
+        RCKid::setIrq();
     LEAVE_IRQ;
 }
 
@@ -911,8 +996,8 @@ ISR(TWI0_TWIS_vect) {
             TWI0.SDATA = * (uint8_t*) (& RCKid::state_.status);
         else
             TWI0.SDATA = RCKid::i2cTxAddress_[RCKid::i2cNumTxBytes_];
-        ++RCKid::i2cNumTxBytes_;
         TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
+        ++RCKid::i2cNumTxBytes_;
     // a byte has been received from master. Store it and send either ACK if we can store more, or NACK if we can't store more
     } else if ((status & I2C_DATA_MASK) == I2C_DATA_RX) {
         RCKid::i2cBuffer_[RCKid::i2cBufferIdx_++] = TWI0.SDATA;
@@ -921,18 +1006,27 @@ ISR(TWI0_TWIS_vect) {
     } else if ((status & I2C_START_MASK) == I2C_START_TX) {
         gpio::input(RCKid::AVR_IRQ);
         TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
+        RCKid::flags_.validBatch = (RCKid::wrIndex_ >> 5) != RCKid::state_.status.batchIndex();
     // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise. The buffer is reset to 
     } else if ((status & I2C_START_MASK) == I2C_START_RX) {
         TWI0.SCTRLB = RCKid::flags_.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
-    // sending finished, reset the tx bytes counter
+    // sending finished, reset the tx address and when in recording mode determine if more data is available
     } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
         TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
-        RCKid::i2cNumTxBytes_ = RCKid::TX_START;
-        if (! RCKid::state_.status.recording())
+        if (! RCKid::state_.status.recording()) {
             RCKid::setDefaultTxAddress();
-        else
-            ; // TODO TODO TODO - set address according to the recorded buffer's state, update the recording status, etc.
-        // TODO if recording, move to next bytes 
+        } else if (RCKid::i2cNumTxBytes_ == 32 && RCKid::flags_.validBatch) {
+            uint8_t nextBatch = (RCKid::state_.status.batchIndex() + 1) & 7;
+            RCKid::state_.status.setBatchIndex(nextBatch);
+            RCKid::setTxAddress(RCKid::recBuffer_ + (nextBatch << 5));
+            // if the next batch is already available, set the IRQ
+            if (nextBatch != (RCKid::wrIndex_ >> 5))
+                RCKid::setIrq();
+        }
+        // reset the watchdog timeout in the poweron state
+        if (RCKid::state_.status.mode() == Mode::On)
+            RCKid::setTimeout(RPI_PING_TIMEOUT);
+        RCKid::i2cNumTxBytes_ = RCKid::TX_START;
     // receiving finished, inform main loop we have message waiting
     } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
         TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
