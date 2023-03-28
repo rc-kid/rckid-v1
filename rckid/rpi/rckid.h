@@ -26,14 +26,14 @@
                            GND     15 -- BTN_X / UART RX
                   BTN_B -- 17      18 -- BTN_A
             DISPLAY_RST -- 27*    GND
-             DISPLAY_DC -- 22*    *23 -- BTN_Y 
+             DISPLAY_DC -- 22*    *23 -- BTN_Y (voldown)
                            3V3    *24 -- RPI_POWEROFF
     DISPLAY MOSI (SPI0) -- 10     GND
     DISPLAY MISO (SPI0) -- 9      *25 -- AVR_IRQ
     DISPLAY SCLK (SPI0) -- 11       8 -- DISPLAY CE (SPI0 CE0)
                            GND      7 -- BTN_L
-                  BTN_R -- 0        1 -- BTN_RVOL
-               BTN_RVOL -- 5*     GND
+                  BTN_R -- 0        1 -- BTN_RVOL (volup)
+            ()   BTN_LVOL -- 5*     GND
              HEADPHONES -- 6*      12 -- AUDIO L
                 AUDIO R -- 13     GND
               SPI1 MISO -- 19      16 -- SPI1 CE0
@@ -54,7 +54,7 @@
 #define PIN_BTN_Y 23
 #define PIN_BTN_L 7
 #define PIN_BTN_R 0
-#define PIN_BTN_LVOL 23
+#define PIN_BTN_LVOL 5
 #define PIN_BTN_RVOL 1
 
 #define MAIN_THREAD

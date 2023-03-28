@@ -7,6 +7,17 @@
 
 #include "raylib-cpp.h"
 
+class GUI;
+
+/** Basic Widget
+ */
+class Widget {
+public:
+    /** Override this to draw the widget. 
+     */
+    virtual void draw(GUI & gui) = 0;
+}; // Widget
+
 /** Basic class for the on-screen GUI elements used by RCKid. 
  
     # Header
@@ -23,6 +34,10 @@ public:
 
     GUI();
 
+    void setWidget(Widget * widget) {
+        widget_ = widget;
+    }
+
     void resetFooter() {
         footer_.clear();
     }
@@ -31,7 +46,15 @@ public:
         footer_.push_back(FooterItem{color, std::string{text}});
     }
 
+    void clearFooter() {
+        footer_.clear();
+    }
+
     void draw();
+
+    int widgetWidth() const { return 320; }
+
+    int widgetHeight() const { return 240; }
 
 private:
 
@@ -46,9 +69,8 @@ private:
 
     std::vector<FooterItem> footer_;
 
-
-
     Font helpFont_;
     Font menuFont_;
+    Widget * widget_ = nullptr;
 
 }; // GUI

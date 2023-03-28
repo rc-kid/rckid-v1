@@ -9,8 +9,10 @@ GUI::GUI():
 void GUI::draw() {
     BeginDrawing();
     ClearBackground(BLACK);
-
-
+    // draw the widget
+    if (widget_ != nullptr)
+        widget_->draw(*this);
+    // overlay the header and footer 
     drawHeader();
     drawFooter();
     EndDrawing();
@@ -20,7 +22,7 @@ void GUI::draw() {
 
 
 void GUI::drawHeader() {
-    // DrawFPS(0,0);
+    //DrawFPS(0,0);
 
     // battery voltage
 

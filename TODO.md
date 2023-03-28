@@ -36,6 +36,7 @@
 - check that long home works in repair mode as well
 - add low and critical battery warnings and proper actions
 - add effects for rumbler & rgb 
+- add mic level wakeup and others
 - add alarm wakeup
 - add reset cause detection
 
@@ -43,8 +44,7 @@
 
 ## RPI - RayLib
 
-- validate new pinout for NRF & buttons
-- very AVR comms
+- verify AVR comms
 - accelerometer is very noisy
 - add microphone reading and check quality 
 - if there are errors during startup a way to show them

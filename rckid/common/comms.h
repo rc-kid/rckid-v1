@@ -113,7 +113,6 @@ namespace comms {
         void setBatchIndex(uint8_t index) {
             status_ &= ~MODE;
             status_ |= (index & MODE);
-            return index;
         }
 
     private:
