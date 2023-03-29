@@ -26,7 +26,7 @@ void GUI::drawHeader() {
 
     // battery voltage
 
-    DrawTextEx(menuFont_, "RCGirl", 100, 160, 64, 1.0, WHITE);
+    //DrawTextEx(menuFont_, "RCGirl", 100, 160, 64, 1.0, WHITE);
 }
 
 void GUI::drawFooter() {

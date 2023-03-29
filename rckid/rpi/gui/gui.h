@@ -9,6 +9,12 @@
 
 class GUI;
 
+static constexpr int GUI_WIDTH = 320;
+static constexpr int GUI_HEIGHT = 240;
+static constexpr int MENU_FONT_SIZE = 64;
+static constexpr int HEADER_HEIGHT = 20;
+static constexpr int FOOTER_HEIGHT = 20;
+
 /** Basic Widget
  */
 class Widget {
@@ -52,9 +58,8 @@ public:
 
     void draw();
 
-    int widgetWidth() const { return 320; }
-
-    int widgetHeight() const { return 240; }
+    Font const & menuFont() const { return menuFont_; }
+    Font const & helpFont() const { return helpFont_; }
 
 private:
 
