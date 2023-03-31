@@ -23,11 +23,9 @@
 
 ## PCB
 
-- can there be room for MAX9814 breakout with mic? 
-- right angle buttons on the bottom instead of the boards
+- verify standalone mic position wrt MAX9814 board
 - cutout possibility & mounting holes for PSP1000 thumbstick instead of joycon
 - verify joycon connection
-- mic amplification is too great, 51k seems to do the trick
 - ferrite beads are 1206, should be 0805, but now can also stay 1206
 - decent I2C header
 
