@@ -13,6 +13,18 @@ Tactile Switch       | 9        |
 NRF24L01P+           | 1        | Any module should work (*)
 
 
+## PCB
+
+Test Points:
+
+- mic out
+- speaker + and speaker - (can also be used to solder different speaker)
+- pwm0, pwm1
+- headphones
+- btns1, btns2
+- vrpi, 
+
+
 ## SD Card Preparation
 
 ## Assembly

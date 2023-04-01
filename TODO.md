@@ -23,6 +23,7 @@
 
 ## PCB
 
+- MAX9814 can use holes perhaps, no need to castellate
 - verify standalone mic position wrt MAX9814 board
 - cutout possibility & mounting holes for PSP1000 thumbstick instead of joycon
 - verify joycon connection
