@@ -160,7 +160,6 @@ public:
 
 
 
-
 /** A simple RAII timer with [us] resolution.
  */
 class DebugTimer {
