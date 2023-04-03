@@ -25,10 +25,8 @@
 
 - MAX9814 can use holes perhaps, no need to castellate
 - verify standalone mic position wrt MAX9814 board
-- cutout possibility & mounting holes for PSP1000 thumbstick instead of joycon
 - verify joycon connection
 - ferrite beads are 1206, should be 0805, but now can also stay 1206
-- decent I2C header
 
 # AVR
 
