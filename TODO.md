@@ -23,11 +23,6 @@
 
 ## PCB
 
-- MAX9814 can use holes perhaps, no need to castellate
-- verify standalone mic position wrt MAX9814 board
-- verify joycon connection
-- ferrite beads are 1206, should be 0805, but now can also stay 1206
-
 # AVR
 
 - check that long home works in repair mode as well
