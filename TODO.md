@@ -23,6 +23,8 @@
 
 ## PCB
 
+- should the ps1000 hole be permanent? 
+
 # AVR
 
 - check that long home works in repair mode as well
@@ -71,6 +73,7 @@
 - write servo code & channels
 - verify motors & servos
 - actually write the code
+- allow to set servo min & max pulse and then interpolate between them for more precission control
 
 # Other - proto
 

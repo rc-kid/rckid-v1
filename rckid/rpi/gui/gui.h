@@ -5,7 +5,8 @@
 #include <string_view>
 #include <string>
 
-#include "raylib-cpp.h"
+#include "raylib_cpp.h"
+#include "widget_helper.h"
 
 class GUI;
 
@@ -17,11 +18,49 @@ static constexpr int FOOTER_HEIGHT = 20;
 
 /** Basic Widget
  */
-class Widget {
+class Widget : public WidgetHelper {
 public:
-    /** Override this to draw the widget. 
+
+protected:
+
+    friend class GUI;
+
+    Widget(GUI * gui):
+        gui_{gui} {
+    }
+
+    GUI * gui() const { return gui_; }
+
+
+
+    /** Override this to draw the widget.
      */
-    virtual void draw(GUI & gui) = 0;
+    virtual void draw(double deltaMs) = 0;
+
+    virtual void btnA(bool state) {}
+    virtual void btnB(bool state) {}
+    virtual void btnX(bool state) {}
+    virtual void btnY(bool state) {}
+    virtual void btnL(bool state) {}
+    virtual void btnR(bool state) {}
+    virtual void btnSelect(bool state) {}
+    virtual void btnStart(bool state) {}
+    virtual void btnDpad(bool state) {}
+    virtual void dpadLeft(bool state) {}
+    virtual void dpadRight(bool state) {}
+    virtual void dpadUp(bool state) {}
+    virtual void dpadDown(bool state) {}
+    virtual void joy(uint8_t x, uint8_t y) {}
+    virtual void accel(uint8_t x, uint8_t y) {}
+
+    // TODO should these be handled by the widgets at all, likely not 
+    virtual void btnVolUp(bool state) {}
+    virtual void btnVolDown(bool state) {}
+    virtual void btnHome(bool state) {}
+
+private:
+
+    GUI * gui_;
 }; // Widget
 
 /** Basic class for the on-screen GUI elements used by RCKid. 
@@ -56,6 +95,8 @@ public:
         footer_.clear();
     }
 
+    void processInputEvents();
+
     void draw();
 
     Font const & menuFont() const { return menuFont_; }
@@ -63,6 +104,33 @@ public:
 
 private:
 
+    void btnA(bool state) { if (widget_) widget_->btnA(state); }
+    void btnB(bool state) { if (widget_) widget_->btnB(state); }
+    void btnX(bool state) { if (widget_) widget_->btnX(state); }
+    void btnY(bool state) { if (widget_) widget_->btnY(state); }
+    void btnL(bool state) { if (widget_) widget_->btnL(state); }
+    void btnR(bool state) { if (widget_) widget_->btnR(state); }
+    void btnSelect(bool state) { if (widget_) widget_->btnSelect(state); }
+    void btnStart(bool state) { if (widget_) widget_->btnStart(state); }
+    void btnDpad(bool state) { if (widget_) widget_->btnDpad(state); }
+    void dpadLeft(bool state) { if (widget_) widget_->dpadLeft(state); }
+    void dpadRight(bool state) { if (widget_) widget_->dpadRight(state); }
+    void dpadUp(bool state) { if (widget_) widget_->dpadUp(state); }
+    void dpadDown(bool state) { if (widget_) widget_->dpadDown(state); }
+    void joy(uint8_t x, uint8_t y) { if (widget_) widget_->joy(x, y); }
+    void accel(uint8_t x, uint8_t y) { if (widget_) widget_->accel(x, y); }
+
+    void btnVolUp(bool state) {
+        if (widget_) widget_->btnVolUp(state);
+    }
+
+    void btnVolDown(bool state) {
+        if (widget_) widget_->btnVolDown(state);
+    }
+
+    void btnHome(bool state) {
+        if (widget_) widget_->btnHome(state);
+    }
 
     void drawHeader();
     void drawFooter();
@@ -74,6 +142,7 @@ private:
 
     std::vector<FooterItem> footer_;
 
+    double lastDrawTime_;
     Font helpFont_;
     Font menuFont_;
     Widget * widget_ = nullptr;

@@ -1,4 +1,4 @@
-#include "gui/raylib-cpp.h"
+#include "gui/raylib_cpp.h"
 
 #include "platform/platform.h"
 
@@ -27,11 +27,12 @@ int main(int argc, char * argv[]) {
     //Font font = LoadFont("assets/fonts/OpenDyslexic.otf");
 
     GUI gui;
-    Carousel mainMenu;
+    Carousel mainMenu{&gui};
     gui.setWidget(&mainMenu);
     gui.addFooterItem(RED, "Back");
     gui.addFooterItem(GREEN, "Select");
     while (true) {
+        gui.processInputEvents();
         gui.draw();
         if (WindowShouldClose())
             break;
