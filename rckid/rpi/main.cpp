@@ -27,7 +27,21 @@ int main(int argc, char * argv[]) {
     //Font font = LoadFont("assets/fonts/OpenDyslexic.otf");
 
     GUI gui;
-    Carousel mainMenu{&gui};
+    Carousel::Items menu{
+        Carousel::Item{"Games", "assets/images/001-game-controller.png"},
+        Carousel::Item{"Remote", "assets/images/002-rc-car.png"},
+        Carousel::Item{"Video", "assets/images/005-film-slate.png"},
+        Carousel::Item{"Music", "assets/images/003-music.png"},
+        Carousel::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
+        Carousel::Item{"Torchlight", "assets/images/004-flashlight.png"},
+        };
+    Carousel::Items homeMenu{
+        Carousel::Item{"Power Off", "assets/images/011-power-off.png"},
+        Carousel::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
+        Carousel::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
+        Carousel::Item{"Settings", "assets/images/013-settings.png"},
+    };
+    Carousel mainMenu{&gui, &menu};
     gui.setWidget(&mainMenu);
     gui.addFooterItem(RED, "Back");
     gui.addFooterItem(GREEN, "Select");
