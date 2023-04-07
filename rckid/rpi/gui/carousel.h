@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "gui.h"
+#include "menu.h"
 
 /** The basic control widget for the RCKid UI
  
@@ -10,85 +11,43 @@
 class Carousel : public Widget {
 public:
 
-    class Item {
-    public:
-        Item(std::string const & title, std::string const & imgFile):
-            title_{title}, 
-            imgFile_{imgFile} {
-        }
-
-        Texture2D const & img() const { return img_; }
-        std::string const & title() const { return title_; }
-    protected:
-        friend class Carousel;
-
-        static constexpr int UNINITIALIZED = -1;
-
-        void initialize(GUI * gui) {
-            img_ = LoadTexture(imgFile_.c_str());
-            Vector2 fs = MeasureText(gui->menuFont(), title_.c_str(), MENU_FONT_SIZE);
-            titleWidth_ = fs.x;
-        }
-
-        /** Draws the item. 
-        */
-        void draw(GUI * gui, int ximg, int xtext) {
-            if (titleWidth_ == UNINITIALIZED)
-                initialize(gui);
-            DrawTexture(img_, (GUI_WIDTH - img_.width) / 2 + ximg, (GUI_HEIGHT - img_.height - MENU_FONT_SIZE) / 2, WHITE);
-            DrawTextEx(gui->menuFont(), title_.c_str(), (GUI_WIDTH - titleWidth_) / 2 + xtext, GUI_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, WHITE);
-        }
-        std::string imgFile_;
-        std::string title_;
-
-        Texture2D img_;
-        int titleWidth_ = UNINITIALIZED;
-
-    }; // Carousel::Item
-
-    class Items {
-    public:
-
-        Items(std::initializer_list<Item> items):
-            items_{items} {
-        }
-
-        size_t size() const { return items_.size(); }
-
-        Item & operator [](size_t i) { return items_[i]; }
-
-
-    private:
-
-
-
-        friend class Carousel;
-
-        std::vector<Item> items_;    
-        size_t i_ = 0;
-
-
-    }; // Carousel::Items
-
-    Carousel(GUI * gui, Items * items = nullptr):
-        Widget{gui},
-        items_{items} {
-        if (items_ != nullptr) {
-            animation_ = Animation::FadeIn;
-            frame_ = 0;
-        }
+    Carousel(GUI * gui):
+        Widget{gui} {
     }
 
-    Items * items() const { return items_; }
+    Menu * items() const { return items_; }
+
+    size_t index() const { return i_; }
+
+    void setItems(Menu * items, size_t index) {
+        if (items_ == nullptr) {
+            items_ = items;
+            i_ = index;
+            animation_ = Animation::FadeIn;
+        } else {
+            nextItems_ = items;
+            nextI_ = index;
+            animation_ = Animation::FadeOut;
+
+        }
+        frame_ = 0;
+    }
 
 protected:
+
+    void drawItem(Menu::Item & item, int ximg, int xtext) {
+        if (!item.initialized())
+            item.initialize(gui());
+        DrawTexture(item.img(), (GUI_WIDTH - item.img().width) / 2 + ximg, (GUI_HEIGHT - item.img().height - MENU_FONT_SIZE) / 2, WHITE);
+        DrawTextEx(gui()->menuFont(), item.title().c_str(), (GUI_WIDTH - item.titleWidth()) / 2 + xtext, GUI_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, WHITE);
+    }
 
     void draw(double deltaMs) override {
         if (items_ == nullptr)
             return;
         switch (animation_) {
             case Animation::None: {
-                current().draw(gui(), 0, 0);
+                drawItem(current(), 0, 0);
                 return; // no need to close animation
             }
             case Animation::Left:
@@ -99,20 +58,34 @@ protected:
                 int texti = interpolate(0, GUI_WIDTH * 2, fpct);
 
                 if (animation_ == Animation::Left) {
-                    next().draw(gui(), imgi, texti);
-                    current().draw(gui(), - GUI_WIDTH + imgi, - GUI_WIDTH * 2 + texti);
+                    drawItem(next(), imgi, texti);
+                    drawItem(current(),  - GUI_WIDTH + imgi, - GUI_WIDTH * 2 + texti);
                 } else {
-                    prev().draw(gui(), - imgi, - texti);
-                    current().draw(gui(), GUI_WIDTH - imgi, GUI_WIDTH * 2 - texti);
+                    drawItem(prev(), - imgi, - texti);
+                    drawItem(current(), GUI_WIDTH - imgi, GUI_WIDTH * 2 - texti);
                 }
                 break;
             }
             case Animation::FadeIn: {
                 frame_ = std::min(MAX_FRAME, static_cast<int>(frame_ + deltaMs));
                 double fpct = static_cast<double>(frame_) / MAX_FRAME;
-                current().draw(gui(), 0, 0);
+                drawItem(current(), 0, 0);
                 DrawRectangle(0, 0, GUI_WIDTH, GUI_HEIGHT, Fade(BLACK, 1 - fpct));
                 break;
+            }
+            case Animation::FadeOut: {
+                frame_ = std::min(MAX_FRAME, static_cast<int>(frame_ + deltaMs));
+                double fpct = static_cast<double>(frame_) / MAX_FRAME;
+                drawItem(current(), 0, 0);
+                DrawRectangle(0, 0, GUI_WIDTH, GUI_HEIGHT, Fade(BLACK, fpct));
+                if (frame_ == MAX_FRAME && nextItems_ != nullptr) {
+                    animation_ = Animation::FadeIn;
+                    frame_ = 0;
+                    i_ = nextI_;
+                    items_ = nextItems_;
+                    nextItems_ = nullptr;
+                    // TODO Detach & stuff? 
+                }
             }
         }
         if (frame_ == MAX_FRAME) 
@@ -135,9 +108,9 @@ protected:
         }
     }
 
-    Item & current() { return (*items_)[i_]; }
-    Item & next() { return (*items_)[rightOf(i_) ]; }
-    Item & prev() { return (*items_)[leftOf(i_) ]; }
+    Menu::Item & current() { return (*items_)[i_]; }
+    Menu::Item & next() { return (*items_)[rightOf(i_) ]; }
+    Menu::Item & prev() { return (*items_)[leftOf(i_) ]; }
 
     size_t leftOf(size_t i) { return i == 0 ? items_->size() - 1 : --i; }
     size_t rightOf(size_t i) { return i == items_->size() - 1 ? 0 : ++i; }
@@ -147,9 +120,10 @@ protected:
 
 private:
 
-    Items * items_;
+    Menu * items_ = nullptr;
     size_t i_ = 0;
-    Items * nextItems_ = nullptr;
+    Menu * nextItems_ = nullptr;
+    size_t nextI_ = 0;
 
     static constexpr int MAX_FRAME = 500;
 
@@ -157,6 +131,7 @@ private:
         Left, 
         Right,
         FadeIn,
+        FadeOut,
         None,
     };
     Animation animation_ = Animation::None;

@@ -1,12 +1,60 @@
 #include "platform/platform.h"
 
+#include "carousel.h"
 #include "gui.h"
+
+
+void Widget::btnB(bool state) {
+    if (state)
+        gui_->back();
+}
+
+void Widget::btnHome(bool state) {
+    if (state)
+        gui_->setMenu(gui_->homeMenu_, 0);
+}
+
 
 GUI::GUI():
     helpFont_{LoadFont("assets/fonts/Iosevka.ttf")},
     menuFont_{LoadFont("assets/fonts/OpenDyslexic.otf")},
     lastDrawTime_{GetTime()} {
-    
+    carousel_ = new Carousel{this};
+    homeMenu_ = new Menu{
+        Menu::Item{"Power Off", "assets/images/011-power-off.png"},
+        Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
+        Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
+        Menu::Item{"Settings", "assets/images/013-settings.png"},
+    };
+}
+
+void GUI::setWidget(Widget * widget) {
+    if (widget_ == carousel_)
+        nav_.push_back(NavigationItem(carousel_->items(), carousel_->index()));
+    else if (widget_ != nullptr) 
+        nav_.push_back(NavigationItem(widget_));
+    widget_ = widget;
+}
+
+void GUI::setMenu(Menu * menu, size_t index) {
+    if (widget_ == carousel_)
+        nav_.push_back(NavigationItem(carousel_->items(), carousel_->index()));
+    else if (widget_ != nullptr) 
+        nav_.push_back(NavigationItem(widget_));
+    widget_ = carousel_;
+    carousel_->setItems(menu, index);
+}
+
+void GUI::back() {
+    if (nav_.size() == 0)
+        return; 
+    NavigationItem item = nav_.back();
+    nav_.pop_back();
+    if (item.kind == NavigationItem::Kind::Menu && widget_ == carousel_) {
+        carousel_->setItems(item.menu(), item.menuIndex());
+    } else {
+        // TODO 
+    }    
 }
 
 void GUI::processInputEvents() {
