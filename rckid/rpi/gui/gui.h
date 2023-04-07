@@ -67,7 +67,7 @@ private:
  
     # Header
 
-    The header displays the status of RCKid.
+    The header displays the status of RCKid. It offers a simple and full mode, where the full mode is used when inside the home menu. The simple mode is intended for kids alone and consists of icons only, whereas the menu for adults contains also text information. 
 
     # Footer
 

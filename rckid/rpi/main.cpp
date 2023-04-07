@@ -6,6 +6,7 @@
 #include "gui/gui.h"
 #include "gui/menu.h"
 #include "gui/carousel.h"
+#include "gui/pixel_editor.h"
 
 /** Main RCKid app. 
  
@@ -36,7 +37,12 @@ int main(int argc, char * argv[]) {
         Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
         Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},
     };
-    gui.setMenu(& menu, 0);
+    //gui.setMenu(& menu, 0);
+    PixelEditor pEditor{&gui};
+    gui.setWidget(& pEditor);
+
+
+
     gui.addFooterItem(RED, "Back");
     gui.addFooterItem(GREEN, "Select");
     while (true) {
