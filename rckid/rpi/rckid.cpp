@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+using namespace platform;
+
 RCKid * RCKid::initialize() {
     gpio::initialize();
     if (!spi::initialize()) 

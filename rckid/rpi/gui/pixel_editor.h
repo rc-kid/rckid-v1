@@ -13,7 +13,7 @@ public:
     static constexpr unsigned ICON_HEIGHT = 64;
 
     PixelEditor(GUI * gui): Widget{gui} {
-        memset(icon_, ICON_WIDTH * ICON_HEIGHT, 0);
+        memset(icon_, 0, sizeof(::Color) * ICON_WIDTH * ICON_HEIGHT);
     }
 
 protected:
@@ -21,16 +21,17 @@ protected:
     static constexpr int MAX_FRAME = 500;
 
     void draw(double deltaMs) override {
-        frame_ = std::min(MAX_FRAME, static_cast<int>(frame_ + deltaMs));
+        frame_ = static_cast<int>(frame_ + deltaMs) % MAX_FRAME;
         int pixelSize = std::min(GUI_WIDTH / ICON_WIDTH, GUI_HEIGHT / ICON_HEIGHT);
         int startx = (GUI_WIDTH - (ICON_WIDTH * pixelSize)) / 2 ;
         int starty = (GUI_HEIGHT - (ICON_HEIGHT * pixelSize)) / 2;
         for (int y = 0; y < ICON_HEIGHT; ++y) {
             for (int x = 0; x < ICON_WIDTH; ++x) {
-               DrawRectangle(startx + x * pixelSize, starty + y * pixelSize, pixelSize - 1, pixelSize - 1, icon_[y_ * ICON_WIDTH + x_]); 
+               DrawRectangle(startx + x * pixelSize, starty + y * pixelSize, pixelSize, pixelSize, icon_[y * ICON_WIDTH + x]); 
             }
         }
-        DrawRectangleLines(startx - 1 + x_ * pixelSize, starty - 1 + y_ * pixelSize, pixelSize + 1, pixelSize + 1, RED);
+        uint8_t c = interpolateContinous(0, 255, frame_, MAX_FRAME, Interpolation::Linear) & 0xff;
+        DrawRectangleLines(startx - 1 + x_ * pixelSize, starty - 1 + y_ * pixelSize, pixelSize + 1, pixelSize + 1, ::Color{c, c, c, 255});
     }
 
     void dpadLeft(bool state) {
@@ -63,9 +64,9 @@ protected:
             icon_[y_ * ICON_WIDTH + x_] = bg_;
     }
 
-    Color icon_[ICON_WIDTH * ICON_HEIGHT];
-    Color fg_ = RED;
-    Color bg_ = BLACK;
+    ::Color icon_[ICON_WIDTH * ICON_HEIGHT];
+    ::Color fg_ = RED;
+    ::Color bg_ = BLACK;
     unsigned x_ = 0;
     unsigned y_ = 0;
     int frame_ = 0;

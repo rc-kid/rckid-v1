@@ -185,6 +185,7 @@ private:
      */
     template<typename T>
     void sendAvrCommand(T const & cmd) DRIVER_THREAD {
+        using namespace platform;
         i2c::transmit(AVR_I2C_ADDRESS, reinterpret_cast<uint8_t const *>(& cmd), sizeof(T), nullptr, 0);
     }
 
@@ -203,41 +204,49 @@ private:
     }
 
     static void isrButtonA() {
+        using namespace platform;
         RCKid * i = RCKid::instance();
         i->buttonChange(gpio::read(PIN_BTN_A), i->btnA_);
     }
 
     static void isrButtonB() {
+        using namespace platform;
         RCKid * i = RCKid::instance();
         i->buttonChange(gpio::read(PIN_BTN_B), i->btnB_);
     }
 
     static void isrButtonX() {
+        using namespace platform;
         RCKid * i = RCKid::instance();
         i->buttonChange(gpio::read(PIN_BTN_X), i->btnX_);
     }
 
     static void isrButtonY() {
+        using namespace platform;
         RCKid * i = RCKid::instance();
         i->buttonChange(gpio::read(PIN_BTN_Y), i->btnY_);
     }
 
     static void isrButtonL() {
+        using namespace platform;
         RCKid * i = RCKid::instance();
         i->buttonChange(gpio::read(PIN_BTN_L), i->btnL_);
     }
 
     static void isrButtonR() {
+        using namespace platform;
         RCKid * i = RCKid::instance();
         i->buttonChange(gpio::read(PIN_BTN_R), i->btnR_);
     }
 
     static void isrButtonLVol() {
+        using namespace platform;
         RCKid * i = RCKid::instance();
         i->buttonChange(gpio::read(PIN_BTN_LVOL), i->btnVolDown_);
     }
 
     static void isrButtonRVol() {
+        using namespace platform;
         RCKid * i = RCKid::instance();
         i->buttonChange(gpio::read(PIN_BTN_RVOL), i->btnVolUp_);
     }
@@ -314,8 +323,8 @@ private:
     Axis accelX_{ABS_X};
     Axis accelY_{ABS_Y};
 
-    NRF24L01 radio_{PIN_NRF_CS, PIN_NRF_RXTX};
-    MPU6050 accel_;
+    platform::NRF24L01 radio_{PIN_NRF_CS, PIN_NRF_RXTX};
+    platform::MPU6050 accel_;
 
     /** The libevdev device handle. 
      */

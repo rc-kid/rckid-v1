@@ -3,7 +3,6 @@
 #include "carousel.h"
 #include "gui.h"
 
-
 void Widget::btnB(bool state) {
     if (state)
         gui_->back();

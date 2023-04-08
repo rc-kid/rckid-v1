@@ -9,6 +9,8 @@
 #include "config.h"
 
 
+using namespace platform;
+
 /** Information about the connected chip we use to verify what & how we are flashing. 
  */
 struct ChipInfo {

@@ -6,86 +6,89 @@
 
 #include "spinlock.h"
 
-class cpu {
-public:
-    static void delay_us(unsigned value) {
-        std::this_thread::sleep_for(std::chrono::microseconds(value));        
-    }
+namespace platform {
 
-    static void delay_ms(unsigned value) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(value));        
-    }
+    class cpu {
+    public:
+        static void delay_us(unsigned value) {
+            std::this_thread::sleep_for(std::chrono::microseconds(value));        
+        }
 
-    static void sleep() {}
+        static void delay_ms(unsigned value) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(value));        
+        }
 
-}; // cpu
+        static void sleep() {}
 
-class wdt {
-public:
-    static void enable() {}
-    static void disable() {}
-    static void reset() {}
-}; // wdt
+    }; // cpu
 
-class gpio {
-public:
-    using Pin = uint16_t;
-    static constexpr Pin UNUSED = 0xffff;
+    class wdt {
+    public:
+        static void enable() {}
+        static void disable() {}
+        static void reset() {}
+    }; // wdt
 
-    enum class Edge {
-        Rising, 
-        Falling, 
-        Both
-    }; 
+    class gpio {
+    public:
+        using Pin = uint16_t;
+        static constexpr Pin UNUSED = 0xffff;
 
-    static void initialize() {}
+        enum class Edge {
+            Rising, 
+            Falling, 
+            Both
+        }; 
 
-    static void output(Pin pin) {}
+        static void initialize() {}
 
-    static void input(Pin pin) {}
+        static void output(Pin pin) {}
 
-    static void inputPullup(Pin pin) {}
+        static void input(Pin pin) {}
 
-    static void high(Pin pin) {}
+        static void inputPullup(Pin pin) {}
 
-    static void low(Pin pin) {}
+        static void high(Pin pin) {}
 
-    static bool read(Pin pin) { return false; }
+        static void low(Pin pin) {}
 
-    static void attachInterrupt(Pin pin, Edge edge, void (*handler)()) {}
+        static bool read(Pin pin) { return false; }
 
-}; // gpio
+        static void attachInterrupt(Pin pin, Edge edge, void (*handler)()) {}
 
-class i2c {
-public:
+    }; // gpio
 
-    static bool initializeMaster() { return true; }
+    class i2c {
+    public:
 
-    static void initializeSlave(uint8_t address_) {}
+        static bool initializeMaster() { return true; }
 
-    static bool transmit(uint8_t address, uint8_t const * wb, uint8_t wsize, uint8_t * rb, uint8_t rsize) {
-        return false;
-    }
+        static void initializeSlave(uint8_t address_) {}
 
-}; // i2c
+        static bool transmit(uint8_t address, uint8_t const * wb, uint8_t wsize, uint8_t * rb, uint8_t rsize) {
+            return false;
+        }
 
-class spi {
-public:
+    }; // i2c
 
-    using Device = unsigned;
+    class spi {
+    public:
 
-    static bool initialize() { return true; }
+        using Device = unsigned;
 
-    static void begin(Device device) {}
+        static bool initialize() { return true; }
 
-    static void end(Device device) {}
+        static void begin(Device device) {}
 
-    static uint8_t transfer(uint8_t value) { return 0; }
+        static void end(Device device) {}
 
-    static size_t transfer(uint8_t const * tx, uint8_t * rx, size_t numBytes) { return 0; }
+        static uint8_t transfer(uint8_t value) { return 0; }
 
-    static void send(uint8_t const * data, size_t size) {}
+        static size_t transfer(uint8_t const * tx, uint8_t * rx, size_t numBytes) { return 0; }
 
-    static void receive(uint8_t * data, size_t size) {}
-}; // spi
+        static void send(uint8_t const * data, size_t size) {}
 
+        static void receive(uint8_t * data, size_t size) {}
+    }; // spi
+
+} // namespace platform

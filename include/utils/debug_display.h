@@ -3,17 +3,19 @@
 
 #include "peripherals/ssd1306.h"
 
-class DebugDisplay {
-public:
-    static inline SSD1306 oled;
+namespace platform {
 
-    static void initialize() {
-        oled.initialize128x32();
-        oled.normalMode();
-        oled.clear32();
-    }
+    class DebugDisplay {
+    public:
+        static inline SSD1306 oled;
 
-}; // DebugDisplay
+        static void initialize() {
+            oled.initialize128x32();
+            oled.normalMode();
+            oled.clear32();
+        }
+
+    }; // DebugDisplay
 
 #define DDISP_INITIALIZE() DebugDisplay::initialize()
 
@@ -25,3 +27,5 @@ public:
 #define DDISP(...)
 
 #endif
+
+} // namespace platform

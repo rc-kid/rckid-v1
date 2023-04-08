@@ -8,8 +8,8 @@
 #include "peripherals/neopixel.h"
 
 
+using namespace platform;
 using namespace comms;
-
 
 /** DEBUG: A very simple test that just makes the clock frequencies observable. It is not to be used when AVR is soldered on the RCKid board as it enables the CLKOUT on PB5 and reconfigures other pins. 
  */

@@ -1,5 +1,7 @@
 #pragma once
 
+namespace platform { 
+
 template<uint8_t ADDRESS>
 class INA219 : public i2c::Device<ADDRESS> {
 	using i2c::Device<ADDRESS>::read8;
@@ -192,6 +194,6 @@ private:
 344   wireWriteRegister(INA219_REG_CONFIG, config);
 345 } */
 			
-		
+} // namespace platform		
 
 

@@ -8,6 +8,7 @@
 #include "gui/carousel.h"
 #include "gui/pixel_editor.h"
 
+
 /** Main RCKid app. 
  
     TODO start main loop and do some nice and efficient event loop for the main thread
