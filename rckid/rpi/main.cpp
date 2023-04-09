@@ -38,9 +38,9 @@ int main(int argc, char * argv[]) {
         Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
         Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},
     };
-    //gui.setMenu(& menu, 0);
-    PixelEditor pEditor{&gui};
-    gui.setWidget(& pEditor);
+    gui.setMenu(& menu, 0);
+    //PixelEditor pEditor{&gui};
+    //gui.setWidget(& pEditor);
 
 
 

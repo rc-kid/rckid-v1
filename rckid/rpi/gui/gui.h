@@ -48,7 +48,7 @@ protected:
     virtual void btnR(bool state) {}
     virtual void btnSelect(bool state) {}
     virtual void btnStart(bool state) {}
-    virtual void btnDpad(bool state) {}
+    virtual void btnJoy(bool state) {}
     virtual void dpadLeft(bool state) {}
     virtual void dpadRight(bool state) {}
     virtual void dpadUp(bool state) {}
@@ -160,7 +160,7 @@ private:
     void btnR(bool state) { if (widget_) widget_->btnR(state); }
     void btnSelect(bool state) { if (widget_) widget_->btnSelect(state); }
     void btnStart(bool state) { if (widget_) widget_->btnStart(state); }
-    void btnDpad(bool state) { if (widget_) widget_->btnDpad(state); }
+    void btnJoy(bool state) { if (widget_) widget_->btnJoy(state); }
     void dpadLeft(bool state) { if (widget_) widget_->dpadLeft(state); }
     void dpadRight(bool state) { if (widget_) widget_->dpadRight(state); }
     void dpadUp(bool state) { if (widget_) widget_->dpadUp(state); }
@@ -198,5 +198,6 @@ private:
     Menu * homeMenu_;
 
     std::vector<NavigationItem> nav_;
+    bool inHomeMenu_ = false;
 
 }; // GUI

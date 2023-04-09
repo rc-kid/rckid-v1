@@ -13,7 +13,6 @@ void Widget::btnHome(bool state) {
         gui_->setMenu(gui_->homeMenu_, 0);
 }
 
-
 GUI::GUI():
     helpFont_{LoadFont("assets/fonts/Iosevka.ttf")},
     menuFont_{LoadFont("assets/fonts/OpenDyslexic.otf")},
@@ -36,6 +35,11 @@ void GUI::setWidget(Widget * widget) {
 }
 
 void GUI::setMenu(Menu * menu, size_t index) {
+    if (menu == homeMenu_) {
+        if (inHomeMenu_)
+            return;
+        inHomeMenu_ = true;
+    }
     if (widget_ == carousel_)
         nav_.push_back(NavigationItem(carousel_->items(), carousel_->index()));
     else if (widget_ != nullptr) 
@@ -49,6 +53,9 @@ void GUI::back() {
         return; 
     NavigationItem item = nav_.back();
     nav_.pop_back();
+    // check if we are leaving the home menu
+    if (widget_ == carousel_ && carousel_->items() == homeMenu_)
+        inHomeMenu_ = false;
     if (item.kind == NavigationItem::Kind::Menu && widget_ == carousel_) {
         carousel_->setItems(item.menu(), item.menuIndex());
     } else {
@@ -110,11 +117,9 @@ void GUI::processInputEvents(RCKid * rckid) {
                     case RCKid::Button::VolumeDown:
                         btnVolDown(e.button.state);
                         break;
-                        /*
                     case RCKid::Button::Joy:
                         btnJoy(e.button.state);
                         break;
-                        */
                 }
             }
         }

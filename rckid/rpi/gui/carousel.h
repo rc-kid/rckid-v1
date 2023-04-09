@@ -27,7 +27,7 @@ public:
         } else {
             nextItems_ = items;
             nextI_ = index;
-            animation_ = Animation::FadeOut;
+            animation_ = Animation::Swap;
 
         }
         frame_ = 0;
@@ -35,11 +35,12 @@ public:
 
 protected:
 
-    void drawItem(Menu::Item & item, int ximg, int xtext) {
+    void drawItem(Menu::Item & item, int ximg, int xtext, uint8_t alpha = 255) {
         if (!item.initialized())
             item.initialize(gui());
-        DrawTexture(item.img(), (GUI_WIDTH - item.img().width) / 2 + ximg, (GUI_HEIGHT - item.img().height - MENU_FONT_SIZE) / 2, WHITE);
-        DrawTextEx(gui()->menuFont(), item.title().c_str(), (GUI_WIDTH - item.titleWidth()) / 2 + xtext, GUI_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, WHITE);
+        Color tint = ColorAlpha(WHITE, (float)alpha / 255);
+        DrawTexture(item.img(), (GUI_WIDTH - item.img().width) / 2 + ximg, (GUI_HEIGHT - item.img().height - MENU_FONT_SIZE) / 2, tint);
+        DrawTextEx(gui()->menuFont(), item.title().c_str(), (GUI_WIDTH - item.titleWidth()) / 2 + xtext, GUI_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, tint);
     }
 
     void draw(double deltaMs) override {
@@ -67,6 +68,7 @@ protected:
                 break;
             }
             case Animation::FadeIn: {
+
                 frame_ = std::min(MAX_FRAME, static_cast<int>(frame_ + deltaMs));
                 double fpct = static_cast<double>(frame_) / MAX_FRAME;
                 drawItem(current(), 0, 0);
@@ -81,6 +83,18 @@ protected:
                 if (frame_ == MAX_FRAME && nextItems_ != nullptr) {
                     animation_ = Animation::FadeIn;
                     frame_ = 0;
+                    i_ = nextI_;
+                    items_ = nextItems_;
+                    nextItems_ = nullptr;
+                    // TODO Detach & stuff? 
+                }
+            }
+            case Animation::Swap: {
+                frame_ = std::min(MAX_FRAME, static_cast<int>(frame_ + deltaMs));
+                uint8_t alpha = interpolate(0, 255, frame_, MAX_FRAME) & 0xff;
+                drawItem(current(), 0, 0, 255 - alpha);
+                drawItem((*nextItems_)[nextI_], 0, 0, alpha);
+                if (frame_ == MAX_FRAME) {
                     i_ = nextI_;
                     items_ = nextItems_;
                     nextItems_ = nullptr;
@@ -132,6 +146,7 @@ private:
         Right,
         FadeIn,
         FadeOut,
+        Swap,
         None,
     };
     Animation animation_ = Animation::None;
