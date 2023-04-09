@@ -1,6 +1,73 @@
+#include <iostream>
+
+
 #include "rckid.h"
 
-#include <iostream>
+#if (!defined ARCH_RPI)
+#undef KEY_APOSTROPHE
+#undef KEY_COMMA
+#undef KEY_MINUS
+#undef KEY_SLASH
+#undef KEY_SEMICOLON
+#undef KEY_EQUAL
+#undef KEY_A
+#undef KEY_B
+#undef KEY_C
+#undef KEY_D
+#undef KEY_E
+#undef KEY_F
+#undef KEY_G
+#undef KEY_H
+#undef KEY_I
+#undef KEY_J
+#undef KEY_K
+#undef KEY_L
+#undef KEY_M
+#undef KEY_N
+#undef KEY_O
+#undef KEY_P
+#undef KEY_Q
+#undef KEY_R
+#undef KEY_S
+#undef KEY_T
+#undef KEY_U
+#undef KEY_V
+#undef KEY_W
+#undef KEY_X
+#undef KEY_Y
+#undef KEY_Z
+#undef KEY_BACKSLASH
+#undef KEY_GRAVE
+#undef KEY_SPACE
+#undef KEY_ENTER
+#undef KEY_TAB
+#undef KEY_BACKSPACE
+#undef KEY_INSERT
+#undef KEY_DELETE
+#undef KEY_RIGHT
+#undef KEY_LEFT
+#undef KEY_DOWN
+#undef KEY_UP
+#undef KEY_HOME
+#undef KEY_END
+#undef KEY_PAUSE
+#undef KEY_F1
+#undef KEY_F2
+#undef KEY_F3
+#undef KEY_F4
+#undef KEY_F5
+#undef KEY_F6
+#undef KEY_F7
+#undef KEY_F8
+#undef KEY_F9
+#undef KEY_F10
+#undef KEY_F11
+#undef KEY_F12
+#undef KEY_BACK
+#undef KEY_MENU
+#include "gui/raylib_cpp.h"
+#endif
+
 
 using namespace platform;
 
@@ -44,6 +111,9 @@ void RCKid::hwLoop() {
         HWEvent e = hwEvents_.waitReceive();
         switch (e) {
             case HWEvent::Tick: {
+#if (defined ARCH_MOCK)        
+                checkMockButtons();
+#endif
                 buttonTick(btnVolDown_);
                 buttonTick(btnVolUp_);
                 buttonTick(btnA_);
@@ -54,6 +124,12 @@ void RCKid::hwLoop() {
                 buttonTick(btnR_);
                 buttonTick(btnSelect_);
                 buttonTick(btnStart_);
+                buttonTick(btnDpadLeft_);
+                buttonTick(btnDpadRight_);
+                buttonTick(btnDpadUp_);
+                buttonTick(btnDpadDown_);
+                buttonTick(btnJoy_);
+                buttonTick(btnHome_);
                 accelQueryStatus();
                 break;
             }
@@ -64,6 +140,31 @@ void RCKid::hwLoop() {
         }
     }
 }
+
+#if (defined ARCH_MOCK)
+void RCKid::checkMockButtons() {
+#define CHECK_RPI_KEY(KEY, VALUE) if (IsKeyDown(KEY) != VALUE.current) buttonChange(VALUE.current, VALUE);
+#define CHECK_AVR_KEY(KEY, VALUE) if (IsKeyDown(KEY) != VALUE.current) buttonChange(VALUE.current, VALUE);
+    CHECK_RPI_KEY(KeyboardKey::KEY_A, btnA_);
+    CHECK_RPI_KEY(KeyboardKey::KEY_B, btnB_);
+    CHECK_RPI_KEY(KeyboardKey::KEY_X, btnX_);
+    CHECK_RPI_KEY(KeyboardKey::KEY_Y, btnY_);
+    CHECK_RPI_KEY(KeyboardKey::KEY_L, btnL_);
+    CHECK_RPI_KEY(KeyboardKey::KEY_R, btnR_);
+    CHECK_RPI_KEY(KeyboardKey::KEY_COMMA, btnVolDown_);
+    CHECK_RPI_KEY(KeyboardKey::KEY_PERIOD, btnVolUp_);
+    CHECK_RPI_KEY(KeyboardKey::KEY_D, btnJoy_);
+    
+    CHECK_AVR_KEY(KeyboardKey::KEY_ENTER, btnSelect_);
+    CHECK_AVR_KEY(KeyboardKey::KEY_SPACE, btnStart_);
+    CHECK_AVR_KEY(KeyboardKey::KEY_LEFT, btnDpadLeft_);
+    CHECK_AVR_KEY(KeyboardKey::KEY_RIGHT, btnDpadRight_);
+    CHECK_AVR_KEY(KeyboardKey::KEY_UP, btnDpadUp_);
+    CHECK_AVR_KEY(KeyboardKey::KEY_DOWN, btnDpadDown_);
+    CHECK_AVR_KEY(KeyboardKey::KEY_H, btnHome_);
+#undef CHECK_RPI_KEY
+}
+#endif
 
 uint8_t accelTo1GUnsigned(int16_t v) {
     if (v < -16384)
@@ -158,6 +259,7 @@ void RCKid::initializeISRs() {
     gpio::attachInterrupt(PIN_BTN_R, gpio::Edge::Both, & isrButtonR);
     gpio::attachInterrupt(PIN_BTN_LVOL, gpio::Edge::Both, & isrButtonLVol);
     gpio::attachInterrupt(PIN_BTN_RVOL, gpio::Edge::Both, & isrButtonRVol);
+    gpio::attachInterrupt(PIN_BTN_JOY, gpio::Edge::Both, & isrButtonJoy);
 
     //gpioSetISRFuncEx(PIN_AVR_IRQ, FALLING_EDGE, 0,  (gpioISRFuncEx_t) RCKid::isrAvrIrq, this);
     //gpioSetISRFuncEx(PIN_HEADPHONES, EITHER_EDGE, 0, (gpioISRFuncEx_t) Driver::isrHeadphonesChange, this);

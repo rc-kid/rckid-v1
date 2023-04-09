@@ -15,19 +15,19 @@
 
  */
 int main(int argc, char * argv[]) {
-    // first initialize the joystick and peripherals, filling the error messages
+    // initialize raylib
+    InitWindow(320, 240, "RCKid");
+    SetTargetFPS(60);
+    //Texture2D texture = LoadTexture("assets/images/001-game-controller.png"); 
+    //Font font = LoadFont("assets/fonts/OpenDyslexic.otf");
+
+    // initialize the joystick and peripherals, filling the error messages
     RCKid * rckid = RCKid::initialize();
 
     // test mode and other important commands
     if (argc == 2 && strcmp(argv[1], "--test") == 0)
         return EXIT_SUCCESS;
 
-
-    // initialize raylib
-    InitWindow(320, 240, "RCKid");
-    SetTargetFPS(60);
-    //Texture2D texture = LoadTexture("assets/images/001-game-controller.png"); 
-    //Font font = LoadFont("assets/fonts/OpenDyslexic.otf");
 
     GUI gui;
     Menu menu{
@@ -47,7 +47,7 @@ int main(int argc, char * argv[]) {
     gui.addFooterItem(RED, "Back");
     gui.addFooterItem(GREEN, "Select");
     while (true) {
-        gui.processInputEvents();
+        gui.processInputEvents(rckid);
         gui.draw();
         if (WindowShouldClose())
             break;

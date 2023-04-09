@@ -8,6 +8,7 @@
 #include "raylib_cpp.h"
 #include "menu.h"
 #include "widget_helper.h"
+#include "../rckid.h"
 
 class GUI;
 class Carousel;
@@ -95,7 +96,7 @@ public:
         footer_.clear();
     }
 
-    void processInputEvents();
+    void processInputEvents(RCKid * rckid);
 
     void draw();
 

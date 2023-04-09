@@ -56,28 +56,71 @@ void GUI::back() {
     }    
 }
 
-void GUI::processInputEvents() {
-#if (defined ARCH_MOCK)
-#define CHECK_KEY(KEY, FN) if (IsKeyPressed(KEY)) FN(true); if (IsKeyReleased(KEY)) FN(false);
-    CHECK_KEY(KEY_A, btnA);
-    CHECK_KEY(KEY_B, btnB);
-    CHECK_KEY(KEY_X, btnX);
-    CHECK_KEY(KEY_Y, btnY);
-    CHECK_KEY(KEY_L, btnL);
-    CHECK_KEY(KEY_R, btnR);
-    CHECK_KEY(KEY_ENTER, btnSelect);
-    CHECK_KEY(KEY_SPACE, btnStart);
-    CHECK_KEY(KEY_D, btnDpad);
-    CHECK_KEY(KEY_LEFT, dpadLeft);
-    CHECK_KEY(KEY_RIGHT, dpadRight);
-    CHECK_KEY(KEY_UP, dpadUp);
-    CHECK_KEY(KEY_DOWN, dpadDown);
-    CHECK_KEY(KEY_COMMA, btnVolDown);
-    CHECK_KEY(KEY_PERIOD, btnVolUp);
-    CHECK_KEY(KEY_H, btnHome);
-#undef CHECK_KEY
-#endif
-    // TODO actually check the gamepad stuff
+void GUI::processInputEvents(RCKid * rckid) {
+    RCKid::Event e;
+    while (true) {
+        size_t events = rckid->getNextEvent(e);
+        if (events == 0)
+            break;
+        switch (e.kind) {
+            case RCKid::Event::Kind::Button: {
+                switch (e.button.btn) {
+                    case RCKid::Button::A:
+                        btnA(e.button.state);
+                        break;
+                    case RCKid::Button::B:
+                        btnB(e.button.state);
+                        break;
+                    case RCKid::Button::X:
+                        btnX(e.button.state);
+                        break;
+                    case RCKid::Button::Y:
+                        btnY(e.button.state);
+                        break;
+                    case RCKid::Button::L:
+                        btnL(e.button.state);
+                        break;
+                    case RCKid::Button::R:
+                        btnR(e.button.state);
+                        break;
+                    case RCKid::Button::Left:
+                        dpadLeft(e.button.state);
+                        break;
+                    case RCKid::Button::Right:
+                        dpadRight(e.button.state);
+                        break;
+                    case RCKid::Button::Up:
+                        dpadUp(e.button.state);
+                        break;
+                    case RCKid::Button::Down:
+                        dpadDown(e.button.state);
+                        break;
+                    case RCKid::Button::Select:
+                        btnSelect(e.button.state);
+                        break;
+                    case RCKid::Button::Start:
+                        btnStart(e.button.state);
+                        break;
+                    case RCKid::Button::Home:
+                        btnHome(e.button.state);
+                        break;
+                    case RCKid::Button::VolumeUp:
+                        btnVolUp(e.button.state);
+                        break;
+                    case RCKid::Button::VolumeDown:
+                        btnVolDown(e.button.state);
+                        break;
+                        /*
+                    case RCKid::Button::Joy:
+                        btnJoy(e.button.state);
+                        break;
+                        */
+                }
+            }
+        }
+        if (events == 1)
+            break;
+    }
 }
 
 void GUI::draw() {

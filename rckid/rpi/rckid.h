@@ -1,5 +1,8 @@
 #pragma once
 
+#include <queue>
+#include <mutex>
+
 #include "libevdev/libevdev.h"
 #include "libevdev/libevdev-uinput.h"
 
@@ -37,7 +40,7 @@
              HEADPHONES -- 6*      12 -- AUDIO L
                 AUDIO R -- 13     GND
               SPI1 MISO -- 19      16 -- SPI1 CE0
-                JOY_BTN -- 26      20 -- SPI1 MOSI
+                BTN_JOY -- 26      20 -- SPI1 MOSI
                            GND     21 -- SPI1 SCLK
 
 */
@@ -56,6 +59,8 @@
 #define PIN_BTN_R 0
 #define PIN_BTN_LVOL 5
 #define PIN_BTN_RVOL 1
+#define PIN_BTN_JOY 26
+
 
 #define MAIN_THREAD
 #define DRIVER_THREAD
@@ -71,7 +76,53 @@ public:
 
     static constexpr uint8_t BTN_DEBOUNCE_DURATION = 2;
 
-    static constexpr uint8_t BTN_AUTOREPEAT_DURATION = 50;
+    static constexpr uint8_t BTN_AUTOREPEAT_DURATION = 10;
+
+    enum class Button {
+        A, 
+        B, 
+        X, 
+        Y, 
+        L, 
+        R, 
+        Left, 
+        Right,
+        Up,
+        Down, 
+        Select, 
+        Start, 
+        Home, 
+        VolumeUp, 
+        VolumeDown, 
+        Joy, 
+    }; // Button
+
+    struct ButtonEvent {
+        Button btn;
+        bool state;
+    }; // ButtonEvent
+
+    struct Event {
+        enum class Kind {
+            None,
+            Button, 
+        }; // Event::Kind
+        
+        Kind kind;
+
+        union {
+            ButtonEvent button;
+        }; 
+
+        Event():kind{Kind::None} {}
+
+        Event(Button btn, bool state):kind{Kind::Button}, button{ButtonEvent{btn, state}} {}
+
+
+
+
+
+    };
 
     /** Initializes an RC boy instance and returns it. 
      
@@ -81,6 +132,15 @@ public:
 
     static RCKid * instance(); 
 
+    size_t getNextEvent(Event & into) {
+        std::lock_guard<std::mutex> g{em_};
+        size_t result = events_.size();
+        if (result > 0) {
+            into = events_.front();
+            events_.pop();
+        }
+        return result;
+    }
 
 private:
 
@@ -96,16 +156,17 @@ private:
 
         The volume buttons and the thumbstick button are already debounced on the AVR to reduce the I2C talk to minimum. 
      */
-    struct Button {
+    struct ButtonState {
         bool current = false ISR_THREAD; 
         bool reported = false ISR_THREAD DRIVER_THREAD;
         unsigned debounce = 0 ISR_THREAD DRIVER_THREAD;
         unsigned autorepeat = 0 ISR_THREAD DRIVER_THREAD;
+        Button button;
         unsigned const evdevId;
 
         /** Creates new button, parametrized by the pin and its evdev id. 
          */
-        Button(unsigned evdevId): evdevId{evdevId} { }
+        ButtonState(Button button, unsigned evdevId): button{button}, evdevId{evdevId} { }
 
     }; // RCKid::Button
 
@@ -113,11 +174,11 @@ private:
 
         We use the analog axes for the thumbstick and accelerometer. The thumbstick is debounced on the AVR.   
      */
-    struct Axis {
+    struct AxisState {
         unsigned current;
         unsigned const evdevId;
 
-        Axis(unsigned evdevId):evdevId{evdevId} { }
+        AxisState(unsigned evdevId):evdevId{evdevId} { }
     }; // RCKid:Axis
 
     /** Event for the driver's main loop to react to. Events with specified numbers are changes on the specified pins.
@@ -135,7 +196,6 @@ private:
         ButtonLVol = PIN_BTN_LVOL, 
         ButtonRVol = PIN_BTN_RVOL, 
         NrfIrq = PIN_NRF_IRQ, 
-
     }; // Driver::Event
 
 
@@ -146,6 +206,10 @@ private:
     /** The HW loop, proceses events from the hw event queue. This method is executed in a separate thread, which isthe only thread that accesses the GPIOs and i2c/spi connections. 
      */
     void hwLoop() DRIVER_THREAD;
+
+#if (defined ARCH_MOCK)
+    void checkMockButtons() DRIVER_THREAD;    
+#endif
 
     /** Queries the accelerometer status and updates the X and Y accel axes. 
      */
@@ -251,11 +315,17 @@ private:
         i->buttonChange(gpio::read(PIN_BTN_RVOL), i->btnVolUp_);
     }
 
+    static void isrButtonJoy() {
+        using namespace platform;
+        RCKid * i = RCKid::instance();
+        i->buttonChange(gpio::read(PIN_BTN_JOY), i->btnJoy_);
+    }
+
     /** ISR for the hardware buttons and the headphones. 
      
         Together with the driver thread's ticks, the isr is responsibel for debouncing. Called by the ISR or driver thread depending on the button. 
      */
-    void buttonChange(int level, Button & btn) ISR_THREAD DRIVER_THREAD {
+    void buttonChange(int level, ButtonState & btn) ISR_THREAD DRIVER_THREAD {
         // always set the state
         btn.current = ! level;
         // if debounce is 0, take action and set the debounce timer, otherwise do nothing
@@ -265,17 +335,18 @@ private:
         }
     }
 
-    void buttonAction(Button & btn) ISR_THREAD DRIVER_THREAD {
+    void buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {
         btn.reported = btn.current;
         btn.autorepeat = BTN_AUTOREPEAT_DURATION;
         if (uidev_ != nullptr) {
             libevdev_uinput_write_event(uidev_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
             libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
         }
-        // TODO send the appropriate action to the main thread
+        // send the appropriate action to the main thread
+        sendEvent(Event{btn.button, btn.reported});
     }
 
-    void buttonTick(Button & btn) DRIVER_THREAD {
+    void buttonTick(ButtonState & btn) DRIVER_THREAD {
         if (btn.debounce > 0 && --(btn.debounce) == 0)
             if (btn.reported != btn.current)
                 buttonAction(btn);
@@ -283,7 +354,7 @@ private:
             buttonAction(btn);
     }
 
-    void axisChange(uint8_t value, Axis & axis) DRIVER_THREAD {
+    void axisChange(uint8_t value, AxisState & axis) DRIVER_THREAD {
         if (axis.current != value) {
             axis.current = value;
             if (uidev_ != nullptr) {
@@ -293,38 +364,46 @@ private:
         }
     }
 
+    void sendEvent(Event e) {
+        std::lock_guard<std::mutex> g{em_};
+        events_.push(e);
+    }
+
     /** Hardware events sent to the driver's main loop. 
      */
     EventQueue<HWEvent> hwEvents_;
 
     /** The button state objects. 
      */
-    Button btnVolDown_{KEY_VOLUMEDOWN};
-    Button btnVolUp_{KEY_VOLUMEUP};
-    Button btnJoy_{BTN_JOYSTICK};
-    Button btnA_{BTN_A};
-    Button btnB_{BTN_B}; 
-    Button btnX_{BTN_X};
-    Button btnY_{BTN_Y};
-    Button btnL_{BTN_LEFT};
-    Button btnR_{BTN_RIGHT};
-    Button btnSelect_{BTN_SELECT};
-    Button btnStart_{BTN_START};
-    Button btnHome_{BTN_MODE};
-    Button btnDpadUp_{BTN_DPAD_UP};
-    Button btnDpadDown_{BTN_DPAD_DOWN};
-    Button btnDpadLeft_{BTN_DPAD_LEFT};
-    Button btnDpadRight_{BTN_DPAD_RIGHT};
+    ButtonState btnVolDown_{Button::VolumeDown, KEY_VOLUMEDOWN};
+    ButtonState btnVolUp_{Button::VolumeUp, KEY_VOLUMEUP};
+    ButtonState btnJoy_{Button::Joy, BTN_JOYSTICK};
+    ButtonState btnA_{Button::A, BTN_A};
+    ButtonState btnB_{Button::B, BTN_B}; 
+    ButtonState btnX_{Button::X, BTN_X};
+    ButtonState btnY_{Button::Y, BTN_Y};
+    ButtonState btnL_{Button::L, BTN_LEFT};
+    ButtonState btnR_{Button::R, BTN_RIGHT};
+    ButtonState btnSelect_{Button::Select, BTN_SELECT};
+    ButtonState btnStart_{Button::Start, BTN_START};
+    ButtonState btnHome_{Button::Home, BTN_MODE};
+    ButtonState btnDpadUp_{Button::Up, BTN_DPAD_UP};
+    ButtonState btnDpadDown_{Button::Down, BTN_DPAD_DOWN};
+    ButtonState btnDpadLeft_{Button::Left, BTN_DPAD_LEFT};
+    ButtonState btnDpadRight_{Button::Right, BTN_DPAD_RIGHT};
 
     /** Axes. 
      */
-    Axis thumbX_{ABS_RX};
-    Axis thumbY_{ABS_RY};
-    Axis accelX_{ABS_X};
-    Axis accelY_{ABS_Y};
+    AxisState thumbX_{ABS_RX};
+    AxisState thumbY_{ABS_RY};
+    AxisState accelX_{ABS_X};
+    AxisState accelY_{ABS_Y};
 
     platform::NRF24L01 radio_{PIN_NRF_CS, PIN_NRF_RXTX};
     platform::MPU6050 accel_;
+
+    std::queue<Event> events_;
+    std::mutex em_;
 
     /** The libevdev device handle. 
      */
