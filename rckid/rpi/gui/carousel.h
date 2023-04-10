@@ -37,12 +37,12 @@ public:
 
 protected:
 
-    void drawItem(Menu::Item & item, int ximg, int xtext, uint8_t alpha = 255) {
-        if (!item.initialized())
-            item.initialize(gui());
+    void drawItem(Menu::Item * item, int ximg, int xtext, uint8_t alpha = 255) {
+        if (!item->initialized())
+            item->initialize(gui());
         Color tint = ColorAlpha(WHITE, (float)alpha / 255);
-        DrawTexture(item.img(), (GUI_WIDTH - item.img().width) / 2 + ximg, (GUI_HEIGHT - item.img().height - MENU_FONT_SIZE) / 2, tint);
-        DrawTextEx(gui()->menuFont(), item.title().c_str(), (GUI_WIDTH - item.titleWidth()) / 2 + xtext, GUI_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, tint);
+        DrawTexture(item->img(), (GUI_WIDTH - item->img().width) / 2 + ximg, (GUI_HEIGHT - item->img().height - MENU_FONT_SIZE) / 2, tint);
+        DrawTextEx(gui()->menuFont(), item->title().c_str(), (GUI_WIDTH - item->titleWidth()) / 2 + xtext, GUI_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, tint);
     }
 
     void draw(double deltaMs) override {
@@ -110,9 +110,14 @@ protected:
         }
     }
 
-    Menu::Item & current() { return (*items_)[i_]; }
-    Menu::Item & next() { return (*items_)[rightOf(i_) ]; }
-    Menu::Item & prev() { return (*items_)[leftOf(i_) ]; }
+    void btnA(bool state) override {
+        if (state && transition_ == Transition::None && items_ != nullptr)
+            current()->onSelect(gui());
+    }
+
+    Menu::Item * current() { return (*items_)[i_]; }
+    Menu::Item * next() { return (*items_)[rightOf(i_) ]; }
+    Menu::Item * prev() { return (*items_)[leftOf(i_) ]; }
 
     size_t leftOf(size_t i) { return i == 0 ? items_->size() - 1 : --i; }
     size_t rightOf(size_t i) { return i == items_->size() - 1 ? 0 : ++i; }

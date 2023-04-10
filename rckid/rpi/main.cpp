@@ -31,17 +31,17 @@ int main(int argc, char * argv[]) {
 
     GUI gui;
     Menu menu{
-        Menu::Item{"Games", "assets/images/001-game-controller.png"},
-        Menu::Item{"Remote", "assets/images/002-rc-car.png"},
-        Menu::Item{"Video", "assets/images/005-film-slate.png"},
-        Menu::Item{"Music", "assets/images/003-music.png"},
-        Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
-        Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},
+        new Menu::Item{"Games", "assets/images/001-game-controller.png"},
+        new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
+        new Menu::Item{"Video", "assets/images/005-film-slate.png"},
+        new Menu::Item{"Music", "assets/images/003-music.png"},
+        new Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
+        new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},
+        new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{&gui}},
     };
-    //gui.setMenu(& menu, 0);
-    PixelEditor pEditor{&gui};
-    gui.setWidget(& pEditor);
-
+    gui.setMenu(& menu, 0);
+    //PixelEditor pEditor{&gui};
+    //gui.setWidget(& pEditor);
 
 
     gui.addFooterItem(RED, "Back");

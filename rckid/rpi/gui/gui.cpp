@@ -19,10 +19,10 @@ GUI::GUI():
     lastDrawTime_{GetTime()} {
     carousel_ = new Carousel{this};
     homeMenu_ = new Menu{
-        Menu::Item{"Power Off", "assets/images/011-power-off.png"},
-        Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
-        Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
-        Menu::Item{"Settings", "assets/images/013-settings.png"},
+        new Menu::Item{"Power Off", "assets/images/011-power-off.png"},
+        new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
+        new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
+        new Menu::Item{"Settings", "assets/images/013-settings.png"},
     };
 }
 

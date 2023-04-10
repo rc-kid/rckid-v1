@@ -1,10 +1,6 @@
 # Questions
 
-- transient voltage protection, which one to get? (up to 10v)
 - which antenna to buy? 
-- mic amp design ok? - no
-- lego remote motor protection?  - led
-- how to charge Li-Ion 2S? Is it worth it? - battery ballancers exist
 - PWM motor control frequency - 20kHz should be enough
 
 ## BOM
@@ -23,7 +19,7 @@
 
 ## PCB
 
-- should the ps1000 hole be permanent? 
+- should the ps1000 hole be permanent?, likely yes - might also prevent the joycon encosure wobble 
 
 # AVR
 
@@ -37,6 +33,20 @@
 - ensure that the modes and powering on & off works reliably so that we can switch off the I2C display and test comms
 
 ## RPI - RayLib
+
+- onFocur and onBlur events to Widgets
+- widget swapping transition
+- fullscreen widgets that do not display the footer
+- footer transition
+- footer filling when widgets swapped
+- add torchlight widget
+
+- webserver from the app 
+- submen and lazy submenu items
+
+
+- how to configure, via JSON I guess, reuse the simple UI from mp3 player should be enough
+- samba on demand? etc.
 
 - verify AVR comms
 - accelerometer is very noisy
