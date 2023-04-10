@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gui.h"
+#include "animation.h"
 
 /** A simple pixel editor. 
  
@@ -12,16 +13,17 @@ public:
     static constexpr unsigned ICON_WIDTH = 64;
     static constexpr unsigned ICON_HEIGHT = 64;
 
-    PixelEditor(GUI * gui): Widget{gui} {
+    PixelEditor(GUI * gui): 
+        Widget{gui}, 
+        cursor_{500} {
+        cursor_.startContinuous();
         memset(icon_, 0, sizeof(::Color) * ICON_WIDTH * ICON_HEIGHT);
     }
 
 protected:
 
-    static constexpr int MAX_FRAME = 500;
-
     void draw(double deltaMs) override {
-        frame_ = static_cast<int>(frame_ + deltaMs) % MAX_FRAME;
+        cursor_.update(deltaMs);
         int pixelSize = std::min(GUI_WIDTH / ICON_WIDTH, GUI_HEIGHT / ICON_HEIGHT);
         int startx = (GUI_WIDTH - (ICON_WIDTH * pixelSize)) / 2 ;
         int starty = (GUI_HEIGHT - (ICON_HEIGHT * pixelSize)) / 2;
@@ -30,7 +32,7 @@ protected:
                DrawRectangle(startx + x * pixelSize, starty + y * pixelSize, pixelSize, pixelSize, icon_[y * ICON_WIDTH + x]); 
             }
         }
-        uint8_t c = interpolateContinous(0, 255, frame_, MAX_FRAME, Interpolation::Linear) & 0xff;
+        uint8_t c = cursor_.interpolateContinuous(0, 255, Interpolation::Linear); 
         DrawRectangleLines(startx - 1 + x_ * pixelSize, starty - 1 + y_ * pixelSize, pixelSize + 1, pixelSize + 1, ::Color{c, c, c, 255});
     }
 
@@ -69,7 +71,7 @@ protected:
     ::Color bg_ = BLACK;
     unsigned x_ = 0;
     unsigned y_ = 0;
-    int frame_ = 0;
+    Animation cursor_;
 
 
 }; // PixelEditor

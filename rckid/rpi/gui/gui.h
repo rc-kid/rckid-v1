@@ -7,7 +7,6 @@
 
 #include "raylib_cpp.h"
 #include "menu.h"
-#include "widget_helper.h"
 #include "../rckid.h"
 
 class GUI;
@@ -21,7 +20,7 @@ static constexpr int FOOTER_HEIGHT = 20;
 
 /** Basic Widget
  */
-class Widget : public WidgetHelper {
+class Widget {
 public:
 
 protected:

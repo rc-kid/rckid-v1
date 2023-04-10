@@ -4,6 +4,7 @@
 
 #include "gui.h"
 #include "menu.h"
+#include "animation.h"
 
 /** The basic control widget for the RCKid UI
  
@@ -12,7 +13,8 @@ class Carousel : public Widget {
 public:
 
     Carousel(GUI * gui):
-        Widget{gui} {
+        Widget{gui}, 
+        animation_{500} {
     }
 
     Menu * items() const { return items_; }
@@ -23,14 +25,14 @@ public:
         if (items_ == nullptr) {
             items_ = items;
             i_ = index;
-            animation_ = Animation::FadeIn;
+            transition_ = Transition::FadeIn;
         } else {
             nextItems_ = items;
             nextI_ = index;
-            animation_ = Animation::Swap;
+            transition_ = Transition::Swap;
 
         }
-        frame_ = 0;
+        animation_.start();
     }
 
 protected:
@@ -46,19 +48,25 @@ protected:
     void draw(double deltaMs) override {
         if (items_ == nullptr)
             return;
-        switch (animation_) {
-            case Animation::None: {
+        if (animation_.update(deltaMs)) {
+            if (transition_ == Transition::Swap) {
+                // TODO detach?
+                i_ = nextI_;
+                items_ = nextItems_;
+                nextItems_ = nullptr;
+            }
+            transition_ = Transition::None;
+        }
+        switch (transition_) {
+            case Transition::None: {
                 drawItem(current(), 0, 0);
                 return; // no need to close animation
             }
-            case Animation::Left:
-            case Animation::Right: {
-                frame_ = std::min(MAX_FRAME, static_cast<int>(frame_ + deltaMs));
-                double fpct = static_cast<double>(frame_) / MAX_FRAME;
-                int imgi = interpolate(0, GUI_WIDTH, fpct);
-                int texti = interpolate(0, GUI_WIDTH * 2, fpct);
-
-                if (animation_ == Animation::Left) {
+            case Transition::Left:
+            case Transition::Right: {
+                int imgi = animation_.interpolate(0, GUI_WIDTH);
+                int texti = animation_.interpolate(0, GUI_WIDTH * 2);
+                if (transition_ == Transition::Left) {
                     drawItem(next(), imgi, texti);
                     drawItem(current(),  - GUI_WIDTH + imgi, - GUI_WIDTH * 2 + texti);
                 } else {
@@ -67,58 +75,38 @@ protected:
                 }
                 break;
             }
-            case Animation::FadeIn: {
-
-                frame_ = std::min(MAX_FRAME, static_cast<int>(frame_ + deltaMs));
-                double fpct = static_cast<double>(frame_) / MAX_FRAME;
-                drawItem(current(), 0, 0);
-                DrawRectangle(0, 0, GUI_WIDTH, GUI_HEIGHT, Fade(BLACK, 1 - fpct));
+            case Transition::FadeIn: {
+                drawItem(current(), 0, 0, animation_.interpolate(0, 255));
                 break;
             }
-            case Animation::FadeOut: {
-                frame_ = std::min(MAX_FRAME, static_cast<int>(frame_ + deltaMs));
-                double fpct = static_cast<double>(frame_) / MAX_FRAME;
-                drawItem(current(), 0, 0);
-                DrawRectangle(0, 0, GUI_WIDTH, GUI_HEIGHT, Fade(BLACK, fpct));
-                if (frame_ == MAX_FRAME && nextItems_ != nullptr) {
-                    animation_ = Animation::FadeIn;
-                    frame_ = 0;
-                    i_ = nextI_;
-                    items_ = nextItems_;
-                    nextItems_ = nullptr;
-                    // TODO Detach & stuff? 
-                }
+            case Transition::FadeOut: {
+                drawItem(current(), 0, 0, animation_.interpolate(255, 0));
+                break;
             }
-            case Animation::Swap: {
-                frame_ = std::min(MAX_FRAME, static_cast<int>(frame_ + deltaMs));
-                uint8_t alpha = interpolate(0, 255, frame_, MAX_FRAME) & 0xff;
+            case Transition::Swap: {
+                uint8_t alpha = animation_.interpolate(0, 255) & 0xff;
                 drawItem(current(), 0, 0, 255 - alpha);
                 drawItem((*nextItems_)[nextI_], 0, 0, alpha);
-                if (frame_ == MAX_FRAME) {
-                    i_ = nextI_;
-                    items_ = nextItems_;
-                    nextItems_ = nullptr;
-                    // TODO Detach & stuff? 
-                }
+                break;
             }
+            default:
+                UNREACHABLE;
         }
-        if (frame_ == MAX_FRAME) 
-            animation_ = Animation::None;
     }
 
     void dpadLeft(bool state) override {
-        if (state && animation_ == Animation::None && items_ != nullptr) {
-            animation_ = Animation::Left;
+        if (state && transition_ == Transition::None && items_ != nullptr) {
+            transition_ = Transition::Left;
             moveLeft();
-            frame_ = 0;
+            animation_.start();
         }
     }
 
     void dpadRight(bool state) override {
-        if (state && animation_ == Animation::None && items_ != nullptr) {
-            animation_ = Animation::Right;
+        if (state && transition_ == Transition::None && items_ != nullptr) {
+            transition_ = Transition::Right;
             moveRight();
-            frame_ = 0;
+            animation_.start();
         }
     }
 
@@ -139,9 +127,7 @@ private:
     Menu * nextItems_ = nullptr;
     size_t nextI_ = 0;
 
-    static constexpr int MAX_FRAME = 500;
-
-    enum class Animation {
+    enum class Transition {
         Left, 
         Right,
         FadeIn,
@@ -149,6 +135,6 @@ private:
         Swap,
         None,
     };
-    Animation animation_ = Animation::None;
-    int frame_ = 0;
+    Transition transition_ = Transition::None;
+    Animation animation_;
 }; // Carousel
