@@ -36,16 +36,18 @@ int main(int argc, char * argv[]) {
         new Menu::Item{"Video", "assets/images/005-film-slate.png"},
         new Menu::Item{"Music", "assets/images/003-music.png"},
         new Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
-        new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},
-        new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{&gui}},
+        new SubmenuItem{"Apps", "assets/images/023-presents.png", {
+            new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},
+            new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{}},
+        }},
     };
     gui.setMenu(& menu, 0);
     //PixelEditor pEditor{&gui};
     //gui.setWidget(& pEditor);
 
 
-    gui.addFooterItem(RED, "Back");
-    gui.addFooterItem(GREEN, "Select");
+    gui.loop(rckid);
+    /*
     while (true) {
         gui.processInputEvents(rckid);
         gui.draw();
@@ -59,5 +61,5 @@ int main(int argc, char * argv[]) {
         EndDrawing();
         */
 //        cpu::delay_ms(100);
-    }
+   // } */
 }

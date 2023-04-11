@@ -13,17 +13,18 @@ public:
     static constexpr unsigned ICON_WIDTH = 64;
     static constexpr unsigned ICON_HEIGHT = 64;
 
-    PixelEditor(GUI * gui): 
-        Widget{gui}, 
+    PixelEditor(): 
         cursor_{500} {
         cursor_.startContinuous();
         memset(icon_, 0, sizeof(::Color) * ICON_WIDTH * ICON_HEIGHT);
     }
 
+    bool fullscreen() const { return true; }
+
 protected:
 
-    void draw(double deltaMs) override {
-        cursor_.update(deltaMs);
+    void draw(GUI * gui) override {
+        cursor_.update(gui);
         int pixelSize = std::min(GUI_WIDTH / ICON_WIDTH, GUI_HEIGHT / ICON_HEIGHT);
         int startx = (GUI_WIDTH - (ICON_WIDTH * pixelSize)) / 2 ;
         int starty = (GUI_HEIGHT - (ICON_HEIGHT * pixelSize)) / 2;
@@ -36,32 +37,32 @@ protected:
         DrawRectangleLines(startx - 1 + x_ * pixelSize, starty - 1 + y_ * pixelSize, pixelSize + 1, pixelSize + 1, ::Color{c, c, c, 255});
     }
 
-    void dpadLeft(bool state) {
+    void dpadLeft(GUI * gui, bool state) {
         if (state) 
             x_ = (--x_) % ICON_WIDTH;
     }
 
-    void dpadRight(bool state) {
+    void dpadRight(GUI * gui, bool state) {
         if (state)
             x_ = (++x_) % ICON_WIDTH;
     }
 
-    void dpadUp(bool state) {
+    void dpadUp(GUI * gui, bool state) {
         if (state)
             y_ = (--y_) % ICON_HEIGHT;
     }
 
-    void dpadDown(bool state) {
+    void dpadDown(GUI * gui, bool state) {
         if (state)
             y_ = (++y_) % ICON_HEIGHT;
     }
 
-    void btnX(bool state) {
+    void btnX(GUI * gui, bool state) {
         if (state)
             icon_[y_ * ICON_WIDTH + x_] = fg_;
     }
 
-    void btnY(bool state) {
+    void btnY(GUI * gui, bool state) {
         if (state)
             icon_[y_ * ICON_WIDTH + x_] = bg_;
     }

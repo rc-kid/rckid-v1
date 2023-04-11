@@ -1,7 +1,7 @@
 #pragma once
 
-
 #include <vector>
+#include <functional>
 
 #include "raylib_cpp.h"
 
@@ -13,9 +13,17 @@ public:
 
     class Item;
 
+    Menu() = default;
+
     Menu(std::initializer_list<Item*> items):
         items_{items} {
     }
+
+    ~Menu() {
+        clear();
+    }
+
+    void clear();
 
     size_t size() const { return items_.size(); }
 
@@ -23,8 +31,6 @@ public:
 
 private:
     std::vector<Item*> items_;    
-    size_t i_ = 0;
-
 }; // Menu
 
 
@@ -81,4 +87,28 @@ public:
 private:
 
     Widget * widget_;
-}; // WIdgetItem
+}; // WidgetItem
+
+/** Menu item that launches its own submenu when selected. 
+ */
+class SubmenuItem : public Menu::Item {
+public:
+    SubmenuItem(std::string const & title, std::string const & imgFile, std::initializer_list<Menu::Item *> items):
+        Menu::Item{title, imgFile},
+        submenu_{items} {
+    }
+
+    SubmenuItem(std::string const & title, std::string const & imgFile, std::function<void(GUI *, SubmenuItem *)> updater):
+        Menu::Item{title, imgFile},
+        updater_{updater} {
+    }
+
+    Menu & submenu() { return submenu_; }
+
+    void onSelect(GUI * gui) override;
+
+private:
+    std::function<void(GUI *, SubmenuItem *)> updater_;
+    Menu submenu_;
+}; // SubmenuItem
+

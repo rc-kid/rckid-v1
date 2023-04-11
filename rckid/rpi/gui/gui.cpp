@@ -3,21 +3,38 @@
 #include "carousel.h"
 #include "gui.h"
 
-void Widget::btnB(bool state) {
-    if (state)
-        gui_->back();
+
+int FooterItem::draw(GUI * gui, int x, int y) const {
+    switch (control_) {
+        case Control::A:
+            DrawCircle(x + 10, y + 10, 6, RED);
+            x += 20;
+            break;
+        case Control::B:
+            DrawCircle(x + 10, y + 10, 6, YELLOW);
+            x += 20;
+            break;
+        case Control::X:
+            DrawCircle(x + 10, y + 10, 6, BLUE);
+            x += 20;
+            break;
+        case Control::Y:
+            DrawCircle(x + 10, y + 10, 6, GREEN);
+            x += 20;
+            break;
+    }
+    DrawTextEx(gui->helpFont(), text_.c_str(), x, y + (20 - textSize_.y) / 2 , 16, 1.0, WHITE);
+    x += textSize_.x + 5;
+    return x;
 }
 
-void Widget::btnHome(bool state) {
-    if (state)
-        gui_->setMenu(gui_->homeMenu_, 0);
-}
+
 
 GUI::GUI():
     helpFont_{LoadFont("assets/fonts/Iosevka.ttf")},
     menuFont_{LoadFont("assets/fonts/OpenDyslexic.otf")},
     lastDrawTime_{GetTime()} {
-    carousel_ = new Carousel{this};
+    carousel_ = new Carousel{};
     homeMenu_ = new Menu{
         new Menu::Item{"Power Off", "assets/images/011-power-off.png"},
         new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
@@ -27,40 +44,69 @@ GUI::GUI():
 }
 
 void GUI::setWidget(Widget * widget) {
-    if (widget_ == carousel_)
-        nav_.push_back(NavigationItem(carousel_->items(), carousel_->index()));
-    else if (widget_ != nullptr) 
-        nav_.push_back(NavigationItem(widget_));
-    widget_ = widget;
+    next_ = NavigationItem{widget};
+    transition_ = Transition::FadeOut;
+    if (widget_ == nullptr) {
+        swapWidget();
+    } else {
+        if (widget_ == carousel_)
+            nav_.push_back(NavigationItem(carousel_->items(), carousel_->index()));
+        else 
+            nav_.push_back(NavigationItem(widget_));
+        transition_ = Transition::FadeOut;
+        swap_.start();
+    }
 }
 
 void GUI::setMenu(Menu * menu, size_t index) {
     if (menu == homeMenu_) {
         if (inHomeMenu_)
             return;
-        inHomeMenu_ = true;
     }
-    if (widget_ == carousel_)
-        nav_.push_back(NavigationItem(carousel_->items(), carousel_->index()));
-    else if (widget_ != nullptr) 
-        nav_.push_back(NavigationItem(widget_));
-    widget_ = carousel_;
-    carousel_->setItems(menu, index);
+    next_ = NavigationItem{menu, index};
+    if (widget_ == nullptr) {
+        swapWidget();
+    } else {
+        if (widget_ == carousel_)
+            nav_.push_back(NavigationItem(carousel_->items(), carousel_->index()));
+        else 
+            nav_.push_back(NavigationItem(widget_));
+        transition_ = Transition::FadeOut;
+        swap_.start();
+    }
 }
 
 void GUI::back() {
     if (nav_.size() == 0)
         return; 
-    NavigationItem item = nav_.back();
+    next_ = nav_.back();
     nav_.pop_back();
-    // check if we are leaving the home menu
-    if (widget_ == carousel_ && carousel_->items() == homeMenu_)
-        inHomeMenu_ = false;
-    if (item.kind == NavigationItem::Kind::Menu && widget_ == carousel_) {
-        carousel_->setItems(item.menu(), item.menuIndex());
+    if (widget_ == nullptr) {
+        swapWidget();
     } else {
-        // TODO 
-    }    
+        transition_ = Transition::FadeOut;
+        swap_.start();
+    }
+}
+
+void GUI::swapWidget() {
+    if (widget_!= nullptr) {
+        widget_->onBlur(this);
+        if (widget_ == carousel_ && carousel_->items() == homeMenu_)
+            inHomeMenu_ = false;
+    }
+    if (next_.kind == NavigationItem::Kind::Menu) {
+        widget_ = carousel_;
+        carousel_->setItems(next_.menu(), next_.menuIndex());
+        if (next_.menu() == homeMenu_)
+            inHomeMenu_ = true;
+    } else {
+        widget_ = next_.widget();
+    }
+    resetFooter();
+    widget_->onFocus(this);
+    transition_ = Transition::FadeIn;
+    swap_.start();
 }
 
 void GUI::processInputEvents(RCKid * rckid) {
@@ -128,18 +174,50 @@ void GUI::processInputEvents(RCKid * rckid) {
     }
 }
 
+
+void GUI::loop(RCKid * driver) {
+    while (true) {
+        processInputEvents(driver);
+        draw();
+#if (defined ARCH_MOCK)
+        if (WindowShouldClose())
+            break;
+#endif
+    }
+}
+
 void GUI::draw() {
-    double t = GetTime();
-    double delta = (t - lastDrawTime_) * 1000;
-    lastDrawTime_ = t;
     BeginDrawing();
+    double t = GetTime();
+    redrawDelta_ = static_cast<float>((t - lastDrawTime_) * 1000);
+    bool aend = swap_.update(this);
+    lastDrawTime_ = t;
     ClearBackground(BLACK);
     // draw the widget
     if (widget_ != nullptr)
-        widget_->draw(delta);
+        widget_->draw(this);
+    // do the fade in or out business
+    switch (transition_) {
+        case Transition::None:
+            break;
+        case Transition::FadeOut:
+            DrawRectangle(0, 0, GUI_WIDTH, GUI_HEIGHT, ColorAlpha(BLACK, swap_.interpolate(0.0f, 1.0f, Interpolation::Linear)));
+            if (aend)
+                swapWidget();
+            break;
+        case Transition::FadeIn:
+            DrawRectangle(0, 0, GUI_WIDTH, GUI_HEIGHT, ColorAlpha(BLACK, swap_.interpolate(1.0f, 0.0f, Interpolation::Linear)));
+            if (aend) 
+                transition_ = Transition::None;
+            break;
+        default: 
+            UNREACHABLE;
+    }
     // overlay the header and footer 
     drawHeader();
-    drawFooter();
+    if (widget_ == nullptr || ! widget_->fullscreen())
+        drawFooter();
+    // and we are done
     EndDrawing();
 }
 
@@ -156,12 +234,24 @@ void GUI::drawHeader() {
 }
 
 void GUI::drawFooter() {
-    float x = 0;
-    for (FooterItem const & item: footer_) {
-        DrawCircle(x + 10, 230, 6, item.color);
+    int y = 220;
+    switch (transition_) {
+        case Transition::None:
+            break;
+        case Transition::FadeOut:
+            y += swap_.interpolate(0, 20);
+            break;
+        case Transition::FadeIn:
+            y += swap_.interpolate(20, 0);
+            break;
+    }
+    int  x = 0;
+    for (FooterItem const & item: footer_)
+        x = item.draw(this, x, y);
+/*        DrawCircle(x + 10, y + 10, 6, item.color);
         x += 20; 
         Vector2 size = MeasureTextEx(helpFont_, item.text.c_str(), 16, 1.0);
-        DrawTextEx(helpFont_, item.text.c_str(), x, 220 + (20 - size.y) / 2 , 16, 1.0, WHITE);
+        DrawTextEx(helpFont_, item.text.c_str(), x, y + (20 - size.y) / 2 , 16, 1.0, WHITE);
         x += size.x + 5;
-    }
+    } */
 }

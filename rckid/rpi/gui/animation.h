@@ -24,20 +24,10 @@ public:
 
     void setDuration(float ms) { duration_ = ms; }
 
-    bool update(float deltaMs) {
-        if (!running_)
-            return false;
-        value_ += deltaMs;
-        if (value_ > duration_) {
-            value_ -= duration_;
-            if (! continuous_)
-                running_ = false;
-            return true;
-        } else {
-            return false;
-        }
-    }
+    bool update(GUI * gui);
 
+    bool running() const { return running_; }
+    
     void start() {
         value_ = 0;
         running_ = true;
@@ -74,11 +64,16 @@ public:
 private:
 
     template<typename T> T interpolate(T start, T end, float value, float max, Interpolation pol) {
+        float f = value / max;
+        if (end < start) {
+            std::swap(start, end);
+            f = 1 - f;
+        }
         switch (pol) {
             case Interpolation::Linear:
-                return static_cast<T>((end - start) * (value / max) + start); 
+                return static_cast<T>((end - start) * f + start); 
             case Interpolation::Sin:
-                return static_cast<T>((end - start) * sin(PI / 2 * (value / max + start)));
+                return static_cast<T>((end - start) * sin(PI / 2 * (f + start)));
             default:
                 UNREACHABLE;
         }

@@ -34,16 +34,10 @@
 
 ## RPI - RayLib
 
-- onFocur and onBlur events to Widgets
-- widget swapping transition
-- fullscreen widgets that do not display the footer
-- footer transition
-- footer filling when widgets swapped
+
+- add a way for the menu / submenu to detect it's been detached
 - add torchlight widget
-
-- webserver from the app 
-- submen and lazy submenu items
-
+- webserver from the app - see https://github.com/yhirose/cpp-httplib ?
 
 - how to configure, via JSON I guess, reuse the simple UI from mp3 player should be enough
 - samba on demand? etc.
@@ -54,7 +48,6 @@
 - if there are errors during startup a way to show them
 - debounce buttons
 
-- pixel editor as app?
 - piano as app? 
 
 ## RPI - System
