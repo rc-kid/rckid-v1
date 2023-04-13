@@ -5,8 +5,10 @@
 #include "rckid.h"
 #include "gui/gui.h"
 #include "gui/menu.h"
-#include "gui/carousel.h"
+//#include "gui/carousel.h"
 #include "gui/pixel_editor.h"
+#include "gui/debug_view.h"
+#include "gui/keyboard.h"
 
 
 /** Main RCKid app. 
@@ -18,8 +20,6 @@ int main(int argc, char * argv[]) {
     // initialize raylib
     InitWindow(320, 240, "RCKid");
     SetTargetFPS(60);
-    //Texture2D texture = LoadTexture("assets/images/001-game-controller.png"); 
-    //Font font = LoadFont("assets/fonts/OpenDyslexic.otf");
 
     // initialize the joystick and peripherals, filling the error messages
     RCKid * rckid = RCKid::initialize();
@@ -27,7 +27,6 @@ int main(int argc, char * argv[]) {
     // test mode and other important commands
     if (argc == 2 && strcmp(argv[1], "--test") == 0)
         return EXIT_SUCCESS;
-
 
     GUI gui;
     Menu menu{
@@ -39,27 +38,11 @@ int main(int argc, char * argv[]) {
         new SubmenuItem{"Apps", "assets/images/023-presents.png", {
             new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},
             new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{}},
+            new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
         }},
     };
+    //Keyboard kb{};
+    //gui.setWidget(&kb);
     gui.setMenu(& menu, 0);
-    //PixelEditor pEditor{&gui};
-    //gui.setWidget(& pEditor);
-
-
     gui.loop(rckid);
-    /*
-    while (true) {
-        gui.processInputEvents(rckid);
-        gui.draw();
-        if (WindowShouldClose())
-            break;
-
-/*        BeginDrawing();
-        ClearBackground(BLACK);
-        DrawTexture(texture, 0, 0, WHITE);
-        DrawText("this IS a texture!", 0, 100, 10, GRAY);
-        EndDrawing();
-        */
-//        cpu::delay_ms(100);
-   // } */
 }

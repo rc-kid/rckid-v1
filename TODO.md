@@ -9,7 +9,6 @@
 - black M2.5 screws for top
 - better 3.0V LDO (cleaner, higher voltage better for mic & speed, such as https://cz.mouser.com/ProductDetail/Texas-Instruments/TPS7A2030PDBVR?qs=hd1VzrDQEGgZMtQinkbhYw%3D%3D)
 - solder tips, solder flux
-- kapton tape? 
 - 5pin 0.5mm pitch connector (https://cz.mouser.com/ProductDetail/Molex/505278-0533?qs=c8NFF48pVsCY0CQNgl3Xjw%3D%3D or https://cz.mouser.com/ProductDetail/Molex/505110-0592?qs=RawsiUxJOFR577kELw3Dww%3D%3D)
 - ATTiny1616
 
@@ -34,7 +33,7 @@
 
 ## RPI - RayLib
 
-
+- header
 - add a way for the menu / submenu to detect it's been detached
 - add torchlight widget
 - webserver from the app - see https://github.com/yhirose/cpp-httplib ?
@@ -42,13 +41,23 @@
 - how to configure, via JSON I guess, reuse the simple UI from mp3 player should be enough
 - samba on demand? etc.
 
+- add rumbler / sound for ui actions
+
 - verify AVR comms
 - accelerometer is very noisy
 - add microphone reading and check quality 
 - if there are errors during startup a way to show them
 - debounce buttons
 
-- piano as app? 
+- piano as app?
+- sound recorder as app?  
+
+- can control easily via Telegram by sending messages and stuff to bot channels (!)
+- heart bar for time spent, track time spent when widgets are in foreground
+
+- how to run rckid at startup with the fcbp
+- how multiple apps can share framebuffer
+
 
 ## RPI - System
 

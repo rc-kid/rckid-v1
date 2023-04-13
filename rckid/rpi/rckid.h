@@ -144,6 +144,18 @@ public:
 
 private:
 
+    static constexpr unsigned int RETROARCH_PAUSE = KEY_P;
+    static constexpr unsigned int RETROARCH_SAVE_STATE = KEY_F2;
+    static constexpr unsigned int RETROARCH_LOAD_STATE = KEY_F4;
+    static constexpr unsigned int RETROARCH_SCREENSHOT = KEY_F8;
+    static constexpr unsigned int VLC_PAUSE = KEY_SPACE;
+    static constexpr unsigned int VLC_BACK = KEY_LEFT;
+    static constexpr unsigned int VLC_FORWARD = KEY_RIGHT;
+    static constexpr unsigned int VLC_DELAY_10S = KEY_LEFTALT;
+    static constexpr unsigned int VLC_DELAY_1M = KEY_LEFTCTRL;
+    static constexpr unsigned int VLC_SCREENSHOT = KEY_S;
+    static constexpr unsigned int VLC_SCREENSHOT_MOD = KEY_LEFTSHIFT;
+
     /** A digital button. 
      
         We keep the current state of the button as set by the ISR and the reported state of the button, which is the last state that has been reported to the driver and ui thread. 

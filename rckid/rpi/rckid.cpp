@@ -306,6 +306,18 @@ void RCKid::initializeLibevdevGamepad() {
     libevdev_enable_event_code(dev, EV_KEY, btnR_.evdevId, nullptr);
     libevdev_enable_event_code(dev, EV_KEY, btnSelect_.evdevId, nullptr);
     libevdev_enable_event_code(dev, EV_KEY, btnStart_.evdevId, nullptr);
+    // enable keys for retroarch and vlc shortcuts
+    libevdev_enable_event_code(dev, EV_KEY, RETROARCH_PAUSE, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, RETROARCH_SAVE_STATE, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, RETROARCH_LOAD_STATE, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, RETROARCH_SCREENSHOT, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, VLC_PAUSE, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, VLC_BACK, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, VLC_FORWARD, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, VLC_DELAY_10S, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, VLC_DELAY_1M, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, VLC_SCREENSHOT, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, VLC_SCREENSHOT_MOD, nullptr);
     // enable the thumbstick and accelerometer
     libevdev_enable_event_type(dev, EV_ABS);
     input_absinfo info {

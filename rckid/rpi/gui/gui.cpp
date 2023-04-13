@@ -1,6 +1,8 @@
 #include "platform/platform.h"
 
 #include "carousel.h"
+#include "debug_view.h"
+
 #include "gui.h"
 
 
@@ -38,8 +40,8 @@ GUI::GUI():
     homeMenu_ = new Menu{
         new Menu::Item{"Power Off", "assets/images/011-power-off.png"},
         new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
-        new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
         new Menu::Item{"Settings", "assets/images/013-settings.png"},
+        new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{}},
     };
 }
 

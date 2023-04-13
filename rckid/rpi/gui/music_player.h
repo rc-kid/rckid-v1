@@ -5,7 +5,7 @@
 
 /** Audio player. 
  */
-class Music : public Widget {
+class MusicPlayer : public Widget {
 public:
 
 protected:
