@@ -132,17 +132,23 @@ void Window::swapWidget() {
     swap_.start();
 }
 
-void Window::processInputEvents() {
+void Window::loop() {
     Event e;
-    size_t events;
     while (true) {
+#if (defined ARCH_MOCK)
+        //if (WindowShouldClose())
+        //    break;
+#endif
         if (rendering_) {
-            events = events_.tryReceive(e);
-            if (events == 0)
-                break;
+            auto event = events_.receive();
+            if (!event.has_value()) {
+                draw();
+                continue;
+            } else {
+                e = std::move(event.value());
+            }
         } else {
             e = events_.waitReceive();
-            events = 1;
         }
         switch (e.kind) {
             case Event::Kind::Button: {
@@ -199,20 +205,6 @@ void Window::processInputEvents() {
                 }
             }
         }
-        if (events == 1)
-            break;
-    }
-}
-
-void Window::loop() {
-    while (true) {
-        processInputEvents();
-        if (rendering_)
-            draw();
-#if (defined ARCH_MOCK)
-        //if (WindowShouldClose())
-        //    break;
-#endif
     }
 }
 

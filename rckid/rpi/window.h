@@ -175,10 +175,7 @@ private:
         elements_.erase(element);
     }
 
-    void processInputEvents();
-
     void draw();
-
 
     void btnA(bool state) { if (widget_ && ! swap_.running()) widget_->btnA(state); }
     void btnB(bool state) { 
