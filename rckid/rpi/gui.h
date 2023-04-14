@@ -5,12 +5,17 @@
 #include <string_view>
 #include <string>
 #include <unordered_set>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+
 
 #include "raylib_cpp.h"
+#include "events.h"
 #include "menu.h"
 #include "animation.h"
 #include "widget.h"
-#include "../rckid.h"
+#include "rckid.h"
 
 
 static constexpr int GUI_WIDTH = 320;
@@ -70,11 +75,19 @@ public:
 
     GUI();
 
+    /** Sends given event to the UI main loop. 
+     
+        Can be called from any thread. 
+    */
+    void send(Event && ev) { events_.send(std::move(ev)); }
+
+    RCKid * rckid() { return rckid_; }
+
     void startRendering();
 
     void stopRendering();
 
-    void loop(RCKid * driver); 
+    void loop(); 
 
     void setWidget(Widget * widget);
     void setMenu(Menu * menu, size_t index = 0);
@@ -162,7 +175,7 @@ private:
         elements_.erase(element);
     }
 
-    void processInputEvents(RCKid * rckid);
+    void processInputEvents();
 
     void draw();
 
@@ -205,6 +218,10 @@ private:
     void drawHeader();
     void drawFooter();
 
+    // the rckid driver
+    RCKid * rckid_; 
+
+    EventQueue<Event> events_;
 
     bool rendering_ = false;
 

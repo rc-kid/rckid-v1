@@ -43,6 +43,7 @@ GUI::GUI() {
         new Menu::Item{"WiFi", "assets/images/016-wifi.png"},
         new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{this}},
     }};
+    rckid_ = new RCKid{this};
 }
 
 void GUI::startRendering() {
@@ -131,62 +132,69 @@ void GUI::swapWidget() {
     swap_.start();
 }
 
-void GUI::processInputEvents(RCKid * rckid) {
-    RCKid::Event e;
+void GUI::processInputEvents() {
+    Event e;
+    size_t events;
     while (true) {
-        size_t events = rckid->getNextEvent(e);
-        if (events == 0)
-            break;
+        if (rendering_) {
+            events = events_.tryReceive(e);
+            if (events == 0)
+                break;
+        } else {
+            e = events_.waitReceive();
+            events = 1;
+        }
         switch (e.kind) {
-            case RCKid::Event::Kind::Button: {
-                switch (e.button.btn) {
-                    case RCKid::Button::A:
-                        btnA(e.button.state);
+            case Event::Kind::Button: {
+                ButtonEvent &eb = e.button();
+                switch (eb.btn) {
+                    case Button::A:
+                        btnA(eb.state);
                         break;
-                    case RCKid::Button::B:
-                        btnB(e.button.state);
+                    case Button::B:
+                        btnB(eb.state);
                         break;
-                    case RCKid::Button::X:
-                        btnX(e.button.state);
+                    case Button::X:
+                        btnX(eb.state);
                         break;
-                    case RCKid::Button::Y:
-                        btnY(e.button.state);
+                    case Button::Y:
+                        btnY(eb.state);
                         break;
-                    case RCKid::Button::L:
-                        btnL(e.button.state);
+                    case Button::L:
+                        btnL(eb.state);
                         break;
-                    case RCKid::Button::R:
-                        btnR(e.button.state);
+                    case Button::R:
+                        btnR(eb.state);
                         break;
-                    case RCKid::Button::Left:
-                        dpadLeft(e.button.state);
+                    case Button::Left:
+                        dpadLeft(eb.state);
                         break;
-                    case RCKid::Button::Right:
-                        dpadRight(e.button.state);
+                    case Button::Right:
+                        dpadRight(eb.state);
                         break;
-                    case RCKid::Button::Up:
-                        dpadUp(e.button.state);
+                    case Button::Up:
+                        dpadUp(eb.state);
                         break;
-                    case RCKid::Button::Down:
-                        dpadDown(e.button.state);
+                    case Button::Down:
+                        dpadDown(eb.state);
                         break;
-                    case RCKid::Button::Select:
-                        btnSelect(e.button.state);
+                    case Button::Select:
+                        btnSelect(eb.state);
                         break;
-                    case RCKid::Button::Start:
-                        btnStart(e.button.state);
+                    case Button::Start:
+                        btnStart(eb.state);
                         break;
-                    case RCKid::Button::Home:
-                        btnHome(e.button.state);
+                    case Button::Home:
+                        btnHome(eb.state);
                         break;
-                    case RCKid::Button::VolumeUp:
-                        btnVolUp(e.button.state);
+                    case Button::VolumeUp:
+                        btnVolUp(eb.state);
                         break;
-                    case RCKid::Button::VolumeDown:
-                        btnVolDown(e.button.state);
+                    case Button::VolumeDown:
+                        btnVolDown(eb.state);
                         break;
-                    case RCKid::Button::Joy:
-                        btnJoy(e.button.state);
+                    case Button::Joy:
+                        btnJoy(eb.state);
                         break;
                 }
             }
@@ -196,10 +204,9 @@ void GUI::processInputEvents(RCKid * rckid) {
     }
 }
 
-
-void GUI::loop(RCKid * driver) {
+void GUI::loop() {
     while (true) {
-        processInputEvents(driver);
+        processInputEvents();
         if (rendering_)
             draw();
 #if (defined ARCH_MOCK)

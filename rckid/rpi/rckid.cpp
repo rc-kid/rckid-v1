@@ -1,6 +1,6 @@
 #include <iostream>
 
-
+#include "gui.h"
 #include "rckid.h"
 
 #if (!defined ARCH_RPI)
@@ -65,45 +65,42 @@
 #undef KEY_F12
 #undef KEY_BACK
 #undef KEY_MENU
-#include "gui/raylib_cpp.h"
+#include <raylib.h>
 #endif
 
 
 using namespace platform;
 
-RCKid * RCKid::initialize() {
+RCKid::RCKid(GUI * gui): 
+    gui_{gui} {
     gpio::initialize();
     if (!spi::initialize()) 
         ERROR("Unable to initialize spi (errno " << errno << ")");
     if (!i2c::initializeMaster())
         ERROR("Unable to initialize i2c (errno " << errno << "), make sure /dev/i2c1 exists");
-    RCKid * result = instance();
-    result->initializeLibevdevGamepad();
-    result->initializeAvr();
-    result->initializeAccel();
-    result->initializeNrf();
-    result->initializeISRs();
+    RCKid * & i = instance();
+    ASSERT(i == nullptr && "RCKid must be a singleton");
+    i = this;
+    initializeLibevdevGamepad();
+    initializeAvr();
+    initializeAccel();
+    initializeNrf();
+    initializeISRs();
 
     // start the hw loop thread
-    std::thread t{[result](){
-        result->hwLoop();
+    std::thread t{[this](){
+        this->hwLoop();
     }};
     t.detach();
-    std::thread tickTimer{[result](){
+    std::thread tickTimer{[this](){
         while (true) {
             cpu::delay_ms(10);
-            result->hwEvents_.send(HWEvent::Tick);
+            this->hwEvents_.send(HWEvent::Tick);
         }
     }};
     tickTimer.detach();
-    return result;
 }
 
-
-RCKid::RCKid() {
-    
-}
- 
 void RCKid::hwLoop() {
     // query avr status
     avrQueryState();
@@ -367,6 +364,17 @@ void RCKid::initializeNrf() {
     } else {
         ERROR("Radio not found");
     }
+}
+
+void RCKid::buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {
+    btn.reported = btn.current;
+    btn.autorepeat = BTN_AUTOREPEAT_DURATION;
+    if (uidev_ != nullptr) {
+        libevdev_uinput_write_event(uidev_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
+        libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
+    }
+    // send the appropriate action to the main thread
+    gui_->send(Event{btn.button, btn.reported});
 }
 
 

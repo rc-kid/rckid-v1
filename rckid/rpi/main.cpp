@@ -1,15 +1,15 @@
-#include "gui/raylib_cpp.h"
+#include "raylib_cpp.h"
 
 #include "platform/platform.h"
 
 #include "rckid.h"
-#include "gui/gui.h"
-#include "gui/menu.h"
+#include "gui.h"
+#include "menu.h"
 //#include "gui/carousel.h"
-#include "gui/pixel_editor.h"
-#include "gui/debug_view.h"
-#include "gui/keyboard.h"
-#include "gui/game_player.h"
+#include "pixel_editor.h"
+#include "debug_view.h"
+#include "keyboard.h"
+#include "game_player.h"
 
 
 /** Main RCKid app. 
@@ -18,12 +18,6 @@
 
  */
 int main(int argc, char * argv[]) {
-    // initialize the joystick and peripherals, filling the error messages
-    RCKid * rckid = RCKid::initialize();
-
-    // test mode and other important commands
-    if (argc == 2 && strcmp(argv[1], "--test") == 0)
-        return EXIT_SUCCESS;
 
     GUI gui;
     gui.startRendering();
@@ -43,5 +37,5 @@ int main(int argc, char * argv[]) {
     //Keyboard kb{};
     //gui.setWidget(&kb);
     gui.setMenu(& menu, 0);
-    gui.loop(rckid);
+    gui.loop();
 }

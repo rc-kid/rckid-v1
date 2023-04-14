@@ -36,8 +36,7 @@ protected:
 
     void btnX(bool state) override {
         if (state == false) {
-            RCKid * kid = RCKid::instance();
-            kid->retroarchPause();
+            gui()->rckid()->retroarchPause();
         }
     }
 

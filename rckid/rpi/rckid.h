@@ -66,6 +66,8 @@
 #define DRIVER_THREAD
 #define ISR_THREAD
 
+class GUI; 
+
 /** RCKid Driver
  
  */
@@ -78,71 +80,13 @@ public:
 
     static constexpr uint8_t BTN_AUTOREPEAT_DURATION = 10;
 
-    enum class Button {
-        A, 
-        B, 
-        X, 
-        Y, 
-        L, 
-        R, 
-        Left, 
-        Right,
-        Up,
-        Down, 
-        Select, 
-        Start, 
-        Home, 
-        VolumeUp, 
-        VolumeDown, 
-        Joy, 
-    }; // Button
+    /** Initializes the RCKid driver. 
 
-    struct ButtonEvent {
-        Button btn;
-        bool state;
-    }; // ButtonEvent
-
-    struct Event {
-        enum class Kind {
-            None,
-            Button, 
-        }; // Event::Kind
-        
-        Kind kind;
-
-        union {
-            ButtonEvent button;
-        }; 
-
-        Event():kind{Kind::None} {}
-
-        Event(Button btn, bool state):kind{Kind::Button}, button{ButtonEvent{btn, state}} {}
-
-
-
-
-
-    };
-
-    /** Initializes an RC boy instance and returns it. 
-     
         The initializer starts the hw loop and initializes the libevdev gamepad layer. 
      */
-    static RCKid * initialize() MAIN_THREAD; 
+    RCKid(GUI * gui) MAIN_THREAD;
 
-    static RCKid * instance(); 
-
-    size_t getNextEvent(Event & into) {
-        std::lock_guard<std::mutex> g{em_};
-        size_t result = events_.size();
-        if (result > 0) {
-            into = events_.front();
-            events_.pop();
-        }
-        return result;
-    }
-
-    void retroarchPause() {
+    void retroarchPause() MAIN_THREAD {
         libevdev_uinput_write_event(uidev_, EV_KEY, RETROARCH_PAUSE, 1);
         libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
         platform::cpu::delay_ms(10);
@@ -218,10 +162,10 @@ private:
         NrfIrq = PIN_NRF_IRQ, 
     }; // Driver::Event
 
-
-    /** Initializes the RCKid manager. 
-     */
-    RCKid() MAIN_THREAD;
+    static RCKid * & instance() {
+        static RCKid * i;
+        return i;
+    }
 
     /** The HW loop, proceses events from the hw event queue. This method is executed in a separate thread, which isthe only thread that accesses the GPIOs and i2c/spi connections. 
      */
@@ -355,16 +299,7 @@ private:
         }
     }
 
-    void buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {
-        btn.reported = btn.current;
-        btn.autorepeat = BTN_AUTOREPEAT_DURATION;
-        if (uidev_ != nullptr) {
-            libevdev_uinput_write_event(uidev_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
-            libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
-        }
-        // send the appropriate action to the main thread
-        sendEvent(Event{btn.button, btn.reported});
-    }
+    void buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD;
 
     void buttonTick(ButtonState & btn) DRIVER_THREAD {
         if (btn.debounce > 0 && --(btn.debounce) == 0)
@@ -384,10 +319,7 @@ private:
         }
     }
 
-    void sendEvent(Event e) {
-        std::lock_guard<std::mutex> g{em_};
-        events_.push(e);
-    }
+    GUI * gui_;
 
     /** Hardware events sent to the driver's main loop. 
      */
@@ -422,16 +354,8 @@ private:
     platform::NRF24L01 radio_{PIN_NRF_CS, PIN_NRF_RXTX};
     platform::MPU6050 accel_;
 
-    std::queue<Event> events_;
-    std::mutex em_;
-
     /** The libevdev device handle. 
      */
-    static inline struct libevdev_uinput * uidev_{nullptr};
+    struct libevdev_uinput * uidev_{nullptr};
 
 }; // RCKid
-
-inline RCKid * RCKid::instance() {
-    static RCKid * instance = new RCKid{};
-    return instance;
-} 
