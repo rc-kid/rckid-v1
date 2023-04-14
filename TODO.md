@@ -57,6 +57,10 @@
 
 - how to run rckid at startup with the fcbp
 - how multiple apps can share framebuffer
+- maybe terminate the window and then reinitialize the window when we want it back from the other app
+- see if the above works, then figure out why it repeats (maybe just raylib inputs issues)
+
+- shortcuts do not seem to be working reliably on the quickest of tests
 
 
 ## RPI - System

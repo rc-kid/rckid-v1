@@ -2,6 +2,7 @@
 
 #include "carousel.h"
 #include "debug_view.h"
+#include "gauge.h"
 
 #include "gui.h"
 
@@ -32,18 +33,37 @@ int FooterItem::draw(GUI * gui, int x, int y) const {
 
 
 
-GUI::GUI():
-    helpFont_{LoadFont("assets/fonts/Iosevka.ttf")},
-    menuFont_{LoadFont("assets/fonts/OpenDyslexic.otf")},
-    lastDrawTime_{GetTime()} {
-    carousel_ = new Carousel{};
-    homeMenu_ = new Menu{
+GUI::GUI() {
+    carousel_ = new Carousel{this};
+    homeMenu_ = new Menu{this, {
         new Menu::Item{"Power Off", "assets/images/011-power-off.png"},
         new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
-        new Menu::Item{"Settings", "assets/images/013-settings.png"},
-        new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{}},
-    };
+        new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{this}},
+        new WidgetItem{"Volume", "assets/images/010-high-volume.png", new Gauge{this}},
+        new Menu::Item{"WiFi", "assets/images/016-wifi.png"},
+        new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{this}},
+    }};
 }
+
+void GUI::startRendering() {
+    InitWindow(320, 240, "RCKid");
+    SetTargetFPS(60);
+    rendering_ = true;
+    if (! IsWindowReady())
+        TraceLog(LOG_ERROR, "Unable to initialize window");
+    helpFont_ = LoadFontEx("assets/fonts/IosevkaNF.ttf", 16, const_cast<int*>(GLYPHS), sizeof(GLYPHS)/ sizeof(int));
+    headerFont_ = LoadFontEx("assets/fonts/IosevkaNF.ttf", 20, const_cast<int*>(GLYPHS), sizeof(GLYPHS)/ sizeof(int));
+    menuFont_ = LoadFontEx("assets/fonts/OpenDyslexicNF.otf", MENU_FONT_SIZE, const_cast<int*>(GLYPHS), sizeof(GLYPHS) / sizeof(int));
+    lastDrawTime_ = GetTime();    
+}
+
+void GUI::stopRendering() {
+    rendering_ = false;
+    for (GUIElement * e : elements_)
+        e->onRenderingPaused();
+    CloseWindow();
+} 
+
 
 void GUI::setWidget(Widget * widget) {
     next_ = NavigationItem{widget};
@@ -93,7 +113,7 @@ void GUI::back() {
 
 void GUI::swapWidget() {
     if (widget_!= nullptr) {
-        widget_->onBlur(this);
+        widget_->onBlur();
         if (widget_ == carousel_ && carousel_->items() == homeMenu_)
             inHomeMenu_ = false;
     }
@@ -106,7 +126,7 @@ void GUI::swapWidget() {
         widget_ = next_.widget();
     }
     resetFooter();
-    widget_->onFocus(this);
+    widget_->onFocus();
     transition_ = Transition::FadeIn;
     swap_.start();
 }
@@ -180,10 +200,11 @@ void GUI::processInputEvents(RCKid * rckid) {
 void GUI::loop(RCKid * driver) {
     while (true) {
         processInputEvents(driver);
-        draw();
+        if (rendering_)
+            draw();
 #if (defined ARCH_MOCK)
-        if (WindowShouldClose())
-            break;
+        //if (WindowShouldClose())
+        //    break;
 #endif
     }
 }
@@ -197,7 +218,7 @@ void GUI::draw() {
     ClearBackground(BLACK);
     // draw the widget
     if (widget_ != nullptr)
-        widget_->draw(this);
+        widget_->draw();
     // do the fade in or out business
     switch (transition_) {
         case Transition::None:
@@ -230,9 +251,17 @@ void GUI::drawHeader() {
     //DrawFPS(0,0);
 
     // battery voltage
+    //DrawRectangle(0, 0, 320, 20, DARKGRAY);
+
 
     //DrawTextEx(menuFont_, "RCGirl", 100, 160, 64, 1.0, WHITE);
-    DrawTextEx(helpFont_, STR(GetFPS()).c_str(), 0, 0, 16, 1.0, WHITE);
+    DrawTextEx(headerFont_, "  ", 0, 0, 20, 1.0, PINK);
+    DrawRectangle(20, 0, 40, 20, BLACK);
+    DrawTextEx(headerFont_, "  ", 0, 0, 20, 1.0, RED);
+
+
+    DrawTextEx(headerFont_, "󰸈 󰕿 󰖀 󰕾", 90, 0, 20, 1.0, BLUE);
+    DrawTextEx(helpFont_, STR(GetFPS()).c_str(), 70, 2, 16, 1.0, WHITE);
 }
 
 void GUI::drawFooter() {

@@ -10,7 +10,7 @@ public:
 
 protected:
 
-    void draw(double deltaMs) override {
+    void draw() override {
     }
 
 }; // Music

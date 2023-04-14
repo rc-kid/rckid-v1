@@ -9,6 +9,7 @@
 #include "gui/pixel_editor.h"
 #include "gui/debug_view.h"
 #include "gui/keyboard.h"
+#include "gui/game_player.h"
 
 
 /** Main RCKid app. 
@@ -17,10 +18,6 @@
 
  */
 int main(int argc, char * argv[]) {
-    // initialize raylib
-    InitWindow(320, 240, "RCKid");
-    SetTargetFPS(60);
-
     // initialize the joystick and peripherals, filling the error messages
     RCKid * rckid = RCKid::initialize();
 
@@ -29,18 +26,20 @@ int main(int argc, char * argv[]) {
         return EXIT_SUCCESS;
 
     GUI gui;
-    Menu menu{
-        new Menu::Item{"Games", "assets/images/001-game-controller.png"},
+    gui.startRendering();
+    Menu menu{&gui, {
+        //new Menu::Item{"Games", "assets/images/001-game-controller.png"},
+        new WidgetItem{"Games", "assets/images/001-game-controller.png", new GamePlayer{&gui}},
         new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
         new Menu::Item{"Video", "assets/images/005-film-slate.png"},
         new Menu::Item{"Music", "assets/images/003-music.png"},
         new Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
-        new SubmenuItem{"Apps", "assets/images/023-presents.png", {
+        new SubmenuItem{"Apps", "assets/images/023-presents.png", &gui, {
             new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},
-            new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{}},
+            new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{&gui}},
             new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
         }},
-    };
+    }};
     //Keyboard kb{};
     //gui.setWidget(&kb);
     gui.setMenu(& menu, 0);

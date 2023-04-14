@@ -10,11 +10,13 @@
 class DebugView : public Widget {
 public:
 
+    DebugView(GUI * gui): Widget{gui} {}
+
     bool fullscreen() const { return true; }
 
 protected:
 
-    void draw(GUI * gui) {
+    void draw() {
         // draw rckid's outline
         DrawCircleSector(Vector2{25,40}, 20, 180, 270, 8, DARKGRAY);
         DrawCircleSector(Vector2{25, 215}, 20, 270, 360, 8, DARKGRAY);
@@ -26,15 +28,15 @@ protected:
         DrawRectangle(125, 40, 20, 155, DARKGRAY);
         // draw the display cutout joy & accel values
         DrawRectangle(25, 40, 100, 75, BLACK);
-        DrawTextEx(gui->helpFont(), "Joy", 45, 42, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui->helpFont(), "Acc", 85, 42, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui->helpFont(), "X", 30, 60, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui->helpFont(), "Y", 30, 78, 16, 1.0, DARKGRAY);
+        DrawTextEx(gui()->helpFont(), "Joy", 45, 42, 16, 1.0, DARKGRAY);
+        DrawTextEx(gui()->helpFont(), "Acc", 85, 42, 16, 1.0, DARKGRAY);
+        DrawTextEx(gui()->helpFont(), "X", 30, 60, 16, 1.0, DARKGRAY);
+        DrawTextEx(gui()->helpFont(), "Y", 30, 78, 16, 1.0, DARKGRAY);
         //DrawTextEx(gui->helpFont(), "Z", 30, 96, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui->helpFont(), STR((int)joyX_).c_str(), 45, 60, 16, 1.0, WHITE);
-        DrawTextEx(gui->helpFont(), STR((int)joyY_).c_str(), 45, 78, 16, 1.0, WHITE);
-        DrawTextEx(gui->helpFont(), STR((int)accelX_).c_str(), 85, 60, 16, 1.0, WHITE);
-        DrawTextEx(gui->helpFont(), STR((int)accelY_).c_str(), 85, 78, 16, 1.0, WHITE);
+        DrawTextEx(gui()->helpFont(), STR((int)joyX_).c_str(), 45, 60, 16, 1.0, WHITE);
+        DrawTextEx(gui()->helpFont(), STR((int)joyY_).c_str(), 45, 78, 16, 1.0, WHITE);
+        DrawTextEx(gui()->helpFont(), STR((int)accelX_).c_str(), 85, 60, 16, 1.0, WHITE);
+        DrawTextEx(gui()->helpFont(), STR((int)accelY_).c_str(), 85, 78, 16, 1.0, WHITE);
 
         // draw the ABXY buttons
         DrawCircle(125, 155, 10, btnA_ ? YELLOW : BLACK);
@@ -56,35 +58,35 @@ protected:
         // home, start and select
         // TODO
 
-        DrawTextEx(gui->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui->helpFont(), STR(vcc_).c_str(), 210, 20, 16, 1.0, WHITE);
-        DrawTextEx(gui->helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui->helpFont(), STR(vbatt_).c_str(), 290, 20, 16, 1.0, WHITE);
-        DrawTextEx(gui->helpFont(), "TEMP:", 160, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui->helpFont(), STR(temp_).c_str(), 210, 40, 16, 1.0, WHITE);
-        DrawTextEx(gui->helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui->helpFont(), STR(atemp_).c_str(), 290, 40, 16, 1.0, WHITE);
+        DrawTextEx(gui()->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
+        DrawTextEx(gui()->helpFont(), STR(vcc_).c_str(), 210, 20, 16, 1.0, WHITE);
+        DrawTextEx(gui()->helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
+        DrawTextEx(gui()->helpFont(), STR(vbatt_).c_str(), 290, 20, 16, 1.0, WHITE);
+        DrawTextEx(gui()->helpFont(), "TEMP:", 160, 40, 16, 1.0, DARKGRAY);
+        DrawTextEx(gui()->helpFont(), STR(temp_).c_str(), 210, 40, 16, 1.0, WHITE);
+        DrawTextEx(gui()->helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
+        DrawTextEx(gui()->helpFont(), STR(atemp_).c_str(), 290, 40, 16, 1.0, WHITE);
 
     }
 
-    void btnA(GUI * gui, bool state) override { btnA_ = state; }
-    void btnB(GUI * gui, bool state) override { btnB_ = state; }
-    void btnX(GUI * gui, bool state) override { btnX_ = state; }
-    void btnY(GUI * gui, bool state) override { btnY_ = state; }
-    void btnL(GUI * gui, bool state) override { btnL_ = state; }
-    void btnR(GUI * gui, bool state) override { btnR_ = state; }
-    void btnSelect(GUI * gui, bool state) override {}
-    void btnStart(GUI * gui, bool state) override {}
-    void btnJoy(GUI * gui, bool state) override { btnJoy_ = state; }
-    void dpadLeft(GUI * gui, bool state) override { dpadLeft_ = state; }
-    void dpadRight(GUI * gui, bool state) override { dpadRight_ = state; }
-    void dpadUp(GUI * gui, bool state) override { dpadUp_ = state; }
-    void dpadDown(GUI * gui, bool state) override { dpadDown_ = state; }
-    void joy(GUI * gui, uint8_t x, uint8_t y) override { joyX_ = x; joyY_ = y; }
-    void accel(GUI * gui, uint8_t x, uint8_t y) override { accelX_ = x; accelY_ = y;}
-    void btnVolUp(GUI * gui, bool state) override {}
-    void btnVolDown(GUI * gui, bool state) override {}
-    void btnHome(GUI * gui, bool state) override {}
+    void btnA(bool state) override { btnA_ = state; }
+    void btnB(bool state) override { btnB_ = state; }
+    void btnX(bool state) override { btnX_ = state; }
+    void btnY(bool state) override { btnY_ = state; }
+    void btnL(bool state) override { btnL_ = state; }
+    void btnR(bool state) override { btnR_ = state; }
+    void btnSelect(bool state) override {}
+    void btnStart(bool state) override {}
+    void btnJoy(bool state) override { btnJoy_ = state; }
+    void dpadLeft(bool state) override { dpadLeft_ = state; }
+    void dpadRight(bool state) override { dpadRight_ = state; }
+    void dpadUp(bool state) override { dpadUp_ = state; }
+    void dpadDown(bool state) override { dpadDown_ = state; }
+    void joy(uint8_t x, uint8_t y) override { joyX_ = x; joyY_ = y; }
+    void accel(uint8_t x, uint8_t y) override { accelX_ = x; accelY_ = y;}
+    void btnVolUp(bool state) override {}
+    void btnVolDown(bool state) override {}
+    void btnHome(bool state) override {}
 
 private:
     bool btnA_;

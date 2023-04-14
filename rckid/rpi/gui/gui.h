@@ -4,6 +4,7 @@
 #include <vector>
 #include <string_view>
 #include <string>
+#include <unordered_set>
 
 #include "raylib_cpp.h"
 #include "menu.h"
@@ -69,6 +70,10 @@ public:
 
     GUI();
 
+    void startRendering();
+
+    void stopRendering();
+
     void loop(RCKid * driver); 
 
     void setWidget(Widget * widget);
@@ -99,6 +104,7 @@ public:
 
 private:
 
+    friend class GUIElement;
     friend class Widget;
 
     class NavigationItem {
@@ -148,39 +154,47 @@ private:
         size_t menuIndex_ = 0;
     }; 
 
+    void attach(GUIElement * element) {
+        elements_.insert(element);
+    }
+
+    void detach(GUIElement * element) {
+        elements_.erase(element);
+    }
+
     void processInputEvents(RCKid * rckid);
 
     void draw();
 
 
-    void btnA(bool state) { if (widget_ && ! swap_.running()) widget_->btnA(this, state); }
+    void btnA(bool state) { if (widget_ && ! swap_.running()) widget_->btnA(state); }
     void btnB(bool state) { 
         if (widget_)
-            widget_->btnB(this, state);
+            widget_->btnB(state);
         if (state && ! swap_.running())
             back();
     }
-    void btnX(bool state) { if (widget_) widget_->btnX(this, state); }
-    void btnY(bool state) { if (widget_) widget_->btnY(this, state); }
-    void btnL(bool state) { if (widget_) widget_->btnL(this, state); }
-    void btnR(bool state) { if (widget_) widget_->btnR(this, state); }
-    void btnSelect(bool state) { if (widget_) widget_->btnSelect(this, state); }
-    void btnStart(bool state) { if (widget_) widget_->btnStart(this, state); }
-    void btnJoy(bool state) { if (widget_) widget_->btnJoy(this, state); }
-    void dpadLeft(bool state) { if (widget_) widget_->dpadLeft(this, state); }
-    void dpadRight(bool state) { if (widget_) widget_->dpadRight(this, state); }
-    void dpadUp(bool state) { if (widget_) widget_->dpadUp(this, state); }
-    void dpadDown(bool state) { if (widget_) widget_->dpadDown(this, state); }
-    void joy(uint8_t x, uint8_t y) { if (widget_) widget_->joy(this, x, y); }
-    void accel(uint8_t x, uint8_t y) { if (widget_) widget_->accel(this, x, y); }
+    void btnX(bool state) { if (widget_) widget_->btnX(state); }
+    void btnY(bool state) { if (widget_) widget_->btnY(state); }
+    void btnL(bool state) { if (widget_) widget_->btnL(state); }
+    void btnR(bool state) { if (widget_) widget_->btnR(state); }
+    void btnSelect(bool state) { if (widget_) widget_->btnSelect(state); }
+    void btnStart(bool state) { if (widget_) widget_->btnStart(state); }
+    void btnJoy(bool state) { if (widget_) widget_->btnJoy(state); }
+    void dpadLeft(bool state) { if (widget_) widget_->dpadLeft(state); }
+    void dpadRight(bool state) { if (widget_) widget_->dpadRight(state); }
+    void dpadUp(bool state) { if (widget_) widget_->dpadUp(state); }
+    void dpadDown(bool state) { if (widget_) widget_->dpadDown(state); }
+    void joy(uint8_t x, uint8_t y) { if (widget_) widget_->joy(x, y); }
+    void accel(uint8_t x, uint8_t y) { if (widget_) widget_->accel(x, y); }
 
-    void btnVolUp(bool state) { if (widget_) widget_->btnVolUp(this, state); }
+    void btnVolUp(bool state) { if (widget_) widget_->btnVolUp(state); }
 
-    void btnVolDown(bool state) { if (widget_) widget_->btnVolDown(this, state); }
+    void btnVolDown(bool state) { if (widget_) widget_->btnVolDown(state); }
 
     void btnHome(bool state) { 
         if (widget_) 
-            widget_->btnHome(this, state); 
+            widget_->btnHome(state); 
         if (state && ! swap_.running())
             setMenu(homeMenu_, 0); 
     }
@@ -191,11 +205,17 @@ private:
     void drawHeader();
     void drawFooter();
 
+
+    bool rendering_ = false;
+
+
+    std::unordered_set<GUIElement*> elements_;
     std::vector<FooterItem> footer_;
 
     double lastDrawTime_;
     float redrawDelta_;
     Font helpFont_;
+    Font headerFont_;
     Font menuFont_;
     Widget * widget_ = nullptr;
     NavigationItem next_;
@@ -214,5 +234,21 @@ private:
 
     Animation swap_{250};
     Transition transition_ = Transition::None;
+
+    static constexpr int GLYPHS[] = {
+        32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations
+        48, 49, 50, 51, 52, 53, 54, 55, 56, 57, // 0..9
+        58, 59, 60, 61, 62, 63, 64, // more punctuations
+        65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, // A-Z
+        91, 92, 93, 94, 95, 96, // more punctuations
+        97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, // a-z
+        123, 124, 125, 126, // more punctiations
+        0xf004, 0xf08a, //  
+        0xf05a9, 0xf05aa, 0xf05aa, 0xf16c1, // 󰖩 󰖪 󰖪 󱛁
+        0xf244, 0xf243, 0xf242, 0xf241, 0xf240, 0xf0e7, //      
+        0xf02cb, // 󰋋
+        0xf1119, // 󱄙
+        0xf0e08, 0xf057f, 0xf0580, 0xf057e, // 󰸈 󰕿 󰖀 󰕾
+    };
 
 }; // GUI

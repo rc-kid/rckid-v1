@@ -142,6 +142,14 @@ public:
         return result;
     }
 
+    void retroarchPause() {
+        libevdev_uinput_write_event(uidev_, EV_KEY, RETROARCH_PAUSE, 1);
+        libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
+        platform::cpu::delay_ms(10);
+        libevdev_uinput_write_event(uidev_, EV_KEY, RETROARCH_PAUSE, 0);
+        libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
+    }
+
 private:
 
     static constexpr unsigned int RETROARCH_PAUSE = KEY_P;

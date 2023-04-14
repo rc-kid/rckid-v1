@@ -4,18 +4,21 @@
 #include <functional>
 
 #include "raylib_cpp.h"
+#include "widget.h"
+
 
 class GUI;
 class Widget;
 
-class Menu {
+class Menu : public GUIElement {
 public:
 
     class Item;
 
-    Menu() = default;
+    Menu(GUI * gui): GUIElement{gui} {};
 
-    Menu(std::initializer_list<Item*> items):
+    Menu(GUI * gui, std::initializer_list<Item*> items):
+        GUIElement{gui}, 
         items_{items} {
     }
 
@@ -28,6 +31,10 @@ public:
     size_t size() const { return items_.size(); }
 
     Item * operator [](size_t i) { return items_[i]; }
+
+protected:
+    
+    void onRenderingPaused() override;
 
 private:
     std::vector<Item*> items_;    
@@ -61,7 +68,7 @@ protected:
     static constexpr int UNINITIALIZED = -1;
 
     friend class Carousel;
-
+    friend class Menu;
 
     std::string imgFile_;
     std::string title_;
@@ -93,13 +100,14 @@ private:
  */
 class SubmenuItem : public Menu::Item {
 public:
-    SubmenuItem(std::string const & title, std::string const & imgFile, std::initializer_list<Menu::Item *> items):
+    SubmenuItem(std::string const & title, std::string const & imgFile, GUI * gui, std::initializer_list<Menu::Item *> items):
         Menu::Item{title, imgFile},
-        submenu_{items} {
+        submenu_{gui, items} {
     }
 
-    SubmenuItem(std::string const & title, std::string const & imgFile, std::function<void(GUI *, SubmenuItem *)> updater):
+    SubmenuItem(std::string const & title, std::string const & imgFile,GUI * gui, std::function<void(GUI *, SubmenuItem *)> updater):
         Menu::Item{title, imgFile},
+        submenu_{gui},
         updater_{updater} {
     }
 

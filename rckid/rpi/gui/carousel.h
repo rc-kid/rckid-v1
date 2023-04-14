@@ -12,7 +12,8 @@
 class Carousel : public Widget {
 public:
 
-    Carousel():
+    Carousel(GUI * gui):
+        Widget{gui},
         animation_{500} {
     }
 
@@ -29,11 +30,18 @@ public:
 
 protected:
 
-    void onFocus(GUI * gui) {
-        gui->addFooterItem(FooterItem::A("Select"));
+    void onFocus() override {
+        gui()->addFooterItem(FooterItem::A("Select"));
     }
 
-    void dpadLeft(GUI * gui, bool state) override {
+    void btnX(bool state) override {
+        if (state == false) {
+            RCKid * kid = RCKid::instance();
+            kid->retroarchPause();
+        }
+    }
+
+    void dpadLeft(bool state) override {
         if (state && transition_ == Transition::None && items_ != nullptr) {
             transition_ = Transition::Left;
             moveLeft();
@@ -41,7 +49,9 @@ protected:
         }
     }
 
-    void dpadRight(GUI * gui, bool state) override {
+    void btnL(bool state) { dpadLeft(state); }
+
+    void dpadRight(bool state) override {
         if (state && transition_ == Transition::None && items_ != nullptr) {
             transition_ = Transition::Right;
             moveRight();
@@ -49,23 +59,25 @@ protected:
         }
     }
 
-    void btnA(GUI * gui, bool state) override {
+    void btnR(bool state) { dpadRight(state); }
+
+    void btnA(bool state) override {
         if (state && transition_ == Transition::None && items_ != nullptr)
-            current()->onSelect(gui);
+            current()->onSelect(gui());
     }
 
-    void drawItem(GUI * gui, Menu::Item * item, int ximg, int xtext, uint8_t alpha = 255) {
+    void drawItem(Menu::Item * item, int ximg, int xtext, uint8_t alpha = 255) {
         if (!item->initialized())
-            item->initialize(gui);
+            item->initialize(gui());
         Color tint = ColorAlpha(WHITE, (float)alpha / 255);
         DrawTexture(item->img(), (GUI_WIDTH - item->img().width) / 2 + ximg, (GUI_HEIGHT - item->img().height - MENU_FONT_SIZE) / 2, tint);
-        DrawTextEx(gui->menuFont(), item->title().c_str(), (GUI_WIDTH - item->titleWidth()) / 2 + xtext, GUI_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, tint);
+        DrawTextEx(gui()->menuFont(), item->title().c_str(), (GUI_WIDTH - item->titleWidth()) / 2 + xtext, GUI_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, tint);
     }
 
-    void draw(GUI * gui) override {
+    void draw() override {
         if (items_ == nullptr)
             return;
-        if (animation_.update(gui)) {
+        if (animation_.update(gui())) {
             /*
             if (transition_ == Transition::Swap) {
                 // TODO detach?
@@ -78,7 +90,7 @@ protected:
         }
         switch (transition_) {
             case Transition::None: {
-                drawItem(gui, current(), 0, 0);
+                drawItem(current(), 0, 0);
                 return; // no need to close animation
             }
             case Transition::Left:
@@ -86,11 +98,11 @@ protected:
                 int imgi = animation_.interpolate(0, GUI_WIDTH);
                 int texti = animation_.interpolate(0, GUI_WIDTH * 2);
                 if (transition_ == Transition::Left) {
-                    drawItem(gui, next(), imgi, texti);
-                    drawItem(gui, current(),  - GUI_WIDTH + imgi, - GUI_WIDTH * 2 + texti);
+                    drawItem(next(), imgi, texti);
+                    drawItem(current(),  - GUI_WIDTH + imgi, - GUI_WIDTH * 2 + texti);
                 } else {
-                    drawItem(gui, prev(), - imgi, - texti);
-                    drawItem(gui, current(), GUI_WIDTH - imgi, GUI_WIDTH * 2 - texti);
+                    drawItem(prev(), - imgi, - texti);
+                    drawItem(current(), GUI_WIDTH - imgi, GUI_WIDTH * 2 - texti);
                 }
                 break;
             }
