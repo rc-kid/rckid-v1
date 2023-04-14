@@ -33,6 +33,9 @@
 
 ## RPI - RayLib
 
+- add background to menu 
+- keep icon instead of text in gauges
+
 - header
 - add a way for the menu / submenu to detect it's been detached
 - add torchlight widget
@@ -55,12 +58,8 @@
 - can control easily via Telegram by sending messages and stuff to bot channels (!)
 - heart bar for time spent, track time spent when widgets are in foreground
 
-- how to run rckid at startup with the fcbp
-- how multiple apps can share framebuffer
-- maybe terminate the window and then reinitialize the window when we want it back from the other app
-- see if the above works, then figure out why it repeats (maybe just raylib inputs issues)
 
-- shortcuts do not seem to be working reliably on the quickest of tests
+- shortcuts do not seem to be working reliably on the quickest of tests, the window on & off when playing games is also a bit flaky, wait for real hw
 
 
 ## RPI - System

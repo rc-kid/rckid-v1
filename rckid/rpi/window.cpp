@@ -259,6 +259,11 @@ void Window::drawHeader() {
     DrawTextEx(headerFont_, "  ", 0, 0, 20, 1.0, RED);
 
 
+
+    int x = 320;
+    // first draw the battery
+
+
     DrawTextEx(headerFont_, "󰸈 󰕿 󰖀 󰕾", 90, 0, 20, 1.0, BLUE);
     DrawTextEx(helpFont_, STR(GetFPS()).c_str(), 70, 2, 16, 1.0, WHITE);
 }

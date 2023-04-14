@@ -374,7 +374,7 @@ void RCKid::buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {
         libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
     }
     // send the appropriate action to the main thread
-    window_->send(Event{btn.button, btn.reported});
+    window_->send(Event::button(btn.button, btn.reported));
 }
 
 

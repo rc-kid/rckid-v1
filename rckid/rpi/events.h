@@ -33,6 +33,12 @@ struct ButtonEvent {
     bool state;
 }; // ButtonEvent
 
+struct BatteryEvent {
+    uint16_t vBatt;
+    uint16_t vcc;
+    bool charging;
+};
+
 /** Window event.
 
     The window event is effectively a tagged union over the various event types supported by the window.  
@@ -42,13 +48,27 @@ public:
     enum class Kind {
         None, 
         Button, 
+        Battery, 
     }; // Event::Kind
 
     Kind kind;
 
     Event():kind{Kind::None} {}
 
-    Event(Button button, bool state):kind{Kind::Button}, button_{button, state} {}
+    static Event button(Button btn, bool state) {
+        Event result{Kind::Button};
+        result.button_.btn = btn;
+        result.button_.state = state;
+        return result;
+    }
+
+    static Event battery(uint16_t vBatt, uint16_t vcc, bool charging) {
+        Event result{Kind::Battery};
+        result.battery_.vBatt = vBatt;
+        result.battery_.vcc = vcc;
+        result.battery_.charging = charging;
+        return result;
+    }
 
     ButtonEvent & button() {
         ASSERT(kind == Kind::Button);
@@ -57,8 +77,11 @@ public:
 
 private:
 
+    Event(Kind kind): kind{kind} {}
+
     union {
         ButtonEvent button_;
+        BatteryEvent battery_;
     }; 
 
 }; // Event
