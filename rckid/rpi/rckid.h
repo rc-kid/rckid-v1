@@ -66,7 +66,7 @@
 #define DRIVER_THREAD
 #define ISR_THREAD
 
-class GUI; 
+class Window; 
 
 /** RCKid Driver
  
@@ -84,7 +84,7 @@ public:
 
         The initializer starts the hw loop and initializes the libevdev gamepad layer. 
      */
-    RCKid(GUI * gui) MAIN_THREAD;
+    RCKid(Window * window) MAIN_THREAD;
 
     void retroarchPause() MAIN_THREAD {
         libevdev_uinput_write_event(uidev_, EV_KEY, RETROARCH_PAUSE, 1);
@@ -319,7 +319,7 @@ private:
         }
     }
 
-    GUI * gui_;
+    Window * window_;
 
     /** Hardware events sent to the driver's main loop. 
      */

@@ -88,7 +88,7 @@ When the RCBoy is assembled, the AVR chip is flashed via a custom I2C bootloader
 
 # Software
 
-## Main GUI
+## Main Window
 
 Runs on RPI, games, music, controllers, etc. 
 

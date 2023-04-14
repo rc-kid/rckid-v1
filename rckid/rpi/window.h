@@ -18,14 +18,14 @@
 #include "rckid.h"
 
 
-static constexpr int GUI_WIDTH = 320;
-static constexpr int GUI_HEIGHT = 240;
+static constexpr int Window_WIDTH = 320;
+static constexpr int Window_HEIGHT = 240;
 static constexpr int MENU_FONT_SIZE = 64;
 static constexpr int HEADER_HEIGHT = 20;
 static constexpr int FOOTER_HEIGHT = 20;
 
 class Carousel;
-class GUI;
+class Window;
 
 class FooterItem {
 public:
@@ -48,9 +48,9 @@ public:
 
 private:
 
-    friend class GUI;
+    friend class Window;
 
-    int draw(GUI * gui, int x, int y) const ;
+    int draw(Window * window, int x, int y) const ;
 
     Control control_;
     std::string text_;
@@ -59,7 +59,7 @@ private:
 }; // FooterItem
 
 
-/** Basic class for the on-screen GUI elements used by RCKid. 
+/** Basic class for the on-screen Window elements used by RCKid. 
  
     # Header
 
@@ -70,10 +70,10 @@ private:
     Footer usually displays only a help with what buttons do what action. 
 
  */
-class GUI {
+class Window {
 public:
 
-    GUI();
+    Window();
 
     /** Sends given event to the UI main loop. 
      
@@ -117,7 +117,7 @@ public:
 
 private:
 
-    friend class GUIElement;
+    friend class WindowElement;
     friend class Widget;
 
     class NavigationItem {
@@ -167,11 +167,11 @@ private:
         size_t menuIndex_ = 0;
     }; 
 
-    void attach(GUIElement * element) {
+    void attach(WindowElement * element) {
         elements_.insert(element);
     }
 
-    void detach(GUIElement * element) {
+    void detach(WindowElement * element) {
         elements_.erase(element);
     }
 
@@ -226,7 +226,7 @@ private:
     bool rendering_ = false;
 
 
-    std::unordered_set<GUIElement*> elements_;
+    std::unordered_set<WindowElement*> elements_;
     std::vector<FooterItem> footer_;
 
     double lastDrawTime_;
@@ -268,4 +268,4 @@ private:
         0xf0e08, 0xf057f, 0xf0580, 0xf057e, // 󰸈 󰕿 󰖀 󰕾
     };
 
-}; // GUI
+}; // Window

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "widget.h"
-#include "gui.h"
+#include "window.h"
 
 /** The torchlight control widget. 
 

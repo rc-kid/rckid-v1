@@ -1,34 +1,34 @@
 #pragma once
 
-class GUI;
+class Window;
 
-class GUIElement {
+class WindowElement {
 public:
 
-    virtual ~GUIElement();
+    virtual ~WindowElement();
 
 protected:
 
-    friend class GUI;
+    friend class Window;
 
-    GUIElement(GUI * gui);
+    WindowElement(Window * window);
 
     virtual void onRenderingPaused() {}
 
-    GUI * gui() { return gui_; }
+    Window * window() { return window_; }
 
-    GUI * gui_;
+    Window * window_;
 }; 
 
 /** Basic Widget
  */
-class Widget : public GUIElement {
+class Widget : public WindowElement {
 public:
 protected:
 
-    friend class GUI;
+    friend class Window;
 
-    Widget(GUI * gui): GUIElement{gui} { };
+    Widget(Window * window): WindowElement{window} { };
 
     /** Returns true if the widget is fullscreen. Fullscreen widgets will not have the footer drawn in the bottom of the screen, which saves some space. 
      */

@@ -1,29 +1,29 @@
 #pragma once
 
 #include "widget.h"
-#include "gui.h"
+#include "window.h"
 
 class Gauge : public Widget {
 public:
-    Gauge(GUI * gui): Widget{gui} {}
+    Gauge(Window * window): Widget{window} {}
 
 protected:
 
     void draw() override {
         if (titleWidth_ == 0) {
             mask_ = LoadTexture("assets/gauge_mask.png");
-            Vector2 fs = MeasureText(gui()->menuFont(), title_.c_str(), MENU_FONT_SIZE);
+            Vector2 fs = MeasureText(window()->menuFont(), title_.c_str(), MENU_FONT_SIZE);
             titleWidth_ = fs.x;            
         }
         int end = value_  > 0 ? 320 * (value_ - min_) / (max_ - min_) : 0;
-        int gaugeTop = (GUI_HEIGHT - mask_.height - MENU_FONT_SIZE) / 2;
+        int gaugeTop = (Window_HEIGHT - mask_.height - MENU_FONT_SIZE) / 2;
         
         DrawRectangle(0, gaugeTop, 320, mask_.height, backgroundColor_);
         DrawRectangle(0, gaugeTop, end, mask_.height, color_);
 
-        DrawTexture(mask_, (GUI_WIDTH - mask_.width) / 2, gaugeTop, WHITE);
+        DrawTexture(mask_, (Window_WIDTH - mask_.width) / 2, gaugeTop, WHITE);
 
-        DrawTextEx(gui()->menuFont(), title_.c_str(), (GUI_WIDTH - titleWidth_) / 2, GUI_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, WHITE);
+        DrawTextEx(window()->menuFont(), title_.c_str(), (Window_WIDTH - titleWidth_) / 2, Window_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, WHITE);
 
     }
 

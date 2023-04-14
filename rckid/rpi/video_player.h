@@ -1,7 +1,7 @@
 #pragma once
 
 #include "widget.h"
-#include "gui.h"
+#include "window.h"
 
 /** A video player, frontend to cvlc controlled the same way as retroarch is. 
  

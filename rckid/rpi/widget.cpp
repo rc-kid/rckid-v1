@@ -1,12 +1,12 @@
-#include "gui.h"
+#include "window.h"
 
 #include "widget.h"
 
-GUIElement::~GUIElement() {
-    gui_->detach(this);
+WindowElement::~WindowElement() {
+    window_->detach(this);
 }
 
-GUIElement::GUIElement(GUI * gui):
-    gui_{gui} {
-    gui_->attach(this);
+WindowElement::WindowElement(Window * window):
+    window_{window} {
+    window_->attach(this);
 }

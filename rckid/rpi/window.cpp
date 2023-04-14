@@ -4,10 +4,10 @@
 #include "debug_view.h"
 #include "gauge.h"
 
-#include "gui.h"
+#include "window.h"
 
 
-int FooterItem::draw(GUI * gui, int x, int y) const {
+int FooterItem::draw(Window * window, int x, int y) const {
     switch (control_) {
         case Control::A:
             DrawCircle(x + 10, y + 10, 6, RED);
@@ -26,14 +26,14 @@ int FooterItem::draw(GUI * gui, int x, int y) const {
             x += 20;
             break;
     }
-    DrawTextEx(gui->helpFont(), text_.c_str(), x, y + (20 - textSize_.y) / 2 , 16, 1.0, WHITE);
+    DrawTextEx(window->helpFont(), text_.c_str(), x, y + (20 - textSize_.y) / 2 , 16, 1.0, WHITE);
     x += textSize_.x + 5;
     return x;
 }
 
 
 
-GUI::GUI() {
+Window::Window() {
     carousel_ = new Carousel{this};
     homeMenu_ = new Menu{this, {
         new Menu::Item{"Power Off", "assets/images/011-power-off.png"},
@@ -46,7 +46,7 @@ GUI::GUI() {
     rckid_ = new RCKid{this};
 }
 
-void GUI::startRendering() {
+void Window::startRendering() {
     InitWindow(320, 240, "RCKid");
     SetTargetFPS(60);
     rendering_ = true;
@@ -58,15 +58,15 @@ void GUI::startRendering() {
     lastDrawTime_ = GetTime();    
 }
 
-void GUI::stopRendering() {
+void Window::stopRendering() {
     rendering_ = false;
-    for (GUIElement * e : elements_)
+    for (WindowElement * e : elements_)
         e->onRenderingPaused();
     CloseWindow();
 } 
 
 
-void GUI::setWidget(Widget * widget) {
+void Window::setWidget(Widget * widget) {
     next_ = NavigationItem{widget};
     transition_ = Transition::FadeOut;
     if (widget_ == nullptr) {
@@ -81,7 +81,7 @@ void GUI::setWidget(Widget * widget) {
     }
 }
 
-void GUI::setMenu(Menu * menu, size_t index) {
+void Window::setMenu(Menu * menu, size_t index) {
     if (menu == homeMenu_) {
         if (inHomeMenu_)
             return;
@@ -99,7 +99,7 @@ void GUI::setMenu(Menu * menu, size_t index) {
     }
 }
 
-void GUI::back() {
+void Window::back() {
     if (nav_.size() == 0)
         return; 
     next_ = nav_.back();
@@ -112,7 +112,7 @@ void GUI::back() {
     }
 }
 
-void GUI::swapWidget() {
+void Window::swapWidget() {
     if (widget_!= nullptr) {
         widget_->onBlur();
         if (widget_ == carousel_ && carousel_->items() == homeMenu_)
@@ -132,7 +132,7 @@ void GUI::swapWidget() {
     swap_.start();
 }
 
-void GUI::processInputEvents() {
+void Window::processInputEvents() {
     Event e;
     size_t events;
     while (true) {
@@ -204,7 +204,7 @@ void GUI::processInputEvents() {
     }
 }
 
-void GUI::loop() {
+void Window::loop() {
     while (true) {
         processInputEvents();
         if (rendering_)
@@ -216,7 +216,7 @@ void GUI::loop() {
     }
 }
 
-void GUI::draw() {
+void Window::draw() {
     BeginDrawing();
     double t = GetTime();
     redrawDelta_ = static_cast<float>((t - lastDrawTime_) * 1000);
@@ -231,12 +231,12 @@ void GUI::draw() {
         case Transition::None:
             break;
         case Transition::FadeOut:
-            DrawRectangle(0, 0, GUI_WIDTH, GUI_HEIGHT, ColorAlpha(BLACK, swap_.interpolate(0.0f, 1.0f, Interpolation::Linear)));
+            DrawRectangle(0, 0, Window_WIDTH, Window_HEIGHT, ColorAlpha(BLACK, swap_.interpolate(0.0f, 1.0f, Interpolation::Linear)));
             if (aend)
                 swapWidget();
             break;
         case Transition::FadeIn:
-            DrawRectangle(0, 0, GUI_WIDTH, GUI_HEIGHT, ColorAlpha(BLACK, swap_.interpolate(1.0f, 0.0f, Interpolation::Linear)));
+            DrawRectangle(0, 0, Window_WIDTH, Window_HEIGHT, ColorAlpha(BLACK, swap_.interpolate(1.0f, 0.0f, Interpolation::Linear)));
             if (aend) 
                 transition_ = Transition::None;
             break;
@@ -254,7 +254,7 @@ void GUI::draw() {
 
 
 
-void GUI::drawHeader() {
+void Window::drawHeader() {
     //DrawFPS(0,0);
 
     // battery voltage
@@ -271,7 +271,7 @@ void GUI::drawHeader() {
     DrawTextEx(helpFont_, STR(GetFPS()).c_str(), 70, 2, 16, 1.0, WHITE);
 }
 
-void GUI::drawFooter() {
+void Window::drawFooter() {
     int y = 220;
     switch (transition_) {
         case Transition::None:

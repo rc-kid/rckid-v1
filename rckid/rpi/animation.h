@@ -24,7 +24,7 @@ public:
 
     void setDuration(float ms) { duration_ = ms; }
 
-    bool update(GUI * gui);
+    bool update(Window * window);
 
     bool running() const { return running_; }
     

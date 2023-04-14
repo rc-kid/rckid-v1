@@ -1,4 +1,4 @@
-#include "gui.h"
+#include "window.h"
 #include "menu.h"
 
 void Menu::clear() {
@@ -12,18 +12,18 @@ void Menu::onRenderingPaused() {
         i->titleWidth_ = Menu::Item::UNINITIALIZED;
 }
 
-void Menu::Item::initialize(GUI * gui) {
+void Menu::Item::initialize(Window * window) {
     img_ = LoadTexture(imgFile_.c_str());
-    Vector2 fs = MeasureText(gui->menuFont(), title_.c_str(), MENU_FONT_SIZE);
+    Vector2 fs = MeasureText(window->menuFont(), title_.c_str(), MENU_FONT_SIZE);
     titleWidth_ = fs.x;
 }
 
-void WidgetItem::onSelect(GUI * gui) {
-    gui->setWidget(widget_);
+void WidgetItem::onSelect(Window * window) {
+    window->setWidget(widget_);
 }
 
-void SubmenuItem::onSelect(GUI * gui) {
+void SubmenuItem::onSelect(Window * window) {
     if (updater_)
-        updater_(gui, this);
-    gui->setMenu(& submenu_);
+        updater_(window, this);
+    window->setMenu(& submenu_);
 }

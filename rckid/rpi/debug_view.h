@@ -1,7 +1,7 @@
 #pragma once
 
 #include "widget.h"
-#include "gui.h"
+#include "window.h"
 
 /** A simple class for debugging purposes. 
  
@@ -10,7 +10,7 @@
 class DebugView : public Widget {
 public:
 
-    DebugView(GUI * gui): Widget{gui} {}
+    DebugView(Window * window): Widget{window} {}
 
     bool fullscreen() const { return true; }
 
@@ -28,15 +28,15 @@ protected:
         DrawRectangle(125, 40, 20, 155, DARKGRAY);
         // draw the display cutout joy & accel values
         DrawRectangle(25, 40, 100, 75, BLACK);
-        DrawTextEx(gui()->helpFont(), "Joy", 45, 42, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui()->helpFont(), "Acc", 85, 42, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui()->helpFont(), "X", 30, 60, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui()->helpFont(), "Y", 30, 78, 16, 1.0, DARKGRAY);
-        //DrawTextEx(gui->helpFont(), "Z", 30, 96, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui()->helpFont(), STR((int)joyX_).c_str(), 45, 60, 16, 1.0, WHITE);
-        DrawTextEx(gui()->helpFont(), STR((int)joyY_).c_str(), 45, 78, 16, 1.0, WHITE);
-        DrawTextEx(gui()->helpFont(), STR((int)accelX_).c_str(), 85, 60, 16, 1.0, WHITE);
-        DrawTextEx(gui()->helpFont(), STR((int)accelY_).c_str(), 85, 78, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), "Joy", 45, 42, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), "Acc", 85, 42, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), "X", 30, 60, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), "Y", 30, 78, 16, 1.0, DARKGRAY);
+        //DrawTextEx(window->helpFont(), "Z", 30, 96, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), STR((int)joyX_).c_str(), 45, 60, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR((int)joyY_).c_str(), 45, 78, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR((int)accelX_).c_str(), 85, 60, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR((int)accelY_).c_str(), 85, 78, 16, 1.0, WHITE);
 
         // draw the ABXY buttons
         DrawCircle(125, 155, 10, btnA_ ? YELLOW : BLACK);
@@ -58,14 +58,14 @@ protected:
         // home, start and select
         // TODO
 
-        DrawTextEx(gui()->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui()->helpFont(), STR(vcc_).c_str(), 210, 20, 16, 1.0, WHITE);
-        DrawTextEx(gui()->helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui()->helpFont(), STR(vbatt_).c_str(), 290, 20, 16, 1.0, WHITE);
-        DrawTextEx(gui()->helpFont(), "TEMP:", 160, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui()->helpFont(), STR(temp_).c_str(), 210, 40, 16, 1.0, WHITE);
-        DrawTextEx(gui()->helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(gui()->helpFont(), STR(atemp_).c_str(), 290, 40, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), STR(vcc_).c_str(), 210, 20, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), STR(vbatt_).c_str(), 290, 20, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), "TEMP:", 160, 40, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), STR(temp_).c_str(), 210, 40, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), STR(atemp_).c_str(), 290, 40, 16, 1.0, WHITE);
 
     }
 

@@ -7,18 +7,18 @@
 #include "widget.h"
 
 
-class GUI;
+class Window;
 class Widget;
 
-class Menu : public GUIElement {
+class Menu : public WindowElement {
 public:
 
     class Item;
 
-    Menu(GUI * gui): GUIElement{gui} {};
+    Menu(Window * window): WindowElement{window} {};
 
-    Menu(GUI * gui, std::initializer_list<Item*> items):
-        GUIElement{gui}, 
+    Menu(Window * window, std::initializer_list<Item*> items):
+        WindowElement{window}, 
         items_{items} {
     }
 
@@ -58,11 +58,11 @@ public:
 
     bool initialized() const { return titleWidth_ != UNINITIALIZED; }
 
-    void initialize(GUI * gui);
+    void initialize(Window * window);
 
     /** Called by the carousel when the item is selected.
      */
-    virtual void onSelect(GUI * gui) { }
+    virtual void onSelect(Window * window) { }
 
 protected:
     static constexpr int UNINITIALIZED = -1;
@@ -89,7 +89,7 @@ public:
         widget_{widget} {
     }
 
-    void onSelect(GUI * gui) override; 
+    void onSelect(Window * window) override; 
 
 private:
 
@@ -100,23 +100,23 @@ private:
  */
 class SubmenuItem : public Menu::Item {
 public:
-    SubmenuItem(std::string const & title, std::string const & imgFile, GUI * gui, std::initializer_list<Menu::Item *> items):
+    SubmenuItem(std::string const & title, std::string const & imgFile, Window * window, std::initializer_list<Menu::Item *> items):
         Menu::Item{title, imgFile},
-        submenu_{gui, items} {
+        submenu_{window, items} {
     }
 
-    SubmenuItem(std::string const & title, std::string const & imgFile,GUI * gui, std::function<void(GUI *, SubmenuItem *)> updater):
+    SubmenuItem(std::string const & title, std::string const & imgFile,Window * window, std::function<void(Window *, SubmenuItem *)> updater):
         Menu::Item{title, imgFile},
-        submenu_{gui},
+        submenu_{window},
         updater_{updater} {
     }
 
     Menu & submenu() { return submenu_; }
 
-    void onSelect(GUI * gui) override;
+    void onSelect(Window * window) override;
 
 private:
-    std::function<void(GUI *, SubmenuItem *)> updater_;
+    std::function<void(Window *, SubmenuItem *)> updater_;
     Menu submenu_;
 }; // SubmenuItem
 

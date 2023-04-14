@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "gui.h"
+#include "window.h"
 #include "rckid.h"
 
 #if (!defined ARCH_RPI)
@@ -71,8 +71,8 @@
 
 using namespace platform;
 
-RCKid::RCKid(GUI * gui): 
-    gui_{gui} {
+RCKid::RCKid(Window * window): 
+    window_{window} {
     gpio::initialize();
     if (!spi::initialize()) 
         ERROR("Unable to initialize spi (errno " << errno << ")");
@@ -374,7 +374,7 @@ void RCKid::buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {
         libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
     }
     // send the appropriate action to the main thread
-    gui_->send(Event{btn.button, btn.reported});
+    window_->send(Event{btn.button, btn.reported});
 }
 
 

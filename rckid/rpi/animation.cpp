@@ -1,12 +1,12 @@
-#include "gui.h"
+#include "window.h"
 
 #include "animation.h"
 
 
-bool Animation::update(GUI * gui) {
+bool Animation::update(Window * window) {
     if (!running_)
         return false;
-    value_ += gui->redrawDelta();
+    value_ += window->redrawDelta();
     if (value_ > duration_) {
         if (! continuous_) {
             running_ = false;

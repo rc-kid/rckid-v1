@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui.h"
+#include "window.h"
 #include "animation.h"
 
 /** A simple pixel editor. 
@@ -13,8 +13,8 @@ public:
     static constexpr unsigned ICON_WIDTH = 64;
     static constexpr unsigned ICON_HEIGHT = 64;
 
-    PixelEditor(GUI * gui):
-        Widget{gui}, 
+    PixelEditor(Window * window):
+        Widget{window}, 
         cursor_{500} {
         cursor_.startContinuous();
         memset(icon_, 0, sizeof(::Color) * ICON_WIDTH * ICON_HEIGHT);
@@ -25,10 +25,10 @@ public:
 protected:
 
     void draw() override {
-        cursor_.update(gui());
-        int pixelSize = std::min(GUI_WIDTH / ICON_WIDTH, GUI_HEIGHT / ICON_HEIGHT);
-        int startx = (GUI_WIDTH - (ICON_WIDTH * pixelSize)) / 2 ;
-        int starty = (GUI_HEIGHT - (ICON_HEIGHT * pixelSize)) / 2;
+        cursor_.update(window());
+        int pixelSize = std::min(Window_WIDTH / ICON_WIDTH, Window_HEIGHT / ICON_HEIGHT);
+        int startx = (Window_WIDTH - (ICON_WIDTH * pixelSize)) / 2 ;
+        int starty = (Window_HEIGHT - (ICON_HEIGHT * pixelSize)) / 2;
         for (int y = 0; y < ICON_HEIGHT; ++y) {
             for (int x = 0; x < ICON_WIDTH; ++x) {
                DrawRectangle(startx + x * pixelSize, starty + y * pixelSize, pixelSize, pixelSize, icon_[y * ICON_WIDTH + x]); 

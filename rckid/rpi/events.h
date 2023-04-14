@@ -33,9 +33,9 @@ struct ButtonEvent {
     bool state;
 }; // ButtonEvent
 
-/** GUI event.
+/** Window event.
 
-    The gui event is effectively a tagged union over the various event types supported by the gui.  
+    The window event is effectively a tagged union over the various event types supported by the window.  
  */
 struct Event {
 public:

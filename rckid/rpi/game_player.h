@@ -1,7 +1,7 @@
 #pragma once
 
 #include "widget.h"
-#include "gui.h"
+#include "window.h"
 
 #include "platform/platform.h"
 
@@ -18,7 +18,7 @@
 class GamePlayer : public Widget {
 public:
 
-    GamePlayer(GUI * gui): Widget{gui} {}
+    GamePlayer(Window * window): Widget{window} {}
 
    bool fullscreen() const { return true; }
 
@@ -40,9 +40,9 @@ protected:
         static bool rendering = true;
         if (state) {
             if (rendering)
-                gui()->stopRendering();
+                window()->stopRendering();
             else
-                gui()->startRendering();
+                window()->startRendering();
             rendering = ! rendering;
         }
     }

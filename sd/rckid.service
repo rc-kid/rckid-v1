@@ -1,5 +1,5 @@
 [Unit]
-Description=RCKId gui
+Description=RCKId window
 Before=sysinit.target
 After=local-fs.target
 DefaultDependencies=no

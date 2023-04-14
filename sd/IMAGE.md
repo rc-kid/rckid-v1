@@ -1,6 +1,6 @@
 # SD Image Setup
 
-> TODO provide a download of the full rpi image as part of the project with all this setup. Follow this guide only when building new image. 
+> TODO provide a download of the full rpi image as part of the project with all this setup. Follow this windowde only when building new image. 
 
 Download RaspberryPi OS Imager and select the Retropie distribution for Raspberry pi 2 W. Flash the image on the SD card and then reinsert the card. Its `boot` partition will be mounted. Edit the default networks the RPI should connect to in the `sd/wpa_supplicant.conf` (higher priority is better). Then copy the `wpa_supplicant.conf` and `ssh` files from the `sd` directory to the boot partition on the SD card. Insert the card to rpi and power on. 
 
