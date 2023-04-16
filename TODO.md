@@ -41,7 +41,7 @@
 - add torchlight widget
 - webserver from the app - see https://github.com/yhirose/cpp-httplib ?
 
-- how to configure, via JSON I guess, reuse the simple UI from mp3 player should be enough
+- how to configure, via JSON I guess,
 - samba on demand? etc.
 
 - add rumbler / sound for ui actions

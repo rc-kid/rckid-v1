@@ -6,6 +6,7 @@
 #include <optional>
 
 #include "platform/platform.h"
+#include "utils/utils.h"
 
 /** Buttons available on the RCKid. 
  */

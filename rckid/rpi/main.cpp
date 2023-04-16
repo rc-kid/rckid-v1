@@ -10,6 +10,7 @@
 #include "debug_view.h"
 #include "keyboard.h"
 #include "game_player.h"
+#include "music_player.h"
 
 
 /** Main RCKid app. 
@@ -26,7 +27,8 @@ int main(int argc, char * argv[]) {
         new WidgetItem{"Games", "assets/images/001-game-controller.png", new GamePlayer{&window}},
         new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
         new Menu::Item{"Video", "assets/images/005-film-slate.png"},
-        new Menu::Item{"Music", "assets/images/003-music.png"},
+        //new Menu::Item{"Music", "assets/images/003-music.png"},
+        new WidgetItem{"Music", "assets/images/003-music.png", new MusicPlayer{&window}},
         new Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
         new SubmenuItem{"Apps", "assets/images/023-presents.png", &window, {
             new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},

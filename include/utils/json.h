@@ -5,458 +5,446 @@
 #include <vector>
 #include <unordered_map>
 
+#include "tests.h"
+
 namespace json {
 
-    class Value;
-
-    /** The undefined value placeholder. 
-     
-        Does not contain any useful information apart from the optinal comment, exists for unified creation of values via constructors. 
-     */
-    class Undefined {
-    public:
-        std::string const & comment() const { return comment_; }
-        void setComment(std::string const & comment) { comment_ = comment; }
-
-    private:
-        std::string comment_;
-    }; // json::Undefined
-
-    /** The Null value placeholder. 
-
-        Does not contain any useful information apart from the optinal comment, exists for unified creation of values via constructors. 
-     */
-    class Null {
-    public:
-        std::string const & comment() const { return comment_; }
-        void setComment(std::string const & comment) { comment_ = comment; }
-    private:
-        std::string comment_;
-    }; // json::Null
-
-    /** Boolean JSON value. 
-     */
-    class Bool {
-    public:
-        explicit Bool(bool value):value_{value} {}
-
-        std::string const & comment() const { return comment_; }
-        void setComment(std::string const & comment) { comment_ = comment; }
-
-        operator bool () const { return value_; } 
-    private:
-        bool value_;
-        std::string comment_;
-
-    }; // json::Boolean
-
-    /** Integer JSON value. 
-     
-        Contrary to JSON specification numbers are stored as either double, or boolean values. 
-     */
-    class Int {
-    public:
-        explicit Int(int value):value_{value} {}
-
-        std::string const & comment() const { return comment_; }
-        void setComment(std::string const & comment) { comment_ = comment; }
-
-        operator int () const { return value_; }
-    private:
-        int value_;
-        std::string comment_;
-
-    }; // json::Integer
-
-    /** Double JSON value. 
-     
-        Contrary to JSON specification numbers are stored as either double, or boolean values. 
-     */
-    class Double {
-    public:
-        explicit Double(double value):value_{value} {}
-
-        std::string const & comment() const { return comment_; }
-        void setComment(std::string const & comment) { comment_ = comment; }
-
-        operator double () const { return value_; }
-    private:
-        double value_;
-        std::string comment_;
-
-    }; // json::Double
-
-    /** String JSON value. 
-     */
-    class String {
-    public:
-        explicit String(std::string const & value):value_{value} {}
-        explicit String(char const * value):value_{value} {}
-        explicit String(std::string && value):value_{std::move(value)} {}
-
-        std::string const & comment() const { return comment_; }
-        void setComment(std::string const & comment) { comment_ = comment; }
-
-        size_t size() const { return value_.size(); }
-        char const * c_str() const { return value_.c_str(); }
-    private:
-        std::string value_;
-        std::string comment_;
-
-    }; // json::String
-
-    /** JSON Array. 
-     */
-    class Array {
-    public:
-
-        std::string const & comment() const { return comment_; }
-        void setComment(std::string const & comment) { comment_ = comment; }
-
-        Value const & operator [] (size_t i) const { return *elements_[i]; }
-        Value & operator [] (size_t i) { return *elements_[i]; }
-
-        void add(Value const & value);
-        void add(Value && value);
-
-    private:
-        std::vector<Value*> elements_; // have to use ptrs (incomplete type)
-        std::string comment_;
-
-    }; // json::Array
-
-    /** JSON Struct.
-     */
-    class Struct {
-    public:
-
-        std::string const & comment() const { return comment_; }
-        void setComment(std::string const & comment) { comment_ = comment; }
-
-    private:
-        std::unordered_map<std::string, Value*> elements_; // have to use ptrs (incomplete type)
-        std::string comment_;
-    }; // json::Struct
-
-    /** A Generic JSON value class. 
-     
-        Provides a tagged union of all JSON values that can be easily manipulated providing some basic conversions as well. 
-     */
     class Value {
     public:
-        enum class Kind {
-            Undefined, 
-            Null, 
-            Bool, 
-            Int,
-            Double,
-            String,
-            Array,
-            Struct
-        }; // json::Value::Kind
+        enum class Kind { Null, Undefined, Bool, Int, Double, String, Array, Struct }; 
 
-        Value(): kind_{Kind::Undefined}, valueUndefined_{} {}
+        Value(): kind_{Kind::Undefined}, bool_{false} {}
 
-        Value(Undefined value): kind_{Kind::Undefined}, valueUndefined_{} {}
-        Value(Null value): kind_{Kind::Null}, valueNull_{} {}
+        Value(bool value): kind_{Kind::Bool}, bool_{value} {}
+        Value(int value): kind_{Kind::Int}, int_{value} {}
+        Value(double value): kind_{Kind::Double}, double_{value} {}
+        Value(std::string const & value): kind_{Kind::String}, str_{value} {}
+        Value(char const * value): kind_{Kind::String}, str_{value} {}
 
-        Value(bool value): kind_{Kind::Bool}, valueBool_{value} {}
-        Value(Bool value): kind_{Kind::Bool}, valueBool_{value} {}
+        Value(Value const & from): kind_{from.kind_}, bool_{false}, comment_{from.comment_} { attach(from); }
+        
+        Value(Value && from): kind_{from.kind_}, bool_{false}, comment_{std::move(from.comment_)} { attach(std::move(from)); }
 
-        Value(int value): kind_{Kind::Int}, valueInt_{value} {}
-        Value(Int value): kind_{Kind::Int}, valueInt_{value} {}
+        ~Value() { detach(); }
 
-        Value(double value): kind_{Kind::Double}, valueDouble_{value} {}
-        Value(Double value): kind_{Kind::Double}, valueDouble_{value} {}
-
-        Value(std::string const & value): kind_{Kind::String}, valueString_{value} {}
-        Value(std::string && value): kind_{Kind::String}, valueString_{std::move(value)} {}
-        Value(char const * value): kind_{Kind::String}, valueString_{value} {}
-        Value(String const & value): kind_{Kind::String}, valueString_{value} {}
-        Value(String && value): kind_{Kind::String}, valueString_{std::move(value)} {}
-
-        Value(Array const & value): kind_{Kind::Array}, valueArray_{value} {}
-        Value(Array && value): kind_{Kind::Array}, valueArray_{std::move(value)} {}
-
-        Value(Struct const & value): kind_{Kind::Struct}, valueStruct_{value} {}
-        Value(Struct && value): kind_{Kind::Struct}, valueStruct_{std::move(value)} {}
-
-        Value(Value const & from):
-            kind_{from.kind_},
-            valueUndefined_{} {
-            switch (kind_) {
-                case Kind::Undefined:
-                    break;
-                case Kind::Null:
-                    new (&valueNull_) Null{};
-                    break;
-                case Kind::Bool:
-                    new (&valueBool_) Bool{from.valueBool_};
-                    break;
-                case Kind::Int:
-                    new (&valueInt_) Int{from.valueInt_};
-                    break;
-                case Kind::Double:
-                    new (&valueDouble_) Double{from.valueDouble_};
-                    break;
-                case Kind::String:
-                    new (&valueString_) String{from.valueString_};
-                    break;
-                case Kind::Array:
-                    new (&valueArray_) Array{from.valueArray_};
-                    break;
-                case Kind::Struct:
-                    new (&valueStruct_) Struct{from.valueStruct_};
-            }
+        static Value const & null() {
+            static Value singleton{Kind::Null};
+            return singleton;
         }
 
-        Value(Value && from):
-            kind_{from.kind_},
-            valueUndefined_{} {
-            switch (kind_) {
-                case Kind::Undefined:
-                    break;
-                case Kind::Null:
-                    new (&valueNull_) Null{};
-                    break;
-                case Kind::Bool:
-                    new (&valueBool_) Bool{std::move(from.valueBool_)};
-                    break;
-                case Kind::Int:
-                    new (&valueInt_) Int{std::move(from.valueInt_)};
-                    break;
-                case Kind::Double:
-                    new (&valueDouble_) Double{std::move(from.valueDouble_)};
-                    break;
-                case Kind::String:
-                    new (&valueString_) String{std::move(from.valueString_)};
-                    break;
-                case Kind::Array:
-                    new (&valueArray_) Array{std::move(from.valueArray_)};
-                    break;
-                case Kind::Struct:
-                    new (&valueStruct_) Struct{std::move(from.valueStruct_)};
-            }
+        static Value const & undefined() {
+            static Value singleton{Kind::Undefined};
+            return singleton;
         }
 
-        ~Value() {
+        static Value newArray() { return Value{Kind::Array}; }
+        static Value newStruct() { return Value{Kind::Struct}; }
+
+        Value & operator = (bool from) {
             detach();
-        }
-
-        std::string const & comment() const {
-            switch (kind_) {
-                case Kind::Undefined:
-                    return valueUndefined_.comment();
-                case Kind::Null:
-                    return valueNull_.comment();
-                case Kind::Bool:
-                    return valueBool_.comment();
-                case Kind::Int:
-                    return valueInt_.comment();
-                case Kind::Double:
-                    return valueDouble_.comment();
-                case Kind::String:
-                    return valueString_.comment();
-                case Kind::Array:
-                    return valueArray_.comment();
-                case Kind::Struct:
-                    return valueStruct_.comment();
-            }
-        }
-
-        void setComment(std::string const & comment) {
-            switch (kind_) {
-                case Kind::Undefined:
-                    return valueUndefined_.setComment(comment);
-                case Kind::Null:
-                    return valueNull_.setComment(comment);
-                case Kind::Bool:
-                    return valueBool_.setComment(comment);
-                case Kind::Int:
-                    return valueInt_.setComment(comment);
-                case Kind::Double:
-                    return valueDouble_.setComment(comment);
-                case Kind::String:
-                    return valueString_.setComment(comment);
-                case Kind::Array:
-                    return valueArray_.setComment(comment);
-                case Kind::Struct:
-                    return valueStruct_.setComment(comment);
-            }
-        }
-
-        template<typename T> T const & as() const;
-        template<typename T> T & as();
-
-        Value & operator = (Value const & other) {
-            detach();
-            kind_ = other.kind_;
-            switch (kind_) {
-                case Kind::Undefined:
-                    new (&valueUndefined_) Undefined{};
-                    break;
-                case Kind::Null:
-                    new (&valueNull_) Null{};
-                    break;
-                case Kind::Bool:
-                    new (&valueBool_) Bool(other.valueBool_);
-                    break;
-                case Kind::Int:
-                    new (&valueInt_) Int{other.valueInt_};
-                    break;
-                case Kind::Double:
-                    new (&valueDouble_) Double(other.valueDouble_);
-                    break;
-                case Kind::String:
-                    new (&valueString_) String(other.valueString_);
-                    break;
-                case Kind::Array:
-                    new (&valueArray_) Array(other.valueArray_);
-                    break;
-                case Kind::Struct:
-                    new (&valueStruct_) Struct{other.valueStruct_};
-                    break;
-            }
+            kind_ = Kind::Bool;
+            bool_ = from;
             return *this;
         }
 
-        Value & operator = (Value const && other) {
+        Value & operator = (int from) {
             detach();
-            kind_ = other.kind_;
-            switch (kind_) {
-                case Kind::Undefined:
-                    new (&valueUndefined_) Undefined{};
-                    break;
-                case Kind::Null:
-                    new (&valueNull_) Null{};
-                    break;
-                case Kind::Bool:
-                    new (&valueBool_) Bool{std::move(other.valueBool_)};
-                    break;
-                case Kind::Int:
-                    new (&valueInt_) Int{std::move(other.valueInt_)};
-                    break;
-                case Kind::Double:
-                    new (&valueDouble_) Double{std::move(other.valueDouble_)};
-                    break;
-                case Kind::String:
-                    new (&valueString_) String{std::move(other.valueString_)};
-                    break;
-                case Kind::Array:
-                    new (&valueArray_) Array{std::move(other.valueArray_)};
-                    break;
-                case Kind::Struct:
-                    new (&valueStruct_) Struct{std::move(other.valueStruct_)};
-            }
+            kind_ = Kind::Int;
+            int_ = from;
             return *this;
+        }
+
+        Value & operator = (double from) {
+            detach();
+            kind_ = Kind::Double;
+            double_ = from;
+            return *this;
+        }
+
+        Value & operator = (std::string const & from) {
+            detach();
+            kind_ = Kind::String;
+            new (&str_) std::string{from};
+            return *this;
+        }
+
+        Value & operator = (std::string const && from) {
+            detach();
+            kind_ = Kind::String;
+            new (&str_) std::string{std::move(from)};
+            return *this;
+        }
+
+        Value & operator = (Value const & from) {
+            detach();
+            kind_ = from.kind_;
+            comment_ = from.comment_;
+            attach(from);
+            return *this;
+        }
+
+        Value & operator = (Value const && from) {
+            detach();
+            kind_ = from.kind_;
+            comment_ = std::move(from.comment_);
+            attach(std::move(from));
+            return *this;
+        }
+
+        Kind kind() const { return kind_; }
+
+        std::string const & comment() const { return comment_; }
+        void setComment(std::string const & comment) { comment_ = comment; }
+
+        size_t size() const {
+            switch (kind_) {
+                case Kind::String:
+                    return str_.size();
+                case Kind::Array:
+                    return array_.size();
+                case Kind::Struct:
+                    return struct_.size();
+                    break;
+                default:
+                    return 1;
+            }
+        }
+
+        Value const & operator [] (size_t i) const {
+            if (kind_ != Kind::Array || i >= array_.size())
+                return null();
+            return *(array_[i]);
+        }
+
+        Value & operator [] (size_t i) {
+            if (kind_ != Kind::Array)
+                throw std::runtime_error(STR("JSON value is not an array but " << kind_));
+            if (i >= array_.size())
+                throw std::range_error{STR("JSON array index " << i << " out of bounds " << array_.size())};
+            return *(array_[i]);
+        }
+
+        Value const & operator [] (std::string const & name) const {
+            if (kind_ != Kind::Struct)
+                return null();
+            auto i = struct_.find(name);
+            return i != struct_.end() ? *(i->second) : null();
+        }
+
+        Value & operator [] (std::string const & name) {
+            if (kind_ != Kind::Struct)
+                throw std::runtime_error{STR("JSON value is not a struct but " << kind_)};
+            auto i = struct_.find(name);
+            if (i == struct_.end())
+                i = struct_.insert(std::make_pair(name, new Value{})).first;
+            return *(i->second);
+        }
+
+        Value & push(Value const & element) {
+            if (kind_ != Kind::Array)
+                throw std::runtime_error(STR("JSON value is not an array but " << kind_));
+            array_.push_back(new Value{element});
+            return *this;
+        }
+
+        Value & push(Value && element) {
+            if (kind_ != Kind::Array)
+                throw std::runtime_error(STR("JSON value is not an array but " << kind_));
+            array_.push_back(new Value{std::move(element)});
+            return *this;
+        }
+
+        Value & insert(std::string const & name, Value const & value) {
+            if (kind_ != Kind::Struct)
+                throw std::runtime_error{STR("JSON value is not a struct but " << kind_)};
+            struct_.insert(std::make_pair(name, new Value{value}));
+            return *this;
+        }
+
+        Value & insert(std::string const & name, Value const && value) {
+            if (kind_ != Kind::Struct)
+                throw std::runtime_error{STR("JSON value is not a struct but " << kind_)};
+            struct_.insert(std::make_pair(name, new Value{std::move(value)}));
+            return *this;
+        }
+
+        template<typename T>
+        T const & value() const;
+
+        template<typename T>
+        T & value();
+
+        bool isNull() const { return kind_ == Kind::Null; }
+
+        bool isUndefined() const { return kind_ == Kind::Undefined; }
+
+        bool operator == (Value const & other) const {
+            if (kind_ != other.kind_)
+                return false;
+            switch (kind_) {
+                case Kind::Null:
+                case Kind::Undefined:
+                    return true;
+                case Kind::Bool:
+                    return bool_ == other.bool_;
+                case Kind::Int:
+                    return int_ == other.int_;
+                case Kind::Double:
+                    return double_ == other.double_;
+                case Kind::String:
+                    return str_ == other.str_;
+                default:
+                    UNIMPLEMENTED;
+            }
         }
 
     private:
+
+        Value(Kind kind):
+            kind_{kind}, bool_{false} {
+            switch (kind_) {
+                case Kind::Int:
+                    int_ = 0;
+                    break;
+                case Kind::Double:
+                    double_ = 0;
+                    break;
+                case Kind::String:
+                    new (&str_) std::string{};
+                    break;
+                case Kind::Array:
+                    new (&array_) std::vector<Value*>{};
+                    break;
+                case Kind::Struct:
+                    new (&struct_) std::unordered_map<std::string, Value*>{};
+                    break;
+                default:
+                    break; 
+            }    
+        }
 
         void detach() {
             switch (kind_) {
                 case Kind::String:
-                    valueString_.~String();
+                    str_.~basic_string();
                     break;
                 case Kind::Array:
-                    valueArray_.~Array();
+                    array_.~vector();
                     break;
                 case Kind::Struct:
-                    valueStruct_.~Struct();
+                    struct_.~unordered_map();
                     break;
                 default:
                     break; // trivial destructors
             }
         }
 
+        void attach(Value const & from) {
+            switch (kind_) {
+                case Kind::Int:
+                    int_ = from.int_;
+                    break;
+                case Kind::Double:
+                    double_ = from.double_;
+                    break;
+                case Kind::String:
+                    new (&str_) std::string{from.str_};
+                    break;
+                case Kind::Array:
+                    new (&array_) std::vector<Value*>{};
+                    for (Value const * v : from.array_)
+                        array_.push_back(new Value{*v});
+                    break;
+                case Kind::Struct:
+                    new (&struct_) std::unordered_map<std::string, Value*>{};
+                    for (auto & i : from.struct_)
+                        struct_.insert(std::make_pair(i.first, new Value{*i.second}));
+                    break;
+                default:
+                    break; 
+            }
+        }
+
+        void attach(Value && from) {
+            switch (kind_) {
+                case Kind::Int:
+                    int_ = from.int_;
+                    break;
+                case Kind::Double:
+                    double_ = from.double_;
+                    break;
+                case Kind::String:
+                    new (&str_) std::string{std::move(from.str_)};
+                    break;
+                case Kind::Array:
+                    new (&array_) std::vector<Value*>{std::move(from.array_)};
+                    break;
+                case Kind::Struct:
+                    new (&struct_) std::unordered_map<std::string, Value*>{std::move(from.struct_)};
+                default:
+                    break; 
+            }
+        }
+
         Kind kind_;
+
+        std::string comment_;
+
         union {
-            Undefined valueUndefined_;
-            Null valueNull_;
-            Bool valueBool_;
-            Int valueInt_;
-            Double valueDouble_;
-            String valueString_;
-            Array valueArray_;
-            Struct valueStruct_;
+            bool bool_;
+            int int_;
+            double double_;
+            std::string str_;
+            std::vector<Value*> array_;
+            std::unordered_map<std::string, Value *> struct_;            
         };
 
-        friend Value parse(std::istream &);
+        friend std::ostream & operator << (std::ostream & s, Kind kind) {
+            switch (kind) {
+                case Kind::Null:
+                    s << "null";
+                    break;
+                case Kind::Undefined:
+                    s << "undefined";
+                    break;
+                case Kind::Bool:
+                    s << "bool";
+                    break;
+                case Kind::Int:
+                    s << "int";
+                    break;
+                case Kind::Double:
+                    s << "double";
+                    break;
+                case Kind::String:
+                    s << "string";
+                    break;
+                case Kind::Array:
+                    s << "array";
+                    break;
+                case Kind::Struct:
+                    s << "struct";
+                    break;
+            }
+            return s;
+        }
 
-        class Parser;
+        friend std::ostream & operator << (std::ostream & s, Value const & v) {
+            switch (v.kind_) {
+                case Kind::Null:
+                    s << "null";
+                    break;
+                case Kind::Undefined:
+                    s << "undefined";
+                    break;
+                case Kind::Bool:
+                    s << v.bool_;
+                    break;
+                case Kind::Int:
+                    s << v.int_;
+                    break;
+                case Kind::Double:
+                    s << v.double_;
+                    break;
+                case Kind::String:
+                    s << "\"" << v.str_ << "\"";
+                    break;
+                case Kind::Array:
+                    s << "[";
+                    s << "]";
+                    break;
+                case Kind::Struct:
+                    s << "{";
+                    s << "}";
+                    break;
+            }
+            return s;
+        }
 
     }; // json::Value
 
     template<> 
-    inline Bool const & Value::as() const {
+    inline bool const & Value::value() const {
         if (kind_ != Kind::Bool)
-            throw "Expected bool but found";
-        return valueBool_;
+            throw std::runtime_error{STR("JSON value " << kind_ << " is not bool")};
+        return bool_;
     }
 
     template<> 
-    inline Bool & Value::as() {
+    inline bool & Value::value() {
         if (kind_ != Kind::Bool)
-            throw "Expected bool but found";
-        return valueBool_;
+            throw std::runtime_error{STR("JSON value " << kind_ << " is not bool")};
+        return bool_;
     }
 
     template<> 
-    inline Int const & Value::as() const {
+    inline int const & Value::value() const {
         if (kind_ != Kind::Int)
-            throw "Expected bool but found";
-        return valueInt_;
+            throw std::runtime_error{STR("JSON value " << kind_ << " is not int")};
+        return int_;
     }
 
     template<> 
-    inline Int & Value::as() {
+    inline int & Value::value() {
         if (kind_ != Kind::Int)
-            throw "Expected bool but found";
-        return valueInt_;
+            throw std::runtime_error{STR("JSON value " << kind_ << " is not int")};
+        return int_;
     }
 
-    inline void Array::add(Value const & value) {
-        elements_.push_back(new Value{value});
+    template<> 
+    inline double const & Value::value() const {
+        if (kind_ != Kind::Double)
+            throw std::runtime_error{STR("JSON value " << kind_ << " is not double")};
+        return double_;
     }
 
-    inline void Array::add(Value && value) {
-        elements_.push_back(new Value{std::move(value)});
+    template<> 
+    inline double & Value::value() {
+        if (kind_ != Kind::Double)
+            throw std::runtime_error{STR("JSON value " << kind_ << " is not double")};
+        return double_;
+    }
+    template<> 
+    inline std::string const & Value::value() const {
+        if (kind_ != Kind::String)
+            throw std::runtime_error{STR("JSON value " << kind_ << " is not string")};
+        return str_;
     }
 
-
-
-
-    /** Parses the given stream and returns the JSON object. 
-     */
-    inline Value parse(std::istream & s) {
-        return Value{};
+    template<> 
+    inline std::string & Value::value() {
+        if (kind_ != Kind::String)
+            throw std::runtime_error{STR("JSON value " << kind_ << " is not string")};
+        return str_;
     }
 
-    /** Parses the given string and returns the JSON object. 
-     */
-    inline Value parse(char const * str) {
-        std::stringstream s{str};
-        return parse(s);
-    }
-
-    /** A rather simle and permissive JSON parser. 
+    /** A permissive JSON parser. 
      
-        Aside from the proper JSON it also supports comments, trailing commas, literal names and so on. 
-        */
-    class Value::Parser {
-    public:
-        
-        class Token {
-            friend class Parser;
-        public:
+        A simple parser that supports the JSON format as well as some additional niceties such as comments, or keyword fields. The following grammar is used:
+
+        JSON := ELEMENT
+        ELEMENT := [ comment ] ELEMENT_NO_COMMENT 
+        ELEMENT_NO_COMMENT := (null | undefined | POD | string | ARRAY | STRUCT )
+        POD := bool | int | double
+        ARRAY := '[' [ ELEMENT { ',' ELEMENT } [','] ] ']'
+        STRUCT := '{' [ FIELD { ',' FIELD } [',' ] ] '}'
+        FIELD := [ comment ] (ident | string ) '=' ELEMENT_NO_COMMENT
+
+    */
+    class Parser {
+    private:
+
+        friend Value parse(std::istream &);
+
+        struct Token {
             enum class Kind {
-                Undefined, 
                 Null,
+                Undefined, 
                 Bool,
                 Int,
                 Double,
-                String, 
                 Comment, 
+                String, 
                 Identifier,
                 Colon,
                 Comma,
@@ -464,59 +452,73 @@ namespace json {
                 SquareClose,
                 CurlyOpen,
                 CurlyClose,
-            }; // json::Value::Parser::Token::Kind
+                EoF
+            }; // json::Parser::Token::Kind
 
-            Token(size_t l, size_t c, Kind kind):
-                line{l}, col{c}, kind{kind}, valueBool_{false} {
+            Token(Kind kind): kind{kind}, valueBool{false} {
+                ASSERT(kind != Kind::Comment && kind != Kind::String && kind != Kind::Identifier);
             }
 
-            Token(size_t l, size_t c, Kind kind, bool value):
-                line{l}, col{c}, kind{kind}, valueBool_{value} {
+            Token(Kind kind, std::string && value): kind{kind}, valueStr{std::move(value)} {
+                ASSERT(kind == Kind::Comment || kind == Kind::String || kind == Kind::Identifier);
             }
 
-            Token(size_t l, size_t c, Kind kind, int value):
-                line{l}, col{c}, kind{kind}, valueInt_{value} {
-            }
+            Token(bool value): kind{Kind::Bool}, valueBool{value } {}
+            Token(int value): kind{Kind::Int}, valueInt{value } {}
+            Token(double value): kind{Kind::Double}, valueDouble{value} {}
 
-            Token(size_t l, size_t c, Kind kind, double value):
-                line{l}, col{c}, kind{kind}, valueDouble_{value} {
-            }
-
-            Token(size_t l, size_t c, Kind kind, std::string && value):
-                line{l}, col{c}, kind{kind}, valueString_{std::move(value)} {
+            Token(Token && other):
+                kind{other.kind} {
+                switch (kind) {
+                    case Kind::Int:
+                        valueInt = other.valueInt;
+                        break;
+                    case Kind::Double:
+                        valueDouble = other.valueDouble;
+                        break;
+                    case Kind::Comment:
+                    case Kind::String:
+                    case Kind::Identifier:
+                        new (&valueStr) std::string{std::move(other.valueStr)};
+                        break;
+                    default:
+                        valueBool = other.valueBool;
+                }
             }
 
             ~Token() {
                 detach();
             }
 
-            Token & operator = (Token const && from) {
+            Token & operator = (Token && other) {
                 detach();
-                line = from.line;
-                col = from.col;
-                kind = from.kind;
+                kind = other.kind;
                 switch (kind) {
-                    case Kind::Identifier:
-                    case Kind::String:
-                    case Kind::Comment:
-                        new (&valueString_) std::string{std::move(from.valueString_)};
-                        break;
-                    case Kind::Bool:
-                        valueBool_ = from.valueBool_;
+                    case Kind::Int:
+                        valueInt = other.valueInt;
                         break;
                     case Kind::Double:
-                        valueDouble_ = from.valueDouble_;
+                        valueDouble = other.valueDouble;
+                        break;
+                    case Kind::Comment:
+                    case Kind::String:
+                    case Kind::Identifier:
+                        new (&valueStr) std::string{std::move(other.valueStr)};
                         break;
                     default:
-                        valueInt_ = from.valueInt_;
+                        valueBool = other.valueBool;
                 }
                 return *this;
             }
 
-            size_t line;
-            size_t col;
-
             Kind kind;
+
+            union {
+                bool valueBool;
+                int valueInt;
+                double valueDouble;
+                std::string valueStr;
+            };
 
         private:
 
@@ -526,131 +528,185 @@ namespace json {
                     case Kind::Identifier:
                     case Kind::String:
                     case Kind::Comment:
-                        valueString_.~string();
+                        valueStr.~string();
                         break;
                 }
             }
 
-            union {
-                bool valueBool_;
-                int valueInt_;
-                double valueDouble_;
-                std::string valueString_;
-            }; 
-            
-        }; // json::Value::Parser::Token
-
-        Parser(std::istream & s):
-            s_{s} {
-        }
-
-        Value parse() {
-            return parse(next());
-        }
-
-    private:
-
-        Value parse(Token const & t) {
-            switch (t.kind) {
-                case Token::Kind::Comment:
-                    return parseWithComment(t.valueString_);
-                case Token::Kind::Undefined:
-                    return Undefined{};
-                case Token::Kind::Null:
-                    return Null{};
-                case Token::Kind::Bool:
-                    return Value{t.valueBool_};
-                case Token::Kind::Int:
-                    return Value{t.valueInt_};
-                case Token::Kind::Double:
-                    return Value{t.valueDouble_};
-                case Token::Kind::String:
-                    return Value{t.valueString_};
-                // '[' [ value ] { ',' value } [ ',' ] ']'
-                case Token::Kind::SquareOpen: {
-                    Array i{};
-                    Token t = next();
-                    if (t.kind != Token::Kind::SquareClose) {
-                        i.add(parse(t));
-                        t = next();
-                        while (t.kind == Token::Kind::Comma) {
-                            t = next();
-                            if (t.kind == Token::Kind::SquareClose)
-                                break;
-                            i.add(parse(t));
-                        }
-                        if (t.kind != Token::Kind::SquareClose) 
-                            throw "error";
-                    }
-                    return i;
+            friend std::ostream & operator << (std::ostream & s, Kind k) {
+                switch (k) {
+                    case Kind::Null:
+                        s << "null";
+                        break;
+                    case Kind::Undefined:
+                        s << "undefined";
+                        break;
+                    case Kind::Bool:
+                        s << "bool";
+                        break;
+                    case Kind::Int:
+                        s << "int";
+                        break;
+                    case Kind::Double:
+                        s << "double";
+                        break;
+                    case Kind::Comment: 
+                        s << "comment";
+                        break;
+                    case Kind::String: 
+                        s << "string";
+                        break;
+                    case Kind::Identifier:
+                        s << "identifier";
+                        break;
+                    case Kind::Colon:
+                        s << ":";
+                        break;
+                    case Kind::Comma:
+                        s << ",";
+                        break;
+                    case Kind::SquareOpen:
+                        s << "[";
+                        break;
+                    case Kind::SquareClose:
+                        s << "]";
+                        break;
+                    case Kind::CurlyOpen:
+                        s << "{";
+                        break;
+                    case Kind::CurlyClose:
+                        s << "}";
+                        break;
+                    case Kind::EoF:
+                        s << "end of file";
+                        break;
                 }
-                // '{' [ string = value ]}
-                case Token::Kind::CurlyOpen: {
-                    Struct i{};
+                return s;
+            }
 
-                    // TODO
-                    return i;
-                }
+        }; // json::Parser::Token
 
+        Parser(std::istream & s): s_{s} {}
 
+        Value ELEMENT(Token t) {
+            if (t.kind == Token::Kind::Comment) {
+                Value result = ELEMENT_NO_COMMENT(getNextToken());
+                result.setComment(std::move(t.valueStr));
+                return result;
+            } else {
+                return ELEMENT_NO_COMMENT(std::move(t));
             }
         }
 
-        Value parseWithComment(std::string comment) {
-            Value result = parse();
-            result.setComment(comment);
+        Value ELEMENT_NO_COMMENT(Token t) {
+            switch (t.kind) {
+                case Token::Kind::Null:
+                    return Value::null();
+                case Token::Kind::Undefined:
+                    return Value::undefined();
+                case Token::Kind::Bool:
+                    return Value{t.valueBool};
+                case Token::Kind::Int:
+                    return Value{t.valueInt};
+                case Token::Kind::Double:
+                    return Value{t.valueDouble};
+                case Token::Kind::String:
+                    return Value{std::move(t.valueStr)};
+                case Token::Kind::SquareOpen:
+                    return ARRAY();
+                case Token::Kind::CurlyOpen:
+                    return STRUCT();
+                default:
+                    throwError(STR("Expected element start, but " << t.kind << " found"));
+            }
+        }
+
+        Value ARRAY() {
+            Value result = Value::newArray();
+            Token t = getNextToken();
+            while (t.kind != Token::Kind::SquareClose) {
+                result.push(ELEMENT(std::move(t)));
+                t = getNextToken();
+                if (t.kind == Token::Kind::Comma)
+                    t = getNextToken(); 
+            }
+            if (t.kind != Token::Kind::SquareClose)
+                throwError(STR("Expected `]`, but " << t.kind << " found"));
             return result;
         }
 
-        /** Returns the next token in the input stream. 
-         
-            " => string
-            0-9 => number 
-            a-zA-Z_ => identifier
-            / => comment
-
-            */
-        Token next() {
-            while (true) {
-                auto line = l_;
-                auto col = c_;
-                auto c = nextChar();
-                switch (c) {
-                    case ':':
-                        return Token{l_, c_, Token::Kind::Colon};
-                    case ',':
-                        return Token{l_, c_, Token::Kind::Comma};
-                    case '[':
-                        return Token{l_, c_, Token::Kind::SquareOpen};
-                    case ']':
-                        return Token{l_, c_, Token::Kind::SquareClose};
-                    case '{':
-                        return Token{l_, c_, Token::Kind::CurlyOpen};
-                    case '}':
-                        return Token{l_, c_, Token::Kind::CurlyClose};
-                    case '/':
-                        return Token{l_, c_, Token::Kind::Comment, nextComment(l_, c_)};
-                    case '"':
-                    case '\'':
-                        return Token{l_, c_, Token::Kind::String, nextString(l_, c_, c)};
-                    case ' ':
-                    case '\t':
-                    case '\n':
-                    case '\r':
-                        // whitespace, just read next
-                        break;
-                    default:
-                        if (isDigit(c))
-                            return nextNumber(l_, c_, c);
-                        else if (isIdentifierStart(c))
-                            return nextIdentifier(l_, c_, c);
-                        else
-                            error("Valid JSON character");
+        Value STRUCT() {
+            Value result = Value::newStruct();
+            Token t = getNextToken();
+            std::string comment;
+            bool hasComment;
+            while (t.kind != Token::Kind::CurlyClose) {
+                if (t.kind == Token::Kind::Comment) {
+                    hasComment = true;
+                    comment = std::move(t.valueStr);
+                    t = getNextToken();
+                } else {
+                    hasComment = false;
                 }
+                std::string field{FIELD(std::move(t))};
+                t = getNextToken();
+                if (t.kind != Token::Kind::Colon)
+                    throwError(STR("Expected field assignment ':', but " << t.kind << " found"));
+                Value value{ELEMENT_NO_COMMENT(getNextToken())};
+                if (hasComment)
+                    value.setComment(comment);
+                result.insert(field, value);
+                t = getNextToken();
+                if (t.kind == Token::Kind::Comma)
+                    t = getNextToken(); 
+            }
+            if (t.kind != Token::Kind::CurlyClose)
+                throwError(STR("Expected '}' but " << t.kind << " found"));
+            return result;
+        }
+
+        std::string FIELD(Token t) {
+            if (t.kind != Token::Kind::Identifier && t.kind != Token::Kind::String)
+                throwError(STR("Expected identifier or string but " << t.kind << " found"));
+            return t.valueStr;
+        }
+
+        Token getNextToken() {
+            char c = nextChar();
+            while (isWhitespace(c))
+                c = nextChar();
+            tokenLine_ = line_;
+            tokenCol_ = col_ - 1;
+            if (eof())
+                return Token{Token::Kind::EoF};
+            switch (c) {
+                case ':':
+                    return Token{Token::Kind::Colon};
+                case ',':
+                    return Token{Token::Kind::Comma};
+                case '[':
+                    return Token{Token::Kind::SquareOpen};
+                case ']':
+                    return Token{Token::Kind::SquareClose};
+                case '{':
+                    return Token{Token::Kind::CurlyOpen};
+                case '}':
+                    return Token{Token::Kind::CurlyClose};
+                case '/':
+                    return nextComment(c);
+                case '"':
+                case '\'':
+                    return nextString(c);
+                default:
+                    if (isDigit(c))
+                        return nextNumber(c);
+                    else if (isIdentifierStart(c))
+                        return nextIdentifier(c);
+                    throwError(STR("Invalid character (code " << static_cast<int>(c) << ") detected"));
             }
         }
 
-        std::string nextComment(size_t l, size_t c) {
+        Token nextComment(char c) {
             std::string result{};
             switch (nextChar()) {
                 case '/': // single line comment
@@ -664,7 +720,7 @@ namespace json {
                 case '*': // multi-line comment 
                     while (true) {
                         if (eof())
-                            error(l, c, "Unterminated multi-line comment");
+                            throwError("Unterminated multi-line comment");
                         char c = nextChar();
                         if (c == '*') {
                             char c2 = nextChar();
@@ -678,17 +734,19 @@ namespace json {
                     }
                     break;
                 default:
-                    error("// or /* comment");
+                    throwError("Only // and /* */ comments are supported.");
             }
-            return result;
+            return Token{Token::Kind::Comment, std::move(result)};
         }
 
-        std::string nextString(size_t l, size_t c, char delimiter) {
+        Token nextString(char delimiter) {
             std::string result{};
             while (true) {
                 if (eof())
-                    error(l, c, "unterminated string literal");
+                    throwError("Unterminated string literal");
                 char c = nextChar();
+                if (c == delimiter)
+                    break;
                 if (c == '\\') { 
                     char c = nextChar();
                     switch (c) {
@@ -709,93 +767,227 @@ namespace json {
                         case '\n':
                             break;
                         default:
-                            error("valid string escape sequence");
+                            throwError("Expected valid string escape sequence");
                     }
                 } else {
                     result += c;
                 }
             }
-            return result;
+            return Token{Token::Kind::String, std::move(result)};
         }
 
-        /** Parses an identifier. 
-         */
-        Token nextIdentifier(size_t l, size_t c, char start) {
-            std::string result{start};
-            while (! eof() && isIdentifier(peekChar()))
-                result += nextChar();
-            if (result == "null")
-                return Token{l, c, Token::Kind::Null};
-            else if (result == "undefined")
-                return Token{l, c, Token::Kind::Undefined};
-            else if (result == "true")
-                return Token{l, c, Token::Kind::Bool, true};
-            else if (result == "false")
-                return Token{l, c, Token::Kind::Bool, false};
-            else
-                return Token{l, c, Token::Kind::Identifier, std::move(result)};
-        }
-
-        Token nextNumber(size_t l, size_t c, char start) {
-            int result = (start - '0');
+        Token nextNumber(char c) {
+            int result = (c - '0');
             while (isDigit(peekChar()))
                 result = result * 10 + (nextChar() - '0');
             if (peekChar() == '.') {
                 nextChar();
-                throw "";
+                UNIMPLEMENTED;
             } else {
-                return Token{l, c, Token::Kind::Int, result};
+                return Token{result};
             }
+        }
+
+        Token nextIdentifier(char c) {
+            std::string result{c};
+            while (! eof() && isIdentifier(peekChar()))
+                result += nextChar();
+            if (result == "null")
+                return Token{Token::Kind::Null};
+            else if (result == "undefined")
+                return Token{Token::Kind::Undefined};
+            else if (result == "true")
+                return Token{true};
+            else if (result == "false")
+                return Token{false};
+            else
+                return Token{Token::Kind::Identifier, std::move(result)};
         }
 
         char nextChar() {
             char result = s_.get();
             if (result == '\r') {
-                ++l_;
-                c_ = 1;
+                ++line_;
+                col_ = 1;
             } else {
-                ++c_;
+                ++col_;
             }
             return result;
         }
 
-        char peekChar() {
-            return s_.peek();
-        }
+        char peekChar() { return s_.peek(); }
 
-        bool eof() {
-            return s_.eof();
-        }
+        bool eof() { return s_.eof(); }
 
-        void error(char const * expected) {
-            // TODO
-        }
-        void error(size_t l, size_t c, char const * msg) {
-            // TODO
-        }
-
-        bool isDigit(char c) { return c > '0' && c <= '9'; }
+        bool isDigit(char c) { return c >= '0' && c <= '9'; }
         bool isIdentifierStart(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'; }
         bool isIdentifier(char c) { return isIdentifierStart(c) || isDigit(c); } 
+        bool isWhitespace(char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; }
 
-        // location information for better errors
-        size_t l_ = 1;
-        size_t c_ = 1;
+        [[noreturn]]
+        void throwError(std::string && what) {
+            throw std::runtime_error{STR(what << " at (" << tokenLine_ << ":" << tokenCol_ << ")")};
+        }
+
+        size_t tokenLine_ = 1;
+        size_t tokenCol_ = 1;
+        size_t line_ = 1;
+        size_t col_ = 1;
 
         std::istream & s_;
 
-    }; // json::Value::Parser
 
+    }; // json::Parser
 
+    Value parse(std::istream & from) {
+        Parser p{from};
+        Value result{p.ELEMENT(p.getNextToken())};
+        if (p.getNextToken().kind != Parser::Token::Kind::EoF)
+            p.throwError("Extra input");
+        return result;
+    }
 
-    // TODO serialize
-
-
+    Value parse(std::string const & from) {
+        std::stringstream s{from};
+        return parse(s);
+    }
 
 } // namespace json
 
 #ifdef TESTS
 
+TEST(json, defaultConstructor) {
+    json::Value v;
+    EXPECT_EQ(v.kind(), json::Value::Kind::Undefined);
+}
 
+TEST(json, pods) {
+    json::Value v1{false};
+    EXPECT_EQ(v1.kind(), json::Value::Kind::Bool);
+    EXPECT_EQ(v1.value<bool>(), false);
+    json::Value v2{323};
+    EXPECT_EQ(v2.kind(), json::Value::Kind::Int);
+    EXPECT_EQ(v2.value<int>(), 323);
+    json::Value v3{323.678};
+    EXPECT_EQ(v3.kind(), json::Value::Kind::Double);
+    EXPECT_EQ(v3.value<double>(), 323.678);
+}
+
+TEST(json, string) {
+    json::Value v1{"foobar"};
+    EXPECT_EQ(v1.kind(), json::Value::Kind::String);
+    EXPECT_EQ(v1.value<std::string>(), "foobar");
+}
+
+TEST(json, array) {
+    json::Value v = json::Value::newArray();
+    EXPECT_EQ(v.kind(),  json::Value::Kind::Array);
+    EXPECT_EQ(v.size(), 0);
+    v.push(1);
+    EXPECT_EQ(v.size(), 1);
+    EXPECT_EQ(v[0].kind(), json::Value::Kind::Int);
+    EXPECT_EQ(v[0].value<int>(), 1);
+}
+
+TEST(json, struct) {
+    json::Value v = json::Value::newStruct();
+    EXPECT_EQ(v.kind(),  json::Value::Kind::Struct);
+    EXPECT_EQ(v.size(), 0);
+    v["foo"] = 1;
+    EXPECT_EQ(v.size(), 1);
+    EXPECT_EQ(v["foo"].kind(), json::Value::Kind::Int);
+    EXPECT_EQ(v["foo"].value<int>(), 1);
+}
+
+TEST(json, parseSingletons) {
+    EXPECT_EQ(json::parse("null"), json::Value::null());
+    EXPECT_EQ(json::parse("undefined"), json::Value::undefined());
+}
+
+TEST(json, parsePods) {
+    EXPECT_EQ(json::parse("true"), json::Value{true});
+    EXPECT_EQ(json::parse("false"), json::Value{false});
+    EXPECT_EQ(json::parse("true"), true);
+    EXPECT_EQ(json::parse("false"), false);
+    EXPECT_EQ(json::parse("13"), 13);
+    //EXPECT_EQ(json::parse("2.5"), 2.5);
+}
+
+TEST(json, parseString) {
+    EXPECT_EQ(json::parse("\"foo\""), "foo");
+    EXPECT_EQ(json::parse("'bar'"), "bar");
+}
+
+TEST(json, parseArray) {
+    using namespace json;
+    Value v{parse("[ 1, 2, 'str']")};
+    EXPECT_EQ(v.kind(), Value::Kind::Array);
+    EXPECT_EQ(v.size(), 3);
+    EXPECT_EQ(v[0], 1);
+    EXPECT_EQ(v[1], 2);
+    EXPECT_EQ(v[2], "str");
+    // empty
+    Value v2{parse("[]")};
+    EXPECT_EQ(v2.kind(), Value::Kind::Array);
+    EXPECT_EQ(v2.size(), 0);
+    // trailing comma
+    Value v3{parse("[ 10, 22, ]")};
+    EXPECT_EQ(v3.kind(), Value::Kind::Array);
+    EXPECT_EQ(v3.size(), 2);
+    EXPECT_EQ(v3[0], 10);
+    EXPECT_EQ(v3[1], 22);
+}
+
+TEST(json, parseStruct) {
+    using namespace json;
+    {
+        Value v{parse("{ \"foo\": 123, \"bar\" : 321}")};
+        EXPECT_EQ(v.kind(), Value::Kind::Struct);
+        EXPECT_EQ(v.size(), 2);
+        EXPECT_EQ(v["foo"], 123);
+        EXPECT_EQ(v["bar"], 321);
+    }
+    { // empty 
+        Value v{parse("{ }")};
+        EXPECT_EQ(v.kind(), Value::Kind::Struct);
+        EXPECT_EQ(v.size(), 0);
+    }
+    { // trailing comma & idents
+        Value v{parse("{ foo: 123, bar : 321, }")};
+        EXPECT_EQ(v.kind(), Value::Kind::Struct);
+        EXPECT_EQ(v.size(), 2);
+        EXPECT_EQ(v["foo"], 123);
+        EXPECT_EQ(v["bar"], 321);
+    }
+}
+
+TEST(json, comments) {
+    using namespace json;
+    {
+        Value v{parse("/*foo*/ 56")};
+        EXPECT_EQ(v.comment(), "foo");
+        EXPECT_EQ(v, 56);
+    }
+    { // array
+        Value v{parse("//foo\n[ /*bar*/10, //baz\n22, ]")};
+        EXPECT_EQ(v.kind(), Value::Kind::Array);
+        EXPECT_EQ(v.size(), 2);
+        EXPECT_EQ(v[0], 10);
+        EXPECT_EQ(v[1], 22);
+        EXPECT_EQ(v.comment(), "foo");
+        EXPECT_EQ(v[0].comment(), "bar");
+        EXPECT_EQ(v[1].comment(), "baz");
+    }
+    { // struct
+        Value v{parse("//c1\n{ //c2\nfoo: 123, //c3\nbar : 321, }")};
+        EXPECT_EQ(v.kind(), Value::Kind::Struct);
+        EXPECT_EQ(v.size(), 2);
+        EXPECT_EQ(v["foo"], 123);
+        EXPECT_EQ(v["bar"], 321);
+        EXPECT_EQ(v.comment(), "c1");
+        EXPECT_EQ(v["foo"].comment(), "c2");
+        EXPECT_EQ(v["bar"].comment(), "c3");
+    }
+}
 
 #endif

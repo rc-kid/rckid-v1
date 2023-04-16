@@ -55,6 +55,7 @@ void Window::startRendering() {
     helpFont_ = LoadFontEx("assets/fonts/IosevkaNF.ttf", 16, const_cast<int*>(GLYPHS), sizeof(GLYPHS)/ sizeof(int));
     headerFont_ = LoadFontEx("assets/fonts/IosevkaNF.ttf", 20, const_cast<int*>(GLYPHS), sizeof(GLYPHS)/ sizeof(int));
     menuFont_ = LoadFontEx("assets/fonts/OpenDyslexicNF.otf", MENU_FONT_SIZE, const_cast<int*>(GLYPHS), sizeof(GLYPHS) / sizeof(int));
+    InitAudioDevice();
     lastDrawTime_ = GetTime();    
 }
 
@@ -62,6 +63,7 @@ void Window::stopRendering() {
     rendering_ = false;
     for (WindowElement * e : elements_)
         e->onRenderingPaused();
+    CloseAudioDevice();
     CloseWindow();
 } 
 
@@ -262,7 +264,22 @@ void Window::drawHeader() {
 
     int x = 320;
     // first draw the battery
-
+    if (inHomeMenu_) {
+        std::string pct = STR((vBatt_ - 330) << "%");
+        x -= MeasureText(helpFont_, pct.c_str(), 16, 1.0).x;
+        DrawTextEx(helpFont_, pct.c_str(), x, 2, 16, 1, WHITE);
+    }
+    x -= 20;
+    if (vBatt_ > 415)
+        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, GREEN);
+    else if (vBatt_ > 390)
+        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, DARKGREEN);
+    else if (vBatt_ > 375)
+        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, ORANGE);
+    else if (vBatt_ > 340)    
+        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
+    else 
+        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
 
     DrawTextEx(headerFont_, "󰸈 󰕿 󰖀 󰕾", 90, 0, 20, 1.0, BLUE);
     DrawTextEx(helpFont_, STR(GetFPS()).c_str(), 70, 2, 16, 1.0, WHITE);
