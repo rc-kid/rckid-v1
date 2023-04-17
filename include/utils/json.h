@@ -2,6 +2,7 @@
 
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <vector>
 #include <unordered_map>
 
@@ -11,6 +12,52 @@ namespace json {
 
     class Value {
     public:
+
+        class ArrayElements;
+
+        /** Simple iterator return the array elements. 
+         */
+        class ArrayIterator {
+        public: 
+
+            ArrayIterator & operator ++ (){
+                ++i_;
+                return *this;
+            }
+
+            ArrayIterator operator ++ (int) { 
+                ArrayIterator result{i_};
+                ++i_;
+                return result;
+            }
+
+            Value & operator*() { return **i_; }
+
+            bool operator == (ArrayIterator const & other) const { return i_ == other.i_; }
+            bool operator != (ArrayIterator const & other) const { return i_ != other.i_; }
+
+        private:
+
+            friend class Value::ArrayElements;
+
+            ArrayIterator(std::vector<Value*>::iterator i):i_{i} {}
+
+            std::vector<Value*>::iterator i_;
+        }; // Value::ArrayIterator
+
+        class ArrayElements {
+        public:
+            ArrayIterator begin() { return ArrayIterator{ v_.array_.begin()}; }
+            ArrayIterator end() { return ArrayIterator{ v_.array_.end()}; }
+        private:
+
+            friend class Value;
+
+            ArrayElements(Value & v):v_{v} {}
+
+            Value & v_;
+        }; // Value::ArrayElements
+
         enum class Kind { Null, Undefined, Bool, Int, Double, String, Array, Struct }; 
 
         Value(): kind_{Kind::Undefined}, bool_{false} {}
@@ -129,6 +176,12 @@ namespace json {
                 return null();
             auto i = struct_.find(name);
             return i != struct_.end() ? *(i->second) : null();
+        }
+
+        ArrayElements arrayElements() {
+            if (kind_ != Kind::Array)
+                throw std::runtime_error(STR("JSON value is not an array but " << kind_));
+            return ArrayElements{*this};
         }
 
         Value & operator [] (std::string const & name) {
@@ -947,6 +1000,13 @@ namespace json {
         return parse(s);
     }
 
+    Value parseFile(std::string const & filename) {
+        std::ifstream f{filename};
+        if (! f.good())
+           throw std::runtime_error(STR("Unable to open file " << filename));
+        return parse(f);
+    }
+
 } // namespace json
 
 #ifdef TESTS
@@ -1146,6 +1206,17 @@ TEST(json, strinfifyPermissive) {
         Value v{parse("/* c1\n*/{ /* c2 */ foo : 1 }")};
         EXPECT_EQ(v.stringifyPermissive(), "/* c1\n */\n{\n\t/* c2\n\t */\n\t\"foo\" : 1,\n}");
     }
+}
+
+TEST(json, arrayElements) {
+    using namespace json;
+    Value v{parse("[ 1, 2, 3]")};
+    int i = 1;
+    for (auto & e : v.arrayElements()) {
+        EXPECT_EQ(e.value<int>(), i);
+        ++i;
+    }
+    EXPECT_EQ(i, 4);
 }
 
 #endif

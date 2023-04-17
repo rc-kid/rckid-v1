@@ -3,7 +3,9 @@
 #include "window.h"
 
 
-/** Audio player. 
+/** Audio player.
+
+    The mp3 files are stored in the `/rckid/music` folder. In there, the `folder.json` describes the current folder which can be either   
  */
 class MusicPlayer : public Widget {
 public:

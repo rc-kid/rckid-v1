@@ -35,6 +35,12 @@
 
 - add == to Value and double parsing
 
+- add JSON backed menu that allows reordering
+- actually do the audio, video menu
+- on pop for menu so that we can clear it, should we want to
+
+- modal errors & stuff
+
 - add background to menu 
 - keep icon instead of text in gauges
 

@@ -89,6 +89,14 @@ public:
 
     void loop(); 
 
+    /** Shows the error in a modal window. 
+     
+        TODO
+     */
+    void error(std::string const & message) {
+        TraceLog(LOG_ERROR, message.c_str());
+    }
+
     void setWidget(Widget * widget);
     void setMenu(Menu * menu, size_t index = 0);
     void back(); 
