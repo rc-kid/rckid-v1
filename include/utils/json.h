@@ -198,6 +198,26 @@ namespace json {
             }
         }
 
+        std::string stringify() const {
+            std::stringstream s{};
+            stringify(s);
+            return s.str();
+        }
+
+        void stringify(std::ostream & s) const {
+            stringify(s, 0, true, true);
+        }
+
+        std::string stringifyPermissive() const {
+            std::stringstream s{};
+            stringifyPermissive(s);
+            return s.str();
+        }
+
+        void stringifyPermissive(std::ostream &s) const {
+            stringify(s, 0, false, true);
+        }
+
     private:
 
         Value(Kind kind):
@@ -359,6 +379,80 @@ namespace json {
                     break;
             }
             return s;
+        }
+
+        void stringifyNewline(std::ostream &s, size_t indent) const {
+            while (indent-- != 0)
+                s << '\t';
+        }
+
+        void stringifyComment(std::ostream & s, size_t indent) const {
+            if (!comment_.empty()) {
+                s << "/*" << comment_ << std::endl;
+                stringifyNewline(s, indent);
+                s <<" */" << std::endl;
+                stringifyNewline(s, indent);
+            }
+        }
+
+        void stringify(std::ostream &s, size_t indent, bool strict, bool showComment) const {
+            if (!strict && showComment)
+                stringifyComment(s, indent);
+            switch (kind_) {
+                case Kind::Null:
+                    s << "null";
+                    break;
+                case Kind::Undefined:
+                    s << (strict ? "null" : "undefined");
+                    break;
+                case Kind::Bool:
+                    s << (bool_ ? "true" : "false");
+                    break;
+                case Kind::Int:
+                    s << int_;
+                    break;
+                case Kind::Double:
+                    s << double_;
+                    break;
+                case Kind::String:
+                    s << '"' << str::escape(str_) << '"';
+                    break;
+                case Kind::Array:
+                    if (array_.empty()) {
+                        s << "[]";
+                    } else {
+                        s << "[" << std::endl;
+                        for (size_t i = 0, e = array_.size(); i != e; ++i) {
+                            stringifyNewline(s, indent + 1);
+                            array_[i]->stringify(s, indent + 1, strict, true);
+                            if (!strict || i + 1 < e)
+                               s << ",";
+                            s << std::endl;
+                        }
+                        stringifyNewline(s, indent);
+                        s << "]";
+                    }
+                    break;
+                case Kind::Struct:
+                    if (struct_.empty()) {
+                        s << "{}";
+                    } else {
+                        s << "{" << std::endl;
+                        auto iter = struct_.begin();
+                        for (size_t i = 0, e = struct_.size(); i != e; ++i, ++iter) {
+                            stringifyNewline(s, indent + 1);
+                            if (!strict && showComment)
+                                iter->second->stringifyComment(s, indent + 1);
+                            s << '"' << iter->first << "\" : ";
+                            iter->second->stringify(s, indent + 1, strict, false);
+                            if (!strict || i + 1 < e)
+                               s << ",";
+                            s << std::endl;
+                        }
+                        stringifyNewline(s, indent);
+                        s << "}";
+                    }
+            }
         }
 
     }; // json::Value
@@ -736,6 +830,7 @@ namespace json {
                 default:
                     throwError("Only // and /* */ comments are supported.");
             }
+            str::trimRight(result);
             return Token{Token::Kind::Comment, std::move(result)};
         }
 
@@ -987,6 +1082,69 @@ TEST(json, comments) {
         EXPECT_EQ(v.comment(), "c1");
         EXPECT_EQ(v["foo"].comment(), "c2");
         EXPECT_EQ(v["bar"].comment(), "c3");
+    }
+}
+
+TEST(json, stringifyStrict) {
+    using namespace json;
+    EXPECT_EQ(Value::null().stringify(), "null");
+    EXPECT_EQ(Value::undefined().stringify(), "null");
+    {
+        Value v{true};
+        EXPECT_EQ(v.stringify(), "true");
+    }
+    {
+        Value v{false};
+        EXPECT_EQ(v.stringify(), "false");
+    }
+    {
+        Value v{1};
+        EXPECT_EQ(v.stringify(), "1");
+    }
+    {
+        Value v{1.45};
+        EXPECT_EQ(v.stringify(), "1.45");
+    }
+    {
+        Value v{"foo bar"};
+        EXPECT_EQ(v.stringify(), "\"foo bar\"");
+    }
+    {
+        Value v{parse("[ 1, 2, 3]")};
+        EXPECT_EQ(v.stringify(), "[\n\t1,\n\t2,\n\t3\n]");
+    }
+    {
+        Value v{parse("{ foo : 1 }")};
+        EXPECT_EQ(v.stringify(), "{\n\t\"foo\" : 1\n}");
+        // I'm lazy here, having more than one elemnt in struct plays funny with the ordering
+    }
+}
+
+TEST(json, strinfifyPermissive) {
+    using namespace json;
+    EXPECT_EQ(Value::null().stringifyPermissive(), "null");
+    EXPECT_EQ(Value::undefined().stringifyPermissive(), "undefined");
+    {
+        Value v{true};
+        v.setComment("foobar is here");
+        EXPECT_EQ(v.stringifyPermissive(), "/*foobar is here\n */\ntrue");
+    }
+    {
+        Value v{parse("[ 1, 2, 3]")};
+        EXPECT_EQ(v.stringifyPermissive(), "[\n\t1,\n\t2,\n\t3,\n]");
+    }
+    {
+        Value v{parse("/*foo*/[ /*bar*/1, /* baz*/2, 3]")};
+        EXPECT_EQ(v.stringifyPermissive(), "/*foo\n */\n[\n\t/*bar\n\t */\n\t1,\n\t/* baz\n\t */\n\t2,\n\t3,\n]");
+    }
+    {
+        Value v{parse("{ foo : 1 }")};
+        EXPECT_EQ(v.stringifyPermissive(), "{\n\t\"foo\" : 1,\n}");
+        // I'm lazy here, having more than one elemnt in struct plays funny with the ordering
+    }
+    {
+        Value v{parse("/* c1\n*/{ /* c2 */ foo : 1 }")};
+        EXPECT_EQ(v.stringifyPermissive(), "/* c1\n */\n{\n\t/* c2\n\t */\n\t\"foo\" : 1,\n}");
     }
 }
 

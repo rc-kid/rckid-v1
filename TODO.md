@@ -33,6 +33,8 @@
 
 ## RPI - RayLib
 
+- add == to Value and double parsing
+
 - add background to menu 
 - keep icon instead of text in gauges
 

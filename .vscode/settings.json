@@ -61,6 +61,7 @@
         "mutex": "cpp",
         "thread": "cpp",
         "qgraphicsscene": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "unordered_set": "cpp"
     }
 }
