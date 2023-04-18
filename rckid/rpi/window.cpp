@@ -117,8 +117,11 @@ void Window::back() {
 void Window::swapWidget() {
     if (widget_!= nullptr) {
         widget_->onBlur();
-        if (widget_ == carousel_ && carousel_->items() == homeMenu_)
-            inHomeMenu_ = false;
+        if (widget_ == carousel_) {
+            if (carousel_->items() == homeMenu_)
+                inHomeMenu_ = false;
+            carousel_->items()->onBlur();
+        }
     }
     if (next_.kind == NavigationItem::Kind::Menu) {
         widget_ = carousel_;
@@ -130,6 +133,8 @@ void Window::swapWidget() {
     }
     resetFooter();
     widget_->onFocus();
+    if (widget_ == carousel_)
+        carousel_->items()->onFocus();
     transition_ = Transition::FadeIn;
     swap_.start();
 }

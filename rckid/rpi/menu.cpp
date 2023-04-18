@@ -30,9 +30,10 @@ void SubmenuItem::onSelect(Window * window) {
     window->setMenu(& submenu_);
 }
 
+
 void JSONItem::onSelect(Window * window) {
     try {
-        json::Value v{json::parseFile(jsonFile_)};
+        json::Value v{json::parseFile(submenu_.jsonFile_)};
         for (json::Value const & v : v.arrayElements()) {
             std::string const & title = v["title"].value<std::string>();
             std::string const & image = v["image"].value<std::string>();

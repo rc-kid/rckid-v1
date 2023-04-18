@@ -3,6 +3,8 @@
 #include <vector>
 #include <functional>
 
+#include "utils/json.h"
+
 #include "raylib_cpp.h"
 #include "widget.h"
 
@@ -35,14 +37,18 @@ public:
     Item * operator [](size_t i) { return items_[i]; }
 
 protected:
-    
+
+    friend class Window;
+
+    virtual void onFocus() {}
+
+    virtual void onBlur() {}
+
     void onRenderingPaused() override;
 
 private:
     std::vector<Item*> items_;    
 }; // Menu
-
-
 
 class Menu::Item {
 public:    
@@ -122,20 +128,49 @@ private:
     Menu submenu_;
 }; // SubmenuItem
 
-/** Menu item that when selected opens a submenu read from JSON file. */
+/** Menu item that when selected opens a submenu read from JSON file. 
+ 
+    The JSON file is expected to be an array of structs with the following fields:
+
+    TODO 
+
+    - title (string) - displayed title of the item
+    - image (string) - path to an image that is to be used as the menu item image
+    - kind (string) - one of json, music, video, game, 
+
+    And some more
+ */
 class JSONItem : public Menu::Item {
 public:
     JSONItem(std::string const & title, std::string const & imgFile, std::string const & jsonFile, Window * window):
         Item{title, imgFile},
-        jsonFile_{jsonFile},
-        submenu_{window} {
+        submenu_{jsonFile, window} {
     }
 
     Menu & submenu() { return submenu_; }
 
+protected:
+
+    class JSONMenu : public Menu {
+    public:
+        JSONMenu(std::string const & jsonFile, Window * window): Menu{window}, jsonFile_{jsonFile} {};
+
+    protected:
+
+        void onBlur() override { clear(); }
+
+    private:
+
+        friend class JSONItem;
+
+        std::string jsonFile_;
+        json::Value json_;
+
+    }; 
+
     void onSelect(Window * window) override;
 
 private:
-    std::string jsonFile_; 
-    Menu submenu_;
+
+    JSONMenu submenu_;
 }; // JSONItem

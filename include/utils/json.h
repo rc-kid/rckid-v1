@@ -987,7 +987,7 @@ namespace json {
 
     }; // json::Parser
 
-    Value parse(std::istream & from) {
+    inline Value parse(std::istream & from) {
         Parser p{from};
         Value result{p.ELEMENT(p.getNextToken())};
         if (p.getNextToken().kind != Parser::Token::Kind::EoF)
@@ -995,12 +995,12 @@ namespace json {
         return result;
     }
 
-    Value parse(std::string const & from) {
+    inline Value parse(std::string const & from) {
         std::stringstream s{from};
         return parse(s);
     }
 
-    Value parseFile(std::string const & filename) {
+    inline Value parseFile(std::string const & filename) {
         std::ifstream f{filename};
         if (! f.good())
            throw std::runtime_error(STR("Unable to open file " << filename));
