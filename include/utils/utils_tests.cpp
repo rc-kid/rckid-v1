@@ -1,6 +1,7 @@
+#include "utils.h"
 #include "tests.h"
 #include "json.h"
-#include "utils.h"
+#include "locks.h"
 
 #ifdef TESTS
 
