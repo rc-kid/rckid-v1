@@ -1,7 +1,9 @@
 #pragma once
 
-#include "window.h"
+#include "utils/exec.h"
 
+
+#include "window.h"
 
 /** Audio player.
 
@@ -13,6 +15,15 @@ class MusicPlayer : public Widget {
 public:
 
     MusicPlayer(Window * window): Widget{window} {}
+
+    /** Extracts the artwork from given track into a specified filename. 
+
+ffmpeg -i /mnt/c/Users/petam/Music/incomplete/c64/Christian\ Schüler\ -\ Druid\ version\ \(grassroots\ mix\).mp3 -an -vcodec copy cover.png
+     * 
+    */
+    static bool extractArtwork(std::string const & track, std::string const & artworkPath) {
+        return false;
+    }
 
 protected:
 

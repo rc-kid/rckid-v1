@@ -15,12 +15,6 @@
 #include <linux/spi/spidev.h>
 #include <errno.h>
 
-#include "spinlock.h"
-
-
-
-#define STR(...) static_cast<std::stringstream &&>(std::stringstream() << __VA_ARGS__).str()
-
 namespace platform {
 
     class cpu {

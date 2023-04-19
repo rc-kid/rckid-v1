@@ -7,8 +7,8 @@
 #include "libevdev/libevdev-uinput.h"
 
 #include "platform/platform.h"
-#include "peripherals/nrf24l01.h"
-#include "peripherals/mpu6050.h"
+#include "platform/peripherals/nrf24l01.h"
+#include "platform/peripherals/mpu6050.h"
 
 #include "common/config.h"
 #include "common/comms.h"

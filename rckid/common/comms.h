@@ -291,8 +291,8 @@ namespace comms {
         Controls controls;
         ExtendedInfo einfo;
         DebugInfo dinfo;
-        platform::DateTime time;
-        platform::DateTime alarm;
+        utils::DateTime time;
+        utils::DateTime alarm;
     }; // comms::ExtendedState
 
     static_assert(sizeof(ExtendedState) <= 32);
@@ -365,13 +365,13 @@ namespace msg {
     );
 
     MESSAGE(SetTime, 
-        platform::DateTime value;
-        SetTime(platform::DateTime value): value{value} {}
+        utils::DateTime value;
+        SetTime(utils::DateTime value): value{value} {}
     );
 
     MESSAGE(SetAlarm, 
-        platform::DateTime value;
-        SetAlarm(platform::DateTime value): value{value} {}
+        utils::DateTime value;
+        SetAlarm(utils::DateTime value): value{value} {}
     );
 
     MESSAGE(RumblerOk);

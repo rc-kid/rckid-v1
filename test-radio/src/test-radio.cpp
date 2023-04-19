@@ -1,7 +1,7 @@
 #include "platform/platform.h"
-#include "peripherals/nrf24l01.h"
-#include "peripherals/ssd1306.h"
-#include "peripherals/sx1278.h"
+#include "platform/peripherals/nrf24l01.h"
+#include "platform/peripherals/ssd1306.h"
+#include "platform/peripherals/sx1278.h"
 
 /** Chip Pinout
                -- VDD             GND --

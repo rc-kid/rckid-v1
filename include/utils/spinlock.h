@@ -1,6 +1,7 @@
 #include <thread>
 
-namespace platform {
+namespace utils {
+
     /** A simple spinlock. 
      
         These are useful in ISRs where a normal blocking mutex cannot be used. 
@@ -22,4 +23,4 @@ namespace platform {
         std::atomic_flag f_ = ATOMIC_FLAG_INIT;
     };
 
-} // namespace platform
+} // namespace utils

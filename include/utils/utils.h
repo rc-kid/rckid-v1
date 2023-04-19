@@ -1,7 +1,17 @@
 #pragma once
 
 #include <cassert>
+#include <cstring>
+
 #include <sstream>
+
+#if (defined _WIN32)
+    #define ARCH_WINDOWS
+#elif (defined __linux__)
+    #define ARCH_LINUX
+#else
+    #error "Unsupported utils platform"
+#endif
 
 #define STR(...) static_cast<std::stringstream &&>(std::stringstream() << __VA_ARGS__).str()
 
@@ -10,11 +20,11 @@
 
 #define ASSERT(...) assert(__VA_ARGS__)
 
-inline bool isWhitespace(char c) {
-    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
-}
-
 namespace str {
+
+    inline bool isWhitespace(char c) {
+        return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+    }
 
     inline void trimLeft(std::string &s) {
         size_t i = 0;
@@ -62,6 +72,16 @@ namespace str {
             }
         }
         return s.str();
+    }
+
+    /** Returns true if given string ends with the given suffix. 
+     
+        Does not use the evil string object. 
+    */
+    inline bool endsWith(char const * str, char const * suffix) {
+        unsigned l1 = strlen(str);
+        unsigned l2 = strlen(suffix);
+        return strncmp(str + (l1 - l2), suffix, l2) == 0;
     }
 
 } // namespace str

@@ -7,7 +7,7 @@
 
  */
 
-#include "utils/color.h"
+#include "platform/color.h"
 
 namespace platform { 
 

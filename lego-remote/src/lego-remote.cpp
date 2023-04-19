@@ -1,13 +1,12 @@
 #include "platform/platform.h"
-#include "utils/debug_display.h"
-#include "peripherals/nrf24l01.h"
-#include "peripherals/neopixel.h"
+#include "platform/peripherals/nrf24l01.h"
+#include "platform/peripherals/neopixel.h"
 
 /** DEBUG: When enabled, the AVR will use the I2C bus in a master mode and will communicate with an OLED screen attached to it to display various statistics. DISABLE IN PRODUCTION
  */
 #define TEST_I2C_DISPLAY
 #if (defined TEST_I2C_DISPLAY)
-#include "peripherals/ssd1306.h"
+#include "platform/peripherals/ssd1306.h"
 SSD1306 display;
 #endif
 

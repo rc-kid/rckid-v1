@@ -1,11 +1,11 @@
 #include <Arduino.h>
 
 #include "platform/platform.h"
+#include "platform/peripherals/neopixel.h"
 
 #include "common/comms.h"
 #include "common/config.h"
 
-#include "peripherals/neopixel.h"
 
 
 using namespace platform;
@@ -19,7 +19,7 @@ using namespace comms;
  */
 #define TEST_I2C_DISPLAY
 #if (defined TEST_I2C_DISPLAY)
-#include "peripherals/ssd1306.h"
+#include "platform/peripherals/ssd1306.h"
 SSD1306 display;
 #endif
 

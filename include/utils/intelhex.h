@@ -6,10 +6,7 @@
 #include <sstream>
 #include <iomanip>
 
-#ifndef STR
-#define STR(__VA_ARGS__...) static_cast<std::stringstream &&>(std::stringstream() << __VA_ARGS__).str()
-#endif
-
+#include "utils.h"
 
 /** Intel HEX format support. 
  

@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <string.h>
 
 /** Determine the main platform architecture. This can either be force specified by the build process, or in some cases automatically detected. Explicit specification takes precedence.
  */
@@ -40,9 +41,6 @@
 #elif (defined ARCH_RPI)
     #include "rpi.h"
 #endif
-
-#include "utils.h"
-
 
 namespace platform {
 
@@ -131,5 +129,26 @@ namespace platform {
         i2c::transmit(address, & reg, 1, reinterpret_cast<uint8_t*>(& result), 2);
         return result;
     }
+
+    inline uint8_t fromHex(char c) {
+        if (c >= '0' && c <= '9')
+            return c - '0';
+        else if (c >= 'A' && c <= 'F')
+            return c - 'A' + 10;
+        else if (c>= 'a' && c <= 'f')
+            return c - 'a' + 10;
+        else
+            return 0;
+    }
+
+    inline char toHex(uint8_t value) {
+        if (value < 10)
+            return '0' + value;
+        else if (value < 16)
+            return 'a' + value - 10;
+        else 
+            return '?'; // error
+    }
+
 
 } // namespace platform

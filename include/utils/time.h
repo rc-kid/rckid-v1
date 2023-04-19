@@ -1,10 +1,8 @@
 #pragma once
 
-#include "platform/platform.h"
 #include <time.h>
 
-namespace platform { 
-
+namespace utils { 
 
     /** Date & time down to a second in 4 bytes. 
      */
@@ -260,4 +258,4 @@ namespace platform {
 
     } __attribute__((packed)); // Alarm
 
-} // namespace platform
+} // namespace utils

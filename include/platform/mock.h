@@ -4,8 +4,6 @@
 #include <thread>
 #include <chrono>
 
-#include "spinlock.h"
-
 namespace platform {
 
     class cpu {
