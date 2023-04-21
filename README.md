@@ -15,27 +15,62 @@ NRF24L01P+           | 1        | Any module should work (*)
 
 ## PCB
 
-Test Points:
+The PCB has a number of test points. 
 
-- mic out
-- speaker + and speaker - (can also be used to solder different speaker)
-- pwm0, pwm1
-- headphones
-- btns1, btns2
-- vrpi, 
+### Voltage & Power
 
+- VRPI (6)
+- VRADIO (15)
+- VUSB (16)
+- VRGB (17)
+- RGB_EN (18)
+- CHARGE (19)
+- RPI_EN (20)
+- GND (28)
+- VRPI_3V3 (29)
+- VCLEAN (30)
+
+### AVR Programming
+
+- UPDI (27)
+
+### I2C
+
+- SDA (3)
+- SCL (4)
+
+### Radio Comms
+
+- NRF_IRQ (1)
+- NRF_RXTX (2)
+- SPI_CE0 (21)
+- SPI_CLK (22)
+- SPI_MISO (23)
+- SPI_MOSI (24)
+
+### Thumbstick
+
+Together with the GND (28) and VRPI_3V3 (29), the testpoints for the Switch-style thumbstick can be used to connect different models such as PS1000. 
+
+- JOY_H (25)
+- JOY_V (26)
+
+### Audio
+
+- PWM1 (9)
+- PWM0 (10)
+- HEADPHONES (11)
+- MIC_OUT (12)
+- SPKR- (13)
+- SPKR+ (14)
+
+### Miscelaneous
+
+- BTN_X (5)
+- BTNS_1 (7)
+- BTNS_2 (8)
 
 ## SD Card Preparation
-
-## Assembly
-
-> This repository contains all that is necessary to assemble and program your own _RCKid_. Please note that doing so is likely not a beginner project, at the very least, you will need access to a soldering station and some soldering practice. If there will be any errors during the assembly, multimeter, oscilloscope and some basic electronics knowledge would be required. Some software skills, such as SSH connection and flashing is necessary as well. 
-
-First we are going to add the `ATTiny1616` and basic `I2C` communication to program the bootloader and verify its presence. To do so, the following must be soldered:
-
-> TODO
-
-When the bootloader is flashed, verify that the `I2C` communication is working by running the AVR programmer in query mode. 
 
 
 

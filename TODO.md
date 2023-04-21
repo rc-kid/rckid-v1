@@ -19,6 +19,9 @@
 ## PCB
 
 - should the ps1000 hole be permanent?, likely yes - might also prevent the joycon encosure wobble 
+- move the trace away from the ps1000 hole too
+- enlarge L and R vertical pin hole pads
+- VCC test point
 
 # AVR
 

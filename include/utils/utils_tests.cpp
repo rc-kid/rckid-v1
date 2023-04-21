@@ -2,6 +2,7 @@
 #include "tests.h"
 #include "json.h"
 #include "locks.h"
+#include "process.h"
 
 #ifdef TESTS
 
