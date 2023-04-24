@@ -23,7 +23,12 @@
 - enlarge L and R vertical pin hole pads
 - VCC test point
 
-# AVR
+## Bootloader
+
+- allow to start bootloader by setting EPROM bits
+- cleanup & extend the programmer code so that it can dump the stored files, read/write EEPROM and so on
+
+## AVR
 
 - debug display seems to be either not working or not used
 - check that long home works in repair mode as well
