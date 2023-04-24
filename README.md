@@ -1,6 +1,14 @@
-# RCKid
+# RCkid
 
-Handheld device mostly for kids that works as a retro games player, remote control for lego models and other stuff, walkie talkie, and a simple music/video player. Based on Rpi Zero 2W, ATTiny and NRF24L01P+ with a 320x240 SPI display, a selection of input controls (ABXY, DPAD, Thumbstick, Sel, Start, shoulder buttons, dedicated volume control buttons and a Home button), rumbler, light sensor, RGB torch and a custom software tailored towards the little ones. 
+Handheld device mostly for kids that works as a retro games player, remote control for lego models and other stuff, walkie talkie, and a simple music/video player. Based on Rpi Zero 2W, ATTiny and NRF24L01P+ with a 320x240 SPI display, a selection of input controls (ABXY, DPAD, Thumbstick, Sel, Start, shoulder buttons, dedicated volume control buttons and a Home button), rumbler, light sensor, RGB torch and a custom software tailored towards the needs of the little ones. 
+
+This is the main repository of the project containing all the necessary information to build the _RCkid_ itself and the remotely controlled devices.
+
+## Overview
+
+The _RCkid_ uses the RPi to run all the user interactive software, libretro via retropie to run emulated old school games and other software. The RPi is connected to digital buttons (ABXY, L, R, Volume) via gpio pins, to the display (`ILI9341`) with `SPI0` and to the NRF Radio via `SPI1`. `I2C` bus connects to the accelerometer, light sensor and the `ATTiny`. 
+
+The `ATTiny` then manages the analog inputs (joystick, voltages, temperatures), multiplexed buttons (Dpad, Select & Start) and the Home/Power button. It is also responsible for the rumbler and the RGB LED as well as charging, battery management and a real-time clock. 
 
 ## BOM
 
@@ -16,28 +24,6 @@ NRF24L01P+           | 1        | Any module should work (*)
 
 
 
-# RCBoy
-
-Handheld device for kids that provides the following:
-
-- remote control for lego models & other stuff
-- walkie talkie
-- retro games player
-- music / video player
-
-Based on RPi Zero 2W, SPI display and nrf24l01p and/or sx1278 for comms
-
-## Build
-
-This section details the build & construction process of RCBoy. The process rather complex, but the steps here are in order that helps minimize problems:
-
-- first the RPi is prepared with a proper SDCard image
-- AVR and power management parts are soldered to the board
-- the AVR bootloader is flashed via the RPi
-- the rest of the board is soldered in particular order to allow accessibility
-- rpi is soldered to the board
-- the AVR application is programmed via I2C
-
 ### Prepare the RPi image
 
 To build on Raspberry pi, create SD card image according to `sd/IMAGE.md`. This also installs all the prerequisites for building the rpi app and flashing the AVR. 
@@ -48,37 +34,15 @@ To build on Raspberry pi, create SD card image according to `sd/IMAGE.md`. This 
 
 When the RCBoy is assembled, the AVR chip is flashed via a custom I2C bootloader (the UPDI voltages would have to be translated otherwise, which is painful as the AVR runs on higher voltage than RPi). The RPi itself can be used to flash the AVR chip before soldered to the board by making a simple UPDI programmer from the serial port. After the bootloader is flashed, the RPi can be soldered to the board and the I2C programmer can be used for future updates. 
 
-> TODO
-
-### Adding contents
-
-> TODO
-
-## Hardware Assembly
-
-
 
 ### Notes to Self 
 
 - when stuff does not work, double and tripple check that all pins are properly soldered. Obviously no shorts, but weak bonds will result is horrible noise and/or non-functional elements
 - a variant of the above, when soldering multiple PCBs together via holes, be extra sure that all PCBs actually have proper contact
 
-# Software
 
-## Main Window
+# Notes
 
-Runs on RPI, games, music, controllers, etc. 
-
-## ATTiny
-
-ATTiny is always on, but mostly sleeping. Talks to the RPI via I2C and 
-
-
-# Build
-
-To launch a serial console, connect the serial to USB adapter to the TX RX and GND pins (for my setup it is white/green/black wires) and then launch the following command in terminal:
-
-    minicom -b 115200 -o -D /dev/ttyUSB0
 
 https://www.flaticon.com/
 
