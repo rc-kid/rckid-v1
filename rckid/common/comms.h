@@ -17,12 +17,13 @@ namespace comms {
 
         After power on, the default mode is `On`.  
      */
-    enum class Mode : uint8_t {
+    enum class Mode : uint8_t { // 8 modes are available
         On = 0,  // also dubs as initial recording batch index (we only record in On mode)
-        Sleep, 
-        WakeUp,
-        PowerUp,
-        PowerDown,
+        Sleep = 1, 
+        WakeUp = 2,
+        PowerUp = 3,
+        PowerDown = 4,
+        Bootloader = 7,
     }; // comms::Mode
 
 

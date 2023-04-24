@@ -85,6 +85,10 @@ namespace str {
         return strncmp(str + (l1 - l2), suffix, l2) == 0;
     }
 
+    inline bool startsWith(std::string const & s, char const * prefix) {
+        return (s.rfind(prefix, 0) == 0);
+    }
+
     inline std::vector<std::string> vector(std::initializer_list<std::string_view> items) {
         std::vector<std::string> result;
         for (auto s : items)

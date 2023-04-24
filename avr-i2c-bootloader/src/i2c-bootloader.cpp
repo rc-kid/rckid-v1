@@ -26,6 +26,144 @@
 #define I2C_STOP_TX (TWI_APIF_bm | TWI_DIR_bm)
 #define I2C_STOP_RX (TWI_APIF_bm)
 
+#define HAHA_
+
+#ifndef HAHA
+// 498 OS_main
+// 508 naked
+// 430 local address OS_main
+// 434 local address naked
+// 400 no global vars OS_main
+// 390 no global vars naked
+// 380 naked, no address patching
+
+/* Define application pointer type */
+typedef void (*const app_t)(void);
+
+__attribute__((naked)) __attribute__((constructor))
+void boot() {
+    State state;
+    register uint8_t * address;
+    register uint8_t command;
+    /* Initialize system for C support */
+    asm volatile("clr r1");
+    // ensure that when AVR_IRQ is switched to output mode, the pin is pulled low
+    VPORTC.OUT &= ~ (1 << 0); 
+    // enable watchdog (enabling it this early means the app starts with watchdog enabled so if it misbehaves we end up here)
+    while (WDT.STATUS & WDT_SYNCBUSY_bm); // required busy wait
+    _PROTECTED_WRITE(WDT.CTRLA, WDT_PERIOD_1KCLK_gc);        
+    // only enter the bootloader if PC0 (AVR_IRQ) is pulled low
+    if ((VPORTC.IN & PIN0_bm) == 0) {
+        // enable the display backlight when entering the bootloader for some output (like say, eventually an OTA:) Baclight is connected to PB0 and is active high
+        VPORTB.DIR |= (1 << 0);
+        VPORTB.OUT |= (1 << 0);
+        // initialize the I2C in slave mode w/o interrupts, first switch to the alternate pins
+        PORTMUX.CTRLB |= PORTMUX_TWI0_bm;
+        // turn I2C off in case it was running before
+        TWI0.MCTRLA = 0;
+        TWI0.SCTRLA = 0;
+        // make sure that the pins are not out - HW issue with the chip, will fail otherwise
+        PORTA.OUTCLR = 0x06; // PA1, PA2
+        // set the address and disable general call, disable second address and set no address mask (i.e. only the actual address will be responded to)
+        TWI0.SADDR = I2C_ADDRESS << 1;
+        TWI0.SADDRMASK = 0;
+        // enable the TWI in slave mode, enable all interrupts
+        TWI0.SCTRLA = TWI_DIEN_bm | TWI_APIEN_bm | TWI_PIEN_bm  | TWI_ENABLE_bm;
+        // bus Error Detection circuitry needs Master enabled to work 
+        TWI0.MCTRLA = TWI_ENABLE_bm;  
+        // initialize the info structure so that we can return the chip info
+        state.status = 7; // Bootloader
+        state.deviceId0 = SIGROW.DEVICEID0;
+        state.deviceId1 = SIGROW.DEVICEID1;
+        state.deviceId2 = SIGROW.DEVICEID2;
+        for (uint8_t i = 0; i < 11; ++i)
+            state.fuses[i] = ((uint8_t*)(&FUSE))[i];
+        state.mclkCtrlA = CLKCTRL.MCLKCTRLA;
+        state.mclkCtrlB = CLKCTRL.MCLKCTRLB;
+        state.mclkLock = CLKCTRL.MCLKLOCK;
+        state.mclkStatus = CLKCTRL.MCLKSTATUS;
+        //state.pgmmemstart = MAPPED_PROGMEM_START;
+        //state.pagesize = MAPPED_PROGMEM_PAGE_SIZE;
+        // finally start the main loop for the I2C commands 
+        while (true) {
+            uint8_t status = TWI0.SSTATUS;
+            // sending data to accepting master is on our fastpath as is checked first, the next byte in the buffer is sent, wrapping the index on 256 bytes 
+            if ((status & I2C_DATA_MASK) == I2C_DATA_TX) {
+                TWI0.SDATA = *(address++);
+                TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
+            // a byte has been received from master. Store it and send either ACK if we can store more, or NACK if we can't store more
+            } else if ((status & I2C_DATA_MASK) == I2C_DATA_RX) {
+                if (command == CMD_RESERVED) {
+                    command = TWI0.SDATA;
+                    switch (command) {
+                        case CMD_INFO:
+                            state.nvmAddress = NVMCTRL.ADDR;
+                            state.address = address;
+                            address = (uint8_t*)(& state);
+                            break;
+                        case CMD_SET_ADDRESS:
+                            address = (uint8_t*)(&state.address);
+                            break;
+                        default:
+                            break;
+                    }
+                } else {
+                    *(address++) = TWI0.SDATA;
+                }
+                TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
+            // master requests slave to write data, simply say we are ready as we always send the buffer
+            } else if ((status & I2C_START_MASK) == I2C_START_TX) {
+                TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
+            // master requests to write data itself, first the command code
+            // pull the AVR_IRQ low to signal we are busy with the command by enabling output on PC0
+            } else if ((status & I2C_START_MASK) == I2C_START_RX) {
+                command = CMD_RESERVED; // command will be filled in 
+                TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
+                VPORTC.DIR |= (1 << 0); 
+            // sending finished, there is nothing to do 
+            } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
+                TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
+            // receiving finished, if we are in command mode, process the command, otherwise there is nothing to be done 
+            } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
+                TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
+                switch (command) {
+                    // Reset the AVR - first signal the command is processed, then reset the chip
+                    case CMD_RESET:
+                        VPORTB.DIR &= ~(1 << 0);
+                        _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
+                    case CMD_WRITE_PAGE:
+                        _PROTECTED_WRITE_SPM(NVMCTRL.CTRLA, NVMCTRL_CMD_PAGEERASEWRITE_gc);
+                        while (NVMCTRL.STATUS & (NVMCTRL_FBUSY_bm | NVMCTRL_EEBUSY_bm));
+                        state.lastError = NVMCTRL.STATUS;                        
+                        break;
+                    //case CMD_SET_ADDRESS:
+                    //    address = MAPPED_PROGMEM_START + state.address;
+                    //    break;
+                }
+                // each command receive resets the watchdog
+                __asm__ __volatile__ ("wdr\n");
+                // switch AVR_IRQ (PC0) to input again indicating we are done processing the command
+                VPORTC.DIR &= ~(1 << 0);
+            // nothing to do, or error - not sure what to do, perhaps reset the bootloader? 
+            } else {
+                // TODO
+            }
+        }
+    }
+    // enable the boot lock so that app can't override the bootloader and then start the app
+    NVMCTRL.CTRLB = NVMCTRL_BOOTLOCK_bm;
+    // start the application
+    app_t app = (app_t)(BOOTLOADER_SIZE / sizeof(app_t));
+    app();    
+}
+
+#endif
+
+
+#ifdef HAHA
+
+// old version 492
+
 /* Define application pointer type */
 typedef void (*const app_t)(void);
 
@@ -38,7 +176,7 @@ uint8_t buffer[MAPPED_PROGMEM_PAGE_SIZE];
  
     We bypass the main() and standard files so that w
 */
-__attribute__((naked)) __attribute__((constructor)) 
+__attribute__((OS_main)) __attribute__((constructor))
 void boot() {
     /* Initialize system for C support */
     asm volatile("clr r1");
@@ -90,7 +228,7 @@ void boot() {
             } else if ((status & I2C_START_MASK) == I2C_START_TX) {
                 TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
             // master requests to write data itself, first the command code
-            // pull the AVR_IRQ low to signal we are busy with the command by enabling output on PA4
+            // pull the AVR_IRQ low to signal we are busy with the command by enabling output on PC0
             } else if ((status & I2C_START_MASK) == I2C_START_RX) {
                 command = CMD_RESERVED; // command will be filled in 
                 TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
@@ -159,3 +297,6 @@ void boot() {
     app();    
 }
 
+
+
+#endif HAHA

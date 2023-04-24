@@ -10,6 +10,8 @@
 
 #include "utils.h"
 
+#ifdef FOO
+
 namespace utils {
 
     class Process {
@@ -546,3 +548,7 @@ HELPERS_NAMESPACE_END
 
 
 #endif
+
+
+
+#endif // FOO
