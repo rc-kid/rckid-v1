@@ -17,7 +17,7 @@ using namespace comms;
 
 /** DEBUG: When enabled, the AVR will use the I2C bus in a master mode and will communicate with an OLED screen attached to it to display various statistics. DISABLE IN PRODUCTION
  */
-#define TEST_I2C_DISPLAY
+#define TEST_I2C_DISPLAY_
 #if (defined TEST_I2C_DISPLAY)
 #include "platform/peripherals/ssd1306.h"
 SSD1306 display;
