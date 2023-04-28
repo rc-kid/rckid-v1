@@ -16,7 +16,7 @@ protected:
         DrawRectangle(0, 40, 320, 40, DARKGRAY);
 
         for (size_t i = 0; i < 26; ++i)
-            drawButton(i % 10, i / 10, STR(KEYS[i]).c_str());
+            drawButton(i % 10, i / 10, STR(KEYS_BIG[i]).c_str());
     }
 
     void drawButton(int x, int y, char const * text) {
@@ -31,7 +31,9 @@ private:
 
     std::string prompt_{"Enter what you want:"};
 
-    static inline char const * KEYS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    static inline char const * KEYS_BIG =    "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    static inline char const * KEYS_SMALL =  "abcdefghijklmnopqrstuvwxyz";
+    static inline char const * KEYS_SYMBOL = "0123456789!@#$%^&*()-=_+<>";
     
 
 }; // Keyboard

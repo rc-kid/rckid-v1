@@ -340,7 +340,14 @@ void erase(ChipInfo & info) {
 
 void reset() {
     gpio::inputPullup(PIN_AVR_IRQ);
+}
 
+void keepalive(ChipInfo & info) {
+    INFO("Entering bootloader and stayiling indefinitely..." << std::endl);
+    while (true) {
+        setAddress(0x8000);
+        cpu::delay_ms(200);
+    }
 }
 
 void help() {
@@ -356,6 +363,7 @@ void help() {
     std::cout << "    verify FILE - verifies that the memory contains the given hex file" << std::endl;
     std::cout << "    erase - erases the application memory of the chip" << std::endl;
     std::cout << "    reset - resets the AVR chip into the app mode" << std::endl;
+    std::cout << "    keepalive - keeps the AVR in the bootloader state indefinitely" << std::endl;
     std::cout << "Options" << std::endl << std::endl;
     std::cout << "    --verbose - enables verbose oiutput" << std::endl;
     std::cout << "    --timeout - instead of relying on the IRQ pin, waits 10ms after each command" << std::endl;
@@ -424,6 +432,8 @@ int main(int argc, char * argv[]) {
                 write(ci, false);
             else if (command == "erase")
                 erase(ci);
+            else if (command == "keepalive")
+                keepalive(ci);
             else
                 ERROR("Invalid command " << command);
         }

@@ -36,7 +36,7 @@ int main(int argc, char * argv[]) {
             new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
         }},
     }};
-    //Keyboard kb{};
+    //Keyboard kb{&window};
     //window.setWidget(&kb);
     window.setMenu(& menu, 0);
     window.loop();
