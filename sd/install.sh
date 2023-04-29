@@ -4,7 +4,7 @@ sudo cp sd/config.txt /boot/config.txt
 
 # install extra packages required by the tools and rckid itself
 # sudo apt-get -y install xinit x11-xserver-utils pkg-config qt5-default libevdev-dev pigpio i2c-tools
-sudo apt-get -y install pkg-config qt5-default libevdev-dev pigpio i2c-tools
+sudo apt-get -y install pkg-config libevdev-dev pigpio i2c-tools
 
 
 # use wiringPi instead of pigpio wich polls all the time

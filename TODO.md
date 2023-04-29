@@ -67,6 +67,8 @@
 
 - verify AVR comms
 - accelerometer is very noisy
+- add accel temperature processing
+
 - add microphone reading and check quality 
 - if there are errors during startup a way to show them
 - debounce buttons

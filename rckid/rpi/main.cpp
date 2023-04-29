@@ -38,8 +38,8 @@ int main(int argc, char * argv[]) {
     }};
     //Keyboard kb{&window};
     //window.setWidget(&kb);
-    DebugView db{&window};
-    window.setWidget(&db);
-    //window.setMenu(& menu, 0);
+    //DebugView db{&window};
+    //window.setWidget(&db);
+    window.setMenu(& menu, 0);
     window.loop();
 }

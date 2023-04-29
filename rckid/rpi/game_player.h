@@ -24,6 +24,22 @@ public:
 
 protected:
 
+    bool rendering = true;
+
+    void onFocus() override {
+        if (rendering) {
+            window()->stopRendering();
+            rendering = false;
+        }
+    }
+
+    void onBlur() override {
+        if (!rendering) {
+            window()->startRendering();
+            rendering = true;
+        }
+    }
+
     void draw() override {
 
     }
@@ -37,7 +53,6 @@ protected:
     }
 
     void btnA(bool state) override {
-        static bool rendering = true;
         if (state) {
             if (rendering)
                 window()->stopRendering();

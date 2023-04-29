@@ -2,6 +2,7 @@
 
 #include <queue>
 #include <mutex>
+#include <variant>
 
 #include "libevdev/libevdev.h"
 #include "libevdev/libevdev-uinput.h"
@@ -74,7 +75,7 @@ class Window;
 class RCKid {
 public:
 
-    static constexpr char const * LIBEVDEV_DEVICE_NAME = "RCKid-gamepad";
+    static constexpr char const * LIBEVDEV_DEVICE_NAME = "rckid-gamepad";
 
     static constexpr uint8_t BTN_DEBOUNCE_DURATION = 2;
 
@@ -94,9 +95,7 @@ public:
         libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
     }
 
-    void setBrightness(uint8_t value) {
-        sendAvrCommand(msg::SetBrightness{value});
-    }
+    void setBrightness(uint8_t value) { hwEvents_.send(SetBrightness{value}); }
 
 private:
 
@@ -143,14 +142,25 @@ private:
         We use the analog axes for the thumbstick and accelerometer. The thumbstick is debounced on the AVR.   
      */
     struct AxisState {
-        unsigned current;
+        uint8_t current;
         unsigned const evdevId;
 
         AxisState(unsigned evdevId):evdevId{evdevId} { }
     }; // RCKid:Axis
 
+    struct Tick {};
+    struct Irq { unsigned pin; };
+    struct SetBrightness { uint8_t value; };
+
+    using HWEvent = std::variant<
+        Tick, 
+        Irq, 
+        SetBrightness
+    >;
+
     /** Event for the driver's main loop to react to. Events with specified numbers are changes on the specified pins.
     */
+   /*
     enum class HWEvent {
         Tick,
         AvrIrq = PIN_AVR_IRQ, 
@@ -164,7 +174,9 @@ private:
         ButtonLVol = PIN_BTN_LVOL, 
         ButtonRVol = PIN_BTN_RVOL, 
         NrfIrq = PIN_NRF_IRQ, 
+
     }; // Driver::Event
+    */
 
     static RCKid * & instance() {
         static RCKid * i;
@@ -223,12 +235,12 @@ private:
 
     static void isrAvrIrq() ISR_THREAD {
         RCKid * self = RCKid::instance();
-        self->hwEvents_.send(HWEvent::AvrIrq);
+        self->hwEvents_.send(Irq{PIN_AVR_IRQ});
     }
 
     static void isrNrfIrq() ISR_THREAD {
         RCKid * self = RCKid::instance();
-        self->hwEvents_.send(HWEvent::NrfIrq);
+        self->hwEvents_.send(Irq{PIN_NRF_IRQ});
     }
 
     static void isrHeadphones() {
@@ -313,13 +325,16 @@ private:
             buttonAction(btn);
     }
 
-    void axisChange(uint8_t value, AxisState & axis) DRIVER_THREAD {
+    bool axisChange(uint8_t value, AxisState & axis) DRIVER_THREAD {
         if (axis.current != value) {
             axis.current = value;
             if (uidev_ != nullptr) {
                 libevdev_uinput_write_event(uidev_, EV_ABS, axis.evdevId, value);
                 libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
             }
+            return true;
+        } else {
+            return false;
         }
     }
 

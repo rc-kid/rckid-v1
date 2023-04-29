@@ -157,9 +157,8 @@ void Window::loop() {
         } else {
             e = events_.waitReceive();
         }
-        switch (e.kind) {
-            case Event::Kind::Button: {
-                ButtonEvent &eb = e.button();
+        std::visit(overloaded{
+            [this](ButtonEvent eb) {
                 switch (eb.btn) {
                     case Button::A:
                         btnA(eb.state);
@@ -210,8 +209,17 @@ void Window::loop() {
                         btnJoy(eb.state);
                         break;
                 }
+            }, 
+            [this](ThumbEvent et) {
+                // TODO
+            },
+            [this](AccelEvent ea) {
+                accel(ea.x, ea.y);
+            }, 
+            [this](StateEvent es) {
+
             }
-        }
+        }, e);
     }
 }
 

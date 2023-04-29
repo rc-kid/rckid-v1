@@ -95,7 +95,7 @@ RCKid::RCKid(Window * window):
     std::thread tickTimer{[this](){
         while (true) {
             cpu::delay_ms(10);
-            this->hwEvents_.send(HWEvent::Tick);
+            this->hwEvents_.send(Tick{});
         }
     }};
     tickTimer.detach();
@@ -106,9 +106,8 @@ void RCKid::hwLoop() {
     avrQueryState();
     setBrightness(255);
     while (true) {
-        HWEvent e = hwEvents_.waitReceive();
-        switch (e) {
-            case HWEvent::Tick: {
+        std::visit(overloaded{
+            [this](Tick){
 #if (defined ARCH_MOCK)        
                 checkMockButtons();
 #endif
@@ -129,13 +128,25 @@ void RCKid::hwLoop() {
                 buttonTick(btnJoy_);
                 buttonTick(btnHome_);
                 accelQueryStatus();
-                break;
+            },
+            [this](Irq irq){
+                switch (irq.pin) {
+                    case PIN_AVR_IRQ:
+                        avrQueryState();
+                        break;
+                    default: // don't do anything for irq's we do not care about
+                        break;
+                }
+            },
+            [this](SetBrightness arg) {
+                sendAvrCommand(msg::SetBrightness{arg.value});
+
             }
-            case HWEvent::AvrIrq: {
-                avrQueryState();
-                break;
-            }
-        }
+
+
+            },
+            hwEvents_.waitReceive() 
+        );
     }
 }
 
@@ -176,8 +187,13 @@ uint8_t accelTo1GUnsigned(int16_t v) {
 void RCKid::accelQueryStatus() {
     MPU6050::AccelData d = accel_.readAccel();
     uint16_t t = accel_.readTemp();
-    //axisChange(accelTo1GUnsigned(-d.x), accelX_);
-    //axisChange(accelTo1GUnsigned(-d.y), accelY_);
+    uint8_t x = accelTo1GUnsigned(-d.x);
+    uint8_t y = accelTo1GUnsigned(-d.y);
+    bool report = axisChange(accelTo1GUnsigned(-d.x), accelX_);
+    report = axisChange(accelTo1GUnsigned(-d.y), accelY_);
+    // TODO convert the temperature and update it as well
+    if (report)
+        window_->send(AccelEvent{accelX_.current, accelY_.current, accelTo1GUnsigned(-d.z), t});
 }
 
 void RCKid::avrQueryState() {
@@ -219,20 +235,6 @@ void RCKid::processAvrControls(comms::Controls const & controls) {
 
     //axisChange(controls.joyH(), thumbX_);
     //axisChange(controls.joyV(), thumbY_);
-    
-    /*
-    bool volLeftChanged = volumeLeft_.update(status.btnVolumeLeft());
-    bool volRightChanged = volumeRight_.update(status.btnVolumeRight());
-    bool thumbPosChanged = thumbX_.update(status.joyX());
-    thumbPosChanged = thumbY_.update(status.joyY()) || thumbPosChanged;
-
-    bool chrgChanged = charging_ != status.charging();
-    charging_ = status.charging();
-    bool lowBattChanged = lowBattery_ != status.lowBattery();
-    lowBattery_ = status.lowBattery();
-    */
-
-
 }
 
 
@@ -377,7 +379,7 @@ void RCKid::buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {
         libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
     }
     // send the appropriate action to the main thread
-    window_->send(Event::button(btn.button, btn.reported));
+    window_->send(ButtonEvent{btn.button, btn.reported});
 }
 
 

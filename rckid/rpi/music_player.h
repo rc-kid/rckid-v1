@@ -31,7 +31,7 @@ protected:
     }
 
     void onFocus() override {
-        track_ = LoadMusicStream("/mnt/c/Users/petam/Music/incomplete/Tangerine Kitty/Tangerine Kitty - Dumb Ways To Die.mp3");
+        track_ = LoadMusicStream("/rckid/xxx.mp3");
         PlayMusicStream(track_);
     }
 

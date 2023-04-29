@@ -4,9 +4,18 @@
 #include <condition_variable>
 #include <mutex>
 #include <optional>
+#include <variant>
 
 #include "platform/platform.h"
 #include "utils/utils.h"
+
+#include "common/comms.h"
+
+// helper type for the std::visit deconstruction
+template<class... Ts>
+struct overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
 
 /** Buttons available on the RCKid. 
  */
@@ -29,16 +38,47 @@ enum class Button {
     Joy, 
 }; // Button
 
+/** An event triggered when there is a button change. 
+ */
 struct ButtonEvent {
     Button btn;
     bool state;
 }; // ButtonEvent
 
-struct BatteryEvent {
+struct ThumbEvent {
+    uint8_t x;
+    uint8_t y;
+}; // ThumbEvent
+
+/** The accelerometer readouts.
+*/
+struct AccelEvent {
+    uint8_t x;
+    uint8_t y;
+    uint8_t z;
+    uint16_t temp;
+};
+
+/** Status change. 
+ */
+struct StateEvent {
+    comms::Mode mode;
     uint16_t vBatt;
     uint16_t vcc;
+    uint16_t temp;
+    bool usb;
     bool charging;
-};
+}; 
+
+using Event = std::variant<
+    ButtonEvent,
+    ThumbEvent, 
+    AccelEvent,
+    StateEvent
+>;
+
+
+#ifdef FOOBAR
 
 /** Window event.
 
@@ -49,7 +89,9 @@ public:
     enum class Kind {
         None, 
         Button, 
-        Battery, 
+        Thumb,
+        Accel,
+        State, 
     }; // Event::Kind
 
     Kind kind;
@@ -63,11 +105,12 @@ public:
         return result;
     }
 
-    static Event battery(uint16_t vBatt, uint16_t vcc, bool charging) {
-        Event result{Kind::Battery};
-        result.battery_.vBatt = vBatt;
-        result.battery_.vcc = vcc;
-        result.battery_.charging = charging;
+    static Event accel(uint8_t x, uint8_t y, uint8_t z, uint16_t temp) {
+        Event result{Kind::Accel};
+        result.accel_.x = x;
+        result.accel_.y = y;
+        result.accel_.z = z;
+        result.accel_.temp = temp;
         return result;
     }
 
@@ -76,17 +119,36 @@ public:
         return button_;
     }
 
+    ThumbEvent & thumb() {
+        ASSERT(kind == Kind::Thumb);
+        return thumb_;
+    }
+
+    AccelEvent & accel() {
+        ASSERT(kind == Kind::Accel);
+        return accel_;
+    }
+
+    StateEvent & state() {
+        ASSERT(kind == Kind::State);
+        return state_;
+    }
+
 private:
 
     Event(Kind kind): kind{kind} {}
 
     union {
         ButtonEvent button_;
-        BatteryEvent battery_;
+        ThumbEvent thumb_;
+        AccelEvent accel_;
+        StateEvent state_;
     }; 
 
 }; // Event
 
+
+#endif // FOOBAR
 
 /** Event queue.
  */
