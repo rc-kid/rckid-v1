@@ -94,6 +94,10 @@ public:
         libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
     }
 
+    void setBrightness(uint8_t value) {
+        sendAvrCommand(msg::SetBrightness{value});
+    }
+
 private:
 
     static constexpr unsigned int RETROARCH_PAUSE = KEY_P;

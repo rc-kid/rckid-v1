@@ -15,14 +15,6 @@ using namespace comms;
  */
 #define TEST_CLOCK_
 
-/** DEBUG: When enabled, the AVR will use the I2C bus in a master mode and will communicate with an OLED screen attached to it to display various statistics. DISABLE IN PRODUCTION
- */
-#define TEST_I2C_DISPLAY_
-#if (defined TEST_I2C_DISPLAY)
-#include "platform/peripherals/ssd1306.h"
-SSD1306 display;
-#endif
-
 #define ENTER_IRQ //gpio::high(RCKid::RGB)
 #define LEAVE_IRQ //gpio::low(RCKid::RGB)
 
@@ -148,18 +140,10 @@ public:
         PORTMUX.CTRLB |= PORTMUX_TWI0_bm;
         // initialize flags as empty
         *((uint8_t*)(&flags_)) = 0;
-#if (!defined TEST_I2C_DISPLAY)
         // initalize the i2c slave with our address
         i2c::initializeSlave(AVR_I2C_ADDRESS);
-#else
-        i2c::initializeMaster();
-        display.initialize128x32();
-        display.clear32();
-        display.write(0, 0, "  :  :");
-        display.write(0, 1, "VCC: ");
-        display.write(0, 2, "Temp:");
-        display.write(0, 3, "VBatt:");
-#endif
+        // enter the repair mode after powerup 
+        flags_.manualRepairMode = true;
         // verify that wakeup conditions have been met, i.e. that we have enough voltage, etc. and go to sleep immediately if that is not the case. Repeat until we can wakeup. NOTE going to sleep here cuts the power to RPi immediately which can be harmful, but if we are powering on with low battery, there is not much else we can do and the idea is that this ends long time before the RPi gets far enough in the booting process to be able to actually cause an SD card damage  
         while (!wakeUp())
             sleep();
@@ -168,6 +152,7 @@ public:
     }
 
     static void loop() {
+        setBrightness(128);
         switch (state_.status.mode()) {
             // all the sleep logic is in the sleep function, we simply call it from the main loop here
             case Mode::Sleep:
@@ -227,18 +212,7 @@ public:
     static void secondTick() {
         flags_.secondTick = false;
         state_.time.secondTick();
-#if (defined TEST_I2C_DISPLAY)
-        display.writeNumber(0, 0, state_.time.hour(), 2, '0');
-        display.writeNumber(15, 0, state_.time.minute(), 2, '0');
-        display.writeNumber(30, 0, state_.time.second(), 2, '0');
-        if (state_.status.mode() != Mode::Sleep) {
-            display.write(35, 1, state_.einfo.vcc(), ' ');
-            display.write(35, 2, state_.einfo.temp(), ' ');
-            display.write(35, 3, state_.einfo.vbatt(), ' ');
-        }
-#endif
     }
-
 
     /** Clears the timeout flag and sets a new timeout value. 
      */
@@ -276,9 +250,6 @@ public:
     /** Cuts power to the RPi and all other peripherals and puts the AVR to sleep. 
      */
     static void sleep() {
-#if (defined TEST_I2C_DISPLAY)
-        display.write(64, 1, "SLEEP");
-#endif
         // cut power to RPI
         gpio::output(RPI_EN);
         gpio::high(RPI_EN);
@@ -288,10 +259,6 @@ public:
         ADC1.CTRLA = 0;
         ADC0.CTRLA = 0;
         // TODO turn off backlight & rumbler
-
-#if (defined TEST_I2C_DISPLAY)
-        display.clear32();
-#endif
         while (true) {
             wdt::disable();
             cpu::sleep();
@@ -311,9 +278,6 @@ public:
     /** Enters the WakeUp state. Called when BTN_HOME is pressed in Sleep state. 
      */
     static bool wakeUp() {
-#if (defined TEST_I2C_DISPLAY)
-        display.write(64, 1, "WAKE_UP");
-#endif
         // ensure interrupts are allowed
         sei();
         // enable the ADC but instead of real ticks, just measure the VCC 10 times making sure that it never gets below the critical battery threshold
@@ -366,9 +330,6 @@ public:
 
     /** Enters the PowerUp mode. Fire the rumbler to signal we are powering on and set the timeout for the power up seuence. */
     static void powerUp() {
-#if (defined TEST_I2C_DISPLAY)
-        display.write(64, 1, "POWER_UP");
-#endif
         rumblerOk();
         if (flags_.manualRepairMode) {
             repairMode();
@@ -382,9 +343,6 @@ public:
     /** Enters the powering down mode. Turns on ADC1 on the RPI_POWEROFF pin where we wait for 3V3 high signal that informs the AVR that it can cut RPi's power safely. 
      */
     static void powerDown() {
-#if (defined TEST_I2C_DISPLAY)
-        display.write(64, 1, "POWER_DOWN");
-#endif
         stopRecording();
         setTimeout(RPI_POWERDOWN_TIMEOUT);
         state_.status.setMode(Mode::PowerDown);
@@ -400,9 +358,6 @@ public:
     }
 
     static void powerOn() {
-#if (defined TEST_I2C_DISPLAY)
-        display.write(64, 1, "ON  ");
-#endif
         setTimeout(RPI_PING_TIMEOUT);
         state_.status.setMode(Mode::On);
     }
@@ -457,9 +412,6 @@ public:
         Since the RPi might not be able to it itself, set the brightness to max here to make the boot process possibly observable. 
      */
     static void repairMode() {
-#if (defined TEST_I2C_DISPLAY)
-        display.write(64, 1, "WAKE_UP");
-#endif
         state_.status.setMode(Mode::On);
         showColor(Color::Red());
         setBrightness(255);
@@ -626,14 +578,6 @@ public:
         // if there has been a change in the irq, request IRQ
         if (irq)
             setIrq();
-
-#if (defined TEST_I2C_DISPLAY)
-        //display.write(35, 1, vcc_, ' ');
-        //display.write(35, 2, temp_, ' ');
-        //display.write(35, 3, vBatt_, ' ');
-        display.write(64 + 35, 1, btns1);
-        display.write(64 + 43, 1, btns2);
-#endif
     }
 
     /** Decodes the raw analog value read into the states of three buttons returned as LSB bits. The analog value is a result of a custom voltage divider ladder so that simultaneous button presses can be detected.
@@ -845,7 +789,6 @@ public:
             }
 
         }
-
         // be ready for next command to be received
         i2cBufferIdx_ = 0;
         flags_.i2cReady = false;
@@ -1007,6 +950,8 @@ ISR(TWI0_TWIS_vect) {
         gpio::input(RCKid::AVR_IRQ);
         TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
         RCKid::flags_.validBatch = (RCKid::wrIndex_ >> 5) != RCKid::state_.status.batchIndex();
+        // reset the watchdog
+        __asm__ __volatile__ ("wdr\n");
     // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise. The buffer is reset to 
     } else if ((status & I2C_START_MASK) == I2C_START_RX) {
         TWI0.SCTRLB = RCKid::flags_.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;

@@ -56,8 +56,17 @@ protected:
         DrawCircle(38, 185, 18, btnJoy_ ? RED : BLACK);
         DrawCircleV(Vector2{20 + joyX_ * 36.0f / 255, 167 + joyY_ * 36.0f / 255}, 2, WHITE);
         // home, start and select
-        // TODO
+        DrawCircle(75, 210, 5, btnHome_ ? RED : BLACK);
+        DrawRectangle(55, 205, 6, 10, btnSelect_ ? RED : BLACK);
+        DrawRectangle(90, 207, 10, 6, btnStart_ ? RED : BLACK);
+        // left and right buttons
+        DrawRectangle(47, 220, 3, 15, btnL_ ? RED : BLACK);
+        DrawRectangle(103, 220, 3, 15, btnR_ ? RED : BLACK);
+        // volume up and down buttons
+        DrawRectangle(5, 120, 5, 10, btnVolUp_ ? RED : BLACK);
+        DrawRectangle(5, 150, 5, 10, btnVolDown_ ? RED : BLACK);
 
+        // now draw the displayed information
         DrawTextEx(window()->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
         DrawTextEx(window()->helpFont(), STR(vcc_).c_str(), 210, 20, 16, 1.0, WHITE);
         DrawTextEx(window()->helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
@@ -75,8 +84,8 @@ protected:
     void btnY(bool state) override { btnY_ = state; }
     void btnL(bool state) override { btnL_ = state; }
     void btnR(bool state) override { btnR_ = state; }
-    void btnSelect(bool state) override {}
-    void btnStart(bool state) override {}
+    void btnSelect(bool state) override { btnSelect_ = state; }
+    void btnStart(bool state) override { btnStart_ = state; }
     void btnJoy(bool state) override { btnJoy_ = state; }
     void dpadLeft(bool state) override { dpadLeft_ = state; }
     void dpadRight(bool state) override { dpadRight_ = state; }
@@ -84,22 +93,27 @@ protected:
     void dpadDown(bool state) override { dpadDown_ = state; }
     void joy(uint8_t x, uint8_t y) override { joyX_ = x; joyY_ = y; }
     void accel(uint8_t x, uint8_t y) override { accelX_ = x; accelY_ = y;}
-    void btnVolUp(bool state) override {}
-    void btnVolDown(bool state) override {}
-    void btnHome(bool state) override {}
+    void btnVolUp(bool state) override { btnVolUp_ = state; }
+    void btnVolDown(bool state) override { btnVolDown_ = state; }
+    void btnHome(bool state) override { btnHome_ = state; }
 
 private:
-    bool btnA_;
-    bool btnB_;
-    bool btnX_;
-    bool btnY_;
-    bool btnL_;
-    bool btnR_;
-    bool dpadLeft_;
-    bool dpadRight_;
-    bool dpadUp_;
-    bool dpadDown_;
-    bool btnJoy_;
+    bool btnA_ = false;
+    bool btnB_ = false;
+    bool btnX_ = false;
+    bool btnY_ = false;
+    bool btnL_ = false;
+    bool btnR_ = false;
+    bool dpadLeft_ = false;
+    bool dpadRight_ = false;
+    bool dpadUp_ = false;
+    bool dpadDown_ = false;
+    bool btnJoy_ = false;
+    bool btnSelect_ = false;
+    bool btnStart_ = false;
+    bool btnHome_ = false;
+    bool btnVolUp_ = false;
+    bool btnVolDown_ = false;
     uint8_t joyX_ = 128;
     uint8_t joyY_ = 128;
     uint8_t accelX_ = 10;

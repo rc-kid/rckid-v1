@@ -30,6 +30,8 @@
 
 ## AVR
 
+- home does not work (likely contacts)
+
 - debug display seems to be either not working or not used
 - check that long home works in repair mode as well
 - add low and critical battery warnings and proper actions

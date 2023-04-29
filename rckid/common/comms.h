@@ -135,8 +135,8 @@ namespace comms {
 
         bool dpadLeft() const { return buttons_ & DPAD_LEFT; }
         bool dpadRight() const { return buttons_ & DPAD_RIGHT; }
-        bool dpadTop() const { return buttons_ & DPAD_TOP; }
-        bool dpadBottom() const { return buttons_ & DPAD_BOTTOM; }
+        bool dpadUp() const { return buttons_ & DPAD_UP; }
+        bool dpadDown() const { return buttons_ & DPAD_DOWN; }
         bool select() const { return buttons_ & SELECT; }
         bool start() const { return buttons_ & START; }
         bool home() const { return buttons_ & HOME; }
@@ -171,13 +171,17 @@ namespace comms {
             return true;
         }
 
+ 
     private:
-        static constexpr uint8_t DPAD_LEFT = 1 << 0;
-        static constexpr uint8_t DPAD_RIGHT = 1 << 1;
-        static constexpr uint8_t DPAD_TOP = 1 << 2;
-        static constexpr uint8_t DPAD_BOTTOM = 1 << 3;
+
+        static constexpr uint8_t DPAD_DOWN = 1 << 0;
+        static constexpr uint8_t DPAD_UP = 1 << 1;
+        static constexpr uint8_t DPAD_LEFT = 1 << 2;
+
+        static constexpr uint8_t START = 1 << 3;
         static constexpr uint8_t SELECT = 1 << 4;
-        static constexpr uint8_t START = 1 << 5;
+        static constexpr uint8_t DPAD_RIGHT = 1 << 5;
+
         static constexpr uint8_t HOME = 1 << 6;
 
         uint8_t buttons_;

@@ -104,6 +104,7 @@ RCKid::RCKid(Window * window):
 void RCKid::hwLoop() {
     // query avr status
     avrQueryState();
+    setBrightness(255);
     while (true) {
         HWEvent e = hwEvents_.waitReceive();
         switch (e) {
@@ -202,10 +203,10 @@ void RCKid::processAvrControls(comms::Controls const & controls) {
         buttonChange(!controls.dpadLeft(), btnDpadLeft_);
     if (btnDpadRight_.current != controls.dpadRight())
         buttonChange(!controls.dpadRight(), btnDpadRight_);
-    if (btnDpadUp_.current != controls.dpadTop())
-        buttonChange(!controls.dpadTop(), btnDpadUp_);
-    if (btnDpadDown_.current != controls.dpadBottom())
-        buttonChange(!controls.dpadBottom(), btnDpadDown_);
+    if (btnDpadUp_.current != controls.dpadUp())
+        buttonChange(!controls.dpadUp(), btnDpadUp_);
+    if (btnDpadDown_.current != controls.dpadDown())
+        buttonChange(!controls.dpadDown(), btnDpadDown_);
 
     if (btnSelect_.current != controls.select())
         buttonChange(!controls.select(), btnSelect_);
@@ -214,8 +215,10 @@ void RCKid::processAvrControls(comms::Controls const & controls) {
     if (btnHome_.current != controls.home())
         buttonChange(!controls.home(), btnHome_);
 
-    axisChange(controls.joyH(), thumbX_);
-    axisChange(controls.joyV(), thumbY_);
+    // TODO reenable when done
+
+    //axisChange(controls.joyH(), thumbX_);
+    //axisChange(controls.joyV(), thumbY_);
     
     /*
     bool volLeftChanged = volumeLeft_.update(status.btnVolumeLeft());
