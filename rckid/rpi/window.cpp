@@ -232,6 +232,9 @@ void Window::loop() {
             [this](TempEvent e) {
                 avrTemp_ = e.temp;
             },
+            [this](HeadphonesEvent e) {
+                headphones_ = e.connected;
+            }
         }, e);
     }
 }
@@ -289,7 +292,12 @@ void Window::drawHeader() {
 
 
     int x = 320;
-    // first draw the battery
+    // charging and usb power indicator 
+    if (usb_) {
+        x -= 10;
+        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, charging_ ? WHITE : GRAY);
+    }
+    // the battery level and percentage
     if (inHomeMenu_) {
         std::string pct = STR((vBatt_ - 330) << "%");
         x -= MeasureText(helpFont_, pct.c_str(), 16, 1.0).x;
@@ -306,6 +314,13 @@ void Window::drawHeader() {
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
     else 
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
+    // headphones 
+    if (headphones_) {
+        x -= 20;
+        DrawTextEx(headerFont_, "󰋋", x, 0, 20, 1.0, WHITE);    
+    }
+
+
 
     DrawTextEx(headerFont_, "󰸈 󰕿 󰖀 󰕾", 90, 0, 20, 1.0, BLUE);
     DrawTextEx(helpFont_, STR(GetFPS()).c_str(), 70, 2, 16, 1.0, WHITE);

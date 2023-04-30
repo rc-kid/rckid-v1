@@ -144,6 +144,8 @@ void RCKid::hwLoop() {
                     case PIN_AVR_IRQ:
                         avrQueryState();
                         break;
+                    case PIN_HEADPHONES:
+                        window_->send(HeadphonesEvent{gpio::read(PIN_HEADPHONES)});
                     default: // don't do anything for irq's we do not care about
                         break;
                 }
