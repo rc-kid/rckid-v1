@@ -211,14 +211,27 @@ void Window::loop() {
                 }
             }, 
             [this](ThumbEvent et) {
-                // TODO
+                joy(et.x, et.y);
             },
             [this](AccelEvent ea) {
                 accel(ea.x, ea.y);
+                if (setIfDiffers(accelTemp_, ea.temp))
+                    {} // TODO
             }, 
-            [this](StateEvent es) {
-
-            }
+            [this](ModeEvent e) {
+                mode_ = e.mode;
+            },
+            [this](ChargingEvent e) {
+                usb_ = e.usb;
+                charging_ = e.charging;
+            },
+            [this](VoltageEvent e) {
+                vBatt_ = e.vBatt;
+                vcc_ = e.vcc;
+            },
+            [this](TempEvent e) {
+                avrTemp_ = e.temp;
+            },
         }, e);
     }
 }

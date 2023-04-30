@@ -56,25 +56,41 @@ struct AccelEvent {
     uint8_t x;
     uint8_t y;
     uint8_t z;
-    uint16_t temp;
+    int16_t temp;
 };
 
-/** Status change. 
- */
-struct StateEvent {
+struct ModeEvent {
     comms::Mode mode;
-    uint16_t vBatt;
-    uint16_t vcc;
-    uint16_t temp;
+};
+
+struct ChargingEvent {
     bool usb;
     bool charging;
-}; 
+
+    bool operator == (ChargingEvent const & other) const { return usb == other.usb && charging == other.charging; }
+};
+
+struct VoltageEvent {
+    uint16_t vBatt;
+    uint16_t vcc;
+
+    bool operator == (VoltageEvent const & other) const { return vBatt == other.vBatt && vcc == other.vcc; }
+};
+
+struct TempEvent {
+    int16_t temp;
+
+    bool operator == (TempEvent const & other) const { return temp == other.temp; }
+};
 
 using Event = std::variant<
     ButtonEvent,
     ThumbEvent, 
     AccelEvent,
-    StateEvent
+    ModeEvent,
+    ChargingEvent,
+    VoltageEvent,
+    TempEvent
 >;
 
 

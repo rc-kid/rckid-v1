@@ -149,34 +149,18 @@ private:
     }; // RCKid:Axis
 
     struct Tick {};
+    struct SecondTick {};
     struct Irq { unsigned pin; };
     struct SetBrightness { uint8_t value; };
 
+    /** Event for the driver's main loop to react to. Events with specified numbers are changes on the specified pins.
+    */
     using HWEvent = std::variant<
         Tick, 
+        SecondTick,
         Irq, 
         SetBrightness
     >;
-
-    /** Event for the driver's main loop to react to. Events with specified numbers are changes on the specified pins.
-    */
-   /*
-    enum class HWEvent {
-        Tick,
-        AvrIrq = PIN_AVR_IRQ, 
-        Headphones = PIN_HEADPHONES, 
-        ButtonA = PIN_BTN_A, 
-        ButtonB = PIN_BTN_B, 
-        ButtonX = PIN_BTN_X, 
-        ButtonY = PIN_BTN_Y, 
-        ButtonL = PIN_BTN_L, 
-        ButtonR = PIN_BTN_R, 
-        ButtonLVol = PIN_BTN_LVOL, 
-        ButtonRVol = PIN_BTN_RVOL, 
-        NrfIrq = PIN_NRF_IRQ, 
-
-    }; // Driver::Event
-    */
 
     static RCKid * & instance() {
         static RCKid * i;
@@ -210,6 +194,8 @@ private:
     /** Processes the controls information sent by the AVR (buttons, thumbstick).
      */
     void processAvrControls(comms::Controls const & controls) DRIVER_THREAD;
+
+    void processAvrExtendedInfo(comms::ExtendedInfo const & einfo) DRIVER_THREAD;
 
     /** Initializes the ISRs on the rpi pins so that the driver can respond properly.
      */
@@ -369,6 +355,13 @@ private:
     AxisState thumbY_{ABS_RY};
     AxisState accelX_{ABS_X};
     AxisState accelY_{ABS_Y};
+
+    /** Last known state so that we can determine when to send an update
+     */
+    ModeEvent mode_;
+    ChargingEvent charging_;
+    VoltageEvent voltage_;
+    TempEvent temp_;
 
     platform::NRF24L01 radio_{PIN_NRF_CS, PIN_NRF_RXTX};
     platform::MPU6050 accel_;

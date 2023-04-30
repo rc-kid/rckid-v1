@@ -98,7 +98,14 @@ RCKid::RCKid(Window * window):
             this->hwEvents_.send(Tick{});
         }
     }};
+    std::thread secondTimer{[this](){
+        while (true) {
+            cpu::delay_ms(1000);
+            this->hwEvents_.send(SecondTick{});
+        }
+    }};
     tickTimer.detach();
+    secondTimer.detach();
 }
 
 void RCKid::hwLoop() {
@@ -129,7 +136,10 @@ void RCKid::hwLoop() {
                 buttonTick(btnHome_);
                 accelQueryStatus();
             },
-            [this](Irq irq){
+            [this](SecondTick) {
+                avrQueryExtendedState();
+            },
+            [this](Irq irq) {
                 switch (irq.pin) {
                     case PIN_AVR_IRQ:
                         avrQueryState();
@@ -140,13 +150,8 @@ void RCKid::hwLoop() {
             },
             [this](SetBrightness arg) {
                 sendAvrCommand(msg::SetBrightness{arg.value});
-
             }
-
-
-            },
-            hwEvents_.waitReceive() 
-        );
+        }, hwEvents_.waitReceive());
     }
 }
 
@@ -206,15 +211,27 @@ void RCKid::avrQueryState() {
 void RCKid::avrQueryExtendedState() {
     comms::ExtendedState state;
     i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
+    processAvrStatus(state.status);
+    processAvrControls(state.controls);
+    processAvrExtendedInfo(state.einfo);
 }
 
 void RCKid::processAvrStatus(comms::Status const & status) {
-
+    if (status.recording()) {
+        // TODO TODO TODO TODO TODO TODO TODO TODO TODO
+    } else {
+        if (setIfDiffers(mode_.mode, status.mode()))
+            window_->send(mode_);
+        if (setIfDiffers(charging_, ChargingEvent{status.usb(), status.charging()}))
+            window_->send(charging_);
+    }    
 }
 
 void RCKid::processAvrControls(comms::Controls const & controls) {
-    //std::cout << (int) *((uint8_t*) & status) << std::endl;
-
+#if (defined ARCH_MOCK)        
+    // don't process the controls in mock mode
+    return;
+#endif
     if (btnDpadLeft_.current != controls.dpadLeft())
         buttonChange(!controls.dpadLeft(), btnDpadLeft_);
     if (btnDpadRight_.current != controls.dpadRight())
@@ -237,6 +254,12 @@ void RCKid::processAvrControls(comms::Controls const & controls) {
     //axisChange(controls.joyV(), thumbY_);
 }
 
+void RCKid::processAvrExtendedInfo(comms::ExtendedInfo const & einfo) {
+    if (setIfDiffers(voltage_, VoltageEvent{einfo.vbatt(), einfo.vcc()}))
+        window_->send(voltage_);
+    if (setIfDiffers(temp_, TempEvent{einfo.temp()}))
+        window_->send(temp_);
+}
 
 void RCKid::initializeISRs() {
     gpio::inputPullup(PIN_AVR_IRQ);

@@ -81,6 +81,14 @@ public:
     */
     void send(Event && ev) { events_.send(std::move(ev)); }
 
+    comms::Mode mode() const { return mode_; }
+    bool usb() const { return usb_; }
+    bool charging() const { return charging_; }
+    uint16_t vBatt() const { return vBatt_; }
+    uint16_t vcc() const { return vcc_; }
+    int16_t avrTemp() const { return avrTemp_; }
+    int16_t accelTemp() const { return accelTemp_; }
+
     RCKid * rckid() { return rckid_; }
 
     void startRendering();
@@ -217,7 +225,6 @@ private:
             setMenu(homeMenu_, 0); 
     }
 
-
     void swapWidget();
 
     void drawHeader();
@@ -257,13 +264,15 @@ private:
     Animation swap_{250};
     Transition transition_ = Transition::None;
 
-
     /** RCKid status
      */
+    comms::Mode mode_;
+    bool usb_;
+    bool charging_;
     uint16_t vBatt_ = 420;
     uint16_t vcc_ = 430;
-    bool charging_ = false;
-
+    int16_t avrTemp_;
+    int16_t accelTemp_;
 
     static constexpr int GLYPHS[] = {
         32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations

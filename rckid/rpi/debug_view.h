@@ -68,13 +68,13 @@ protected:
 
         // now draw the displayed information
         DrawTextEx(window()->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(vcc_).c_str(), 210, 20, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR(window()->vcc()).c_str(), 210, 20, 16, 1.0, WHITE);
         DrawTextEx(window()->helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(vbatt_).c_str(), 290, 20, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR(window()->vBatt()).c_str(), 290, 20, 16, 1.0, WHITE);
         DrawTextEx(window()->helpFont(), "TEMP:", 160, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(temp_).c_str(), 210, 40, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR(window()->avrTemp()).c_str(), 210, 40, 16, 1.0, WHITE);
         DrawTextEx(window()->helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(atemp_).c_str(), 290, 40, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR(window()->accelTemp()).c_str(), 290, 40, 16, 1.0, WHITE);
 
     }
 
@@ -118,10 +118,4 @@ private:
     uint8_t joyY_ = 128;
     uint8_t accelX_ = 10;
     uint8_t accelY_ = 255;
-
-    uint16_t vcc_ = 500;
-    uint16_t vbatt_ = 370;
-    uint16_t temp_ = 275;
-    uint16_t atemp_ = 295;
-
 }; // DebugView

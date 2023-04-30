@@ -98,3 +98,10 @@ namespace str {
 
 } // namespace str
 
+template<typename T>
+bool setIfDiffers(T & variable, T const & value) {
+    if (variable == value)
+        return false;
+    variable = value;
+    return true;
+}
