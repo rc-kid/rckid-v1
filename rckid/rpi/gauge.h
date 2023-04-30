@@ -1,11 +1,25 @@
 #pragma once
 
+#include <functional>
+
 #include "widget.h"
 #include "window.h"
 
 class Gauge : public Widget {
 public:
-    Gauge(Window * window): Widget{window} {}
+    Gauge(Window * window, std::function<void(int)> onChange): Widget{window}, onChange_{onChange} {}
+
+    void setValue(int value) {
+        if (value < min_)
+            value = min_;
+        else if (value > max_)
+            value = max_;
+        if (value_ != value) {
+            value_ = value;
+            if (onChange_)
+                onChange_(value);
+        }
+    }
 
 protected:
 
@@ -29,12 +43,12 @@ protected:
 
     void dpadLeft(bool state) {
         if (state)
-            value_ = std::max(value_ - step_, min_);
+            setValue(value_ - step_);
     }
 
     void dpadRight(bool state) {
         if (state)
-            value_ = std::min(value_ + step_, max_);
+            setValue(value_ + step_);
     }
 
     int min_ = 0;
@@ -47,5 +61,7 @@ protected:
     Color backgroundColor_ = DARKGRAY;
 
     Texture2D mask_;
+
+    std::function<void(int)> onChange_;
 
 }; // Gauge

@@ -34,16 +34,22 @@ int FooterItem::draw(Window * window, int x, int y) const {
 
 
 Window::Window() {
+    rckid_ = new RCKid{this};
     carousel_ = new Carousel{this};
     homeMenu_ = new Menu{this, {
         new Menu::Item{"Power Off", "assets/images/011-power-off.png"},
         new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
-        new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{this}},
-        new WidgetItem{"Volume", "assets/images/010-high-volume.png", new Gauge{this}},
+        new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{this, 
+            [this](int value) { 
+                rckid_->setBrightness(value); 
+            }
+        }},
+        new WidgetItem{"Volume", "assets/images/010-high-volume.png", new Gauge{this, 
+            [](int){}
+        }},
         new Menu::Item{"WiFi", "assets/images/016-wifi.png"},
         new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{this}},
     }};
-    rckid_ = new RCKid{this};
 }
 
 void Window::startRendering() {

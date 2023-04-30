@@ -23,6 +23,8 @@
 - enlarge L and R vertical pin hole pads
 - VCC test point
 
+- check NRF24, check RGB, check rumbler
+
 ## Bootloader
 
 - allow to start bootloader by setting EPROM bits
@@ -43,6 +45,8 @@
 - ensure that the modes and powering on & off works reliably so that we can switch off the I2C display and test comms
 
 ## RPI - RayLib
+
+- the gauge will not throw away its texture when restarted it seems
 
 - add == to Value and double parsing
 
