@@ -23,6 +23,10 @@ public:
 
 protected:
 
+    void onRenderingPaused() override {
+        titleWidth_ = 0;
+    }
+
     void draw() override {
         if (titleWidth_ == 0) {
             mask_ = LoadTexture("assets/gauge_mask.png");
@@ -41,12 +45,12 @@ protected:
 
     }
 
-    void dpadLeft(bool state) {
+    void dpadLeft(bool state) override {
         if (state)
             setValue(value_ - step_);
     }
 
-    void dpadRight(bool state) {
+    void dpadRight(bool state) override {
         if (state)
             setValue(value_ + step_);
     }

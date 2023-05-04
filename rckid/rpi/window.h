@@ -5,6 +5,7 @@
 #include <string_view>
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
 #include <queue>
 #include <mutex>
 #include <condition_variable>
@@ -23,6 +24,9 @@ static constexpr int Window_HEIGHT = 240;
 static constexpr int MENU_FONT_SIZE = 64;
 static constexpr int HEADER_HEIGHT = 20;
 static constexpr int FOOTER_HEIGHT = 20;
+
+static constexpr char const * HELP_FONT = "IosevkaNF.ttf";
+static constexpr char const * MENU_FONT = "OpenDyslexicNF.otf";
 
 class Carousel;
 class Window;
@@ -94,6 +98,8 @@ public:
     void startRendering();
 
     void stopRendering();
+
+    Font loadFont(std::string const & filename, int size);
 
     void loop(); 
 
@@ -246,6 +252,7 @@ private:
     Font helpFont_;
     Font headerFont_;
     Font menuFont_;
+    std::unordered_map<std::string, Font> fonts_;
     Widget * widget_ = nullptr;
     NavigationItem next_;
     /// the carousel used for the menus 
@@ -265,6 +272,8 @@ private:
     Transition transition_ = Transition::None;
 
     /** RCKid status
+     
+        TODO Move this to RCkid itself
      */
     comms::Mode mode_;
     bool usb_;
@@ -274,6 +283,13 @@ private:
     int16_t avrTemp_;
     int16_t accelTemp_;
     bool headphones_;
+    unsigned volume_ = 15;
+    bool wifi_ = true;
+    bool wifiHotspot_ = true;
+    std::string ssid_ = "Internet 10";
+    bool nrf_ = true;
+    
+
 
     static constexpr int GLYPHS[] = {
         32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations
@@ -284,7 +300,7 @@ private:
         97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, // a-z
         123, 124, 125, 126, // more punctiations
         0xf004, 0xf08a, //  
-        0xf05a9, 0xf05aa, 0xf05aa, 0xf16c1, // 󰖩 󰖪 󰖪 󱛁
+        0xf05a9, 0xf05aa, 0xf16c1, // 󰖩 󰖪 󱛁
         0xf244, 0xf243, 0xf242, 0xf241, 0xf240, 0xf0e7, //      
         0xf02cb, // 󰋋
         0xf1119, // 󱄙

@@ -58,9 +58,9 @@ void Window::startRendering() {
     rendering_ = true;
     if (! IsWindowReady())
         TraceLog(LOG_ERROR, "Unable to initialize window");
-    helpFont_ = LoadFontEx("assets/fonts/IosevkaNF.ttf", 16, const_cast<int*>(GLYPHS), sizeof(GLYPHS)/ sizeof(int));
-    headerFont_ = LoadFontEx("assets/fonts/IosevkaNF.ttf", 20, const_cast<int*>(GLYPHS), sizeof(GLYPHS)/ sizeof(int));
-    menuFont_ = LoadFontEx("assets/fonts/OpenDyslexicNF.otf", MENU_FONT_SIZE, const_cast<int*>(GLYPHS), sizeof(GLYPHS) / sizeof(int));
+    helpFont_ = loadFont(HELP_FONT, 16);
+    headerFont_ = loadFont(HELP_FONT, 20);
+    menuFont_ = loadFont(MENU_FONT, MENU_FONT_SIZE);
     InitAudioDevice();
     lastDrawTime_ = GetTime();    
 }
@@ -69,10 +69,20 @@ void Window::stopRendering() {
     rendering_ = false;
     for (WindowElement * e : elements_)
         e->onRenderingPaused();
+    fonts_.clear();
     CloseAudioDevice();
     CloseWindow();
 } 
 
+Font Window::loadFont(std::string const & filename, int size) {
+    auto fname = STR(filename << "--" << size);
+    auto i = fonts_.find(fname);
+    if (i == fonts_.end()) {
+        Font f = LoadFontEx(STR("assets/fonts/" << filename).c_str(), size, const_cast<int*>(GLYPHS), sizeof(GLYPHS) / sizeof(int));
+        i = fonts_.insert(std::make_pair(fname, f)).first;
+    }
+    return i->second;
+}
 
 void Window::setWidget(Widget * widget) {
     next_ = NavigationItem{widget};
@@ -306,8 +316,8 @@ void Window::drawHeader() {
     // the battery level and percentage
     if (inHomeMenu_) {
         std::string pct = STR((vBatt_ - 330) << "%");
-        x -= MeasureText(helpFont_, pct.c_str(), 16, 1.0).x;
-        DrawTextEx(helpFont_, pct.c_str(), x, 2, 16, 1, WHITE);
+        x -= MeasureText(helpFont_, pct.c_str(), 16, 1.0).x + 5;
+        DrawTextEx(helpFont_, pct.c_str(), x, 2, 16, 1, GRAY);
     }
     x -= 20;
     if (vBatt_ > 415)
@@ -320,16 +330,45 @@ void Window::drawHeader() {
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
     else 
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
-    // headphones 
+    // volume & headphones
     if (headphones_) {
         x -= 20;
         DrawTextEx(headerFont_, "󰋋", x, 0, 20, 1.0, WHITE);    
     }
-
-
-
-    DrawTextEx(headerFont_, "󰸈 󰕿 󰖀 󰕾", 90, 0, 20, 1.0, BLUE);
-    DrawTextEx(helpFont_, STR(GetFPS()).c_str(), 70, 2, 16, 1.0, WHITE);
+    if (inHomeMenu_) {
+        std::string vol = STR(volume_);
+        x -= MeasureText(helpFont_, vol.c_str(), 16, 1.0).x + 5;
+        DrawTextEx(helpFont_, vol.c_str(), x - 3, 2, 16, 1, GRAY);
+    }
+    x -= 20;
+    if (volume_ == 0)
+        DrawTextEx(headerFont_, "󰸈", x, 0, 20, 1.0, BLUE);
+    else if (volume_ < 6)
+        DrawTextEx(headerFont_, "󰕿", x, 0, 20, 1.0, BLUE);
+    else if (volume_ < 12)
+        DrawTextEx(headerFont_, "󰖀", x, 0, 20, 1.0, BLUE);
+    else
+        DrawTextEx(headerFont_, "󰕾", x, 0, 20, 1.0, ORANGE);
+    // WiFi
+    if (! wifi_ ) {
+        x -= 20;
+        DrawTextEx(headerFont_, "󰖪", x, 0, 20, 1.0, GRAY);
+    } else {
+        if (inHomeMenu_) {
+            x -= MeasureText(helpFont_, ssid_.c_str(), 16, 1.0).x + 5;
+            DrawTextEx(helpFont_, ssid_.c_str(), x - 3, 2, 16, 1, GRAY);
+        }
+        x -= 20;
+        if (wifiHotspot_) 
+            DrawTextEx(headerFont_, "󱛁", x, 0, 20, 1.0, Color{0, 255, 255, 255});
+        else
+            DrawTextEx(headerFont_, "󰖩", x, 0, 20, 1.0, BLUE);
+    }
+    // NRF Radio
+    if (nrf_) {
+        x -= 20;
+        DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, GREEN);
+    }
 }
 
 void Window::drawFooter() {
@@ -347,10 +386,7 @@ void Window::drawFooter() {
     int  x = 0;
     for (FooterItem const & item: footer_)
         x = item.draw(this, x, y);
-/*        DrawCircle(x + 10, y + 10, 6, item.color);
-        x += 20; 
-        Vector2 size = MeasureTextEx(helpFont_, item.text.c_str(), 16, 1.0);
-        DrawTextEx(helpFont_, item.text.c_str(), x, y + (20 - size.y) / 2 , 16, 1.0, WHITE);
-        x += size.x + 5;
-    } */
+    DrawTextEx(helpFont_, STR(GetFPS()).c_str(), 300, 222, 16, 1.0, WHITE);
+
+
 }

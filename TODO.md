@@ -22,8 +22,10 @@
 - move the trace away from the ps1000 hole too
 - enlarge L and R vertical pin hole pads
 - VCC test point
+- proper hole for the thumbstick
 
 - check NRF24, check RGB, check rumbler
+- might also use [this](http://k-silver.com/html_products/JP19%EF%BC%88%E6%AD%A3%E6%8F%92%E8%93%9D%E8%89%B2%E6%91%87%E6%9D%86%EF%BC%89-833.html) thunbstick, that can be bought from [Adafruit](https://www.adafruit.com/product/5628) - will be much easier to solder, might require special pcb board or some such
 
 ## Bootloader
 
@@ -31,8 +33,6 @@
 - cleanup & extend the programmer code so that it can dump the stored files, read/write EEPROM and so on
 
 ## AVR
-
-- home does not work (likely contacts)
 
 - debug display seems to be either not working or not used
 - check that long home works in repair mode as well
@@ -45,8 +45,6 @@
 - ensure that the modes and powering on & off works reliably so that we can switch off the I2C display and test comms
 
 ## RPI - RayLib
-
-- the gauge will not throw away its texture when restarted it seems
 
 - add == to Value and double parsing
 
@@ -69,7 +67,6 @@
 
 - add rumbler / sound for ui actions
 
-- verify AVR comms
 - accelerometer is very noisy
 - add accel temperature processing
 

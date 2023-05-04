@@ -230,7 +230,8 @@ private:
     }
 
     static void isrHeadphones() {
-        // TODO
+        RCKid * self = RCKid::instance();
+        self->hwEvents_.send(Irq{PIN_HEADPHONES});
     }
 
     static void isrButtonA() {
