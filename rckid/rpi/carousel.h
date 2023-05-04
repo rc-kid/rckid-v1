@@ -69,7 +69,7 @@ protected:
         if (!item->initialized())
             item->initialize(window());
         Color tint = ColorAlpha(WHITE, (float)alpha / 255);
-        DrawTexture(item->img(), (Window_WIDTH - item->img().width) / 2 + ximg, (Window_HEIGHT - item->img().height - MENU_FONT_SIZE) / 2, tint);
+        DrawTexture(item->img(), (Window_WIDTH - item->img().width) / 2 + ximg, (Window_HEIGHT - item->img().height - MENU_FONT_SIZE) / 2 + 10, tint);
         DrawTextEx(window()->menuFont(), item->title().c_str(), (Window_WIDTH - item->titleWidth()) / 2 + xtext, Window_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, tint);
     }
 
