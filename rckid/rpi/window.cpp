@@ -162,96 +162,9 @@ void Window::loop() {
         //if (WindowShouldClose())
         //    break;
 #endif
-        if (rendering_) {
-            auto event = events_.receive();
-            if (!event.has_value()) {
-                draw();
-                continue;
-            } else {
-                e = std::move(event.value());
-            }
-        } else {
-            e = events_.waitReceive();
-        }
-        std::visit(overloaded{
-            [this](ButtonEvent eb) {
-                switch (eb.btn) {
-                    case Button::A:
-                        btnA(eb.state);
-                        break;
-                    case Button::B:
-                        btnB(eb.state);
-                        break;
-                    case Button::X:
-                        btnX(eb.state);
-                        break;
-                    case Button::Y:
-                        btnY(eb.state);
-                        break;
-                    case Button::L:
-                        btnL(eb.state);
-                        break;
-                    case Button::R:
-                        btnR(eb.state);
-                        break;
-                    case Button::Left:
-                        dpadLeft(eb.state);
-                        break;
-                    case Button::Right:
-                        dpadRight(eb.state);
-                        break;
-                    case Button::Up:
-                        dpadUp(eb.state);
-                        break;
-                    case Button::Down:
-                        dpadDown(eb.state);
-                        break;
-                    case Button::Select:
-                        btnSelect(eb.state);
-                        break;
-                    case Button::Start:
-                        btnStart(eb.state);
-                        break;
-                    case Button::Home:
-                        btnHome(eb.state);
-                        break;
-                    case Button::VolumeUp:
-                        btnVolUp(eb.state);
-                        break;
-                    case Button::VolumeDown:
-                        btnVolDown(eb.state);
-                        break;
-                    case Button::Joy:
-                        btnJoy(eb.state);
-                        break;
-                }
-            }, 
-            [this](ThumbEvent et) {
-                joy(et.x, et.y);
-            },
-            [this](AccelEvent ea) {
-                accel(ea.x, ea.y);
-                if (setIfDiffers(accelTemp_, ea.temp))
-                    {} // TODO
-            }, 
-            [this](ModeEvent e) {
-                mode_ = e.mode;
-            },
-            [this](ChargingEvent e) {
-                usb_ = e.usb;
-                charging_ = e.charging;
-            },
-            [this](VoltageEvent e) {
-                vBatt_ = e.vBatt;
-                vcc_ = e.vcc;
-            },
-            [this](TempEvent e) {
-                avrTemp_ = e.temp;
-            },
-            [this](HeadphonesEvent e) {
-                headphones_ = e.connected;
-            }
-        }, e);
+        rckid_->loop();
+        if (rendering_)
+            draw();
     }
 }
 
@@ -309,63 +222,63 @@ void Window::drawHeader() {
 
     int x = 320;
     // charging and usb power indicator 
-    if (usb_) {
+    if (rckid_->usb()) {
         x -= 10;
-        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, charging_ ? WHITE : GRAY);
+        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, rckid_->charging() ? WHITE : GRAY);
     }
     // the battery level and percentage
     if (inHomeMenu_) {
-        std::string pct = STR((vBatt_ - 330) << "%");
+        std::string pct = STR((rckid_->vBatt() - 330) << "%");
         x -= MeasureText(helpFont_, pct.c_str(), 16, 1.0).x + 5;
         DrawTextEx(helpFont_, pct.c_str(), x, 2, 16, 1, GRAY);
     }
     x -= 20;
-    if (vBatt_ > 415)
+    if (rckid_->vBatt() > 415)
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, GREEN);
-    else if (vBatt_ > 390)
+    else if (rckid_->vBatt() > 390)
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, DARKGREEN);
-    else if (vBatt_ > 375)
+    else if (rckid_->vBatt() > 375)
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, ORANGE);
-    else if (vBatt_ > 340)    
+    else if (rckid_->vBatt() > 340)    
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
     else 
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
     // volume & headphones
-    if (headphones_) {
+    if (rckid_->headphones()) {
         x -= 20;
         DrawTextEx(headerFont_, "󰋋", x, 0, 20, 1.0, WHITE);    
     }
     if (inHomeMenu_) {
-        std::string vol = STR(volume_);
+        std::string vol = STR(rckid_->volume());
         x -= MeasureText(helpFont_, vol.c_str(), 16, 1.0).x + 5;
         DrawTextEx(helpFont_, vol.c_str(), x - 3, 2, 16, 1, GRAY);
     }
     x -= 20;
-    if (volume_ == 0)
+    if (rckid_->volume() == 0)
         DrawTextEx(headerFont_, "󰸈", x, 0, 20, 1.0, BLUE);
-    else if (volume_ < 6)
+    else if (rckid_->volume() < 6)
         DrawTextEx(headerFont_, "󰕿", x, 0, 20, 1.0, BLUE);
-    else if (volume_ < 12)
+    else if (rckid_->volume() < 12)
         DrawTextEx(headerFont_, "󰖀", x, 0, 20, 1.0, BLUE);
     else
         DrawTextEx(headerFont_, "󰕾", x, 0, 20, 1.0, ORANGE);
     // WiFi
-    if (! wifi_ ) {
+    if (! rckid_->wifi() ) {
         x -= 20;
         DrawTextEx(headerFont_, "󰖪", x, 0, 20, 1.0, GRAY);
     } else {
         if (inHomeMenu_) {
-            x -= MeasureText(helpFont_, ssid_.c_str(), 16, 1.0).x + 5;
-            DrawTextEx(helpFont_, ssid_.c_str(), x - 3, 2, 16, 1, GRAY);
+            x -= MeasureText(helpFont_, rckid_->ssid().c_str(), 16, 1.0).x + 5;
+            DrawTextEx(helpFont_, rckid_->ssid().c_str(), x - 3, 2, 16, 1, GRAY);
         }
         x -= 20;
-        if (wifiHotspot_) 
+        if (rckid_->wifiHotspot()) 
             DrawTextEx(headerFont_, "󱛁", x, 0, 20, 1.0, Color{0, 255, 255, 255});
         else
             DrawTextEx(headerFont_, "󰖩", x, 0, 20, 1.0, BLUE);
     }
     // NRF Radio
-    if (nrf_) {
+    if (rckid_->nrf()) {
         x -= 20;
         DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, GREEN);
     }

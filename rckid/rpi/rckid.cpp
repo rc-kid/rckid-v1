@@ -108,6 +108,106 @@ RCKid::RCKid(Window * window):
     secondTimer.detach();
 }
 
+void RCKid::loop() {
+#if (defined ARCH_MOCK)
+        //if (WindowShouldClose())
+        //    break;
+#endif
+    if (window_->rendering()) {
+        while (true) {
+            auto event = events_.receive();
+            if (!event.has_value())
+                break;
+            processEvent(event.value());
+        }
+    } else {
+        Event e = events_.waitReceive();
+        processEvent(e);
+    }
+}
+
+void RCKid::processEvent(Event & e) {
+    std::visit(overloaded{
+        [this](ButtonEvent eb) {
+            switch (eb.btn) {
+                case Button::A:
+                    window_->btnA(eb.state);
+                    break;
+                case Button::B:
+                    window_->btnB(eb.state);
+                    break;
+                case Button::X:
+                    window_->btnX(eb.state);
+                    break;
+                case Button::Y:
+                    window_->btnY(eb.state);
+                    break;
+                case Button::L:
+                    window_->btnL(eb.state);
+                    break;
+                case Button::R:
+                    window_->btnR(eb.state);
+                    break;
+                case Button::Left:
+                    window_->dpadLeft(eb.state);
+                    break;
+                case Button::Right:
+                    window_->dpadRight(eb.state);
+                    break;
+                case Button::Up:
+                    window_->dpadUp(eb.state);
+                    break;
+                case Button::Down:
+                    window_->dpadDown(eb.state);
+                    break;
+                case Button::Select:
+                    window_->btnSelect(eb.state);
+                    break;
+                case Button::Start:
+                    window_->btnStart(eb.state);
+                    break;
+                case Button::Home:
+                    window_->btnHome(eb.state);
+                    break;
+                case Button::VolumeUp:
+                    window_->btnVolUp(eb.state);
+                    break;
+                case Button::VolumeDown:
+                    window_->btnVolDown(eb.state);
+                    break;
+                case Button::Joy:
+                    window_->btnJoy(eb.state);
+                    break;
+            }
+        }, 
+        [this](ThumbEvent et) {
+            window_->joy(et.x, et.y);
+        },
+        [this](AccelEvent ea) {
+            window_->accel(ea.x, ea.y);
+            if (setIfDiffers(status_.accelTemp, ea.temp))
+                {} // TODO
+        }, 
+        [this](ModeEvent e) {
+            status_.mode = e.mode;
+        },
+        [this](ChargingEvent e) {
+            status_.usb = e.usb;
+            status_.charging = e.charging;
+        },
+        [this](VoltageEvent e) {
+            status_.vBatt = e.vBatt;
+            status_.vcc = e.vcc;
+        },
+        [this](TempEvent e) {
+            status_.avrTemp = e.temp;
+        },
+        [this](HeadphonesEvent e) {
+            status_.headphones = e.connected;
+        }
+    }, e);
+}
+
 void RCKid::hwLoop() {
     // query avr status
     avrQueryState();
@@ -144,8 +244,6 @@ void RCKid::hwLoop() {
                     case PIN_AVR_IRQ:
                         avrQueryState();
                         break;
-                    case PIN_HEADPHONES:
-                        window_->send(HeadphonesEvent{gpio::read(PIN_HEADPHONES)});
                     default: // don't do anything for irq's we do not care about
                         break;
                 }
@@ -193,14 +291,14 @@ uint8_t accelTo1GUnsigned(int16_t v) {
 
 void RCKid::accelQueryStatus() {
     MPU6050::AccelData d = accel_.readAccel();
-    uint16_t t = accel_.readTemp();
+    int16_t t = accel_.readTemp();
     uint8_t x = accelTo1GUnsigned(-d.x);
     uint8_t y = accelTo1GUnsigned(-d.y);
     bool report = axisChange(accelTo1GUnsigned(-d.x), accelX_);
     report = axisChange(accelTo1GUnsigned(-d.y), accelY_);
     // TODO convert the temperature and update it as well
     if (report)
-        window_->send(AccelEvent{accelX_.current, accelY_.current, accelTo1GUnsigned(-d.z), t});
+        events_.send(AccelEvent{accelX_.current, accelY_.current, accelTo1GUnsigned(-d.z), t});
 }
 
 void RCKid::avrQueryState() {
@@ -223,9 +321,9 @@ void RCKid::processAvrStatus(comms::Status const & status) {
         // TODO TODO TODO TODO TODO TODO TODO TODO TODO
     } else {
         if (setIfDiffers(mode_.mode, status.mode()))
-            window_->send(mode_);
+            events_.send(mode_);
         if (setIfDiffers(charging_, ChargingEvent{status.usb(), status.charging()}))
-            window_->send(charging_);
+            events_.send(charging_);
     }    
 }
 
@@ -258,9 +356,9 @@ void RCKid::processAvrControls(comms::Controls const & controls) {
 
 void RCKid::processAvrExtendedInfo(comms::ExtendedInfo const & einfo) {
     if (setIfDiffers(voltage_, VoltageEvent{einfo.vbatt(), einfo.vcc()}))
-        window_->send(voltage_);
+        events_.send(voltage_);
     if (setIfDiffers(temp_, TempEvent{einfo.temp()}))
-        window_->send(temp_);
+        events_.send(temp_);
 }
 
 void RCKid::initializeISRs() {
@@ -404,7 +502,7 @@ void RCKid::buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {
         libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
     }
     // send the appropriate action to the main thread
-    window_->send(ButtonEvent{btn.button, btn.reported});
+    events_.send(ButtonEvent{btn.button, btn.reported});
 }
 
 

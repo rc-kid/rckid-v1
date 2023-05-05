@@ -11,8 +11,12 @@
 class Keyboard : public Widget {
 public:
 
+    using OnDoneEvent = std::function<void(std::string)>;
+
     Keyboard(Window * window): Widget{window}, cursor_{500} {
     }
+
+    OnDoneEvent onDone;
 
 protected:
 
@@ -96,6 +100,10 @@ protected:
     void btnY(bool state) {
         if (state && value_.size() > 0)
             value_.pop_back(); 
+    }
+
+    void btnStart(bool state) {
+        // TODO
     }
 
 private:

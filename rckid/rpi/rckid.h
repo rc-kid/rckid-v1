@@ -97,7 +97,23 @@ public:
 
     void setBrightness(uint8_t value) { hwEvents_.send(SetBrightness{value}); }
 
+    comms::Mode mode() const { return status_.mode; }
+    bool usb() const { return status_.usb; }
+    bool charging() const { return status_.charging; }
+    uint16_t vBatt() const { return status_.vBatt; }
+    uint16_t vcc() const { return status_.vcc; }
+    int16_t avrTemp() const { return status_.avrTemp; }
+    int16_t accelTemp() const { return status_.accelTemp; }
+    bool headphones() const { return status_.headphones; }
+    unsigned volume() const { return status_.volume; }
+    bool wifi() const { return status_.wifi; }
+    bool wifiHotspot() const { return status_.wifiHotspot; }
+    std::string const & ssid() const { return status_.ssid; }
+    bool nrf() const { return status_.nrf; }
+
 private:
+
+    friend class Window;
 
     static constexpr unsigned int RETROARCH_PAUSE = KEY_P;
     static constexpr unsigned int RETROARCH_SAVE_STATE = KEY_F2;
@@ -167,6 +183,11 @@ private:
         return i;
     }
 
+    /** The UI loop, should be called by the window's loop function. Processes the events from the driver to the main thread and calls the specific event handlers in the window. */
+    void loop() MAIN_THREAD;
+
+    void processEvent(Event & e) MAIN_THREAD; 
+
     /** The HW loop, proceses events from the hw event queue. This method is executed in a separate thread, which isthe only thread that accesses the GPIOs and i2c/spi connections. 
      */
     void hwLoop() DRIVER_THREAD;
@@ -231,7 +252,7 @@ private:
 
     static void isrHeadphones() {
         RCKid * self = RCKid::instance();
-        self->hwEvents_.send(Irq{PIN_HEADPHONES});
+        self->events_.send(HeadphonesEvent{platform::gpio::read(PIN_HEADPHONES)});
     }
 
     static void isrButtonA() {
@@ -331,7 +352,29 @@ private:
      */
     EventQueue<HWEvent> hwEvents_;
 
-    /** The button state objects. 
+    /** EVents sent from the  ISR and comm threads to the main thread. 
+     */
+    EventQueue<Event> events_;
+
+    /** RCKid's state, available from the main thead. 
+     */
+    struct Status {
+        comms::Mode mode;
+        bool usb;
+        bool charging;
+        uint16_t vBatt = 420;
+        uint16_t vcc = 430;
+        int16_t avrTemp;
+        int16_t accelTemp;
+        bool headphones;
+        unsigned volume = 15;
+        bool wifi = true;
+        bool wifiHotspot = true;
+        std::string ssid = "Internet 10";
+        bool nrf = true;
+    } status_;
+
+    /** The button state objects, managed by the ISR thread 
      */
     ButtonState btnVolDown_{Button::VolumeDown, KEY_VOLUMEDOWN};
     ButtonState btnVolUp_{Button::VolumeUp, KEY_VOLUMEUP};

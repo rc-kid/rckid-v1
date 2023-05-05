@@ -29,6 +29,7 @@ static constexpr char const * HELP_FONT = "IosevkaNF.ttf";
 static constexpr char const * MENU_FONT = "OpenDyslexicNF.otf";
 
 class Carousel;
+class Keyboard;
 class Window;
 
 class FooterItem {
@@ -79,23 +80,11 @@ public:
 
     Window();
 
-    /** Sends given event to the UI main loop. 
-     
-        Can be called from any thread. 
-    */
-    void send(Event && ev) { events_.send(std::move(ev)); }
-
-    comms::Mode mode() const { return mode_; }
-    bool usb() const { return usb_; }
-    bool charging() const { return charging_; }
-    uint16_t vBatt() const { return vBatt_; }
-    uint16_t vcc() const { return vcc_; }
-    int16_t avrTemp() const { return avrTemp_; }
-    int16_t accelTemp() const { return accelTemp_; }
-
     RCKid * rckid() { return rckid_; }
 
     void startRendering();
+
+    bool rendering() const { return rendering_; }
 
     void stopRendering();
 
@@ -141,6 +130,7 @@ private:
 
     friend class WindowElement;
     friend class Widget;
+    friend class RCKid;
 
     class NavigationItem {
     public:
@@ -239,8 +229,6 @@ private:
     // the rckid driver
     RCKid * rckid_; 
 
-    EventQueue<Event> events_;
-
     bool rendering_ = false;
 
 
@@ -270,26 +258,6 @@ private:
 
     Animation swap_{250};
     Transition transition_ = Transition::None;
-
-    /** RCKid status
-     
-        TODO Move this to RCkid itself
-     */
-    comms::Mode mode_;
-    bool usb_;
-    bool charging_;
-    uint16_t vBatt_ = 420;
-    uint16_t vcc_ = 430;
-    int16_t avrTemp_;
-    int16_t accelTemp_;
-    bool headphones_;
-    unsigned volume_ = 15;
-    bool wifi_ = true;
-    bool wifiHotspot_ = true;
-    std::string ssid_ = "Internet 10";
-    bool nrf_ = true;
-    
-
 
     static constexpr int GLYPHS[] = {
         32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations

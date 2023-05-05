@@ -68,13 +68,13 @@ protected:
 
         // now draw the displayed information
         DrawTextEx(window()->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(window()->vcc()).c_str(), 210, 20, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR(window()->rckid()->vcc()).c_str(), 210, 20, 16, 1.0, WHITE);
         DrawTextEx(window()->helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(window()->vBatt()).c_str(), 290, 20, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR(window()->rckid()->vBatt()).c_str(), 290, 20, 16, 1.0, WHITE);
         DrawTextEx(window()->helpFont(), "TEMP:", 160, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(window()->avrTemp()).c_str(), 210, 40, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR(window()->rckid()->avrTemp()).c_str(), 210, 40, 16, 1.0, WHITE);
         DrawTextEx(window()->helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(window()->accelTemp()).c_str(), 290, 40, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR(window()->rckid()->accelTemp()).c_str(), 290, 40, 16, 1.0, WHITE);
 
     }
 
