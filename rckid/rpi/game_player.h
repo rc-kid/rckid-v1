@@ -63,7 +63,7 @@ protected:
     }
 
     void btnB(bool state) override {
-
+        
     }
 
     void btnX(bool state) override {

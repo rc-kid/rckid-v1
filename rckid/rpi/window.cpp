@@ -1,6 +1,7 @@
 #include "platform/platform.h"
 
 #include "carousel.h"
+#include "keyboard.h"
 #include "debug_view.h"
 #include "gauge.h"
 
@@ -66,12 +67,16 @@ void Window::startRendering() {
 }
 
 void Window::stopRendering() {
+    // indicate the end of rendering
     rendering_ = false;
-    for (WindowElement * e : elements_)
-        e->onRenderingPaused();
-    fonts_.clear();
-    CloseAudioDevice();
-    CloseWindow();
+    // if we are not curently drawing, release all resources...
+    if (!drawing_) {
+        for (WindowElement * e : elements_)
+            e->onRenderingPaused();
+        fonts_.clear();
+        CloseAudioDevice();
+        CloseWindow();
+    }
 } 
 
 Font Window::loadFont(std::string const & filename, int size) {
@@ -82,6 +87,15 @@ Font Window::loadFont(std::string const & filename, int size) {
         i = fonts_.insert(std::make_pair(fname, f)).first;
     }
     return i->second;
+}
+
+void Window::prompt(std::string const & prompt, std::string value, std::function<void(std::string)> callback) {
+    if (keyboard_ == nullptr)
+        keyboard_ = new Keyboard{this};
+    keyboard_->prompt = prompt;
+    keyboard_->value = value;
+    keyboard_->onDone = callback;
+    setWidget(keyboard_);
 }
 
 void Window::setWidget(Widget * widget) {
@@ -169,6 +183,7 @@ void Window::loop() {
 }
 
 void Window::draw() {
+    drawing_ = true;
     BeginDrawing();
     double t = GetTime();
     redrawDelta_ = static_cast<float>((t - lastDrawTime_) * 1000);
@@ -201,6 +216,10 @@ void Window::draw() {
         drawFooter();
     // and we are done
     EndDrawing();
+    drawing_ = false;
+    // if rendering is off, it has been disabled while drawing, perform the resource release now
+    if (rendering_ == false) 
+        stopRendering();
 }
 
 

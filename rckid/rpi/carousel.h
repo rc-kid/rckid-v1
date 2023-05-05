@@ -34,12 +34,6 @@ protected:
         window()->addFooterItem(FooterItem::A("Select"));
     }
 
-    void btnX(bool state) override {
-        if (state == false) {
-            window()->rckid()->retroarchPause();
-        }
-    }
-
     void dpadLeft(bool state) override {
         if (state && transition_ == Transition::None && items_ != nullptr) {
             transition_ = Transition::Left;

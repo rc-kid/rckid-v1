@@ -16,6 +16,8 @@ public:
     Keyboard(Window * window): Widget{window}, cursor_{500} {
     }
 
+    std::string prompt;
+    std::string value;
     OnDoneEvent onDone;
 
 protected:
@@ -39,9 +41,9 @@ protected:
 
         cursor_.update(window());
 
-        DrawTextEx(f_, prompt_.c_str(), getButtonTopLeft(0,0).first, 30, 28, 1.0, GRAY);
+        DrawTextEx(f_, prompt.c_str(), getButtonTopLeft(0,0).first, 30, 28, 1.0, GRAY);
         DrawRectangle(0, 65, 320, 40, ::Color{16, 16, 16, 255});
-        DrawTextEx(vf_, value_.c_str(), getButtonTopLeft(0,0).first, 65, 40, 1.0, WHITE);
+        DrawTextEx(vf_, value.c_str(), getButtonTopLeft(0,0).first, 65, 40, 1.0, WHITE);
 
         for (size_t i = 0; i < 30; ++i)
             drawButton(i % 10, i / 10, STR(KEYS[keyBank_][i]).c_str());
@@ -94,16 +96,18 @@ protected:
 
     void btnA(bool state) {
         if (state)
-            value_ = value_ + KEYS[keyBank_][y_ * COLS + x_];
+            value = value + KEYS[keyBank_][y_ * COLS + x_];
     }
 
     void btnY(bool state) {
-        if (state && value_.size() > 0)
-            value_.pop_back(); 
+        if (state && value.size() > 0)
+            value.pop_back(); 
     }
 
     void btnStart(bool state) {
-        // TODO
+        if (onDone)
+            onDone(value);
+        window()->back();
     }
 
 private:
@@ -119,10 +123,6 @@ private:
         "abcdefghijklmnopqrstuvwxyz,;- ",
         "0123456789!?~`@#$%^&*()+<>/|\\'\""
     };
-
-    std::string prompt_{"Enter what you want:"};
-
-    std::string value_;
 
     size_t keyBank_ = 0;
     unsigned x_ = 0;

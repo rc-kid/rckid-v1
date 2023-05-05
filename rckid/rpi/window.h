@@ -100,6 +100,10 @@ public:
         TraceLog(LOG_ERROR, message.c_str());
     }
 
+    /** Displays a modal text prompt with the keyboard widget. Calls the provided callback when the input value is confirmed.
+     */
+    void prompt(std::string const & prompt, std::string value, std::function<void(std::string)> callback);
+
     void setWidget(Widget * widget);
     void setMenu(Menu * menu, size_t index = 0);
     void back(); 
@@ -229,8 +233,10 @@ private:
     // the rckid driver
     RCKid * rckid_; 
 
+    /// true if the gui is currently being renderred
     bool rendering_ = false;
-
+    /// true if the ui is currently being redrawn
+    bool drawing_ = false;
 
     std::unordered_set<WindowElement*> elements_;
     std::vector<FooterItem> footer_;
@@ -241,10 +247,17 @@ private:
     Font headerFont_;
     Font menuFont_;
     std::unordered_map<std::string, Font> fonts_;
-    Widget * widget_ = nullptr;
+    
     NavigationItem next_;
+
+    /// The currently visible widget
+    Widget * widget_ = nullptr;
     /// the carousel used for the menus 
     Carousel * carousel_; 
+    /// the keyboard widget for modal string input 
+    Keyboard * keyboard_ = nullptr;
+
+    /// The home menu -- TODO should this be in window or outside of it? 
     Menu * homeMenu_;
 
     std::vector<NavigationItem> nav_;
