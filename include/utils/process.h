@@ -10,45 +10,7 @@
 
 #include "utils.h"
 
-#ifdef FOO
-
 namespace utils {
-
-    class Process {
-    public:
-#if (defined ARCH_LINUX)
-        using ExitCode = int;
-
-        static Process start(Command const & cmd) {
-            // TODO command to argv
-            Process result{fork()};
-            if (result.pid_ == 0) {
-                if (execve(argv[0], (char **)argv, nullptr) == -1) {
-                    perror("Failed to execve in child process [%m]");
-                    return -1;
-                }
-            }
-            return result;
-        }
-
-        bool done() {
-            int status;
-            return (waitpid(pid_, &status, WNOHANG) != 0;
-        }
-
-        ExitCode waitForExit() {
-            int status;
-            if (waitpid(pid_, &status, 0) != 0) 
-               throw "OS_ERROR";
-            return WEXITSTATUS(status);
-        }
-
-    private:
-        Process(pid_t pid): pid_{pid} {}
-
-        pid_t pid_;
-#endif
-    }; // proces::Process
 
     class Command {
     public:
@@ -86,6 +48,24 @@ namespace utils {
             return *this;
         }
 
+		/** Returns the command as an argv array. 
+
+		    If the array is not used in a fork() call, it must be disposed of properly, but its elements should not be deleted themselvs as they are pointers to the c string stored in the command itself. 
+
+			The length of the array is number of arguments of the command + 2, where the first argument is the command itself, and the last argument is nullptr, as the standard requires. 
+		 */
+		char** toArgv(int & argc) const {
+            argc = args_.size() + 2;
+			char** args = new char* [argc];
+			args[0] = const_cast<char*>(cmd_.c_str());
+			for (size_t i = 0; i < args_.size(); ++i)
+				args[i + 1] = const_cast<char*>(args_[i].c_str());
+
+			args[args_.size() + 1] = nullptr;
+			return args;
+		}
+
+
     private:
 
         std::string cmd_;
@@ -93,6 +73,68 @@ namespace utils {
         std::string wd_;
 
     }; // utils::Command
+
+#ifdef FOO
+    class Process {
+    public:
+#if (defined ARCH_LINUX)
+        using ExitCode = int;
+
+        static Process start(Command const & cmd) {
+            Process result{fork()};
+            if (result.pid_ == 0) {
+                // change working directory is specified 
+                if (!cmd.workingDirectory().empty())
+                    if (chdir(cmd.workingDirectory().c_str() != 0))
+                        perror("failed to chdir");
+                // set the 
+                int argc;
+                char ** argv = cmd.toArgv(argc);
+                if (execvp(argv[0], (char **)argv, nullptr) == -1) {
+                    perror("Failed to execve in child process [%m]");
+                    return -1;
+                }
+            }
+            return result;
+        }
+
+        bool done() {
+            int status;
+            return (waitpid(pid_, &status, WNOHANG) != 0);
+        }
+
+        ExitCode waitForExit() {
+            int status;
+            if (waitpid(pid_, &status, 0) != 0) 
+               throw "OS_ERROR";
+            return WEXITSTATUS(status);
+        }
+
+    private:
+        Process(pid_t pid): pid_{pid} {}
+
+        pid_t pid_;
+#endif
+    }; // utils::Process
+
+
+    /** Executes the given command, waits for its trmination and returns the exit code. 
+     */
+    inline ExitCode exec(Command const & cmd) {
+        return Process::start(cmd).waitForExit();
+    }
+
+    /** Executes the given command and captures its output. 
+    */
+    inline ExitCode exec(Command const & cmd, std::string & output) {
+        UNIMPLEMENTED;
+
+    }
+
+    
+
+    #endif
+
 
 
 } // namespace utils
@@ -545,10 +587,5 @@ HELPERS_NAMESPACE_BEGIN
     }
 
 HELPERS_NAMESPACE_END
-
-
-#endif
-
-
 
 #endif // FOO
