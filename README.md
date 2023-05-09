@@ -10,15 +10,29 @@ The _RCkid_ uses the RPi to run all the user interactive software, libretro via 
 
 The `ATTiny` then manages the analog inputs (joystick, voltages, temperatures), multiplexed buttons (Dpad, Select & Start) and the Home/Power button. It is also responsible for the rumbler and the RGB LED as well as charging, battery management and a real-time clock. 
 
-## BOM
+# Developing
 
-Part                 | Quantity | Link 
----------------------|----------|------
-Rpi Zero 2W          | 1        |
-ATTiny1616           | 1        | (ATTiny3216 would work too)
-ILI9341 320x240 SPI  | 1        |
-Tactile Switch       | 9        |
-NRF24L01P+           | 1        | Any module should work (*)
+> For building the RaspberryPi SD Card image see the [IMAGE.md](sd/IMAGE.md). This section deals with the active development setup. It has been tested on Windows 11, WSL Ubuntu 20. 
+
+    git clone https://github.com/zduka/rckid-raylib.git
+    cd rckid-raylib/src
+    make PLATFORM=PLATFORM_DESKTOP
+    cd ../..
+    git clone https://github.com/zduka/rckid.git
+    mkdir rckid/build
+    cd rckid/build
+    cmake ..
+
+
+
+
+
+
+
+
+
+
+
 
 ## SD Card Preparation
 

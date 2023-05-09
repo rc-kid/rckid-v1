@@ -32,7 +32,7 @@ include_directories(${EVDEV_INCLUDE_DIR})
 
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
-include_directories(${CMAKE_SOURCE_DIR}/../raylib/src)
+include_directories(${CMAKE_SOURCE_DIR}/../rckid-raylib/src)
 
 if(CMAKE_VERSION VERSION_LESS "3.7.0")
     set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -46,8 +46,8 @@ if(DEFINED ARCH_RPI)
     find_library(BCM_LIBRARY libbcm_host.so HINTS /opt/vc/lib)
     find_library(ATOMIC_LIBRARY libatomic.so.1 HINTS /usr/lib/arm-linux-gnueabihf)
     # the following libraries are needed for the KMS drivers
-    find_library(DRM_LIBRARY libdrm.so HINTS /opt/vc/lib)
-    find_library(GBM_LIBRARY libgbm.so HINTS /opt/vc/lib)
+    # find_library(DRM_LIBRARY libdrm.so HINTS /opt/vc/lib)
+    # find_library(GBM_LIBRARY libgbm.so HINTS /opt/vc/lib)
         #find_path(PIGPIO_INCLUDE_DIR 
     #        NAMES pigpio.h pigpiod_if.h pigpiod_if2.h
     #        HINTS /usr/local/include)        
@@ -63,7 +63,7 @@ add_executable(rckid ${SRC})
 target_link_libraries(rckid ${EVDEV_LIBRARY})
 target_link_libraries(rckid Threads::Threads)
 target_link_libraries(rckid 
-    ${CMAKE_SOURCE_DIR}/../raylib/src/libraylib.a 
+    ${CMAKE_SOURCE_DIR}/../rckid-raylib/src/libraylib.a 
     ${M_LIBRARY} 
     ${DL_LIBRARY} 
     ${RT_LIBRARY})
@@ -75,8 +75,8 @@ if(DEFINED ARCH_RPI)
         ${BCM_LIBRARY}
         ${ATOMIC_LIBRARY}
         # the following libraries are needed for the KMS drivers
-        ${DRM_LIBRARY}
-        ${GBM_LIBRARY}
+        # ${DRM_LIBRARY}
+        # ${GBM_LIBRARY}
         wiringPi)
 else()
     target_link_libraries(rckid ${GL_LIBRARIES})

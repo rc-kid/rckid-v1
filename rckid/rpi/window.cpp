@@ -54,8 +54,8 @@ Window::Window() {
 }
 
 void Window::startRendering() {
-    //InitWindow(320, 240, "RCKid");
-    InitWindow(640, 480, "RCKid");
+    InitWindow(320, 240, "RCKid");
+    //InitWindow(640, 480, "RCKid");
     SetTargetFPS(60);
     rendering_ = true;
     if (! IsWindowReady())

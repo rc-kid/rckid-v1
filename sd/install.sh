@@ -44,8 +44,8 @@ pip3 install https://github.com/mraardvark/pyupdi/archive/master.zip
 
 
 # Install raylib
-git clone --depth=1 https://github.com/raysan5/raylib.git
-cd raylib/src
+git clone --depth=1 https://github.com/zduka/rckid-raylib.git
+cd rckid-raylib/src
 make PLATFORM=PLATFORM_RPI
 cd ~/rckid
 
