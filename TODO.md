@@ -50,9 +50,8 @@
 
 ## RPI - RayLib
 
+- remove the enabling and disabling rendering, switch to controlled transparency
 
-- dispmanx can perhaps help with acquiring the display and compositing rckid over what exists there 
-- can't render over video or games (!!)
 - key repeat is too fast
 
 - add == to Value and double parsing
@@ -88,10 +87,6 @@
 
 - can control easily via Telegram by sending messages and stuff to bot channels (!)
 - heart bar for time spent, track time spent when widgets are in foreground
-
-
-- shortcuts do not seem to be working reliably on the quickest of tests, the window on & off when playing games is also a bit flaky, wait for real hw
-
 
 ## RPI - System
 

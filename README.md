@@ -10,7 +10,7 @@ The _RCkid_ uses the RPi to run all the user interactive software, libretro via 
 
 The `ATTiny` then manages the analog inputs (joystick, voltages, temperatures), multiplexed buttons (Dpad, Select & Start) and the Home/Power button. It is also responsible for the rumbler and the RGB LED as well as charging, battery management and a real-time clock. 
 
-# Developing
+## Developing
 
 > For building the RaspberryPi SD Card image see the [IMAGE.md](sd/IMAGE.md). This section deals with the active development setup. It has been tested on Windows 11, WSL Ubuntu 20. 
 
@@ -23,19 +23,15 @@ The `ATTiny` then manages the analog inputs (joystick, voltages, temperatures), 
     cd rckid/build
     cmake ..
 
+## Basic Operation
 
+The `fbcp-ili9341` runs in its own process and is responsible for displaying the contents of the framebuffer on the SPI display.
 
+> The display will freeze if someone changes the display properties. This seems to not happen if all apps run as `pi` (no root), but might be investigated further. 
 
+The `rckid` app controls the UI, communicates with the AVR and creates and manages the virtual joystick and keyboard that is used to control the external applications. It uses a patched version of [raylib](https://github.com/zduka/rckid-raylib) that displays the UI at a level that will display itself over the 3rd party apps for videos and games. 
 
-
-
-
-
-
-
-
-## SD Card Preparation
-
+`vlc` and `retroarch` are used for playing videos and games respectively. They are launched by the ui and then controlled via the libevdev virtual gamepad and keyboard. 
 
 
 ### Prepare the RPi image

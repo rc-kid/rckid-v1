@@ -190,7 +190,7 @@ void Window::draw() {
     redrawDelta_ = static_cast<float>((t - lastDrawTime_) * 1000);
     bool aend = swap_.update(this);
     lastDrawTime_ = t;
-    ClearBackground(BLACK);
+    ClearBackground(ColorAlpha(BLACK, 0.0));
     // draw the widget
     if (widget_ != nullptr)
         widget_->draw();

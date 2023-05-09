@@ -2,10 +2,13 @@
 Description=RCKId window
 Before=sysinit.target
 After=local-fs.target
+Wants=ili9341.service
 DefaultDependencies=no
 
 [Service]
 Type=simple
+User=pi
+Group=pi
 ExecStart=/home/pi/rckid/build/rpi/rckid
 WorkingDirectory=/home/pi/rckid
 #Restart=on-failure

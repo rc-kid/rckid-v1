@@ -65,3 +65,11 @@ sudo cp sd/99-rckid-gamepad.rules /etc/udev/rules.d/99-rckid-gamepad.rules
 sudo cp sd/autostart.sh /opt/retropie/configs/all/autostart.sh
 #cp sd/.xinitrc /home/pi/.xinitrc
 #sudo cp sd/.xinitrc /root/.xinitrc
+
+
+# allow the pi user to add the joystick device
+sudo chown pi /dev/uinput
+
+# create the contents directory
+sudo mkdir /rckid
+sudo chown pi /rckid
