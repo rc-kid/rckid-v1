@@ -27,17 +27,21 @@ protected:
     bool rendering = true;
 
     void onFocus() override {
+        /*
         if (rendering) {
             window()->stopRendering();
             rendering = false;
         }
+        */
     }
 
     void onBlur() override {
+        /*
         if (!rendering) {
             window()->startRendering();
             rendering = true;
         }
+        */
     }
 
     void draw() override {
@@ -52,26 +56,22 @@ protected:
 
     }
 
-    void btnA(bool state) override {
-        if (state) {
-            if (rendering)
-                window()->stopRendering();
-            else
-                window()->startRendering();
-            rendering = ! rendering;
+    void btnX(bool state) override {
+        if (state && rendering) {
+            std::cout << "Button X pressed" << std::endl;
+            window()->stopRendering();
+            rendering = false;
         }
     }
 
-    void btnB(bool state) override {
+    void btnY(bool state) override {
+        if (state && !rendering) {
+            std::cout << "Button Y pressed" << std::endl;
+            window()->startRendering();
+            rendering = true;
+        }
         
     }
 
-    void btnX(bool state) override {
-
-    }
-
-    void btnY(bool state) override {
-
-    }
 
 }; // RetroArch

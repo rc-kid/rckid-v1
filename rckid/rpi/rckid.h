@@ -79,7 +79,7 @@ public:
 
     static constexpr uint8_t BTN_DEBOUNCE_DURATION = 2;
 
-    static constexpr uint8_t BTN_AUTOREPEAT_DURATION = 10;
+    static constexpr uint8_t BTN_AUTOREPEAT_DURATION = 20;
 
     /** Initializes the RCKid driver. 
 

@@ -71,7 +71,7 @@ protected:
 
     void dpadLeft(bool state) {
         if (state) 
-            x_ = (--x_) % COLS;
+            x_ = (x_ == 0) ? (COLS - 1) : --x_ % COLS;
     }
 
     void dpadRight(bool state) {
@@ -81,7 +81,7 @@ protected:
 
     void dpadUp(bool state) {
         if (state)
-            y_ = (--y_) % ROWS;
+            y_ = (y_ == 0) ? (ROWS - 1) : --y_ % ROWS;
     }
 
     void dpadDown(bool state) {
@@ -125,8 +125,8 @@ private:
     };
 
     size_t keyBank_ = 0;
-    unsigned x_ = 0;
-    unsigned y_ = 0;    
+    int x_ = 0;
+    int y_ = 0;    
 
     Animation cursor_;
     Font f_;

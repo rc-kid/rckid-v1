@@ -31,7 +31,7 @@ mkdir build
 cd build
 cmake -DILI9341=ON -DARMV8A=ON -DGPIO_TFT_DATA_CONTROL=22 -DGPIO_TFT_RESET_PIN=27 -DSPI_BUS_CLOCK_DIVISOR=10 -DDISPLAY_ROTATE_180_DEGREES=ON -DSTATISTICS=0 ..
 make -j
-cd ../../rckid
+cd ~/rckid
 # enable as service so that the driver starts after reboot
 sudo cp ~/rckid/sd/ili9341.service /lib/systemd/system/ili9341.service
 sudo systemctl enable ili9341
@@ -41,7 +41,17 @@ python3 -c "$(curl -fsSL https://raw.githubusercontent.com/platformio/platformio
 sudo apt-get -y install python3-pip
 pip3 install https://github.com/mraardvark/pyupdi/archive/master.zip
 
+
+
+# Install raylib
+git clone --depth=1 https://github.com/raysan5/raylib.git
+cd raylib/src
+make PLATFORM=PLATFORM_RPI
+cd ~/rckid
+
+
 # Build rckid driver and main app from the repo. Build on single core so that we do not OOME, memory on RPi Zero is at premium. 
+cd ~/rckid
 mkdir build
 cd build
 cmake .. -DARCH_RPI= -DCMAKE_BUILD_TYPE=Release
@@ -49,6 +59,7 @@ make
 # add the udev rule for the gamepad
 cd ..
 sudo cp sd/99-rckid-gamepad.rules /etc/udev/rules.d/99-rckid-gamepad.rules
+
 
 # Turn off default retropie startup, instead start X with rckid as the only app
 #sudo cp sd/autostart.sh /opt/retropie/configs/all/autostart.sh

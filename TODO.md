@@ -18,6 +18,8 @@
 
 ## PCB
 
+- wrong holes wrt center of the joystick
+
 - should the ps1000 hole be permanent?, likely yes - might also prevent the joycon encosure wobble 
 - move the trace away from the ps1000 hole too
 - enlarge L and R vertical pin hole pads
@@ -45,6 +47,9 @@
 - ensure that the modes and powering on & off works reliably so that we can switch off the I2C display and test comms
 
 ## RPI - RayLib
+
+- can't render over video or games (!!)
+- key repeat is too fast
 
 - add == to Value and double parsing
 
