@@ -19,11 +19,13 @@
 ## PCB
 
 - wrong holes wrt center of the joystick
+- not enough room for the battery
 
 - should the ps1000 hole be permanent?, likely yes - might also prevent the joycon encosure wobble 
 - move the trace away from the ps1000 hole too
 - enlarge L and R vertical pin hole pads
 - VCC test point
+- joystick button test point
 - proper hole for the thumbstick
 
 - check NRF24, check RGB, check rumbler
@@ -48,6 +50,8 @@
 
 ## RPI - RayLib
 
+
+- dispmanx can perhaps help with acquiring the display and compositing rckid over what exists there 
 - can't render over video or games (!!)
 - key repeat is too fast
 

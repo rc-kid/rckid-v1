@@ -20,7 +20,7 @@ sudo systemctl disable avahi-daemon
 sudo systemctl disable nmbd.service
 sudo systemctl disable smbd.service
 # also disable bluetooth
-sudo systemctl disable hciuart-service
+sudo systemctl disable hciuart.service
 sudo systemctl disable bluetooth-service
 
 # get the ili9341 driver and build it

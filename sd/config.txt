@@ -11,16 +11,15 @@ dtparam=i2c_arm=on,i2c_arm_baudrate=400000
 # Enable SPI 1 used for NRF, set cs0 pin. We do not enable SPI0 as that is used by the framebuffer display driver direcly and does not need to be setup
 dtoverlay=spi1-1cs,cs0_pin=44
 
-# Enable the UART and disable bluetooth to make sure that we use the full UART on programming the AVR (does not work with the simple one). Use these settings when flashing the bootloader on the AVR chip. 
-#enable_uart=1
-#dtoverlay=disable-bt
-
 # Disable UART so that its pins can be used for the buttons and to tell the AVR rpi is off.  
-#enable_uart=0
+enable_uart=0
 
 # Enable audio (loads snd_bcm2835) and set PWM outputs on alternate pins
 dtparam=audio=on
 dtoverlay=audremap,enable_jack=on
+
+# enable the poweroff notification on pin 
+dtoverlay=gpio-poweroff,gpiopin=24
 
 # Make booting a bit faster, disable splash, disable boot delay and overclock the SD card for faster disk 
 disable_splash=1
@@ -42,11 +41,15 @@ gpu_mem=128
 [pi4]
 # Enable DRM VC4 V3D driver on top of the dispmanx display stack
 #dtoverlay=vc4-fkms-v3d
-max_framebuffers=2
+#max_framebuffers=2
 
 [all]
 #dtoverlay=vc4-fkms-v3d
 #gpu_mem_256=128
 #gpu_mem_512=256
 #gpu_mem_1024=256
-overscan_scale=1
+#overscan_scale=1
+
+# Enable the UART and disable bluetooth to make sure that we use the full UART on programming the AVR (does not work with the simple one). Use these settings when flashing the bootloader on the AVR chip. 
+#enable_uart=1
+#dtoverlay=disable-bt
