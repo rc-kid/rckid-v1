@@ -49,7 +49,10 @@
 
 ## RPI - RayLib
 
-- switch to controlled transparency
+
+- mask framebuffer with black
+- can't send keyboard to vlc, could be hotkeys interface not supported on non-X stuff
+- retroarch mapping is beyond weird - not sure how to fix
 
 - key repeat is too fast
 
@@ -88,8 +91,6 @@
 
 - webserver from the app - see https://github.com/yhirose/cpp-httplib ?
 - piano as app?
-
-
 
 ## RPI - System
 

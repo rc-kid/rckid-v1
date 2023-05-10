@@ -42,6 +42,8 @@ Window::Window() {
     helpFont_ = loadFont(HELP_FONT, 16);
     headerFont_ = loadFont(HELP_FONT, 20);
     menuFont_ = loadFont(MENU_FONT, MENU_FONT_SIZE);
+    background_ = LoadTexture("assets/backgrounds/unicorns-black.png");
+
     InitAudioDevice();
 
     rckid_ = new RCKid{this};
@@ -189,11 +191,13 @@ void Window::draw() {
             break;
         case Transition::FadeOut:
             DrawRectangle(0, 0, Window_WIDTH, Window_HEIGHT, ColorAlpha(BLACK, swap_.interpolate(0.0f, 1.0f, Interpolation::Linear)));
+            EndBlendMode();
             if (aend)
                 swapWidget();
             break;
         case Transition::FadeIn:
             DrawRectangle(0, 0, Window_WIDTH, Window_HEIGHT, ColorAlpha(BLACK, swap_.interpolate(1.0f, 0.0f, Interpolation::Linear)));
+            EndBlendMode();
             if (aend) 
                 transition_ = Transition::None;
             break;

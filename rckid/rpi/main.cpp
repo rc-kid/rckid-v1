@@ -24,11 +24,11 @@ int main(int argc, char * argv[]) {
     Window window;
     Menu menu{{
         //new Menu::Item{"Games", "assets/images/001-game-controller.png"},
-        new WidgetItem{"Games", "assets/images/001-game-controller.png", new VideoPlayer{&window}},
+        new WidgetItem{"Games", "assets/images/001-game-controller.png", new GamePlayer{&window}},
+        new WidgetItem{"Video", "assets/images/005-film-slate.png", new VideoPlayer{&window}},
+        new WidgetItem{"Music", "assets/images/003-music.png", new MusicPlayer{&window}},
+        //new JSONItem{"Music", "assets/images/003-music.png", "/rckid/music/folder.json", &window},
         new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
-        new Menu::Item{"Video", "assets/images/005-film-slate.png"},
-        //new Menu::Item{"Music", "assets/images/003-music.png"},
-        new JSONItem{"Music", "assets/images/003-music.png", "/rckid/music/folder.json", &window},
         new Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
         new SubmenuItem{"Apps", "assets/images/023-presents.png", {
             new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},

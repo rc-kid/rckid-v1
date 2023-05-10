@@ -28,14 +28,16 @@ ffmpeg -i /mnt/c/Users/petam/Music/incomplete/c64/Christian\ Schüler\ -\ Druid\
 protected:
 
     void draw() override {
+        UpdateMusicStream(track_);         
     }
 
-    void onFocus() override {
+    void onNavigationPush() override {
         track_ = LoadMusicStream("/rckid/xxx.mp3");
         PlayMusicStream(track_);
     }
 
-    void onBlur() override {
+    void onNavigationPop() override {
+        StopMusicStream(track_);
         UnloadMusicStream(track_);
     }
 

@@ -28,7 +28,7 @@ protected:
     }
 
     void onNavigationPush() override {
-        player_ = utils::Process::start(utils::Command{"cvlc", { "/rckid/videos/test.mpg"}});
+        player_ = utils::Process::start(utils::Command{"cvlc", { "-I", "hotkeys", "/rckid/videos/test.mkv"}});
     }
 
     void onNavigationPop() override {

@@ -5,6 +5,9 @@
 
 #include "platform/platform.h"
 
+#include "utils/process.h"
+
+
 /** Retroarch client for a single game. 
  
     This is how to start a game:
@@ -23,44 +26,21 @@ public:
     bool fullscreen() const { return true; }
 
 protected:
-
-    bool rendering = true;
-
-    void onFocus() override {
-        /*
-        if (rendering) {
-            window()->stopRendering();
-            rendering = false;
-        }
-        */
-    }
-
-    void onBlur() override {
-        /*
-        if (!rendering) {
-            window()->startRendering();
-            rendering = true;
-        }
-        */
-    }
-
     void draw() override {
-
+        if (emulator_.done())
+            window()->back();
     }
 
-    void btnL(bool state) override {
-
+    void onNavigationPush() override {
+        emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "-L", "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so", "/rckid/games/game.gbc"}});
     }
 
-    void btnR(bool state) override {
-
+    void onNavigationPop() override {
+        if (!emulator_.done())
+            emulator_.kill();
     }
 
-    void btnX(bool state) override {
-    }
-
-    void btnY(bool state) override {
-    }
-
+    utils::Process emulator_;
+    
 
 }; // RetroArch

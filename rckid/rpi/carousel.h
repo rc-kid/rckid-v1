@@ -15,7 +15,6 @@ public:
     Carousel(Window * window):
         Widget{window},
         animation_{500} {
-        background_ = LoadTexture("assets/backgrounds/unicorns-black.png");
     }
 
     Menu * items() const { return items_; }
@@ -40,6 +39,7 @@ protected:
             transition_ = Transition::Left;
             moveLeft();
             animation_.start();
+            seamStart_ = window()->backgroundSeam();
         }
     }
 
@@ -50,6 +50,7 @@ protected:
             transition_ = Transition::Right;
             moveRight();
             animation_.start();
+            seamStart_ = window()->backgroundSeam();
         }
     }
 
@@ -67,22 +68,16 @@ protected:
         DrawTexture(item->img(), (Window_WIDTH - item->img().width) / 2 + ximg, (Window_HEIGHT - item->img().height - MENU_FONT_SIZE) / 2 + 10, tint);
         DrawTextEx(window()->menuFont(), item->title().c_str(), (Window_WIDTH - item->titleWidth()) / 2 + xtext, Window_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, tint);
     }
-    void drawBackground(int x) {
-        int seam = adjustBackgroundSeam(backgroundSeam_ + x / 4.0);
-        DrawTexture(background_, seam - 320, 0, ColorAlpha(WHITE, 0.3));
-        DrawTexture(background_, seam, 0, ColorAlpha(WHITE, 0.3));
-    }
 
     void draw() override {
         if (items_ == nullptr)
             return;
         if (animation_.update(window())) {
-            backgroundSeam_ = adjustBackgroundSeam(backgroundSeam_ + ((transition_ == Transition::Left) ? 80 : -80));
             transition_ = Transition::None;
         }
         switch (transition_) {
             case Transition::None: {
-                drawBackground(0);
+                window()->drawBackground();
                 drawItem(current(), 0, 0);
                 return; // no need to close animation
             }
@@ -91,11 +86,11 @@ protected:
                 int imgi = animation_.interpolate(0, Window_WIDTH);
                 int texti = animation_.interpolate(0, Window_WIDTH * 2);
                 if (transition_ == Transition::Left) {
-                    drawBackground(imgi);
+                    window()->drawBackground(seamStart_ + imgi / 4);
                     drawItem(next(), imgi, texti);
                     drawItem(current(),  - Window_WIDTH + imgi, - Window_WIDTH * 2 + texti);
                 } else {
-                    drawBackground(- imgi);
+                    window()->drawBackground(seamStart_ - imgi / 4);
                     drawItem(prev(), - imgi, - texti);
                     drawItem(current(), Window_WIDTH - imgi, Window_WIDTH * 2 - texti);
                 }
@@ -118,14 +113,6 @@ protected:
 
 private:
 
-    int adjustBackgroundSeam(int value) {
-        if (value > 320)
-            value -= 320;
-        else if (value < 0)
-            value += 320;
-        return value;
-    }
-
     Menu * items_ = nullptr;
     size_t i_ = 0;
 
@@ -137,6 +124,6 @@ private:
     Transition transition_ = Transition::None;
     Animation animation_;
 
-    Texture2D background_;
-    int backgroundSeam_ = 160;
+    int seamStart_;
+
 }; // Carousel
