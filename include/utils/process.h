@@ -15,6 +15,10 @@ namespace utils {
     class Command {
     public:
 
+        Command(std::string_view cmd):
+            cmd_{cmd} {
+        }
+
         Command(std::string_view cmd, std::initializer_list<std::string_view> args):
             cmd_{cmd},
             args_{str::vector(args)} {
@@ -74,28 +78,33 @@ namespace utils {
 
     }; // utils::Command
 
-#ifdef FOO
     class Process {
     public:
 #if (defined ARCH_LINUX)
         using ExitCode = int;
+
+        Process(): pid_{-1} {}
 
         static Process start(Command const & cmd) {
             Process result{fork()};
             if (result.pid_ == 0) {
                 // change working directory is specified 
                 if (!cmd.workingDirectory().empty())
-                    if (chdir(cmd.workingDirectory().c_str() != 0))
+                    if (chdir(cmd.workingDirectory().c_str()) != 0)
                         perror("failed to chdir");
                 // set the 
                 int argc;
                 char ** argv = cmd.toArgv(argc);
-                if (execvp(argv[0], (char **)argv, nullptr) == -1) {
+                if (execvp(argv[0], (char **)argv) == -1) {
                     perror("Failed to execve in child process [%m]");
                     return -1;
                 }
             }
             return result;
+        }
+
+        void kill() {
+            ::kill(pid_, 9);
         }
 
         bool done() {
@@ -114,27 +123,26 @@ namespace utils {
         Process(pid_t pid): pid_{pid} {}
 
         pid_t pid_;
+#else
+#error "UNIMPLEMENTED"
 #endif
     }; // utils::Process
 
 
     /** Executes the given command, waits for its trmination and returns the exit code. 
      */
-    inline ExitCode exec(Command const & cmd) {
+    inline Process::ExitCode exec(Command const & cmd) {
         return Process::start(cmd).waitForExit();
     }
 
     /** Executes the given command and captures its output. 
     */
-    inline ExitCode exec(Command const & cmd, std::string & output) {
+    inline Process::ExitCode exec(Command const & cmd, std::string & output) {
         UNIMPLEMENTED;
 
     }
 
     
-
-    #endif
-
 
 
 } // namespace utils

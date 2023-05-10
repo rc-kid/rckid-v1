@@ -20,7 +20,7 @@ public:
 
     GamePlayer(Window * window): Widget{window} {}
 
-   bool fullscreen() const { return true; }
+    bool fullscreen() const { return true; }
 
 protected:
 
@@ -57,20 +57,9 @@ protected:
     }
 
     void btnX(bool state) override {
-        if (state && rendering) {
-            std::cout << "Button X pressed" << std::endl;
-            window()->stopRendering();
-            rendering = false;
-        }
     }
 
     void btnY(bool state) override {
-        if (state && !rendering) {
-            std::cout << "Button Y pressed" << std::endl;
-            window()->startRendering();
-            rendering = true;
-        }
-        
     }
 
 

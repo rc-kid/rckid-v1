@@ -12,15 +12,14 @@
 class Window;
 class Widget;
 
-class Menu : public WindowElement {
+class Menu {
 public:
 
     class Item;
 
-    Menu(Window * window): WindowElement{window} {};
+    Menu() = default;
 
-    Menu(Window * window, std::initializer_list<Item*> items):
-        WindowElement{window}, 
+    Menu(std::initializer_list<Item*> items):
         items_{items} {
     }
 
@@ -43,9 +42,7 @@ protected:
     virtual void onFocus() {}
 
     virtual void onBlur() {}
-
-    void onRenderingPaused() override;
-
+    
 private:
     std::vector<Item*> items_;    
 }; // Menu
@@ -108,14 +105,13 @@ private:
  */
 class SubmenuItem : public Menu::Item {
 public:
-    SubmenuItem(std::string const & title, std::string const & imgFile, Window * window, std::initializer_list<Menu::Item *> items):
+    SubmenuItem(std::string const & title, std::string const & imgFile, std::initializer_list<Menu::Item *> items):
         Menu::Item{title, imgFile},
-        submenu_{window, items} {
+        submenu_{items} {
     }
 
-    SubmenuItem(std::string const & title, std::string const & imgFile,Window * window, std::function<void(Window *, SubmenuItem *)> updater):
+    SubmenuItem(std::string const & title, std::string const & imgFile, std::function<void(Window *, SubmenuItem *)> updater):
         Menu::Item{title, imgFile},
-        submenu_{window},
         updater_{updater} {
     }
 
@@ -144,7 +140,7 @@ class JSONItem : public Menu::Item {
 public:
     JSONItem(std::string const & title, std::string const & imgFile, std::string const & jsonFile, Window * window):
         Item{title, imgFile},
-        submenu_{jsonFile, window} {
+        submenu_{jsonFile} {
     }
 
     Menu & submenu() { return submenu_; }
@@ -153,7 +149,7 @@ protected:
 
     class JSONMenu : public Menu {
     public:
-        JSONMenu(std::string const & jsonFile, Window * window): Menu{window}, jsonFile_{jsonFile} {};
+        JSONMenu(std::string const & jsonFile): jsonFile_{jsonFile} {};
 
     protected:
 

@@ -38,7 +38,6 @@
 
 ## AVR
 
-- debug display seems to be either not working or not used
 - check that long home works in repair mode as well
 - add low and critical battery warnings and proper actions
 - add effects for rumbler & rgb 
@@ -50,7 +49,7 @@
 
 ## RPI - RayLib
 
-- remove the enabling and disabling rendering, switch to controlled transparency
+- switch to controlled transparency
 
 - key repeat is too fast
 
@@ -62,13 +61,11 @@
 
 - modal errors & stuff
 
-- add background to menu 
 - keep icon instead of text in gauges
 
 - header
 - add a way for the menu / submenu to detect it's been detached
 - add torchlight widget
-- webserver from the app - see https://github.com/yhirose/cpp-httplib ?
 
 - how to configure, via JSON I guess,
 - samba on demand? etc.
@@ -82,11 +79,17 @@
 - if there are errors during startup a way to show them
 - debounce buttons
 
-- piano as app?
 - sound recorder as app?  
 
 - can control easily via Telegram by sending messages and stuff to bot channels (!)
 - heart bar for time spent, track time spent when widgets are in foreground
+
+> Low priority (or even abandoned)
+
+- webserver from the app - see https://github.com/yhirose/cpp-httplib ?
+- piano as app?
+
+
 
 ## RPI - System
 

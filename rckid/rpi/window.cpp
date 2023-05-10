@@ -35,9 +35,18 @@ int FooterItem::draw(Window * window, int x, int y) const {
 
 
 Window::Window() {
+    InitWindow(320, 240, "RCKid");
+    SetTargetFPS(60);
+    if (! IsWindowReady())
+        TraceLog(LOG_ERROR, "Unable to initialize window");
+    helpFont_ = loadFont(HELP_FONT, 16);
+    headerFont_ = loadFont(HELP_FONT, 20);
+    menuFont_ = loadFont(MENU_FONT, MENU_FONT_SIZE);
+    InitAudioDevice();
+
     rckid_ = new RCKid{this};
     carousel_ = new Carousel{this};
-    homeMenu_ = new Menu{this, {
+    homeMenu_ = new Menu{{
         new Menu::Item{"Power Off", "assets/images/011-power-off.png"},
         new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
         new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{this, 
@@ -51,34 +60,8 @@ Window::Window() {
         new Menu::Item{"WiFi", "assets/images/016-wifi.png"},
         new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{this}},
     }};
-}
-
-void Window::startRendering() {
-    InitWindow(320, 240, "RCKid");
-    //InitWindow(640, 480, "RCKid");
-    SetTargetFPS(60);
-    rendering_ = true;
-    if (! IsWindowReady())
-        TraceLog(LOG_ERROR, "Unable to initialize window");
-    helpFont_ = loadFont(HELP_FONT, 16);
-    headerFont_ = loadFont(HELP_FONT, 20);
-    menuFont_ = loadFont(MENU_FONT, MENU_FONT_SIZE);
-    InitAudioDevice();
     lastDrawTime_ = GetTime();    
 }
-
-void Window::stopRendering() {
-    // indicate the end of rendering
-    rendering_ = false;
-    // if we are not curently drawing, release all resources...
-    if (!drawing_) {
-        for (WindowElement * e : elements_)
-            e->onRenderingPaused();
-        fonts_.clear();
-        CloseAudioDevice();
-        CloseWindow();
-    }
-} 
 
 Font Window::loadFont(std::string const & filename, int size) {
     auto fname = STR(filename << "--" << size);
@@ -107,7 +90,7 @@ void Window::setWidget(Widget * widget) {
     } else {
         if (widget_ == carousel_)
             nav_.push_back(NavigationItem(carousel_->items(), carousel_->index()));
-        else 
+        else
             nav_.push_back(NavigationItem(widget_));
         transition_ = Transition::FadeOut;
         swap_.start();
@@ -152,6 +135,13 @@ void Window::swapWidget() {
             if (carousel_->items() == homeMenu_)
                 inHomeMenu_ = false;
             carousel_->items()->onBlur();
+        } else {
+            // widget to widget 
+            if (next_.widget() != nav_.back().widget())
+                widget_->onNavigationPop();
+            // we are going from a non-carousel item to menu
+            else if (widget_ != carousel_ && next_.menu() != nullptr)
+                widget_->onNavigationPop();
         }
     }
     if (next_.kind == NavigationItem::Kind::Menu) {
@@ -161,6 +151,7 @@ void Window::swapWidget() {
             inHomeMenu_ = true;
     } else {
         widget_ = next_.widget();
+        widget_->onNavigationPush();
     }
     resetFooter();
     widget_->onFocus();
@@ -174,17 +165,15 @@ void Window::loop() {
     Event e;
     while (true) {
 #if (defined ARCH_MOCK)
-        //if (WindowShouldClose())
-        //    break;
+        if (WindowShouldClose())
+            break;
 #endif
         rckid_->loop();
-        if (rendering_)
-            draw();
+        draw();
     }
 }
 
 void Window::draw() {
-    drawing_ = true;
     BeginDrawing();
     double t = GetTime();
     redrawDelta_ = static_cast<float>((t - lastDrawTime_) * 1000);
@@ -217,14 +206,7 @@ void Window::draw() {
         drawFooter();
     // and we are done
     EndDrawing();
-    drawing_ = false;
-    // if rendering is off, it has been disabled while drawing, perform the resource release now
-    if (rendering_ == false) 
-        stopRendering();
 }
-
-
-
 
 void Window::drawHeader() {
     //DrawFPS(0,0);

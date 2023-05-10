@@ -82,12 +82,6 @@ public:
 
     RCKid * rckid() { return rckid_; }
 
-    void startRendering();
-
-    bool rendering() const { return rendering_; }
-
-    void stopRendering();
-
     Font loadFont(std::string const & filename, int size);
 
     void loop(); 
@@ -146,13 +140,11 @@ private:
         Kind kind;
         
         Widget * widget() const {
-            ASSERT(kind == Kind::Widget);
-            return widget_;
+            return kind == Kind::Widget ? widget_ : nullptr;
         }
 
         Menu * menu() const {
-            ASSERT(kind == Kind::Menu);
-            return menu_;
+            return kind == Kind::Menu ? menu_ : nullptr;
         }
 
         size_t menuIndex() const {
@@ -182,14 +174,6 @@ private:
 
         size_t menuIndex_ = 0;
     }; 
-
-    void attach(WindowElement * element) {
-        elements_.insert(element);
-    }
-
-    void detach(WindowElement * element) {
-        elements_.erase(element);
-    }
 
     void draw();
 
@@ -233,12 +217,6 @@ private:
     // the rckid driver
     RCKid * rckid_; 
 
-    /// true if the gui is currently being renderred
-    bool rendering_ = false;
-    /// true if the ui is currently being redrawn
-    bool drawing_ = false;
-
-    std::unordered_set<WindowElement*> elements_;
     std::vector<FooterItem> footer_;
 
     double lastDrawTime_;

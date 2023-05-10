@@ -7,7 +7,11 @@
 
 class Gauge : public Widget {
 public:
-    Gauge(Window * window, std::function<void(int)> onChange): Widget{window}, onChange_{onChange} {}
+    Gauge(Window * window, std::function<void(int)> onChange): Widget{window}, onChange_{onChange} {
+            mask_ = LoadTexture("assets/gauge_mask.png");
+            Vector2 fs = MeasureText(window->menuFont(), title_.c_str(), MENU_FONT_SIZE);
+            titleWidth_ = fs.x;            
+    }
 
     void setValue(int value) {
         if (value < min_)
@@ -23,16 +27,7 @@ public:
 
 protected:
 
-    void onRenderingPaused() override {
-        titleWidth_ = 0;
-    }
-
     void draw() override {
-        if (titleWidth_ == 0) {
-            mask_ = LoadTexture("assets/gauge_mask.png");
-            Vector2 fs = MeasureText(window()->menuFont(), title_.c_str(), MENU_FONT_SIZE);
-            titleWidth_ = fs.x;            
-        }
         int end = value_  > 0 ? 320 * (value_ - min_) / (max_ - min_) : 0;
         int gaugeTop = (Window_HEIGHT - mask_.height - MENU_FONT_SIZE) / 2;
         

@@ -9,11 +9,6 @@ void Menu::clear() {
     items_.clear();
 }
 
-void Menu::onRenderingPaused() {
-    for (Item * i : items_)
-        i->titleWidth_ = Menu::Item::UNINITIALIZED;
-}
-
 void Menu::Item::initialize(Window * window) {
     img_ = LoadTexture(imgFile_.c_str());
     Vector2 fs = MeasureText(window->menuFont(), title_.c_str(), MENU_FONT_SIZE);

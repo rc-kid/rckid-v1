@@ -14,6 +14,9 @@ public:
     using OnDoneEvent = std::function<void(std::string)>;
 
     Keyboard(Window * window): Widget{window}, cursor_{500} {
+        f_ = window->loadFont(MENU_FONT, KEY_HEIGHT);
+        vf_ = window->loadFont(MENU_FONT, 40);
+        cursor_.startContinuous();
     }
 
     std::string prompt;
@@ -28,16 +31,7 @@ protected:
     static constexpr int ROWS = 3;
     static constexpr int COLS = 10;
 
-    void onRenderingPaused() override {
-        cursor_.stop();
-    }
-
     void draw() override {
-        if (!cursor_.running()) {
-            f_ = window_->loadFont(MENU_FONT, KEY_HEIGHT);
-            vf_ = window_->loadFont(MENU_FONT, 40);
-            cursor_.startContinuous();
-        }
 
         cursor_.update(window());
 

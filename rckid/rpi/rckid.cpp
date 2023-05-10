@@ -75,9 +75,9 @@ RCKid::RCKid(Window * window):
     window_{window} {
     gpio::initialize();
     if (!spi::initialize()) 
-        ERROR("Unable to initialize spi (errno " << errno << ")");
+        TraceLog(LOG_ERROR, STR("Unable to initialize spi (errno " << errno << ")"));
     if (!i2c::initializeMaster())
-        ERROR("Unable to initialize i2c (errno " << errno << "), make sure /dev/i2c1 exists");
+        TraceLog(LOG_ERROR, STR("Unable to initialize i2c (errno " << errno << "), make sure /dev/i2c1 exists"));
     RCKid * & i = instance();
     ASSERT(i == nullptr && "RCKid must be a singleton");
     i = this;
@@ -110,20 +110,20 @@ RCKid::RCKid(Window * window):
 
 void RCKid::loop() {
 #if (defined ARCH_MOCK)
-        //if (WindowShouldClose())
-        //    break;
+//        if (WindowShouldClose())
+//            break;
 #endif
-    if (window_->rendering()) {
+//    if (window_->rendering()) {
         while (true) {
             auto event = events_.receive();
             if (!event.has_value())
                 break;
             processEvent(event.value());
         }
-    } else {
-        Event e = events_.waitReceive();
-        processEvent(e);
-    }
+//    } else {
+//        Event e = events_.waitReceive();
+//        processEvent(e);
+//    }
 }
 
 void RCKid::processEvent(Event & e) {
@@ -248,8 +248,12 @@ void RCKid::hwLoop() {
                         break;
                 }
             },
-            [this](SetBrightness arg) {
-                sendAvrCommand(msg::SetBrightness{arg.value});
+            [this](KeyPress e) {
+                libevdev_uinput_write_event(uidev_, EV_KEY, e.key, e.state);
+                libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
+            },
+            [this](auto msg) {
+                sendAvrCommand(msg);
             }
         }, hwEvents_.waitReceive());
     }
@@ -385,32 +389,6 @@ void RCKid::initializeISRs() {
     gpio::attachInterrupt(PIN_BTN_LVOL, gpio::Edge::Both, & isrButtonLVol);
     gpio::attachInterrupt(PIN_BTN_RVOL, gpio::Edge::Both, & isrButtonRVol);
     gpio::attachInterrupt(PIN_BTN_JOY, gpio::Edge::Both, & isrButtonJoy);
-
-    //gpioSetISRFuncEx(PIN_AVR_IRQ, FALLING_EDGE, 0,  (gpioISRFuncEx_t) RCKid::isrAvrIrq, this);
-    //gpioSetISRFuncEx(PIN_HEADPHONES, EITHER_EDGE, 0, (gpioISRFuncEx_t) Driver::isrHeadphonesChange, this);
-    /*
-
-    gpio::inputPullup(PIN_BTN_A);
-    gpio::inputPullup(PIN_BTN_B);
-    gpio::inputPullup(PIN_BTN_X);
-    gpio::inputPullup(PIN_BTN_Y);
-    gpio::inputPullup(PIN_BTN_L);
-    gpio::inputPullup(PIN_BTN_R);
-    gpio::inputPullup(PIN_BTN_SELECT);
-    gpio::inputPullup(PIN_BTN_START);
-#if (defined ARCH_RPI)
-    gpioSetISRFuncEx(PIN_BTN_A, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrButtonChange, & a_);
-    gpioSetISRFuncEx(PIN_BTN_B, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrButtonChange, & b_);
-    gpioSetISRFuncEx(PIN_BTN_X, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrButtonChange, & x_);
-    gpioSetISRFuncEx(PIN_BTN_Y, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrButtonChange, & y_);
-    gpioSetISRFuncEx(PIN_BTN_L, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrButtonChange, & l_);
-    gpioSetISRFuncEx(PIN_BTN_R, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrButtonChange, & r_);
-    gpioSetISRFuncEx(PIN_BTN_SELECT, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrButtonChange, & select_);
-    gpioSetISRFuncEx(PIN_BTN_START, EITHER_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrButtonChange, & start_);
-    gpioSetISRFuncEx(PIN_AVR_IRQ, FALLING_EDGE, 0,  (gpioISRFuncEx_t) Driver::isrAvrIrq, this);
-    gpioSetISRFuncEx(PIN_HEADPHONES, EITHER_EDGE, 0, (gpioISRFuncEx_t) Driver::isrHeadphonesChange, this);
-#endif
-    */
 }
 
 void RCKid::initializeLibevdevGamepad() {
@@ -431,6 +409,13 @@ void RCKid::initializeLibevdevGamepad() {
     libevdev_enable_event_code(dev, EV_KEY, btnR_.evdevId, nullptr);
     libevdev_enable_event_code(dev, EV_KEY, btnSelect_.evdevId, nullptr);
     libevdev_enable_event_code(dev, EV_KEY, btnStart_.evdevId, nullptr);
+    // dpad
+    libevdev_enable_event_code(dev, EV_KEY, btnDpadUp_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnDpadDown_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnDpadLeft_.evdevId, nullptr);
+    libevdev_enable_event_code(dev, EV_KEY, btnDpadRight_.evdevId, nullptr);
+    // thumbstick button
+    libevdev_enable_event_code(dev, EV_KEY, btnJoy_.evdevId, nullptr);
     // enable keys for retroarch and vlc shortcuts
     libevdev_enable_event_code(dev, EV_KEY, RETROARCH_PAUSE, nullptr);
     libevdev_enable_event_code(dev, EV_KEY, RETROARCH_SAVE_STATE, nullptr);
@@ -443,6 +428,7 @@ void RCKid::initializeLibevdevGamepad() {
     libevdev_enable_event_code(dev, EV_KEY, VLC_DELAY_1M, nullptr);
     libevdev_enable_event_code(dev, EV_KEY, VLC_SCREENSHOT, nullptr);
     libevdev_enable_event_code(dev, EV_KEY, VLC_SCREENSHOT_MOD, nullptr);
+
     // enable the thumbstick and accelerometer
     libevdev_enable_event_type(dev, EV_ABS);
     input_absinfo info {
@@ -458,31 +444,25 @@ void RCKid::initializeLibevdevGamepad() {
     libevdev_enable_event_code(dev, EV_ABS, accelX_.evdevId, & info);
     libevdev_enable_event_code(dev, EV_ABS, accelY_.evdevId, & info);
 
-/*
-    libevdev_enable_event_code(dev, EV_KEY, dpadUp_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, dpadDown_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, dpadLeft_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, dpadRight_.evdevId, nullptr);
-    */
 
     int err = libevdev_uinput_create_from_device(dev,
                                             LIBEVDEV_UINPUT_OPEN_MANAGED,
                                             &uidev_);
     if (err != 0) 
-        ERROR("Unable to setup gamepad (result " << err << ", errno: " << errno << ")");
+        TraceLog(LOG_ERROR, STR("Unable to setup gamepad (result " << err << ", errno: " << errno << ")"));
     libevdev_free(dev);
 }
 
 void RCKid::initializeAvr() {
     if (!i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, nullptr, 0))
-        ERROR("AVR not found:" << errno);
+        TraceLog(LOG_ERROR, STR("AVR not found:" << errno));
 }
 
 void RCKid::initializeAccel() {
     if (accel_.deviceIdentification() == 104) {
         accel_.reset();
     } else {
-        ERROR("Accel not found");
+        TraceLog(LOG_ERROR, "Accel not found");
     }
 }
 
@@ -490,7 +470,7 @@ void RCKid::initializeNrf() {
     if (radio_.initialize("TEST1", "TEST2")) {
         radio_.standby();
     } else {
-        ERROR("Radio not found");
+        TraceLog(LOG_ERROR, "Radio not found");
     }
 }
 

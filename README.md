@@ -33,6 +33,12 @@ The `rckid` app controls the UI, communicates with the AVR and creates and manag
 
 `vlc` and `retroarch` are used for playing videos and games respectively. They are launched by the ui and then controlled via the libevdev virtual gamepad and keyboard. 
 
+- [VideoCore APIs](https://elinux.org/Raspberry_Pi_VideoCore_APIs)
+- [DismpanX header](https://github.com/raspberrypi/userland/blob/master/interface/vmcs_host/vc_dispmanx.h)
+- [DispmanX example](https://github.com/raspberrypi/firmware/blob/master/opt/vc/src/hello_pi/hello_dispmanx/dispmanx.c)
+- [RaspiDMX tools](https://github.com/AndrewFromMelbourne/raspidmx/blob/master/common/imageLayer.c)
+
+
 
 ### Prepare the RPi image
 
@@ -57,3 +63,8 @@ When the RCBoy is assembled, the AVR chip is flashed via a custom I2C bootloader
 https://www.flaticon.com/
 
 <div>Icons made by <a href="https://www.flaticon.com/authors/pixel-perfect" title="Pixel perfect">Pixel perfect</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/vectors-market" title="Vectors Market">Vectors Market</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/srip" title="srip">srip</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/monkik" title="monkik">monkik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/aldo-cervantes" title="Aldo Cervantes">Aldo Cervantes</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/smashicons" title="Smashicons">Smashicons</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/umeicon" title="Umeicon">Umeicon</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/bukeicon" title="bukeicon">bukeicon</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/yogi-aprelliyanto" title="Yogi Aprelliyanto">Yogi Aprelliyanto</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/good-ware" title="Good Ware">Good Ware</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/apien" title="apien">apien</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/surang" title="surang">surang</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div><div>Icons made by <a href="https://www.flaticon.com/authors/chahir" title="chahir">chahir</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>
+
+
+
+
+https://www.vecteezy.com/vector-art/4998362-seamless-rainbow-pattern-with-unicorns-hearts-crowns-and-stars-on-a-dark-background

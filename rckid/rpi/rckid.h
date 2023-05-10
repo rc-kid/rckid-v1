@@ -15,12 +15,6 @@
 #include "common/comms.h"
 #include "events.h"
 
-// TODO change log and error to something more meaningful
-
-#include <iostream>
-#define LOG(...) std::cout << __VA_ARGS__ << std::endl
-#define ERROR(...) std::cout << "ERROR:" << __VA_ARGS__ << std::endl
-
 /** RCKid RPI Driver
 
                            3V3     5V
@@ -75,6 +69,18 @@ class Window;
 class RCKid {
 public:
 
+    static constexpr unsigned int RETROARCH_PAUSE = KEY_P;
+    static constexpr unsigned int RETROARCH_SAVE_STATE = KEY_F2;
+    static constexpr unsigned int RETROARCH_LOAD_STATE = KEY_F4;
+    static constexpr unsigned int RETROARCH_SCREENSHOT = KEY_F8;
+    static constexpr unsigned int VLC_PAUSE = KEY_SPACE;
+    static constexpr unsigned int VLC_BACK = KEY_LEFT;
+    static constexpr unsigned int VLC_FORWARD = KEY_RIGHT;
+    static constexpr unsigned int VLC_DELAY_10S = KEY_LEFTALT;
+    static constexpr unsigned int VLC_DELAY_1M = KEY_LEFTCTRL;
+    static constexpr unsigned int VLC_SCREENSHOT = KEY_S;
+    static constexpr unsigned int VLC_SCREENSHOT_MOD = KEY_LEFTSHIFT;
+
     static constexpr char const * LIBEVDEV_DEVICE_NAME = "rckid-gamepad";
 
     static constexpr uint8_t BTN_DEBOUNCE_DURATION = 2;
@@ -87,15 +93,11 @@ public:
      */
     RCKid(Window * window) MAIN_THREAD;
 
-    void retroarchPause() MAIN_THREAD {
-        libevdev_uinput_write_event(uidev_, EV_KEY, RETROARCH_PAUSE, 1);
-        libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
-        platform::cpu::delay_ms(10);
-        libevdev_uinput_write_event(uidev_, EV_KEY, RETROARCH_PAUSE, 0);
-        libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
+    void keyPress(int key, bool state) {
+        hwEvents_.send(KeyPress{key, state});
     }
 
-    void setBrightness(uint8_t value) { hwEvents_.send(SetBrightness{value}); }
+    void setBrightness(uint8_t value) { hwEvents_.send(msg::SetBrightness{value}); }
 
     comms::Mode mode() const { return status_.mode; }
     bool usb() const { return status_.usb; }
@@ -114,18 +116,6 @@ public:
 private:
 
     friend class Window;
-
-    static constexpr unsigned int RETROARCH_PAUSE = KEY_P;
-    static constexpr unsigned int RETROARCH_SAVE_STATE = KEY_F2;
-    static constexpr unsigned int RETROARCH_LOAD_STATE = KEY_F4;
-    static constexpr unsigned int RETROARCH_SCREENSHOT = KEY_F8;
-    static constexpr unsigned int VLC_PAUSE = KEY_SPACE;
-    static constexpr unsigned int VLC_BACK = KEY_LEFT;
-    static constexpr unsigned int VLC_FORWARD = KEY_RIGHT;
-    static constexpr unsigned int VLC_DELAY_10S = KEY_LEFTALT;
-    static constexpr unsigned int VLC_DELAY_1M = KEY_LEFTCTRL;
-    static constexpr unsigned int VLC_SCREENSHOT = KEY_S;
-    static constexpr unsigned int VLC_SCREENSHOT_MOD = KEY_LEFTSHIFT;
 
     /** A digital button. 
      
@@ -167,7 +157,7 @@ private:
     struct Tick {};
     struct SecondTick {};
     struct Irq { unsigned pin; };
-    struct SetBrightness { uint8_t value; };
+    struct KeyPress{ int key; bool state; };
 
     /** Event for the driver's main loop to react to. Events with specified numbers are changes on the specified pins.
     */
@@ -175,7 +165,21 @@ private:
         Tick, 
         SecondTick,
         Irq, 
-        SetBrightness
+        KeyPress,
+        msg::AvrReset, 
+        msg::Info, 
+        msg::StartAudioRecording, 
+        msg::StopAudioRecording,
+        msg::SetBrightness,
+        msg::SetTime, 
+        msg::SetAlarm,
+        msg::RumblerOk, 
+        msg::RumblerFail, 
+        msg::Rumbler,
+        msg::PowerOn,
+        msg::PowerDown, 
+        msg::EnterRepairMode,
+        msg::LeaveRepairMode 
     >;
 
     static RCKid * & instance() {
@@ -236,6 +240,7 @@ private:
      */
     template<typename T>
     void sendAvrCommand(T const & cmd) DRIVER_THREAD {
+        static_assert(std::is_base_of<msg::Message, T>::value, "only applicable for mesages");
         using namespace platform;
         i2c::transmit(AVR_I2C_ADDRESS, reinterpret_cast<uint8_t const *>(& cmd), sizeof(T), nullptr, 0);
     }

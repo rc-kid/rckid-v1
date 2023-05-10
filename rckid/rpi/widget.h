@@ -2,33 +2,15 @@
 
 class Window;
 
-class WindowElement {
-public:
-
-    virtual ~WindowElement();
-
-protected:
-
-    friend class Window;
-
-    WindowElement(Window * window);
-
-    virtual void onRenderingPaused() {}
-
-    Window * window() { return window_; }
-
-    Window * window_;
-}; 
-
 /** Basic Widget
  */
-class Widget : public WindowElement {
+class Widget {
 public:
 protected:
 
     friend class Window;
 
-    Widget(Window * window): WindowElement{window} { };
+    Widget(Window * window): window_{window} { };
 
     /** Returns true if the widget is fullscreen. Fullscreen widgets will not have the footer drawn in the bottom of the screen, which saves some space. 
      */
@@ -45,6 +27,14 @@ protected:
     /** Called when the widget loses focus (stops being displayed). 
     */
     virtual void onBlur() {};
+
+    /** Called when the widget enters the navigation stack. 
+    */
+    virtual void onNavigationPush() {};
+
+    /** Called when the widget leaves the navigation stack. 
+     */
+    virtual void onNavigationPop() {};
     
     virtual void btnA(bool state) {}
     virtual void btnB(bool state) {}
@@ -64,5 +54,10 @@ protected:
     virtual void btnVolUp(bool state) {}
     virtual void btnVolDown(bool state) {}
     virtual void btnHome(bool state) {}
+
+    Window * window() { return window_; }
+
+    Window * window_;
+
 
 }; // Widget

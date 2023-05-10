@@ -11,6 +11,7 @@
 #include "keyboard.h"
 #include "game_player.h"
 #include "music_player.h"
+#include "video_player.h"
 
 
 /** Main RCKid app. 
@@ -21,25 +22,24 @@
 int main(int argc, char * argv[]) {
 
     Window window;
-    window.startRendering();
-    Menu menu{&window, {
+    Menu menu{{
         //new Menu::Item{"Games", "assets/images/001-game-controller.png"},
-        new WidgetItem{"Games", "assets/images/001-game-controller.png", new GamePlayer{&window}},
+        new WidgetItem{"Games", "assets/images/001-game-controller.png", new VideoPlayer{&window}},
         new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
         new Menu::Item{"Video", "assets/images/005-film-slate.png"},
         //new Menu::Item{"Music", "assets/images/003-music.png"},
         new JSONItem{"Music", "assets/images/003-music.png", "/rckid/music/folder.json", &window},
         new Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
-        new SubmenuItem{"Apps", "assets/images/023-presents.png", &window, {
+        new SubmenuItem{"Apps", "assets/images/023-presents.png", {
             new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},
             new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{&window}},
             new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
         }},
     }};
-    Keyboard kb{&window};
-    window.setWidget(&kb);
+    //Keyboard kb{&window};
+    //window.setWidget(&kb);
     //DebugView db{&window};
     //window.setWidget(&db);
-    //window.setMenu(& menu, 0);
+    window.setMenu(& menu, 0);
     window.loop();
 }
