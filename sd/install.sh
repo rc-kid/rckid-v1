@@ -59,6 +59,8 @@ make
 # add the udev rule for the gamepad
 cd ..
 sudo cp sd/99-rckid-gamepad.rules /etc/udev/rules.d/99-rckid-gamepad.rules
+sudo cp sd/rckid.service /lib/systemd/system/rckid.service
+sudo systemctl enable rckid
 
 
 # Turn off default retropie startup, instead start X with rckid as the only app
