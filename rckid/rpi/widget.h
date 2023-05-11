@@ -1,6 +1,7 @@
 #pragma once
 
 class Window;
+class RCKid;
 
 /** Basic Widget
  */
@@ -9,6 +10,7 @@ public:
 protected:
 
     friend class Window;
+    friend class RCKid;
 
     Widget(Window * window): window_{window} { };
 
@@ -37,7 +39,9 @@ protected:
     virtual void onNavigationPop() {};
     
     virtual void btnA(bool state) {}
-    virtual void btnB(bool state) {}
+
+    virtual void btnB(bool state);
+
     virtual void btnX(bool state) {}
     virtual void btnY(bool state) {}
     virtual void btnL(bool state) {}
@@ -51,9 +55,7 @@ protected:
     virtual void dpadDown(bool state) {}
     virtual void joy(uint8_t x, uint8_t y) {}
     virtual void accel(uint8_t x, uint8_t y) {}
-    virtual void btnVolUp(bool state) {}
-    virtual void btnVolDown(bool state) {}
-    virtual void btnHome(bool state) {}
+    virtual void btnHome(bool state);
 
     Window * window() { return window_; }
 

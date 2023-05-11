@@ -28,7 +28,8 @@ protected:
     }
 
     void onNavigationPush() override {
-        player_ = utils::Process::start(utils::Command{"cvlc", { "-I", "hotkeys", "/rckid/videos/test.mkv"}});
+        player_ = utils::Process::capture(utils::Command{"cvlc", { "-I", "rc", "/rckid/videos/test.mkv"}});
+        playing_ = true;
     }
 
     void onNavigationPop() override {
@@ -38,11 +39,22 @@ protected:
 
     // play/pause
     void btnA(bool state) override {
-        window()->rckid()->keyPress(RCKid::VLC_PAUSE, state);
+        if (state) {
+            if (playing_) {
+                playing_ = false;
+                player_.tx("pause\n", 6);
+            } else {
+                playing_ = true;
+                player_.tx("play\n", 5);
+            }
+        }
+            
+        //window()->rckid()->keyPress(RCKid::VLC_PAUSE, state);
     }
 
     // back 10 seconds
     void dpadLeft(bool state) override {
+        /*
         if (state) {
             window()->rckid()->keyPress(RCKid::VLC_DELAY_10S, true);
             window()->rckid()->keyPress(RCKid::VLC_BACK, true);
@@ -50,10 +62,12 @@ protected:
             window()->rckid()->keyPress(RCKid::VLC_BACK, false);
             window()->rckid()->keyPress(RCKid::VLC_DELAY_10S, false);
         }
+        */
     }
 
     // forward 10 seconds
     void dpadRight(bool state) override {
+        /*
         if (state) {
             window()->rckid()->keyPress(RCKid::VLC_DELAY_10S, true);
             window()->rckid()->keyPress(RCKid::VLC_FORWARD, true);
@@ -61,10 +75,12 @@ protected:
             window()->rckid()->keyPress(RCKid::VLC_FORWARD, false);
             window()->rckid()->keyPress(RCKid::VLC_DELAY_10S, false);
         }
+        */
     }
 
     // back one minute
     void btnL(bool state) override {
+        /*
         if (state) {
             window()->rckid()->keyPress(RCKid::VLC_DELAY_1M, true);
             window()->rckid()->keyPress(RCKid::VLC_BACK, true);
@@ -72,10 +88,12 @@ protected:
             window()->rckid()->keyPress(RCKid::VLC_BACK, false);
             window()->rckid()->keyPress(RCKid::VLC_DELAY_1M, false);
         }
+        */
     }
 
     // forward one minute
     void btnR(bool state) override {
+        /*
         if (state) {
             window()->rckid()->keyPress(RCKid::VLC_DELAY_1M, true);
             window()->rckid()->keyPress(RCKid::VLC_FORWARD, true);
@@ -83,8 +101,10 @@ protected:
             window()->rckid()->keyPress(RCKid::VLC_FORWARD, false);
             window()->rckid()->keyPress(RCKid::VLC_DELAY_1M, false);
         }
+        */
     }
 
     utils::Process player_;
+    bool playing_ = false;
     
 }; // Video

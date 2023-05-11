@@ -35,6 +35,13 @@
 
 
 
+#define AUDIO_MAX_VOLUME 100
+#define AUDIO_DEFAULT_VOLUME 50
+#define AUDIO_VOLUME_STEP 10
+
+
+
+
 
 
 

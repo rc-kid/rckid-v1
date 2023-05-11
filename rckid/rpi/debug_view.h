@@ -16,6 +16,14 @@ public:
 
 protected:
 
+    void onFocus() override {
+        window()->rckid()->enableGamepad(true);
+    }
+
+    void onBlur() override {
+        window()->rckid()->enableGamepad(false);
+    }
+
     void draw() {
         // draw rckid's outline
         DrawCircleSector(Vector2{25,40}, 20, 180, 270, 8, DARKGRAY);
@@ -62,9 +70,6 @@ protected:
         // left and right buttons
         DrawRectangle(47, 220, 3, 15, btnL_ ? RED : BLACK);
         DrawRectangle(103, 220, 3, 15, btnR_ ? RED : BLACK);
-        // volume up and down buttons
-        DrawRectangle(5, 120, 5, 10, btnVolUp_ ? RED : BLACK);
-        DrawRectangle(5, 150, 5, 10, btnVolDown_ ? RED : BLACK);
 
         // now draw the displayed information
         DrawTextEx(window()->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
@@ -79,7 +84,7 @@ protected:
     }
 
     void btnA(bool state) override { btnA_ = state; }
-    void btnB(bool state) override { btnB_ = state; }
+    void btnB(bool state) override { btnB_ = state; Widget::btnB(state); }
     void btnX(bool state) override { btnX_ = state; }
     void btnY(bool state) override { btnY_ = state; }
     void btnL(bool state) override { btnL_ = state; }
@@ -93,8 +98,6 @@ protected:
     void dpadDown(bool state) override { dpadDown_ = state; }
     void joy(uint8_t x, uint8_t y) override { joyX_ = x; joyY_ = y; }
     void accel(uint8_t x, uint8_t y) override { accelX_ = x; accelY_ = y;}
-    void btnVolUp(bool state) override { btnVolUp_ = state; }
-    void btnVolDown(bool state) override { btnVolDown_ = state; }
     void btnHome(bool state) override { btnHome_ = state; }
 
 private:
@@ -112,8 +115,6 @@ private:
     bool btnSelect_ = false;
     bool btnStart_ = false;
     bool btnHome_ = false;
-    bool btnVolUp_ = false;
-    bool btnVolDown_ = false;
     uint8_t joyX_ = 128;
     uint8_t joyY_ = 128;
     uint8_t accelX_ = 10;

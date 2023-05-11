@@ -49,41 +49,48 @@
 
 ## RPI - RayLib
 
+> To be tested: 
 
-- mask framebuffer with black
+> I/O items:
+
 - can't send keyboard to vlc, could be hotkeys interface not supported on non-X stuff
 - retroarch mapping is beyond weird - not sure how to fix
-
 - key repeat is too fast
+- debounce buttons
+
+> Minor code issues & features to implement
 
 - add == to Value and double parsing
-
 - add JSON backed menu that allows reordering
-- actually do the audio, video menu
-- on pop for menu so that we can clear it, should we want to
-
-- modal errors & stuff
-
-- keep icon instead of text in gauges
-
-- header
-- add a way for the menu / submenu to detect it's been detached
-- add torchlight widget
-
 - how to configure, via JSON I guess,
 - samba on demand? etc.
 
-- add rumbler / sound for ui actions
+> Sensors 
 
 - accelerometer is very noisy
 - add accel temperature processing
+- add photoresistor processing
 
+> Audio 
+
+- add player 
 - add microphone reading and check quality 
-- if there are errors during startup a way to show them
-- debounce buttons
+
+> More apps:
 
 - sound recorder as app?  
+- add torchlight widget
 
+
+
+
+- actually do the audio, video menu
+- on pop for menu so that we can clear it, should we want to
+- modal errors & stuff
+- keep icon instead of text in gauges
+- add a way for the menu / submenu to detect it's been detached
+- add rumbler / sound for ui actions
+- if there are errors during startup a way to show them
 - can control easily via Telegram by sending messages and stuff to bot channels (!)
 - heart bar for time spent, track time spent when widgets are in foreground
 

@@ -38,8 +38,6 @@ The `rckid` app controls the UI, communicates with the AVR and creates and manag
 - [DispmanX example](https://github.com/raspberrypi/firmware/blob/master/opt/vc/src/hello_pi/hello_dispmanx/dispmanx.c)
 - [RaspiDMX tools](https://github.com/AndrewFromMelbourne/raspidmx/blob/master/common/imageLayer.c)
 
-
-
 ### Prepare the RPi image
 
 To build on Raspberry pi, create SD card image according to `sd/IMAGE.md`. This also installs all the prerequisites for building the rpi app and flashing the AVR. 

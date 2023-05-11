@@ -45,13 +45,14 @@ if(DEFINED ARCH_RPI)
     find_library(EGL_LIBRARY libbrcmEGL.so HINTS /opt/vc/lib)
     find_library(BCM_LIBRARY libbcm_host.so HINTS /opt/vc/lib)
     find_library(ATOMIC_LIBRARY libatomic.so.1 HINTS /usr/lib/arm-linux-gnueabihf)
+    find_library(BCMHOST_LIBRARY libbcm_host.so HINTS /opt/vc/lib)
     # the following libraries are needed for the KMS drivers
     # find_library(DRM_LIBRARY libdrm.so HINTS /opt/vc/lib)
     # find_library(GBM_LIBRARY libgbm.so HINTS /opt/vc/lib)
         #find_path(PIGPIO_INCLUDE_DIR 
     #        NAMES pigpio.h pigpiod_if.h pigpiod_if2.h
     #        HINTS /usr/local/include)        
-    #include_directories(${PIGPIO_INCLUDE_DIR})
+    include_directories(/opt/vc/include)
 else()
     message(STATUS "Mockup build")
     add_definitions(-DARCH_MOCK)
@@ -74,6 +75,7 @@ if(DEFINED ARCH_RPI)
         ${EGL_LIBRARY}
         ${BCM_LIBRARY}
         ${ATOMIC_LIBRARY}
+        ${BCM_HOST_LIBRARY}
         # the following libraries are needed for the KMS drivers
         # ${DRM_LIBRARY}
         # ${GBM_LIBRARY}

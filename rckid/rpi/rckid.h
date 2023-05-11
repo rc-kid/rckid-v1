@@ -93,8 +93,34 @@ public:
      */
     RCKid(Window * window) MAIN_THREAD;
 
+    ~RCKid() {
+        libevdev_uinput_destroy(gamepad_);
+        libevdev_free(dev_);
+    }
+
+    /** Enables or disables automatic sending of button & analog events to the virtual gamepad. 
+     */
+    void enableGamepad(bool enable) {
+        hwEvents_.send(EnableGamepad{enable});
+    }
+
     void keyPress(int key, bool state) {
         hwEvents_.send(KeyPress{key, state});
+    }
+
+    /** Returns the current audio volume. 
+     */
+    int volume() const { return status_.volume; }
+
+    /** Sets the current audio volume
+     */
+    void setVolume(int value) {
+        if (value < 0)
+            value = 0;
+        if (value > AUDIO_MAX_VOLUME)
+            value = AUDIO_MAX_VOLUME;
+        status_.volume = value;
+        system(STR("amixer sset -q Headphone -M " << status_.volume << "%").c_str());
     }
 
     void setBrightness(uint8_t value) { hwEvents_.send(msg::SetBrightness{value}); }
@@ -107,7 +133,6 @@ public:
     int16_t avrTemp() const { return status_.avrTemp; }
     int16_t accelTemp() const { return status_.accelTemp; }
     bool headphones() const { return status_.headphones; }
-    unsigned volume() const { return status_.volume; }
     bool wifi() const { return status_.wifi; }
     bool wifiHotspot() const { return status_.wifiHotspot; }
     std::string const & ssid() const { return status_.ssid; }
@@ -158,6 +183,7 @@ private:
     struct SecondTick {};
     struct Irq { unsigned pin; };
     struct KeyPress{ int key; bool state; };
+    struct EnableGamepad{ bool enable; };
 
     /** Event for the driver's main loop to react to. Events with specified numbers are changes on the specified pins.
     */
@@ -166,6 +192,7 @@ private:
         SecondTick,
         Irq, 
         KeyPress,
+        EnableGamepad,
         msg::AvrReset, 
         msg::Info, 
         msg::StartAudioRecording, 
@@ -341,9 +368,9 @@ private:
     bool axisChange(uint8_t value, AxisState & axis) DRIVER_THREAD {
         if (axis.current != value) {
             axis.current = value;
-            if (uidev_ != nullptr) {
-                libevdev_uinput_write_event(uidev_, EV_ABS, axis.evdevId, value);
-                libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
+            if (activeDevice_ != nullptr) {
+                libevdev_uinput_write_event(activeDevice_, EV_ABS, axis.evdevId, value);
+                libevdev_uinput_write_event(activeDevice_, EV_SYN, SYN_REPORT, 0);
             }
             return true;
         } else {
@@ -372,7 +399,7 @@ private:
         int16_t avrTemp;
         int16_t accelTemp;
         bool headphones;
-        unsigned volume = 15;
+        unsigned volume = 0;
         bool wifi = true;
         bool wifiHotspot = true;
         std::string ssid = "Internet 10";
@@ -381,8 +408,8 @@ private:
 
     /** The button state objects, managed by the ISR thread 
      */
-    ButtonState btnVolDown_{Button::VolumeDown, KEY_VOLUMEDOWN};
-    ButtonState btnVolUp_{Button::VolumeUp, KEY_VOLUMEUP};
+    ButtonState btnVolDown_{Button::VolumeDown, KEY_RESERVED};
+    ButtonState btnVolUp_{Button::VolumeUp, KEY_RESERVED};
     ButtonState btnJoy_{Button::Joy, BTN_JOYSTICK};
     ButtonState btnA_{Button::A, BTN_A};
     ButtonState btnB_{Button::B, BTN_B}; 
@@ -415,8 +442,12 @@ private:
     platform::NRF24L01 radio_{PIN_NRF_CS, PIN_NRF_RXTX};
     platform::MPU6050 accel_;
 
-    /** The libevdev device handle. 
+    /** The libevdev uinput handles. 
      */
-    struct libevdev_uinput * uidev_{nullptr};
+    struct libevdev_uinput * activeDevice_{nullptr};
+    struct libevdev_uinput * gamepad_{nullptr};
+    /** The libevdev uinput device handle. 
+     */
+    struct libevdev * dev_{nullptr};
 
 }; // RCKid

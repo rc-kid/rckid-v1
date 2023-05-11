@@ -87,27 +87,49 @@ namespace utils {
 
         static Process start(Command const & cmd) {
             Process result{fork()};
+            if (result.pid_ == 0)
+                startCommand(cmd);
+            return result;
+        }
+
+
+        static Process capture(Command const & cmd) {
+            // create the pipes
+            int       toCmd[2];
+            int       fromCmd[2];
+            if (pipe(toCmd) != 0 || pipe(fromCmd) != 0)
+                perror("Unable to create pipes for command");
+            // create the process
+            Process result{fork()};
             if (result.pid_ == 0) {
-                // change working directory is specified 
-                if (!cmd.workingDirectory().empty())
-                    if (chdir(cmd.workingDirectory().c_str()) != 0)
-                        perror("failed to chdir");
-                // set the 
-                int argc;
-                char ** argv = cmd.toArgv(argc);
-                if (execvp(argv[0], (char **)argv) == -1) {
-                    perror("Failed to execve in child process [%m]");
-                    return -1;
-                }
+                // child process - patch the stdin/out
+                dup2(toCmd[0], STDIN_FILENO); // != -1
+                dup2(fromCmd[1], STDOUT_FILENO); // != -1
+                dup2(fromCmd[1], STDERR_FILENO); // != -1
+                close(toCmd[1]); // == 0
+                close(fromCmd[0]); // = 0
+                // start the command
+                startCommand(cmd);
+            } else {
+                // parent process - close the excess handles
+                if (close(toCmd[0]) != 0 || close(fromCmd[1]) != 0)
+                    perror("Failed to close parent ends of pipes for command"); 
+                result.tx_ = toCmd[1];
+                result.rx_ = fromCmd[0];
             }
             return result;
         }
 
         void kill() {
             ::kill(pid_, 9);
+            pid_ = -1;
+            rx_ = -1;
+            tx_ = -1;
         }
 
         bool done() {
+            if (pid_ == -1)
+                return true;
             int status;
             return (waitpid(pid_, &status, WNOHANG) != 0);
         }
@@ -119,10 +141,35 @@ namespace utils {
             return WEXITSTATUS(status);
         }
 
+        size_t tx(char const * buffer, size_t size) {
+            if (tx_ == -1)
+                return 0;
+            int n = ::write(tx_, buffer, size);
+            if (n == -1)
+                perror("Cannot write to process");
+            return static_cast<size_t>(n);    
+        }
+
     private:
         Process(pid_t pid): pid_{pid} {}
 
+        static void startCommand(Command const & cmd) {
+            // change working directory is specified 
+            if (!cmd.workingDirectory().empty())
+                if (chdir(cmd.workingDirectory().c_str()) != 0)
+                    perror("failed to chdir");
+            // set the 
+            int argc;
+            char ** argv = cmd.toArgv(argc);
+            if (execvp(argv[0], (char **)argv) == -1) {
+                perror("Failed to execve in child process [%m]");
+            }
+        }
+
         pid_t pid_;
+
+        int rx_ = -1;
+        int tx_ = -1;
 #else
 #error "UNIMPLEMENTED"
 #endif
@@ -141,9 +188,6 @@ namespace utils {
         UNIMPLEMENTED;
 
     }
-
-    
-
 
 } // namespace utils
 

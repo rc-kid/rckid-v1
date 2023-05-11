@@ -1,3 +1,15 @@
+#ifdef ARCH_RPI
+#include "bcm_host.h"
+
+struct DispmanXBackgroundLayer {
+    int32_t layer;
+    DISPMANX_RESOURCE_HANDLE_T resource;
+    DISPMANX_ELEMENT_HANDLE_T element;
+};
+
+#endif
+
+
 #include "raylib_cpp.h"
 
 #include "platform/platform.h"
@@ -5,7 +17,6 @@
 #include "rckid.h"
 #include "window.h"
 #include "menu.h"
-//#include "window/carousel.h"
 #include "pixel_editor.h"
 #include "debug_view.h"
 #include "keyboard.h"
@@ -14,14 +25,55 @@
 #include "video_player.h"
 
 
+
+
 /** Main RCKid app. 
  
-    TODO start main loop and do some nice and efficient event loop for the main thread
-
  */
 int main(int argc, char * argv[]) {
-
+#ifdef ARCH_RPI
+    // make sure that we have the rights to add uinput device    
+    system("sudo chown pi /dev/uinput");
+    // add layer 0 black rectangle to block framebuffer, we don't care about errors,
+    // TODO Maybe add some nice picture
+    bcm_host_init();
+    DISPMANX_DISPLAY_HANDLE_T display = vc_dispmanx_display_open(0);
+    DISPMANX_RESOURCE_HANDLE_T resource;
+    DISPMANX_ELEMENT_HANDLE_T element;
+    // init bg layer
+    {
+        VC_IMAGE_TYPE_T type = VC_IMAGE_RGBA16;
+        uint32_t vc_image_ptr;
+        resource = vc_dispmanx_resource_create(type, 1, 1, &vc_image_ptr);
+        VC_RECT_T dst_rect;
+        vc_dispmanx_rect_set(&dst_rect, 0, 0, 1, 1);
+        uint16_t color = 0x000f; // black
+        vc_dispmanx_resource_write_data(resource, type, sizeof(color), &color, &dst_rect);
+    }
+    // draw the bg layer 
+    {
+        DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);    
+        VC_DISPMANX_ALPHA_T alpha = { DISPMANX_FLAGS_ALPHA_FROM_SOURCE, 255, 0 };
+        VC_RECT_T src_rect;
+        vc_dispmanx_rect_set(&src_rect, 0, 0, 1, 1);
+        VC_RECT_T dst_rect;
+        vc_dispmanx_rect_set(&dst_rect, 0, 0, 0, 0);
+        element = vc_dispmanx_element_add(
+            update,
+            display,
+            0, // layer
+            &dst_rect,
+            resource,
+            &src_rect,
+            DISPMANX_PROTECTION_NONE,
+            &alpha,
+            nullptr,
+            DISPMANX_NO_ROTATE);
+        vc_dispmanx_update_submit_sync(update);
+    }
+#endif
     Window window;
+    window.rckid()->setVolume(AUDIO_DEFAULT_VOLUME);
     Menu menu{{
         //new Menu::Item{"Games", "assets/images/001-game-controller.png"},
         new WidgetItem{"Games", "assets/images/001-game-controller.png", new GamePlayer{&window}},
@@ -42,4 +94,14 @@ int main(int argc, char * argv[]) {
     //window.setWidget(&db);
     window.setMenu(& menu, 0);
     window.loop();
+
+#ifdef ARCH_RPI
+    // destroy bg layer
+    {
+        DISPMANX_UPDATE_HANDLE_T update = vc_dispmanx_update_start(0);
+        vc_dispmanx_element_remove(update, element);
+        vc_dispmanx_update_submit_sync(update);
+        vc_dispmanx_resource_delete(resource);
+    }
+#endif
 }

@@ -100,7 +100,14 @@ public:
 
     void setWidget(Widget * widget);
     void setMenu(Menu * menu, size_t index = 0);
+    void setHomeMenu() { setMenu(homeMenu_, 0); }
     void back(); 
+
+    /** Returns current active widget. This is nullptr if we are currently transitioning between widgets. 
+    */
+    Widget * activeWidget() const { 
+        return swap_.running() ? nullptr : widget_;
+    }
 
     /** Returns the time increase since drawing of the last frame begun in milliseconds. Useful for advancing animations and generally keeping pace. 
      */    
@@ -200,36 +207,14 @@ private:
 
     void draw();
 
-    void btnA(bool state) { if (widget_ && ! swap_.running()) widget_->btnA(state); }
-    void btnB(bool state) { 
-        if (widget_)
-            widget_->btnB(state);
-        if (state && ! swap_.running())
-            back();
+    void btnVolUp(bool state) { 
+        if (state) 
+            rckid_->setVolume(rckid_->volume() + AUDIO_VOLUME_STEP);  
     }
-    void btnX(bool state) { if (widget_) widget_->btnX(state); }
-    void btnY(bool state) { if (widget_) widget_->btnY(state); }
-    void btnL(bool state) { if (widget_) widget_->btnL(state); }
-    void btnR(bool state) { if (widget_) widget_->btnR(state); }
-    void btnSelect(bool state) { if (widget_) widget_->btnSelect(state); }
-    void btnStart(bool state) { if (widget_) widget_->btnStart(state); }
-    void btnJoy(bool state) { if (widget_) widget_->btnJoy(state); }
-    void dpadLeft(bool state) { if (widget_) widget_->dpadLeft(state); }
-    void dpadRight(bool state) { if (widget_) widget_->dpadRight(state); }
-    void dpadUp(bool state) { if (widget_) widget_->dpadUp(state); }
-    void dpadDown(bool state) { if (widget_) widget_->dpadDown(state); }
-    void joy(uint8_t x, uint8_t y) { if (widget_) widget_->joy(x, y); }
-    void accel(uint8_t x, uint8_t y) { if (widget_) widget_->accel(x, y); }
 
-    void btnVolUp(bool state) { if (widget_) widget_->btnVolUp(state); }
-
-    void btnVolDown(bool state) { if (widget_) widget_->btnVolDown(state); }
-
-    void btnHome(bool state) { 
-        if (widget_) 
-            widget_->btnHome(state); 
-        if (state && ! swap_.running())
-            setMenu(homeMenu_, 0); 
+    void btnVolDown(bool state) {
+        if (state) 
+            rckid_->setVolume(rckid_->volume() - AUDIO_VOLUME_STEP);  
     }
 
     void swapWidget();
@@ -239,6 +224,10 @@ private:
 
     // the rckid driver
     RCKid * rckid_; 
+
+    // true if the current event should be cancelled
+    bool cancelEvent_ = false;
+
 
     std::vector<FooterItem> footer_;
 

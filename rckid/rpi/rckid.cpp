@@ -129,45 +129,46 @@ void RCKid::loop() {
 void RCKid::processEvent(Event & e) {
     std::visit(overloaded{
         [this](ButtonEvent eb) {
+            Widget * w = window_->activeWidget();
             switch (eb.btn) {
                 case Button::A:
-                    window_->btnA(eb.state);
+                    if (w) w->btnA(eb.state);
                     break;
                 case Button::B:
-                    window_->btnB(eb.state);
+                    if (w) w->btnB(eb.state);
                     break;
                 case Button::X:
-                    window_->btnX(eb.state);
+                    if (w) w->btnX(eb.state);
                     break;
                 case Button::Y:
-                    window_->btnY(eb.state);
+                    if (w) w->btnY(eb.state);
                     break;
                 case Button::L:
-                    window_->btnL(eb.state);
+                    if (w) w->btnL(eb.state);
                     break;
                 case Button::R:
-                    window_->btnR(eb.state);
+                    if (w) w->btnR(eb.state);
                     break;
                 case Button::Left:
-                    window_->dpadLeft(eb.state);
+                    if (w) w->dpadLeft(eb.state);
                     break;
                 case Button::Right:
-                    window_->dpadRight(eb.state);
+                    if (w) w->dpadRight(eb.state);
                     break;
                 case Button::Up:
-                    window_->dpadUp(eb.state);
+                    if (w) w->dpadUp(eb.state);
                     break;
                 case Button::Down:
-                    window_->dpadDown(eb.state);
+                    if (w) w->dpadDown(eb.state);
                     break;
                 case Button::Select:
-                    window_->btnSelect(eb.state);
+                    if (w) w->btnSelect(eb.state);
                     break;
                 case Button::Start:
-                    window_->btnStart(eb.state);
+                    if (w) w->btnStart(eb.state);
                     break;
                 case Button::Home:
-                    window_->btnHome(eb.state);
+                    if (w) w->btnHome(eb.state);
                     break;
                 case Button::VolumeUp:
                     window_->btnVolUp(eb.state);
@@ -176,15 +177,17 @@ void RCKid::processEvent(Event & e) {
                     window_->btnVolDown(eb.state);
                     break;
                 case Button::Joy:
-                    window_->btnJoy(eb.state);
+                    if (w) w->btnJoy(eb.state);
                     break;
             }
         }, 
         [this](ThumbEvent et) {
-            window_->joy(et.x, et.y);
+            Widget * w = window_->activeWidget();
+            if (w) w->joy(et.x, et.y);
         },
         [this](AccelEvent ea) {
-            window_->accel(ea.x, ea.y);
+            Widget * w = window_->activeWidget();
+            if (w) w->accel(ea.x, ea.y);
             if (setIfDiffers(status_.accelTemp, ea.temp))
                 {} // TODO
         }, 
@@ -248,9 +251,13 @@ void RCKid::hwLoop() {
                         break;
                 }
             },
+            // when keypress is explicitly required, the driver always obliges
             [this](KeyPress e) {
-                libevdev_uinput_write_event(uidev_, EV_KEY, e.key, e.state);
-                libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
+                libevdev_uinput_write_event(gamepad_, EV_KEY, e.key, e.state);
+                libevdev_uinput_write_event(gamepad_, EV_SYN, SYN_REPORT, 0);
+            },
+            [this](EnableGamepad e) {
+                activeDevice_ = e.enable ? gamepad_ : nullptr;
             },
             [this](auto msg) {
                 sendAvrCommand(msg);
@@ -392,45 +399,45 @@ void RCKid::initializeISRs() {
 }
 
 void RCKid::initializeLibevdevGamepad() {
-    struct libevdev * dev = libevdev_new();
-    libevdev_set_name(dev, LIBEVDEV_DEVICE_NAME);
-    libevdev_set_id_bustype(dev, BUS_USB);
-    libevdev_set_id_vendor(dev, 0x0ada);
-    libevdev_set_id_product(dev, 0xbabe);
+    dev_ = libevdev_new();
+    libevdev_set_name(dev_, LIBEVDEV_DEVICE_NAME);
+    libevdev_set_id_bustype(dev_, BUS_USB);
+    libevdev_set_id_vendor(dev_, 0x0ada);
+    libevdev_set_id_product(dev_, 0xbabe);
     // enable keys for the buttons
-    libevdev_enable_event_type(dev, EV_KEY);
-    libevdev_enable_event_code(dev, EV_KEY, btnVolDown_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnVolUp_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnA_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnB_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnX_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnY_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnL_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnR_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnSelect_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnStart_.evdevId, nullptr);
+    libevdev_enable_event_type(dev_, EV_KEY);
+    //libevdev_enable_event_code(dev_, EV_KEY, btnVolDown_.evdevId, nullptr);
+    //libevdev_enable_event_code(dev_, EV_KEY, btnVolUp_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnA_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnB_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnX_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnY_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnL_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnR_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnSelect_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnStart_.evdevId, nullptr);
     // dpad
-    libevdev_enable_event_code(dev, EV_KEY, btnDpadUp_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnDpadDown_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnDpadLeft_.evdevId, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, btnDpadRight_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnDpadUp_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnDpadDown_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnDpadLeft_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnDpadRight_.evdevId, nullptr);
     // thumbstick button
-    libevdev_enable_event_code(dev, EV_KEY, btnJoy_.evdevId, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, btnJoy_.evdevId, nullptr);
     // enable keys for retroarch and vlc shortcuts
-    libevdev_enable_event_code(dev, EV_KEY, RETROARCH_PAUSE, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, RETROARCH_SAVE_STATE, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, RETROARCH_LOAD_STATE, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, RETROARCH_SCREENSHOT, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, VLC_PAUSE, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, VLC_BACK, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, VLC_FORWARD, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, VLC_DELAY_10S, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, VLC_DELAY_1M, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, VLC_SCREENSHOT, nullptr);
-    libevdev_enable_event_code(dev, EV_KEY, VLC_SCREENSHOT_MOD, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, RETROARCH_PAUSE, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, RETROARCH_SAVE_STATE, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, RETROARCH_LOAD_STATE, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, RETROARCH_SCREENSHOT, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, VLC_PAUSE, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, VLC_BACK, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, VLC_FORWARD, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, VLC_DELAY_10S, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, VLC_DELAY_1M, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, VLC_SCREENSHOT, nullptr);
+    libevdev_enable_event_code(dev_, EV_KEY, VLC_SCREENSHOT_MOD, nullptr);
 
     // enable the thumbstick and accelerometer
-    libevdev_enable_event_type(dev, EV_ABS);
+    libevdev_enable_event_type(dev_, EV_ABS);
     input_absinfo info {
         .value = 128,
         .minimum = 0,
@@ -439,18 +446,17 @@ void RCKid::initializeLibevdevGamepad() {
         .flat = 0,
         .resolution = 1,
     };
-    libevdev_enable_event_code(dev, EV_ABS, thumbX_.evdevId, & info);
-    libevdev_enable_event_code(dev, EV_ABS, thumbY_.evdevId, & info);
-    libevdev_enable_event_code(dev, EV_ABS, accelX_.evdevId, & info);
-    libevdev_enable_event_code(dev, EV_ABS, accelY_.evdevId, & info);
+    libevdev_enable_event_code(dev_, EV_ABS, thumbX_.evdevId, & info);
+    libevdev_enable_event_code(dev_, EV_ABS, thumbY_.evdevId, & info);
+    libevdev_enable_event_code(dev_, EV_ABS, accelX_.evdevId, & info);
+    libevdev_enable_event_code(dev_, EV_ABS, accelY_.evdevId, & info);
 
 
-    int err = libevdev_uinput_create_from_device(dev,
+    int err = libevdev_uinput_create_from_device(dev_,
                                             LIBEVDEV_UINPUT_OPEN_MANAGED,
-                                            &uidev_);
+                                            &gamepad_);
     if (err != 0) 
         TraceLog(LOG_ERROR, STR("Unable to setup gamepad (result " << err << ", errno: " << errno << ")"));
-    libevdev_free(dev);
 }
 
 void RCKid::initializeAvr() {
@@ -477,9 +483,9 @@ void RCKid::initializeNrf() {
 void RCKid::buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {
     btn.reported = btn.current;
     btn.autorepeat = BTN_AUTOREPEAT_DURATION;
-    if (uidev_ != nullptr) {
-        libevdev_uinput_write_event(uidev_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
-        libevdev_uinput_write_event(uidev_, EV_SYN, SYN_REPORT, 0);
+    if (activeDevice_ != nullptr && btn.evdevId != KEY_RESERVED) {
+        libevdev_uinput_write_event(activeDevice_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
+        libevdev_uinput_write_event(activeDevice_, EV_SYN, SYN_REPORT, 0);
     }
     // send the appropriate action to the main thread
     events_.send(ButtonEvent{btn.button, btn.reported});
