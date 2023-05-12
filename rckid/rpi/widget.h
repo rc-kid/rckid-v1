@@ -9,7 +9,6 @@ class Widget {
 public:
 protected:
 
-    friend class Window;
     friend class RCKid;
 
     Widget(Window * window): window_{window} { };
@@ -60,6 +59,15 @@ protected:
     Window * window() { return window_; }
 
     Window * window_;
+
+
+private: 
+
+    friend class Window;
+
+    /** True if the widget is currently on the navigation stack. 
+     */
+    bool onNavStack_ = false;
 
 
 }; // Widget

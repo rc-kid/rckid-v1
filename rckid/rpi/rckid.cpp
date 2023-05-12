@@ -253,8 +253,12 @@ void RCKid::hwLoop() {
             },
             // when keypress is explicitly required, the driver always obliges
             [this](KeyPress e) {
-                libevdev_uinput_write_event(gamepad_, EV_KEY, e.key, e.state);
-                libevdev_uinput_write_event(gamepad_, EV_SYN, SYN_REPORT, 0);
+                if (gamepad_ != nullptr) {
+                    libevdev_uinput_write_event(gamepad_, EV_KEY, e.key, e.state);
+                    libevdev_uinput_write_event(gamepad_, EV_SYN, SYN_REPORT, 0);
+                } else {
+                    TraceLog(LOG_WARNING, "Cannot emit key - gamepad not available");
+                }
             },
             [this](EnableGamepad e) {
                 activeDevice_ = e.enable ? gamepad_ : nullptr;

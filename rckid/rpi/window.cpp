@@ -49,7 +49,9 @@ Window::Window() {
     rckid_ = new RCKid{this};
     carousel_ = new Carousel{this};
     homeMenu_ = new Menu{{
-        new Menu::Item{"Power Off", "assets/images/011-power-off.png"},
+        new ActionItem{"Power Off", "assets/images/011-power-off.png",[](){
+            ::exit(0);
+        }},
         new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
         new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{this, 
             [this](int value) { 
@@ -117,11 +119,23 @@ void Window::setMenu(Menu * menu, size_t index) {
     }
 }
 
-void Window::back() {
-    if (nav_.size() == 0)
-        return; 
+void Window::back(size_t numWidgets) {
+    if (nav_.empty() || numWidgets == 0)
+        return;
     next_ = nav_.back();
     nav_.pop_back();
+    while (numWidgets > 1 && ! nav_.empty()) {
+        if (next_.kind == NavigationItem::Kind::Widget) {
+            ASSERT(next_.widget()->onNavStack_ == true);
+            next_.widget()->onNavigationPop();
+            next_.widget()->onNavStack_ = false;
+        } else if (next_.menu() == homeMenu_) {
+            inHomeMenu_ = false;
+        }
+        next_ = nav_.back();
+        nav_.pop_back();
+        --numWidgets;
+    }
     if (widget_ == nullptr) {
         swapWidget();
     } else {
@@ -134,16 +148,16 @@ void Window::swapWidget() {
     if (widget_!= nullptr) {
         widget_->onBlur();
         if (widget_ == carousel_) {
-            if (carousel_->items() == homeMenu_)
+            // if we are leaving home menu indicate
+            if (carousel_->items() == homeMenu_ && (nav_.empty() || nav_.back().menu() != homeMenu_))
                 inHomeMenu_ = false;
             carousel_->items()->onBlur();
         } else {
-            // widget to widget 
-            if (next_.widget() != nav_.back().widget())
+            if (nav_.empty() || nav_.back().widget() != widget_) {
+                ASSERT(widget_->onNavStack_ == true);
                 widget_->onNavigationPop();
-            // we are going from a non-carousel item to menu
-            else if (widget_ != carousel_ && next_.menu() != nullptr)
-                widget_->onNavigationPop();
+                widget_->onNavStack_ = false;
+            }
         }
     }
     if (next_.kind == NavigationItem::Kind::Menu) {
@@ -153,7 +167,10 @@ void Window::swapWidget() {
             inHomeMenu_ = true;
     } else {
         widget_ = next_.widget();
-        widget_->onNavigationPush();
+        if (! widget_->onNavStack_) {
+            widget_->onNavigationPush();
+            widget_->onNavStack_ = true;
+        }
     }
     resetFooter();
     widget_->onFocus();

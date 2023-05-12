@@ -82,7 +82,7 @@ int main(int argc, char * argv[]) {
         //new JSONItem{"Music", "assets/images/003-music.png", "/rckid/music/folder.json", &window},
         new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
         new Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
-        new SubmenuItem{"Apps", "assets/images/023-presents.png", {
+        new SubmenuItem{"Apps", "assets/images/022-presents.png", {
             new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},
             new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{&window}},
             new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},

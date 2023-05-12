@@ -86,14 +86,6 @@ public:
 
     void loop(); 
 
-    /** Shows the error in a modal window. 
-     
-        TODO
-     */
-    void error(std::string const & message) {
-        TraceLog(LOG_ERROR, message.c_str());
-    }
-
     /** Displays a modal text prompt with the keyboard widget. Calls the provided callback when the input value is confirmed.
      */
     void prompt(std::string const & prompt, std::string value, std::function<void(std::string)> callback);
@@ -101,7 +93,8 @@ public:
     void setWidget(Widget * widget);
     void setMenu(Menu * menu, size_t index = 0);
     void setHomeMenu() { setMenu(homeMenu_, 0); }
-    void back(); 
+
+    void back(size_t numWidgets = 1);
 
     /** Returns current active widget. This is nullptr if we are currently transitioning between widgets. 
     */
@@ -132,12 +125,16 @@ public:
     Font const & helpFont() const { return helpFont_; }
 
     void drawBackground() {
-        DrawRectangle(0,0,320,240, BLACK);
-        BeginBlendMode(1);
-        DrawTexture(background_, backgroundSeam_ - 320, 0, ColorAlpha(WHITE, 0.3));
-        DrawTexture(background_, backgroundSeam_, 0, ColorAlpha(WHITE, 0.3));
-        EndBlendMode();
+        if (backgroundEnabled_) {
+            DrawRectangle(0,0,320,240, BLACK);
+            BeginBlendMode(1);
+            DrawTexture(background_, backgroundSeam_ - 320, 0, ColorAlpha(WHITE, 0.3));
+            DrawTexture(background_, backgroundSeam_, 0, ColorAlpha(WHITE, 0.3));
+            EndBlendMode();
+        }
     }
+
+    void enableBackground(bool value) { backgroundEnabled_ = value; }
 
     void drawBackground(int seam) {
         setBackgroundSeam(seam);
@@ -264,6 +261,7 @@ private:
 
     Texture2D background_;
     int backgroundSeam_ = 160;
+    bool backgroundEnabled_ = true;
 
     static constexpr int GLYPHS[] = {
         32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations

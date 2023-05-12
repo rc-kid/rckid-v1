@@ -122,6 +122,8 @@ namespace utils {
 
         void kill() {
             ::kill(pid_, 9);
+            int status;
+            ::wait(&status);
             pid_ = -1;
             rx_ = -1;
             tx_ = -1;

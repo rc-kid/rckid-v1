@@ -170,3 +170,19 @@ private:
 
     JSONMenu submenu_;
 }; // JSONItem
+
+class ActionItem : public Menu::Item {
+public:
+    ActionItem(std::string const & title, std::string const & imgFile, std::function<void()> action):
+        Item{title, imgFile},
+        action_{action} {
+    }
+
+    void onSelect(Window * window) override {
+        if (action_)
+            action_();
+    }
+
+private:
+    std::function<void()> action_;
+}; // ActionItem

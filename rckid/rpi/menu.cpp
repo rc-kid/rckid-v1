@@ -36,6 +36,6 @@ void JSONItem::onSelect(Window * window) {
         }
         window->setMenu(& submenu_);
     } catch (std::runtime_error const & e) {
-        window->error(e.what());
+        TraceLog(LOG_ERROR, e.what());
     }
 }

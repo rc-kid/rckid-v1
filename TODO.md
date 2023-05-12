@@ -49,11 +49,14 @@
 
 ## RPI - RayLib
 
-> To be tested: 
+> To be tested/bugs: 
+
+- nav pop not working (game->home->back)
 
 > I/O items:
 
-- can't send keyboard to vlc, could be hotkeys interface not supported on non-X stuff
+- retroarch is not loading correct cfg
+- figure out how to configure the joystick manually 
 - retroarch mapping is beyond weird - not sure how to fix
 - key repeat is too fast
 - debounce buttons

@@ -30,11 +30,13 @@ protected:
     void onNavigationPush() override {
         player_ = utils::Process::capture(utils::Command{"cvlc", { "-I", "rc", "/rckid/videos/test.mkv"}});
         playing_ = true;
+        window()->enableBackground(false);
     }
 
     void onNavigationPop() override {
         if (!player_.done())
             player_.kill();
+        window()->enableBackground(true);
     }
 
     // play/pause
@@ -48,8 +50,6 @@ protected:
                 player_.tx("play\n", 5);
             }
         }
-            
-        //window()->rckid()->keyPress(RCKid::VLC_PAUSE, state);
     }
 
     // back 10 seconds
