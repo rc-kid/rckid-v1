@@ -4,23 +4,23 @@ sudo cp sd/config.txt /boot/config.txt
 
 # install extra packages required by the tools and rckid itself
 # sudo apt-get -y install xinit x11-xserver-utils pkg-config qt5-default libevdev-dev pigpio i2c-tools
-sudo apt-get -y install pkg-config libevdev-dev i2c-tools
+sudo apt-get -y install pkg-config libevdev-dev i2c-tools htop tmux cmake
 
 
 # use wiringPi instead of pigpio wich polls all the time
 sudo apt-get install wiringpi libi2c-dev 
 
 # to make boot times slightly faster, disable the servics we are not using 
-sudo systemctl disable dphys-swapfile.service
-sudo systemctl disable keyboard-setup.service
-sudo systemctl disable apt-daily.service
-sudo systemctl disable triggerhappy.service
-sudo systemctl disable avahi-daemon
+#sudo systemctl disable dphys-swapfile.service
+#sudo systemctl disable keyboard-setup.service
+#sudo systemctl disable apt-daily.service
+#sudo systemctl disable triggerhappy.service
+#sudo systemctl disable avahi-daemon
 # these too actually take a *lot*
-sudo systemctl disable nmbd.service
-sudo systemctl disable smbd.service
+#sudo systemctl disable nmbd.service
+#sudo systemctl disable smbd.service
 # also disable bluetooth
-sudo systemctl disable hciuart.service
+#sudo systemctl disable hciuart.service
 #sudo systemctl disable bluetooth.service
 
 # get the ili9341 driver and build it
