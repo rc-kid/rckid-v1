@@ -69,8 +69,8 @@ public:
     static constexpr gpio::Pin BTN_HOME = 13; // digital
     static constexpr gpio::Pin RGB = 12; // digital
     static constexpr gpio::Pin RPI_POWEROFF = 11; // analog input, ADC1 channel 7
-    static constexpr gpio::Pin AVR_IRQ = 10; // digital 
-    static constexpr gpio::Pin BACKLIGHT = 9; // TCA W0
+    static constexpr gpio::Pin AVR_IRQ = AVR_PIN_AVR_IRQ; // 10, digital 
+    static constexpr gpio::Pin BACKLIGHT = AVR_PIN_BACKLIGHT; // 9,  TCA W0
 
     static void initialize() {
         // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V

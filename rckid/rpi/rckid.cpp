@@ -82,6 +82,7 @@ RCKid::RCKid(Window * window):
     ASSERT(i == nullptr && "RCKid must be a singleton");
     i = this;
     initializeLibevdevGamepad();
+    initializeLibevdevKeyboard();
     initializeAvr();
     initializeAccel();
     initializeNrf();
@@ -109,21 +110,12 @@ RCKid::RCKid(Window * window):
 }
 
 void RCKid::loop() {
-#if (defined ARCH_MOCK)
-//        if (WindowShouldClose())
-//            break;
-#endif
-//    if (window_->rendering()) {
         while (true) {
             auto event = events_.receive();
             if (!event.has_value())
                 break;
             processEvent(event.value());
         }
-//    } else {
-//        Event e = events_.waitReceive();
-//        processEvent(e);
-//    }
 }
 
 void RCKid::processEvent(Event & e) {
@@ -251,13 +243,13 @@ void RCKid::hwLoop() {
                         break;
                 }
             },
-            // when keypress is explicitly required, the driver always obliges
+            // keyboard presses
             [this](KeyPress e) {
-                if (gamepad_ != nullptr) {
-                    libevdev_uinput_write_event(gamepad_, EV_KEY, e.key, e.state);
-                    libevdev_uinput_write_event(gamepad_, EV_SYN, SYN_REPORT, 0);
+                if (keyboard_ != nullptr) {
+                    libevdev_uinput_write_event(keyboard_, EV_KEY, e.key, e.state);
+                    libevdev_uinput_write_event(keyboard_, EV_SYN, SYN_REPORT, 0);
                 } else {
-                    TraceLog(LOG_WARNING, "Cannot emit key - gamepad not available");
+                    TraceLog(LOG_WARNING, "Cannot emit key - keyboard not available");
                 }
             },
             [this](EnableGamepad e) {
@@ -403,45 +395,41 @@ void RCKid::initializeISRs() {
 }
 
 void RCKid::initializeLibevdevGamepad() {
-    dev_ = libevdev_new();
-    libevdev_set_name(dev_, LIBEVDEV_DEVICE_NAME);
-    libevdev_set_id_bustype(dev_, BUS_USB);
-    libevdev_set_id_vendor(dev_, 0x0ada);
-    libevdev_set_id_product(dev_, 0xbabe);
-    // enable keys for the buttons
-    libevdev_enable_event_type(dev_, EV_KEY);
-    //libevdev_enable_event_code(dev_, EV_KEY, btnVolDown_.evdevId, nullptr);
-    //libevdev_enable_event_code(dev_, EV_KEY, btnVolUp_.evdevId, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, btnA_.evdevId, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, btnB_.evdevId, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, btnX_.evdevId, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, btnY_.evdevId, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, btnL_.evdevId, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, btnR_.evdevId, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, btnSelect_.evdevId, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, btnStart_.evdevId, nullptr);
+    gamepadDev_ = libevdev_new();
+    libevdev_set_name(gamepadDev_, LIBEVDEV_GAMEPAD_NAME);
+    libevdev_set_id_bustype(gamepadDev_, BUS_USB);
+    libevdev_set_id_vendor(gamepadDev_, 0x0ada);
+    libevdev_set_id_product(gamepadDev_, 0xbabe);
+    // enable keys for the buttons and the axes (dpad, thumb, accel)
+    libevdev_enable_event_type(gamepadDev_, EV_KEY);
+    libevdev_enable_event_type(gamepadDev_, EV_ABS);
+
+    //libevdev_enable_event_code(gamepadDev_, EV_KEY, btnVolDown_.evdevId, nullptr);
+    //libevdev_enable_event_code(gamepadDev_, EV_KEY, btnVolUp_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnA_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnB_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnX_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnY_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnL_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnR_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnSelect_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnStart_.evdevId, nullptr);
     // dpad
-    libevdev_enable_event_code(dev_, EV_KEY, btnDpadUp_.evdevId, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, btnDpadDown_.evdevId, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, btnDpadLeft_.evdevId, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, btnDpadRight_.evdevId, nullptr);
+    input_absinfo thumb{
+        .value = 0,
+        .minimum = -1,
+        .maximum = 1,
+        .fuzz = 0,
+        .flat = 0,
+        .resolution = 1
+    };
+
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, btnDpadUp_.evdevId, &thumb);
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, btnDpadLeft_.evdevId, &thumb);
     // thumbstick button
-    libevdev_enable_event_code(dev_, EV_KEY, btnJoy_.evdevId, nullptr);
-    // enable keys for retroarch and vlc shortcuts
-    libevdev_enable_event_code(dev_, EV_KEY, RETROARCH_PAUSE, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, RETROARCH_SAVE_STATE, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, RETROARCH_LOAD_STATE, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, RETROARCH_SCREENSHOT, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, VLC_PAUSE, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, VLC_BACK, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, VLC_FORWARD, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, VLC_DELAY_10S, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, VLC_DELAY_1M, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, VLC_SCREENSHOT, nullptr);
-    libevdev_enable_event_code(dev_, EV_KEY, VLC_SCREENSHOT_MOD, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnJoy_.evdevId, nullptr);
 
     // enable the thumbstick and accelerometer
-    libevdev_enable_event_type(dev_, EV_ABS);
     input_absinfo info {
         .value = 128,
         .minimum = 0,
@@ -450,17 +438,44 @@ void RCKid::initializeLibevdevGamepad() {
         .flat = 0,
         .resolution = 1,
     };
-    libevdev_enable_event_code(dev_, EV_ABS, thumbX_.evdevId, & info);
-    libevdev_enable_event_code(dev_, EV_ABS, thumbY_.evdevId, & info);
-    libevdev_enable_event_code(dev_, EV_ABS, accelX_.evdevId, & info);
-    libevdev_enable_event_code(dev_, EV_ABS, accelY_.evdevId, & info);
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, thumbX_.evdevId, & info);
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, thumbY_.evdevId, & info);
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, accelX_.evdevId, & info);
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, accelY_.evdevId, & info);
 
 
-    int err = libevdev_uinput_create_from_device(dev_,
+    int err = libevdev_uinput_create_from_device(gamepadDev_,
                                             LIBEVDEV_UINPUT_OPEN_MANAGED,
                                             &gamepad_);
     if (err != 0) 
         TraceLog(LOG_ERROR, STR("Unable to setup gamepad (result " << err << ", errno: " << errno << ")"));
+}
+
+void RCKid::initializeLibevdevKeyboard() {
+    keyboardDev_ = libevdev_new();
+    libevdev_set_name(keyboardDev_, LIBEVDEV_KEYBOARD_NAME);
+    libevdev_set_id_bustype(keyboardDev_, BUS_USB);
+    libevdev_set_id_vendor(keyboardDev_, 0x0ada);
+    libevdev_set_id_product(keyboardDev_, 0xcafe);
+    libevdev_enable_event_type(keyboardDev_, EV_KEY);
+    // enable keys for retroarch and vlc shortcuts
+    libevdev_enable_event_code(keyboardDev_, EV_KEY, RETROARCH_PAUSE, nullptr);
+    libevdev_enable_event_code(keyboardDev_, EV_KEY, RETROARCH_SAVE_STATE, nullptr);
+    libevdev_enable_event_code(keyboardDev_, EV_KEY, RETROARCH_LOAD_STATE, nullptr);
+    libevdev_enable_event_code(keyboardDev_, EV_KEY, RETROARCH_SCREENSHOT, nullptr);
+    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_PAUSE, nullptr);
+    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_BACK, nullptr);
+    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_FORWARD, nullptr);
+    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_DELAY_10S, nullptr);
+    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_DELAY_1M, nullptr);
+    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_SCREENSHOT, nullptr);
+    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_SCREENSHOT_MOD, nullptr);
+    // create the device
+    int err = libevdev_uinput_create_from_device(keyboardDev_,
+                                            LIBEVDEV_UINPUT_OPEN_MANAGED,
+                                            &keyboard_);
+    if (err != 0) 
+        TraceLog(LOG_ERROR, STR("Unable to setup keyboard (result " << err << ", errno: " << errno << ")"));
 }
 
 void RCKid::initializeAvr() {
@@ -488,7 +503,10 @@ void RCKid::buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {
     btn.reported = btn.current;
     btn.autorepeat = BTN_AUTOREPEAT_DURATION;
     if (activeDevice_ != nullptr && btn.evdevId != KEY_RESERVED) {
-        libevdev_uinput_write_event(activeDevice_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
+        if (btn.axisValue == 0)
+            libevdev_uinput_write_event(activeDevice_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
+        else
+            libevdev_uinput_write_event(activeDevice_, EV_ABS, btn.evdevId, btn.reported ? btn.axisValue : 0);
         libevdev_uinput_write_event(activeDevice_, EV_SYN, SYN_REPORT, 0);
     }
     // send the appropriate action to the main thread

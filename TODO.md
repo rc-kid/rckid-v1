@@ -51,9 +51,11 @@
 
 > To be tested/bugs: 
 
-- nav pop not working (game->home->back)
-
 > I/O items:
+
+- rename buttons and aces according to logitech
+- make keyboard new device
+^- see if after this we can actually use the joystick well
 
 - retroarch is not loading correct cfg
 - figure out how to configure the joystick manually 

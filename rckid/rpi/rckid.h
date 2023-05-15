@@ -40,7 +40,7 @@
 
 */
 
-#define PIN_AVR_IRQ 25
+#define PIN_AVR_IRQ RPI_PIN_AVR_IRQ
 #define PIN_HEADPHONES 6
 #define PIN_NRF_CS 16
 #define PIN_NRF_RXTX 14
@@ -81,7 +81,8 @@ public:
     static constexpr unsigned int VLC_SCREENSHOT = KEY_S;
     static constexpr unsigned int VLC_SCREENSHOT_MOD = KEY_LEFTSHIFT;
 
-    static constexpr char const * LIBEVDEV_DEVICE_NAME = "rckid-gamepad";
+    static constexpr char const * LIBEVDEV_GAMEPAD_NAME = "rckid-gamepad";
+    static constexpr char const * LIBEVDEV_KEYBOARD_NAME = "rckid-keyboard";
 
     static constexpr uint8_t BTN_DEBOUNCE_DURATION = 2;
 
@@ -95,7 +96,7 @@ public:
 
     ~RCKid() {
         libevdev_uinput_destroy(gamepad_);
-        libevdev_free(dev_);
+        libevdev_free(gamepadDev_);
     }
 
     /** Enables or disables automatic sending of button & analog events to the virtual gamepad. 
@@ -162,9 +163,16 @@ private:
         Button button;
         unsigned const evdevId;
 
+        /** Value to be reported when the button is pressed. 0 means it's normal button, other numbers mean the button reports the specified value on an absolute axis (its evdevId). */
+        int axisValue = 0;
+
         /** Creates new button, parametrized by the pin and its evdev id. 
          */
         ButtonState(Button button, unsigned evdevId): button{button}, evdevId{evdevId} { }
+ 
+        /** Creates new button represented by an axis and value. 
+         */
+        ButtonState(Button button, unsigned evdevId, int axisValue): button{button}, evdevId{evdevId}, axisValue{axisValue} { }
 
     }; // RCKid::Button
 
@@ -256,6 +264,10 @@ private:
     /** Initializes the libevdev gamepad device for other applications. 
      */
     void initializeLibevdevGamepad() MAIN_THREAD;
+
+    /** Initializes the libevdev keyboard device for direct keyboard control. 
+     */
+    void initializeLibevdevKeyboard() MAIN_THREAD;
 
     void initializeAvr() MAIN_THREAD;
 
@@ -410,27 +422,27 @@ private:
      */
     ButtonState btnVolDown_{Button::VolumeDown, KEY_RESERVED};
     ButtonState btnVolUp_{Button::VolumeUp, KEY_RESERVED};
-    ButtonState btnJoy_{Button::Joy, BTN_JOYSTICK};
-    ButtonState btnA_{Button::A, BTN_A};
-    ButtonState btnB_{Button::B, BTN_B}; 
-    ButtonState btnX_{Button::X, BTN_X};
-    ButtonState btnY_{Button::Y, BTN_Y};
-    ButtonState btnL_{Button::L, BTN_LEFT};
-    ButtonState btnR_{Button::R, BTN_RIGHT};
+    ButtonState btnJoy_{Button::Joy, BTN_THUMBL};
+    ButtonState btnA_{Button::A, BTN_EAST};
+    ButtonState btnB_{Button::B, BTN_SOUTH}; 
+    ButtonState btnX_{Button::X, BTN_NORTH};
+    ButtonState btnY_{Button::Y, BTN_WEST};
+    ButtonState btnL_{Button::L, BTN_TL};
+    ButtonState btnR_{Button::R, BTN_TR};
     ButtonState btnSelect_{Button::Select, BTN_SELECT};
     ButtonState btnStart_{Button::Start, BTN_START};
     ButtonState btnHome_{Button::Home, BTN_MODE};
-    ButtonState btnDpadUp_{Button::Up, BTN_DPAD_UP};
-    ButtonState btnDpadDown_{Button::Down, BTN_DPAD_DOWN};
-    ButtonState btnDpadLeft_{Button::Left, BTN_DPAD_LEFT};
-    ButtonState btnDpadRight_{Button::Right, BTN_DPAD_RIGHT};
+    ButtonState btnDpadUp_{Button::Up, ABS_HAT0Y, -1};
+    ButtonState btnDpadDown_{Button::Down, ABS_HAT0Y, 1};
+    ButtonState btnDpadLeft_{Button::Left, ABS_HAT0X, -1};
+    ButtonState btnDpadRight_{Button::Right, ABS_HAT0X, 1};
 
     /** Axes. 
      */
-    AxisState thumbX_{ABS_RX};
-    AxisState thumbY_{ABS_RY};
-    AxisState accelX_{ABS_X};
-    AxisState accelY_{ABS_Y};
+    AxisState thumbX_{ABS_X};
+    AxisState thumbY_{ABS_Y};
+    AxisState accelX_{ABS_RX};
+    AxisState accelY_{ABS_RY};
 
     /** Last known state so that we can determine when to send an update
      */
@@ -442,12 +454,83 @@ private:
     platform::NRF24L01 radio_{PIN_NRF_CS, PIN_NRF_RXTX};
     platform::MPU6050 accel_;
 
-    /** The libevdev uinput handles. 
+    /** Libevdev gamepad. 
      */
-    struct libevdev_uinput * activeDevice_{nullptr};
+
+    struct libevdev * gamepadDev_{nullptr};
     struct libevdev_uinput * gamepad_{nullptr};
-    /** The libevdev uinput device handle. 
+    struct libevdev_uinput * activeDevice_{nullptr};
+
+    /** Libevdev keyboard. 
      */
-    struct libevdev * dev_{nullptr};
+
+    struct libevdev * keyboardDev_{nullptr};
+    struct libevdev_uinput * keyboard_{nullptr};
 
 }; // RCKid
+
+
+
+/*
+
+Input driver version is 1.0.1
+Input device ID: bus 0x3 vendor 0x46d product 0xc21d version 0x4014
+Input device name: "Logitech Gamepad F310"
+Supported events:
+  Event type 0 (EV_SYN)
+  Event type 1 (EV_KEY)
+    Event code 304 (BTN_SOUTH)
+    Event code 305 (BTN_EAST)
+    Event code 307 (BTN_NORTH)
+    Event code 308 (BTN_WEST)
+    Event code 310 (BTN_TL)
+    Event code 311 (BTN_TR)
+    Event code 312 (BTN_TL2)
+    Event code 313 (BTN_TR2)
+    Event code 314 (BTN_SELECT)
+    Event code 315 (BTN_START)
+    Event code 316 (BTN_MODE)
+    Event code 317 (BTN_THUMBL)
+    Event code 318 (BTN_THUMBR)
+  Event type 3 (EV_ABS)
+    Event code 0 (ABS_X)
+      Value    128
+      Min   -32768
+      Max    32767
+      Flat     128
+    Event code 1 (ABS_Y)
+      Value   -129
+      Min   -32768
+      Max    32767
+      Flat     128
+    Event code 3 (ABS_RX)
+      Value    128
+      Min   -32768
+      Max    32767
+      Fuzz      16
+      Flat     128
+    Event code 4 (ABS_RY)
+      Value   -129
+      Min   -32768
+      Max    32767
+      Fuzz      16
+      Flat     128
+    Event code 16 (ABS_HAT0X)
+      Value      0
+      Min       -1
+      Max        1
+    Event code 17 (ABS_HAT0Y)
+      Value      0
+      Min       -1
+      Max        1
+  Event type 21 (EV_FF)
+    Event code 80 (FF_RUMBLE)
+    Event code 81 (FF_PERIODIC)
+    Event code 88 (FF_SQUARE)
+    Event code 89 (FF_TRIANGLE)
+    Event code 90 (FF_SINE)
+    Event code 96 (FF_GAIN)
+Properties:
+
+
+*/

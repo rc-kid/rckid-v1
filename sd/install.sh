@@ -24,7 +24,7 @@ sudo apt-get install wiringpi libi2c-dev
 #sudo systemctl disable bluetooth.service
 
 # get the ili9341 driver and build it
-cd ..
+cd ~
 git clone https://github.com/juj/fbcp-ili9341.git
 cd fbcp-ili9341
 mkdir build
@@ -44,6 +44,7 @@ pip3 install https://github.com/mraardvark/pyupdi/archive/master.zip
 
 
 # Install raylib
+cd ~
 git clone --depth=1 https://github.com/zduka/rckid-raylib.git
 cd rckid-raylib/src
 make PLATFORM=PLATFORM_RPI
