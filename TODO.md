@@ -53,13 +53,12 @@
 
 > I/O items:
 
-- rename buttons and aces according to logitech
-- make keyboard new device
-^- see if after this we can actually use the joystick well
+- increase pause/resume size so that libretro picks it up
+- ensure config on fresh start
 
-- retroarch is not loading correct cfg
-- figure out how to configure the joystick manually 
-- retroarch mapping is beyond weird - not sure how to fix
+- thumbstick checking
+- dpad right / start get confused often (debounced must be)
+
 - key repeat is too fast
 - debounce buttons
 

@@ -76,3 +76,6 @@ sudo chown pi /dev/uinput
 # create the contents directory
 sudo mkdir /rckid
 sudo chown pi /rckid
+
+# create a fresh settings directory for retroarch - delete the symlink so that a fresh one will be created
+rm /home/pi/.config/retroarch

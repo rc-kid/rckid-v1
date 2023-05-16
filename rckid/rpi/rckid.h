@@ -65,22 +65,20 @@ class Window;
 
 /** RCKid Driver
  
+    // pause = A
+    // load state = X
+    // save state = Y
+    // 
  */
 class RCKid {
 public:
 
-    static constexpr unsigned int RETROARCH_PAUSE = KEY_P;
-    static constexpr unsigned int RETROARCH_SAVE_STATE = KEY_F2;
-    static constexpr unsigned int RETROARCH_LOAD_STATE = KEY_F4;
-    static constexpr unsigned int RETROARCH_SCREENSHOT = KEY_F8;
-    static constexpr unsigned int VLC_PAUSE = KEY_SPACE;
-    static constexpr unsigned int VLC_BACK = KEY_LEFT;
-    static constexpr unsigned int VLC_FORWARD = KEY_RIGHT;
-    static constexpr unsigned int VLC_DELAY_10S = KEY_LEFTALT;
-    static constexpr unsigned int VLC_DELAY_1M = KEY_LEFTCTRL;
-    static constexpr unsigned int VLC_SCREENSHOT = KEY_S;
-    static constexpr unsigned int VLC_SCREENSHOT_MOD = KEY_LEFTSHIFT;
-
+    static constexpr unsigned int RETROARCH_HOTKEY_ENABLE = BTN_THUMBR;
+    static constexpr unsigned int RETROARCH_HOTKEY_PAUSE = BTN_SOUTH; // B
+    static constexpr unsigned int RETROARCH_HOTKEY_SAVE_STATE = BTN_NORTH; // A
+    static constexpr unsigned int RETROARCH_HOTKEY_LOAD_STATE = BTN_WEST; // X
+    static constexpr unsigned int RETROATCH_HOTKEY_SCREENSHOT = BTN_EAST; // Y
+    
     static constexpr char const * LIBEVDEV_GAMEPAD_NAME = "rckid-gamepad";
     static constexpr char const * LIBEVDEV_KEYBOARD_NAME = "rckid-keyboard";
 
@@ -264,10 +262,6 @@ private:
     /** Initializes the libevdev gamepad device for other applications. 
      */
     void initializeLibevdevGamepad() MAIN_THREAD;
-
-    /** Initializes the libevdev keyboard device for direct keyboard control. 
-     */
-    void initializeLibevdevKeyboard() MAIN_THREAD;
 
     void initializeAvr() MAIN_THREAD;
 
@@ -461,76 +455,4 @@ private:
     struct libevdev_uinput * gamepad_{nullptr};
     struct libevdev_uinput * activeDevice_{nullptr};
 
-    /** Libevdev keyboard. 
-     */
-
-    struct libevdev * keyboardDev_{nullptr};
-    struct libevdev_uinput * keyboard_{nullptr};
-
 }; // RCKid
-
-
-
-/*
-
-Input driver version is 1.0.1
-Input device ID: bus 0x3 vendor 0x46d product 0xc21d version 0x4014
-Input device name: "Logitech Gamepad F310"
-Supported events:
-  Event type 0 (EV_SYN)
-  Event type 1 (EV_KEY)
-    Event code 304 (BTN_SOUTH)
-    Event code 305 (BTN_EAST)
-    Event code 307 (BTN_NORTH)
-    Event code 308 (BTN_WEST)
-    Event code 310 (BTN_TL)
-    Event code 311 (BTN_TR)
-    Event code 312 (BTN_TL2)
-    Event code 313 (BTN_TR2)
-    Event code 314 (BTN_SELECT)
-    Event code 315 (BTN_START)
-    Event code 316 (BTN_MODE)
-    Event code 317 (BTN_THUMBL)
-    Event code 318 (BTN_THUMBR)
-  Event type 3 (EV_ABS)
-    Event code 0 (ABS_X)
-      Value    128
-      Min   -32768
-      Max    32767
-      Flat     128
-    Event code 1 (ABS_Y)
-      Value   -129
-      Min   -32768
-      Max    32767
-      Flat     128
-    Event code 3 (ABS_RX)
-      Value    128
-      Min   -32768
-      Max    32767
-      Fuzz      16
-      Flat     128
-    Event code 4 (ABS_RY)
-      Value   -129
-      Min   -32768
-      Max    32767
-      Fuzz      16
-      Flat     128
-    Event code 16 (ABS_HAT0X)
-      Value      0
-      Min       -1
-      Max        1
-    Event code 17 (ABS_HAT0Y)
-      Value      0
-      Min       -1
-      Max        1
-  Event type 21 (EV_FF)
-    Event code 80 (FF_RUMBLE)
-    Event code 81 (FF_PERIODIC)
-    Event code 88 (FF_SQUARE)
-    Event code 89 (FF_TRIANGLE)
-    Event code 90 (FF_SINE)
-    Event code 96 (FF_GAIN)
-Properties:
-
-
-*/

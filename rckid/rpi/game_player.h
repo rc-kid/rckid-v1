@@ -48,10 +48,9 @@ protected:
     }
 
     void onNavigationPush() override {
-        window()->rckid()->enableGamepad(true);
         // there is no retropie on my dev machine so playing with glxgears instead
 #if (defined ARCH_RPI)
-        emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "--config", "/home/pi/rckid/retroarch.cfg", "-L", "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so", "/rckid/games/game.gbc"}});
+        emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "--config", "/home/pi/rckid/retroarch/retroarch.cfg", "-L", "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so", "/rckid/games/game.gbc"}});
         //emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch"});
 #else
         emulator_ = utils::Process::start(utils::Command{"glxgears"});
@@ -60,7 +59,6 @@ protected:
     }
 
     void onNavigationPop() override {
-        window()->rckid()->enableGamepad(false);
         if (!emulator_.done())
             emulator_.kill();
         window()->enableBackground(true);
@@ -68,17 +66,24 @@ protected:
 
     void onFocus() {
         if (! emulator_.done()) {
-            window()->rckid()->keyPress(RCKid::RETROARCH_PAUSE, true);
-            window()->rckid()->keyPress(RCKid::RETROARCH_PAUSE, false);
+            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
+            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
+            platform::cpu::delay_ms(50);
+            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
+            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
         }
-
+        window()->rckid()->enableGamepad(true);
     }
 
     void onBlur() {
         if (! emulator_.done()) {
-            window()->rckid()->keyPress(RCKid::RETROARCH_PAUSE, true);
-            window()->rckid()->keyPress(RCKid::RETROARCH_PAUSE, false);
+            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
+            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
+            platform::cpu::delay_ms(50);
+            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
+            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
         }
+        window()->rckid()->enableGamepad(false);
     }
 
     // don't do anything here, prevents the back behavior

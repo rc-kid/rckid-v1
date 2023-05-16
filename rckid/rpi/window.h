@@ -205,8 +205,11 @@ private:
     void draw();
 
     void btnVolUp(bool state) { 
+        rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, state);
+        /*
         if (state) 
             rckid_->setVolume(rckid_->volume() + AUDIO_VOLUME_STEP);  
+        */
     }
 
     void btnVolDown(bool state) {

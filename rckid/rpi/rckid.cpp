@@ -82,7 +82,6 @@ RCKid::RCKid(Window * window):
     ASSERT(i == nullptr && "RCKid must be a singleton");
     i = this;
     initializeLibevdevGamepad();
-    initializeLibevdevKeyboard();
     initializeAvr();
     initializeAccel();
     initializeNrf();
@@ -245,9 +244,9 @@ void RCKid::hwLoop() {
             },
             // keyboard presses
             [this](KeyPress e) {
-                if (keyboard_ != nullptr) {
-                    libevdev_uinput_write_event(keyboard_, EV_KEY, e.key, e.state);
-                    libevdev_uinput_write_event(keyboard_, EV_SYN, SYN_REPORT, 0);
+                if (gamepad_ != nullptr) {
+                    libevdev_uinput_write_event(gamepad_, EV_KEY, e.key, e.state);
+                    libevdev_uinput_write_event(gamepad_, EV_SYN, SYN_REPORT, 0);
                 } else {
                     TraceLog(LOG_WARNING, "Cannot emit key - keyboard not available");
                 }
@@ -404,6 +403,8 @@ void RCKid::initializeLibevdevGamepad() {
     libevdev_enable_event_type(gamepadDev_, EV_KEY);
     libevdev_enable_event_type(gamepadDev_, EV_ABS);
 
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, RETROARCH_HOTKEY_ENABLE, nullptr);
+
     //libevdev_enable_event_code(gamepadDev_, EV_KEY, btnVolDown_.evdevId, nullptr);
     //libevdev_enable_event_code(gamepadDev_, EV_KEY, btnVolUp_.evdevId, nullptr);
     libevdev_enable_event_code(gamepadDev_, EV_KEY, btnA_.evdevId, nullptr);
@@ -449,33 +450,6 @@ void RCKid::initializeLibevdevGamepad() {
                                             &gamepad_);
     if (err != 0) 
         TraceLog(LOG_ERROR, STR("Unable to setup gamepad (result " << err << ", errno: " << errno << ")"));
-}
-
-void RCKid::initializeLibevdevKeyboard() {
-    keyboardDev_ = libevdev_new();
-    libevdev_set_name(keyboardDev_, LIBEVDEV_KEYBOARD_NAME);
-    libevdev_set_id_bustype(keyboardDev_, BUS_USB);
-    libevdev_set_id_vendor(keyboardDev_, 0x0ada);
-    libevdev_set_id_product(keyboardDev_, 0xcafe);
-    libevdev_enable_event_type(keyboardDev_, EV_KEY);
-    // enable keys for retroarch and vlc shortcuts
-    libevdev_enable_event_code(keyboardDev_, EV_KEY, RETROARCH_PAUSE, nullptr);
-    libevdev_enable_event_code(keyboardDev_, EV_KEY, RETROARCH_SAVE_STATE, nullptr);
-    libevdev_enable_event_code(keyboardDev_, EV_KEY, RETROARCH_LOAD_STATE, nullptr);
-    libevdev_enable_event_code(keyboardDev_, EV_KEY, RETROARCH_SCREENSHOT, nullptr);
-    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_PAUSE, nullptr);
-    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_BACK, nullptr);
-    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_FORWARD, nullptr);
-    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_DELAY_10S, nullptr);
-    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_DELAY_1M, nullptr);
-    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_SCREENSHOT, nullptr);
-    libevdev_enable_event_code(keyboardDev_, EV_KEY, VLC_SCREENSHOT_MOD, nullptr);
-    // create the device
-    int err = libevdev_uinput_create_from_device(keyboardDev_,
-                                            LIBEVDEV_UINPUT_OPEN_MANAGED,
-                                            &keyboard_);
-    if (err != 0) 
-        TraceLog(LOG_ERROR, STR("Unable to setup keyboard (result " << err << ", errno: " << errno << ")"));
 }
 
 void RCKid::initializeAvr() {
