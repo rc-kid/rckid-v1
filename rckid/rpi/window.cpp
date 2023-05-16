@@ -43,6 +43,7 @@ Window::Window() {
     headerFont_ = loadFont(HELP_FONT, 20);
     menuFont_ = loadFont(MENU_FONT, MENU_FONT_SIZE);
     background_ = LoadTexture("assets/backgrounds/unicorns-black.png");
+    canvas_ = LoadRenderTexture(320, 240);
 
     InitAudioDevice();
 
@@ -193,34 +194,46 @@ void Window::loop() {
 }
 
 void Window::draw() {
-    BeginDrawing();
     double t = GetTime();
     redrawDelta_ = static_cast<float>((t - lastDrawTime_) * 1000);
     bool aend = swap_.update(this);
     lastDrawTime_ = t;
+    // draw the widget which we do on the render texture
+    BeginTextureMode(canvas_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
-    // draw the widget
     if (widget_ != nullptr)
         widget_->draw();
     // do the fade in or out business
+    EndTextureMode();
+
+    BeginDrawing();
+    ClearBackground(ColorAlpha(BLACK, 0.0));
+    if (backgroundEnabled_) {
+        // TODO why was this there????
+        //DrawRectangle(0,0,320,240, BLACK);
+        //BeginBlendMode(1);
+        DrawTexture(background_, backgroundSeam_ - 320, 0, ColorAlpha(WHITE, 0.3));
+        DrawTexture(background_, backgroundSeam_, 0, ColorAlpha(WHITE, 0.3));
+        //EndBlendMode();
+    }
+    ::Color c = WHITE;
     switch (transition_) {
         case Transition::None:
             break;
         case Transition::FadeOut:
-            DrawRectangle(0, 0, Window_WIDTH, Window_HEIGHT, ColorAlpha(BLACK, swap_.interpolate(0.0f, 1.0f, Interpolation::Linear)));
-            EndBlendMode();
+            c = ColorAlpha(c, swap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
             if (aend)
                 swapWidget();
             break;
         case Transition::FadeIn:
-            DrawRectangle(0, 0, Window_WIDTH, Window_HEIGHT, ColorAlpha(BLACK, swap_.interpolate(1.0f, 0.0f, Interpolation::Linear)));
-            EndBlendMode();
+            c = ColorAlpha(c, swap_.interpolate(0.0f, 1.0f, Interpolation::Linear));
             if (aend) 
                 transition_ = Transition::None;
             break;
         default: 
             UNREACHABLE;
     }
+    DrawTextureRec(canvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, c);
     // overlay the header and footer 
     drawHeader();
     if (widget_ == nullptr || ! widget_->fullscreen())

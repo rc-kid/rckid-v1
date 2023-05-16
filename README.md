@@ -14,6 +14,7 @@ The `ATTiny` then manages the analog inputs (joystick, voltages, temperatures), 
 
 > For building the RaspberryPi SD Card image see the [IMAGE.md](sd/IMAGE.md). This section deals with the active development setup. It has been tested on Windows 11, WSL Ubuntu 20. 
 
+    sudo apt-get install vlc alsa-utils
     git clone https://github.com/zduka/rckid-raylib.git
     cd rckid-raylib/src
     make PLATFORM=PLATFORM_DESKTOP

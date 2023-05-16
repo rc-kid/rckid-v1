@@ -152,6 +152,10 @@ namespace utils {
             return static_cast<size_t>(n);    
         }
 
+        size_t tx(char const * buffer) {
+            return tx(buffer, strlen(buffer));
+        }
+
     private:
         Process(pid_t pid): pid_{pid} {}
 

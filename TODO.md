@@ -51,10 +51,10 @@
 
 > To be tested/bugs: 
 
-> I/O items:
-
 - increase pause/resume size so that libretro picks it up
-- ensure config on fresh start
+- ensure config on fresh start from clean sd
+
+> I/O items:
 
 - thumbstick checking
 - dpad right / start get confused often (debounced must be)

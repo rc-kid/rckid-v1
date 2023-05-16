@@ -77,7 +77,6 @@ protected:
         }
         switch (transition_) {
             case Transition::None: {
-                window()->drawBackground();
                 drawItem(current(), 0, 0);
                 return; // no need to close animation
             }
@@ -86,11 +85,11 @@ protected:
                 int imgi = animation_.interpolate(0, Window_WIDTH);
                 int texti = animation_.interpolate(0, Window_WIDTH * 2);
                 if (transition_ == Transition::Left) {
-                    window()->drawBackground(seamStart_ + imgi / 4);
+                    window()->setBackgroundSeam(seamStart_ + imgi / 4);
                     drawItem(next(), imgi, texti);
                     drawItem(current(),  - Window_WIDTH + imgi, - Window_WIDTH * 2 + texti);
                 } else {
-                    window()->drawBackground(seamStart_ - imgi / 4);
+                    window()->setBackgroundSeam(seamStart_ - imgi / 4);
                     drawItem(prev(), - imgi, - texti);
                     drawItem(current(), Window_WIDTH - imgi, Window_WIDTH * 2 - texti);
                 }
