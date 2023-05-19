@@ -277,6 +277,7 @@ public:
                     setMode(Mode::PowerDown);
                 break;
             case Mode::On:
+            case Mode::PowerUp: // also in power on mode in case we are in debug mode
                 if (gpio::read(BTN_HOME)) {
                     state_.controls.setButtonHome(true);
                     setTimeout(BTN_HOME_POWERON_PRESS);
@@ -381,9 +382,10 @@ public:
                 // if any other than no-error state, or select button being presed as well, make display visible immediately
                 if (state_.dinfo.errorCode() != ErrorCode::NoError || state_.controls.select())
                     setBrightness(128);
+                // disable the timeout if Select button is pressed
+                setTimeout(state_.controls.select() ? 0 : RPI_POWERUP_TIMEOUT);
                 // rumble to indicate true power on and set the timeout for RPI poweron 
                 rumblerOk();
-                setTimeout(RPI_POWERUP_TIMEOUT);
                 break;
             case Mode::PowerDown:
                 stopRecording();

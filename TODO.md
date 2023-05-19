@@ -35,18 +35,14 @@
 
 ## Bootloader
 
-- allow to start bootloader by holding HOME on powerup 
-- allow to start bootloader by setting EPROM bits
 - cleanup & extend the programmer code so that it can dump the stored files, read/write EEPROM and so on
 
 ## AVR
 
-- check that long home works in repair mode as well
-- add low and critical battery warnings and proper actions
+- add reset cause detection (wdt)
 - add effects for rumbler & rgb 
 - add mic level wakeup and others
 - add alarm wakeup
-- add reset cause detection
 
 - ensure that the modes and powering on & off works reliably so that we can switch off the I2C display and test comms
 
