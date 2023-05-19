@@ -69,9 +69,13 @@
   
  */
 
-/** When battery voltage reaches this threshold, we enter the PowerDown mode immediately. Must be at least 3V3 for RPi's correct operation. Setting it higher will make the system a bit more stable. 
+/** When battery voltage reaches this threshold, we enter the PowerDown mode immediately. Must be at least 3V3 for RPi's correct operation. Setting it higher will make the system a bit more stable. When critical battery reached, RCkid won't start until charged above the BATTERY_THRESHOLD_CHARGED voltage. 
  */
 #define BATTERY_THRESHOLD_CRITICAL 330
+
+/** When the battery/vcc voltage goes above the battery charged threshold (i.e. either running on USB power or charged enough while sleeping), the critical battery flag is reset allowing RPi to boot. 
+ */
+#define BATTERY_THRESHOLD_CHARGED 370
 
 /** When battery is below this threshold a low battery warning is displayed. 
  */

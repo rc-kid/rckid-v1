@@ -61,3 +61,6 @@ First we are going to add the `ATTiny1616` and basic `I2C` communication to prog
 
 When the bootloader is flashed, verify that the `I2C` communication is working by running the AVR programmer in query mode. 
 
+## Powering Up
+
+To power up attach the (ideally pre-charged) battery and optionally the USB-C charger as well. Upon power-on the AVR chip enters the power-on sequence

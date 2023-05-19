@@ -8,7 +8,7 @@
                    -- (01) PA5   PA2 (15) -- SCL (I2C)
                    -- (02) PA6   PA1 (14) -- SDA (I2C)
                    -- (03) PA7   PA0 (17) -- UPDI
-                   -- (04) PB5   PC3 (13) -- 
+                   -- (04) PB5   PC3 (13) -- BTN_HOME
                    -- (05) PB4   PC2 (12) -- 
                    -- (06) PB3   PC1 (11) -- 
                    -- (07) PB2   PC0 (10) -- AVR_IRQ
@@ -33,17 +33,18 @@ __attribute__((OS_main)) __attribute__((constructor))
 void boot() {
     /* Initialize system for C support */
     asm volatile("clr r1");
-
     volatile State state;
     register uint8_t * address;
     register uint8_t command;
+    // if BTN_HOME is pressed, the bootloader will be started a keepalive mode (no communication with RPi is necessary to keep it alive since wdt is reset every loop iteration)
+    register bool keepalive = ! (VPORTC.IN & PIN1_bm);
     // ensure that when AVR_IRQ is switched to output mode, the pin is pulled low
     VPORTC.OUT &= ~ (1 << 0); 
     // enable watchdog (enabling it this early means the app starts with watchdog enabled so if it misbehaves we end up here)
     while (WDT.STATUS & WDT_SYNCBUSY_bm); // required busy wait
     _PROTECTED_WRITE(WDT.CTRLA, WDT_PERIOD_1KCLK_gc);        
     // only enter the bootloader if PC0 (AVR_IRQ) is pulled low
-    if ((VPORTC.IN & PIN0_bm) == 0) {
+    if (keepalive || (VPORTC.IN & PIN0_bm) == 0) {
         // enable the display backlight when entering the bootloader for some output (like say, eventually an OTA:) Baclight is connected to PB0 and is active high
         VPORTB.DIR |= (1 << 0);
         VPORTB.OUT |= (1 << 0);
@@ -138,6 +139,9 @@ void boot() {
             } else {
                 // TODO
             }
+            // if the keepalive flag is set, reset watchdog at each cycle
+            if (keepalive)
+                __asm__ __volatile__ ("wdr\n");
         }
     }
     // enable the boot lock so that app can't override the bootloader and then start the app

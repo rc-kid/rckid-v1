@@ -40,8 +40,6 @@ namespace comms {
         WatchdogTimeout,
         /// RPi failed to boot in time 
         RPiBootTimeout,
-        /// RPi failed to request state often enough
-        RPiPingTimeout, 
         /// RPi failed to power down in the specified timeout
         RPiPowerDownTimeout,
     }; 
@@ -141,17 +139,17 @@ namespace comms {
         bool start() const { return buttons_ & START; }
         bool home() const { return buttons_ & HOME; }
 
-        /** Sets the button values all at once. 
+        /** \name Sets the button values. 
          
-            Note that this "hacky" function requires the button's bits to align with the bits reported by the analog button decoder. 
+            Note that these "hacky" functions require the button's bits to align with the bits reported by the analog button decoder. 
         */
-        bool setButtons(uint8_t btns1, uint8_t btns2, bool btnHome) {
-            uint8_t btns = (btnHome ? HOME : 0) | (btns1 & 0x7) | ((btns2 & 0x7) << 3);
-            if (btns == buttons_)
-                return false;
-            buttons_ = btns;
-            return true;
-        }
+        //@{
+        bool setButtons1(uint8_t btns1) { return setButtonsRaw(btns1 & 0x07, 0x07); }
+
+        bool setButtons2(uint8_t btns2) { return setButtonsRaw((btns2 & 0x07) << 3, 0x07 << 3); }
+
+        bool setButtonHome(bool value) { return setButtonsRaw(value ? HOME : 0, HOME); }    
+        //@}
 
         uint8_t joyH() const { return joyH_; }
 
@@ -173,6 +171,14 @@ namespace comms {
 
  
     private:
+
+        bool setButtonsRaw(uint8_t value, uint8_t mask) {
+            uint8_t btns = (buttons_ & ~mask) | value;
+            if (btns != buttons_)
+                return false;
+            buttons_ = btns;
+            return true;
+        }
 
         static constexpr uint8_t DPAD_DOWN = 1 << 0;
         static constexpr uint8_t DPAD_UP = 1 << 1;
@@ -276,16 +282,10 @@ namespace comms {
             raw_ &= ~ERROR_CODE;
             raw_ |= static_cast<uint8_t>(code) & ERROR_CODE;
         }
-
-        bool repairMode() const { return raw_ & REPAIR_MODE; }
-        void setRepairMode(bool value) { 
-            value ? (raw_ |= REPAIR_MODE) : (raw_ &= ~REPAIR_MODE);
-        }
     
     private:
         static constexpr uint8_t ERROR_CODE = 15;
-        static constexpr uint8_t REPAIR_MODE = 1 << 7;
-        // 3 free bits
+        // 4 free bits
         uint8_t raw_;
 
     }; // comms::DebugInfo
@@ -398,15 +398,6 @@ namespace msg {
         The poweroff is not immediate since RPI must 
      */
     MESSAGE(PowerDown);
-
-    /** Allows programatically entering the repair mode. 
-     */
-    MESSAGE(EnterRepairMode);
-    /** Programatically deactivates the repair mode.
-     */
-    MESSAGE(LeaveRepairMode);
-
-
 
 } // namespace msg
 

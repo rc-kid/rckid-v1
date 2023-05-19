@@ -1,4 +1,7 @@
+> This guide assumes that you have already followed the assembly guide and have a working RCKid at your disposal. 
+
 # RCKid Simple Manual
+
 
 ## Power Up 
 
@@ -17,7 +20,7 @@ RGB Led    | Rumbler   | Notes
 -----------|-----------|--------
 none       | none      | Normal startup sequence, no errors detected. Wait for the rumbler's ok signal (single long rumble), then relase the _Home_ button and wait couple seconds for the screen brightness to go up. 
 3x red     | none      | Critical battery level. RCKid will not start, connect charger to the USB-C port and recharge the battery. 
-blue       | none      | Last shutdown timed out, but RPi will attempt to power on manually.
+blue       | none      | Last shutdown timed out, but RPi will attempt to power on normally.
 green      | 2x short  | Powerup timeout. The device will power itself off briefly and try to boot again with twice as long interval. If that won't help, it would enter the repair mode and turnoff.
 red        | none      | Device starts in repair mode (see below)
 red        | 2x short  | Device is in repair mode, but USB power is not connected. Device will not boot. 

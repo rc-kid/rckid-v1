@@ -71,7 +71,7 @@ namespace platform {
 #endif
 
         }
-        static void reset() {
+        static void reset() __attribute__((always_inline)) {
 #if (defined ARCH_AVR_MEGATINY)
             __asm__ __volatile__ ("wdr"::);
 #endif

@@ -18,6 +18,8 @@
 
 ## PCB
 
+- RGB does not seem to be happy
+- AVR chips keep getting bricked... No clue why:(
 - wrong holes wrt center of the joystick
 - not enough room for the battery
 
@@ -33,6 +35,7 @@
 
 ## Bootloader
 
+- allow to start bootloader by holding HOME on powerup 
 - allow to start bootloader by setting EPROM bits
 - cleanup & extend the programmer code so that it can dump the stored files, read/write EEPROM and so on
 
