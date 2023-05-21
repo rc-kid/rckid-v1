@@ -2,87 +2,10 @@
 #include "platform/peripherals/nrf24l01.h"
 #include "platform/peripherals/neopixel.h"
 
-/** DEBUG: When enabled, the AVR will use the I2C bus in a master mode and will communicate with an OLED screen attached to it to display various statistics. DISABLE IN PRODUCTION
- */
-#define TEST_I2C_DISPLAY
-#if (defined TEST_I2C_DISPLAY)
-#include "platform/peripherals/ssd1306.h"
-SSD1306 display;
-#endif
+#include "remote.h"
 
-namespace channel {
-
-    /** Motor channel that controls a single DC motor via an H-bridge. Supports direction, 64 levels of speed, coasting and braking mode. 
-    */
-    class Motor {
-
-
-    }; // channel::Motor
-
-    /** Configurable channel can take different roles, such as digital and analog controls or feedbacks, tone control, RGB light control, servo, etc. 
-     */
-    class Configurable {
-
-    }; // channel::Configurable
-
-
-
-} // namespace channel
-
-
-
-
-/** Information about a motor channel. 
- 
-    The motor knows its mode and speed.
- */
-class MotorChannel {
-public:
-    enum class Mode {
-        Coast, 
-        Brake, 
-        CW, 
-        CCW
-    }; 
-    Mode mode;
-    uint8_t speed;
-
-}; // MotorChannel
-
-class DigitalChannel {
-public:
-    bool value;
-}; // DigitalChannel
-
-class PWMChannel {
-public:
-    uint8_t value;
-}; // PWMChannel
-
-class ServoChannel {
-public:
-    uint8_t value;
-}; // ServoChannel
-
-class RGBChannel {
-
-}; // RGBChannel
-
-class ToneChannel {
-
-}; // ToneChannel
-
-class AnalogInput {
-public:
-    uint8_t value;
-}; 
-
-class DigitalInput {
-public:
-    bool value;
-};
-
-
+using namespace platform;
+using namespace remote;
 
 /** LEGO Remote
  
@@ -124,6 +47,10 @@ public:
     - 2.5ms interval for the servo control pulse (TCB0)
     - 2 8bit timers in TCA split mode
     - 1 16bit timer in TCB1 
+
+
+
+
  */
 
 class Remote {
@@ -201,11 +128,43 @@ public:
 
 
 
-        motorCW(0, 4);
-        motorCW(0, 144);
-        motorCoast(0);
+        //motorCW(0, 4);
+        //motorCW(0, 144);
+        //motorCoast(0);
     }
 
+
+    /** \name Channels 
+
+        Channels:
+
+        01 - Motor L
+        02 - Motor R
+        03 - Custom L1
+        04 - Custom R1
+        05 - Custom L2
+        06 - Custom R2
+        07 - RGB 
+        08 - Color 1
+        09 - Color 2
+        10 - Color 3
+        11 - Color 4
+        12 - Color 5
+        13 - Color 6
+        14 - Color 7
+        15 - Color 8
+
+     */
+    //@{
+    static inline channel::Motor ml_;
+    static inline channel::Motor mr_;
+    static inline channel::CustomIO l1_;
+    static inline channel::CustomIO r1_;
+    static inline channel::CustomIO l2_;
+    static inline channel::CustomIO r2_;
+    static inline channel::RGB rgb_;
+    static inline channel::RGBColor colors_[8];
+    //@}
 
     /** \name DC Motors 
      
@@ -213,16 +172,12 @@ public:
      */
     //@{
 
-    static inline MotorChannel m1_;
-    static inline MotorChannel m2_;
-
-
     static void motorCW(uint8_t i, uint8_t speed) {
-        MotorChannel & m = (i == 0) ? m1_ : m2_;
+        channel::Motor & m = (i == 0) ? ml_ : mr_;
         if (i == 0) {
             while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
             TCD0.CMPASET = 255 - speed;
-            if (m.mode != MotorChannel::Mode::CW) {
+            if (m.control.mode != channel::Motor::Mode::CW) {
                 while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                 TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
@@ -235,7 +190,7 @@ public:
         } else {
             while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
             TCD0.CMPBSET = 255 - speed;
-            if (m.mode != MotorChannel::Mode::CW) {
+            if (m.control.mode != channel::Motor::Mode::CW) {
                 while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                 TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
@@ -246,15 +201,16 @@ public:
                 TCD0.CTRLA |= TCD_ENABLE_bm;
             }
         }
-        m.mode = MotorChannel::Mode::CW;
+        m.control.mode = channel::Motor::Mode::CW;
+        m.control.speed = speed;
     }   
 
     static void motorCCW(uint8_t i, uint8_t speed) {
-        MotorChannel & m = (i == 0) ? m1_ : m2_;
+        channel::Motor & m = (i == 0) ? ml_ : mr_;
         if (i == 0) {
             while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
             TCD0.CMPASET = 255 - speed;
-            if (m.mode != MotorChannel::Mode::CCW) {
+            if (m.control.mode != channel::Motor::Mode::CCW) {
                 while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                 TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
@@ -267,7 +223,7 @@ public:
         } else {
             while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
             TCD0.CMPBSET = 255 - speed;
-            if (m.mode != MotorChannel::Mode::CCW) {
+            if (m.control.mode != channel::Motor::Mode::CCW) {
                 while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                 TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
@@ -278,13 +234,14 @@ public:
                 TCD0.CTRLA |= TCD_ENABLE_bm;
             }
         }
-        m.mode = MotorChannel::Mode::CCW;
+        m.control.mode = channel::Motor::Mode::CCW;
+        m.control.speed = speed;
     } 
 
     static void motorBrake(uint8_t i) {
-        MotorChannel & m = (i == 0) ? m1_ : m2_;
+        channel::Motor & m = (i == 0) ? ml_ : mr_;
         if (i == 0) {
-            if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+            if (m.control.mode == channel::Motor::Mode::CW | m.control.mode == channel::Motor::Mode::CCW) {
                 while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                 TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
@@ -295,7 +252,7 @@ public:
             gpio::high(ML1);
             gpio::high(ML2);
         } else {
-            if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+            if (m.control.mode == channel::Motor::Mode::CW | m.control.mode == channel::Motor::Mode::CCW) {
                 while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                 TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
@@ -306,13 +263,14 @@ public:
             gpio::high(MR1);
             gpio::high(MR2);
         }
-        m.mode = MotorChannel::Mode::Brake;
+        m.control.mode = channel::Motor::Mode::Brake;
+        m.control.speed = 0;
     }
 
     static void motorCoast(uint8_t i) {
-        MotorChannel & m = (i == 0) ? m1_ : m2_;
+        channel::Motor & m = (i == 0) ? ml_ : mr_;
         if (i == 0) {
-            if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+            if (m.control.mode == channel::Motor::Mode::CW | m.control.mode == channel::Motor::Mode::CCW) {
                 while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                 TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
@@ -323,7 +281,7 @@ public:
             gpio::low(ML1);
             gpio::low(ML2);
         } else {
-            if (m.mode == MotorChannel::Mode::CW | m.mode == MotorChannel::Mode::CCW) {
+            if (m.control.mode == channel::Motor::Mode::CW | m.control.mode == channel::Motor::Mode::CCW) {
                 while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                 TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
@@ -334,7 +292,8 @@ public:
             gpio::low(MR1);
             gpio::low(MR2);
         }
-        m.mode = MotorChannel::Mode::Coast;
+        m.control.mode = channel::Motor::Mode::Coast;
+        m.control.speed = 0;
     }
     //@}
 

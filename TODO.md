@@ -84,7 +84,7 @@
 
 
 
-
+- handle errors in player configs
 - actually do the audio, video menu
 - on pop for menu so that we can clear it, should we want to
 - modal errors & stuff

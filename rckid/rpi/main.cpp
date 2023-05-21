@@ -92,7 +92,7 @@ int main(int argc, char * argv[]) {
             "assets/images/005-film-slate.png",
             [&](Window*) {
                 return new JSONMenu{
-                    "rckid/video/folder.json",
+                    "rckid/videos/folder.json",
                     [&](Window*, json::Value & item) {
                         videoPlayer.play(item);
                     }
