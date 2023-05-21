@@ -24,6 +24,14 @@ The `ATTiny` then manages the analog inputs (joystick, voltages, temperatures), 
     cd rckid/build
     cmake ..
 
+### AVR UPDI Programmer
+
+Serial UPDI is used, more details [here](https://github.com/SpenceKonde/AVR-Guidance/blob/master/UPDI/jtag2updi.md). I am using CH340 based one with a diode (BAT-60J) and internal 1k5 resistor on TX line. 
+
+> Note that when using an adapter with a RX-line LED, such as most CH340 based ones, the LED must be removed or the programmer will *not* work. This is somewhat burried in the original document and it took me a while to realize this. 
+
+There seems to be a possibility of building a high voltage UPDI programmer, details [here](http://www.technoblogy.com/show?48MP).
+
 ## Basic Operation
 
 The `fbcp-ili9341` runs in its own process and is responsible for displaying the contents of the framebuffer on the SPI display.
@@ -38,6 +46,7 @@ The `rckid` app controls the UI, communicates with the AVR and creates and manag
 - [DismpanX header](https://github.com/raspberrypi/userland/blob/master/interface/vmcs_host/vc_dispmanx.h)
 - [DispmanX example](https://github.com/raspberrypi/firmware/blob/master/opt/vc/src/hello_pi/hello_dispmanx/dispmanx.c)
 - [RaspiDMX tools](https://github.com/AndrewFromMelbourne/raspidmx/blob/master/common/imageLayer.c)
+
 
 ### Prepare the RPi image
 

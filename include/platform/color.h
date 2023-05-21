@@ -214,6 +214,13 @@ namespace platform {
             }
         }
 
+        void clear() {
+            for (uint8_t i = 0; i < SIZE; ++i) {
+                colors_[i] = Color::Black();
+            }
+            changed_ = true;
+        }
+
         void withBrightness(uint8_t brightness) {
             for (uint8_t i = 0; i < SIZE; ++i) {
                 Color c = colors_[i].withBrightness(brightness);

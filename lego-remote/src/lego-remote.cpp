@@ -55,6 +55,9 @@ using namespace remote;
 
 class Remote {
 public:
+
+    static constexpr gpio::Pin NEOPIXEL_PIN = 7; 
+
     static constexpr gpio::Pin ML1 = 0; // TCD, WOA
     static constexpr gpio::Pin MR1 = 1; // TCD, WOB
     static constexpr gpio::Pin ML2 = 10; // TCD, WOC
@@ -124,8 +127,12 @@ public:
         //TCA0.SPLIT.LCMP0 = 64; // backlight at 1/4
         //TCA0.SPLIT.HCMP0 = 128; // rumbler at 1/2
         TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc | TCA_SPLIT_ENABLE_bm; 
-        // initialize the I2C in alternate position
 
+
+        // clear all RGB colors, set the control LED to green & update
+        rgbColors_.clear();
+        rgbColors_[0] = Color::Green();
+        rgbColors_.update();
 
 
         //motorCW(0, 4);
@@ -163,7 +170,9 @@ public:
     static inline channel::CustomIO l2_;
     static inline channel::CustomIO r2_;
     static inline channel::RGB rgb_;
-    static inline channel::RGBColor colors_[8];
+
+    // channels 8 .. 15 are colors actually, the first LED in the strip is the control led on the device
+    static inline NeopixelStrip<9> rgbColors_{NEOPIXEL_PIN};
     //@}
 
     /** \name DC Motors 
