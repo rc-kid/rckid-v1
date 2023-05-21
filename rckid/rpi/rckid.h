@@ -210,9 +210,7 @@ private:
         msg::RumblerFail, 
         msg::Rumbler,
         msg::PowerOn,
-        msg::PowerDown, 
-        msg::EnterRepairMode,
-        msg::LeaveRepairMode 
+        msg::PowerDown
     >;
 
     static RCKid * & instance() {

@@ -58,7 +58,7 @@ protected:
 
     void btnA(bool state) override {
         if (state && transition_ == Transition::None && items_ != nullptr)
-            current()->onSelect(window());
+            items_->onSelectItem(window(), i_);
     }
 
     void drawItem(Menu::Item * item, int ximg, int xtext, uint8_t alpha = 255) {

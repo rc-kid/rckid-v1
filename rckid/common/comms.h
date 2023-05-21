@@ -261,7 +261,7 @@ namespace comms {
         uint8_t vcc_;
         uint8_t vbatt_;
         uint8_t temp_;
-        uint8_t brightness_;
+        uint8_t brightness_ = 128;
     }; // comms::ExtendedInfo;
 
     /** State consists  */

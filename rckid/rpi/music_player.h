@@ -16,6 +16,10 @@ public:
 
     MusicPlayer(Window * window): Widget{window} {}
 
+    void play(json::Value const & music) {
+
+    }
+
     /** Extracts the artwork from given track into a specified filename. 
 
 ffmpeg -i /mnt/c/Users/petam/Music/incomplete/c64/Christian\ Schüler\ -\ Druid\ version\ \(grassroots\ mix\).mp3 -an -vcodec copy cover.png

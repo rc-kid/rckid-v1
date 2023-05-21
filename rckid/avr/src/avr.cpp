@@ -363,6 +363,7 @@ public:
         switch (mode) {
             case Mode::On:
                 setTimeout(0); // disable the timeout
+                setBrightness(state_.einfo.brightness());
                 break;
             // for sleep, don't do anything, all will be handled by the main loop that will enter sleep immediately
             case Mode::Sleep:

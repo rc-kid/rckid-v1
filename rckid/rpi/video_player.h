@@ -18,6 +18,15 @@ public:
 
     bool fullscreen() const { return true; }
 
+    void play(json::Value const & video) {
+        if (!player_.done())
+            player_.kill();
+        std::string path = video["path"].value<std::string>();
+        player_ = utils::Process::capture(utils::Command{"cvlc", { "-I", "rc", path}});
+        playing_ = true;
+        window()->setWidget(this);
+    }
+
 protected:
 
     void draw() override {
@@ -26,8 +35,6 @@ protected:
     }
 
     void onNavigationPush() override {
-        player_ = utils::Process::capture(utils::Command{"cvlc", { "-I", "rc", "/rckid/videos/test.mkv"}});
-        playing_ = true;
         window()->enableBackground(false);
     }
 

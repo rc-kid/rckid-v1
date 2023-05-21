@@ -221,6 +221,14 @@ namespace json {
             return *this;
         }
 
+        /** Returns true of te value is struct and contains the given field (even if it is null or undefined), false otherwise. 
+         */
+        bool containsKey(std::string const & name) const {
+            if (kind_ == Kind::Struct)
+                return struct_.find(name) != struct_.end();
+            return false;
+        }
+
         template<typename T>
         T const & value() const;
 
@@ -424,10 +432,12 @@ namespace json {
                     break;
                 case Kind::Array:
                     s << "[";
+                    // TODO
                     s << "]";
                     break;
                 case Kind::Struct:
                     s << "{";
+                    // TODO
                     s << "}";
                     break;
             }

@@ -9,6 +9,10 @@ void Menu::clear() {
     items_.clear();
 }
 
+void Menu::onSelectItem(Window * window, size_t index) { 
+    items_[index]->onSelect(window); 
+}
+
 void Menu::Item::initialize(Window * window) {
     img_ = LoadTexture(imgFile_.c_str());
     Vector2 fs = MeasureText(window->menuFont(), title_.c_str(), MENU_FONT_SIZE);
@@ -19,13 +23,13 @@ void WidgetItem::onSelect(Window * window) {
     window->setWidget(widget_);
 }
 
-void SubmenuItem::onSelect(Window * window) {
-    if (updater_)
-        updater_(window, this);
-    window->setMenu(& submenu_);
+void Submenu::onSelect(Window * window) {
+    window->setMenu(submenu_);
 }
 
 
+
+/*
 void JSONItem::onSelect(Window * window) {
     try {
         json::Value v{json::parseFile(submenu_.jsonFile_)};
@@ -39,3 +43,4 @@ void JSONItem::onSelect(Window * window) {
         TraceLog(LOG_ERROR, e.what());
     }
 }
+*/

@@ -18,14 +18,9 @@ public:
     class Item;
 
     Menu() = default;
+    Menu(std::initializer_list<Item*> items): items_{items} { }
 
-    Menu(std::initializer_list<Item*> items):
-        items_{items} {
-    }
-
-    ~Menu() {
-        clear();
-    }
+    virtual ~Menu() { clear(); }
 
     void clear();
 
@@ -38,10 +33,17 @@ public:
 protected:
 
     friend class Window;
+    friend class Carousel;
 
     virtual void onFocus() {}
 
     virtual void onBlur() {}
+
+    /** Called when an item in the menu is selected. Default implementation simply calls the item's onSelect event. 
+     
+        Overriding this methods allows the menu to intercept their items being selected. 
+     */
+    virtual void onSelectItem(Window * window, size_t index);
     
 private:
     std::vector<Item*> items_;    
@@ -83,8 +85,28 @@ protected:
 
 }; // MenuItem
 
+/** Menu item that calls its own closure when the selected. 
+ */
+class ActionItem : public Menu::Item {
+public:
+    ActionItem(std::string const & title, std::string const & imgFile, std::function<void()> action):
+        Item{title, imgFile},
+        action_{action} {
+    }
+
+    void onSelect(Window * window) override {
+        if (action_)
+            action_();
+    }
+
+private:
+    std::function<void()> action_;
+}; // ActionItem
+
 
 /** A menu item behind which lies a widget to be displayed when selected. 
+ 
+    Semantically corresponds to a RAII holder of the widget combined with an ActionItem whose action is to push the widget on the nav stack. 
  */
 class WidgetItem : public Menu::Item {
 public:
@@ -103,26 +125,106 @@ private:
 
 /** Menu item that launches its own submenu when selected. 
  */
-class SubmenuItem : public Menu::Item {
+class Submenu : public Menu::Item {
 public:
-    SubmenuItem(std::string const & title, std::string const & imgFile, std::initializer_list<Menu::Item *> items):
+    Submenu(std::string const & title, std::string const & imgFile, std::initializer_list<Menu::Item *> items):
         Menu::Item{title, imgFile},
-        submenu_{items} {
+        submenu_{new Menu{items}} {
     }
 
-    SubmenuItem(std::string const & title, std::string const & imgFile, std::function<void(Window *, SubmenuItem *)> updater):
+    Submenu(std::string const & title, std::string const & imgFile, Menu * submenu):
         Menu::Item{title, imgFile},
-        updater_{updater} {
+        submenu_{submenu} {
     }
 
-    Menu & submenu() { return submenu_; }
+    ~Submenu() override { delete submenu_; }
+
+    Menu * submenu() { return submenu_; }
+
+    void setSubmenu(Menu * value) {
+        delete submenu_;
+        submenu_ = value;
+    }
 
     void onSelect(Window * window) override;
 
+    Menu * submenu_ = nullptr;
+}; // Submenu
+
+
+/** Menu item that launches a submenu when selected. 
+ 
+    Unlike the Submenu class the LazySubmenu will construct the menu first via the provided action method. The returned menu will then be cached for future invocations. 
+*/
+class LazySubmenu : public Submenu {
+public:
+    LazySubmenu(std::string const & title, std::string const & imgFile, std::function<Menu *(Window *)> updater):
+        Submenu{title, imgFile, nullptr},
+        updater_{updater} {
+    }
+
+    void onSelect(Window * window) override {
+        if (submenu() == nullptr)
+            setSubmenu(updater_(window));
+        Submenu::onSelect(window);
+    }
+
 private:
-    std::function<void(Window *, SubmenuItem *)> updater_;
-    Menu submenu_;
-}; // SubmenuItem
+    std::function<Menu*(Window *)> updater_;
+}; // LazySubmenu
+
+/** Menu backed by a json file. 
+ 
+    The JSON file must be an array of JSON objects that contain at least the following keys:
+
+    - title (string) - displayed title of the item
+    - image (string) - path to an image that is to be used as the menu item image
+
+ */
+class JSONMenu : public Menu {
+public:
+    JSONMenu(std::string const & jsonFile, std::function<void(Window *, json::Value &)> onSelect):
+        onSelect_{onSelect},
+        jsonFile_{jsonFile}, 
+        json_{json::parseFile(jsonFile)} {
+        for (json::Value & item : json_.arrayElements()) {
+            if (item.containsKey("json")) {
+                std::string jsonPath = item["json"].value<std::string>();
+                add(new LazySubmenu{
+                    item["title"].value<std::string>(), 
+                    item["image"].value<std::string>(), 
+                    [jsonPath, onSelect](Window *){ 
+                        return new JSONMenu{jsonPath, onSelect}; 
+                    }
+                });
+            } else {
+                add(new Menu::Item{item["title"].value<std::string>(), item["image"].value<std::string>()});
+            }
+        }
+    }
+
+protected:
+
+    void onSelectItem(Window * window, size_t index) {
+        json::Value & v = json_[index];
+        if (v.containsKey("json"))
+            (*this)[index]->onSelect(window);
+        else
+            onSelect_(window, v);   
+    }
+
+private:
+
+    std::function<void(Window *, json::Value &)> onSelect_;
+
+    std::string jsonFile_;
+    json::Value json_;
+
+}; // JSONMenu
+
+
+
+
 
 /** Menu item that when selected opens a submenu read from JSON file. 
  
@@ -136,6 +238,7 @@ private:
 
     And some more
  */
+/*
 class JSONItem : public Menu::Item {
 public:
     JSONItem(std::string const & title, std::string const & imgFile, std::string const & jsonFile, Window * window):
@@ -170,19 +273,4 @@ private:
 
     JSONMenu submenu_;
 }; // JSONItem
-
-class ActionItem : public Menu::Item {
-public:
-    ActionItem(std::string const & title, std::string const & imgFile, std::function<void()> action):
-        Item{title, imgFile},
-        action_{action} {
-    }
-
-    void onSelect(Window * window) override {
-        if (action_)
-            action_();
-    }
-
-private:
-    std::function<void()> action_;
-}; // ActionItem
+*/

@@ -23,14 +23,11 @@
 - wrong holes wrt center of the joystick
 - not enough room for the battery
 
-- should the ps1000 hole be permanent?, likely yes - might also prevent the joycon encosure wobble 
-- move the trace away from the ps1000 hole too
 - enlarge L and R vertical pin hole pads
-- VCC test point
 - joystick button test point
 - proper hole for the thumbstick
 
-- check NRF24, check RGB, check rumbler
+- check NRF24, check RGB
 - might also use [this](http://k-silver.com/html_products/JP19%EF%BC%88%E6%AD%A3%E6%8F%92%E8%93%9D%E8%89%B2%E6%91%87%E6%9D%86%EF%BC%89-833.html) thunbstick, that can be bought from [Adafruit](https://www.adafruit.com/product/5628) - will be much easier to solder, might require special pcb board or some such
 
 ## Bootloader
@@ -64,6 +61,7 @@
 > Minor code issues & features to implement
 
 - add == to Value and double parsing
+- add JSON ostream << for array and struct
 - add JSON backed menu that allows reordering
 - how to configure, via JSON I guess,
 - samba on demand? etc.

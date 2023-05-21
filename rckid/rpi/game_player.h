@@ -7,6 +7,7 @@
 #include "platform/platform.h"
 
 #include "utils/process.h"
+#include "utils/json.h"
 
 
 /** Retroarch client for a single game. 
@@ -40,6 +41,10 @@ public:
         }}  {}
 
     bool fullscreen() const { return true; }
+
+    void play(json::Value const & game) {
+
+    }
 
 protected:
     void draw() override {

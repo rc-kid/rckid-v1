@@ -455,6 +455,8 @@ void RCKid::initializeLibevdevGamepad() {
 void RCKid::initializeAvr() {
     if (!i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, nullptr, 0))
         TraceLog(LOG_ERROR, STR("AVR not found:" << errno));
+    // enter the power-on mode
+    sendAvrCommand(msg::PowerOn{});
 }
 
 void RCKid::initializeAccel() {
