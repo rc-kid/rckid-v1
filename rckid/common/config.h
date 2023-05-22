@@ -13,6 +13,8 @@
 
 #define BTN_HOME_POWEROFF_PRESS 500
 
+#define DEFAULT_RUMBLER_STRENGTH 64
+
 
 /** \section Audio 
 

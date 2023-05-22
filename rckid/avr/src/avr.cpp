@@ -172,6 +172,9 @@ public:
         // enable BTN_HOME interrupt and internal pull-up, invert the pin's value so that we read the button nicely
         static_assert(BTN_HOME == 13); // PC3
         PORTC.PIN3CTRL |= PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm | PORT_INVEN_bm;
+        // check if we have a WDT reset and set the debug info accordingly
+        if (RSTCTRL.RSTFR | RSTCTRL_WDRF_bm)
+            state_.dinfo.setErrorCode(ErrorCode::WatchdogTimeout);
         // verify that wakeup conditions have been met, i.e. that we have enough voltage, etc. and go to sleep immediately if that is not the case. Repeat until we can wakeup. NOTE going to sleep here cuts the power to RPi immediately which can be harmful, but if we are powering on with low battery, there is not much else we can do and the idea is that this ends long time before the RPi gets far enough in the booting process to be able to actually cause an SD card damage  
         if (!canWakeUp())
             sleep();
@@ -926,14 +929,14 @@ public:
     //@{
 
     static void rumblerOk() {
-        setRumbler(128);
+        setRumbler(DEFAULT_RUMBLER_STRENGTH);
         delayMs(750);
         setRumbler(0);
     }
 
     static void rumblerFail() {
         for (int i = 0; i < 3; ++i) {
-            setRumbler(128); // TODO go back to 255
+            setRumbler(DEFAULT_RUMBLER_STRENGTH); 
             delayMs(100);
             setRumbler(0);
             delayMs(230);

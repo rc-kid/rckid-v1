@@ -36,7 +36,6 @@
 
 ## AVR
 
-- add reset cause detection (wdt)
 - add effects for rumbler & rgb 
 - add mic level wakeup and others
 - add alarm wakeup

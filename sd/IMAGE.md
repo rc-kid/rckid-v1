@@ -10,9 +10,6 @@ To connect to the board, determine its ip address and ssh with username `pi` and
 
 Then run the following:
 
-    sudo apt-get update
-    sudo apt-get upgrade
-    sudo apt-get install mc htop tmux git cmake
     git clone git@github.com:zduka/rckid.git
 
 Then run `sudo racpi-config`, enable audio jack audio and i2c, disable the experimental gl driver. 
