@@ -37,7 +37,7 @@ void boot() {
     register uint8_t * address;
     register uint8_t command;
     // if BTN_HOME is pressed, the bootloader will be started a keepalive mode (no communication with RPi is necessary to keep it alive since wdt is reset every loop iteration)
-    register bool keepalive = ! (VPORTC.IN & PIN1_bm);
+    register bool keepalive = ! (VPORTC.IN & PIN3_bm);
     // ensure that when AVR_IRQ is switched to output mode, the pin is pulled low
     VPORTC.OUT &= ~ (1 << 0); 
     // enable watchdog (enabling it this early means the app starts with watchdog enabled so if it misbehaves we end up here)
