@@ -38,6 +38,7 @@
 
 ## AVR
 
+- LED seems not to work
 - add effects for rumbler & rgb 
 - add mic level wakeup and others
 - add alarm wakeup

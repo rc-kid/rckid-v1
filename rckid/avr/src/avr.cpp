@@ -378,6 +378,11 @@ public:
                 if (state_.dinfo.errorCode() != ErrorCode::NoError) {
                     rgbOn();
                     showColor(errorCodeColor(state_.dinfo.errorCode()));
+                } 
+                // TODO delete, just to check the LED
+                else {
+                    rgbOn();
+                    showColor(Color::White().withBrightness(16));
                 }
                 // reset the comms state for the power up
                 setDefaultTxAddress();
@@ -447,6 +452,10 @@ public:
         if (value == 0) { // turn off
             TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP0EN_bm;
             gpio::input(BACKLIGHT);
+        } else if (value == 255) {
+            TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP0EN_bm;
+            gpio::output(BACKLIGHT);
+            gpio::high(BACKLIGHT);
         } else {
             gpio::output(BACKLIGHT);
             TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP0EN_bm;
@@ -963,15 +972,15 @@ public:
     static inline NeopixelStrip<1> rgb_{RGB};
 
     static void rgbOn() {
-        gpio::output(RGB);
-        gpio::low(RGB);
+        gpio::output(RGB_EN);
+        gpio::low(RGB_EN);
         delayMs(10);
     }
 
     /** Turns the RGB led off. 
      */
     static void rgbOff() {
-        gpio::input(RGB);
+        gpio::input(RGB_EN);
     }
 
     // TODO add timeout

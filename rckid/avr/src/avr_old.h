@@ -833,6 +833,10 @@ public:
         if (value == 0) { // turn off
             TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP0EN_bm;
             gpio::input(BACKLIGHT);
+        } else if (value == 255) {
+            TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP0EN_bm;
+            gpio::output(BACKLIGHT);
+            gpio::low(BACKLIGHT);
         } else {
             gpio::output(BACKLIGHT);
             TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP0EN_bm;

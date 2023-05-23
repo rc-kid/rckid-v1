@@ -174,7 +174,7 @@ namespace comms {
 
         bool setButtonsRaw(uint8_t value, uint8_t mask) {
             uint8_t btns = (buttons_ & ~mask) | value;
-            if (btns != buttons_)
+            if (btns == buttons_)
                 return false;
             buttons_ = btns;
             return true;
