@@ -36,13 +36,15 @@ void boot() {
     volatile State state;
     register uint8_t * address;
     register uint8_t command;
-    // if BTN_HOME is pressed, the bootloader will be started a keepalive mode (no communication with RPi is necessary to keep it alive since wdt is reset every loop iteration)
-    register bool keepalive = ! (VPORTC.IN & PIN3_bm);
+    // enable pull-up on C3 (BTN_HOME)
+    PORTC.PIN3CTRL |= PORT_PULLUPEN_bm;
     // ensure that when AVR_IRQ is switched to output mode, the pin is pulled low
     VPORTC.OUT &= ~ (1 << 0); 
     // enable watchdog (enabling it this early means the app starts with watchdog enabled so if it misbehaves we end up here)
     while (WDT.STATUS & WDT_SYNCBUSY_bm); // required busy wait
     _PROTECTED_WRITE(WDT.CTRLA, WDT_PERIOD_1KCLK_gc);        
+    // if BTN_HOME is pressed, the bootloader will be started a keepalive mode (no communication with RPi is necessary to keep it alive since wdt is reset every loop iteration)
+    register bool keepalive = ! (VPORTC.IN & PIN3_bm);
     // only enter the bootloader if PC0 (AVR_IRQ) is pulled low
     if (keepalive || (VPORTC.IN & PIN0_bm) == 0) {
         // enable the display backlight when entering the bootloader for some output (like say, eventually an OTA:) Baclight is connected to PB0 and is active high

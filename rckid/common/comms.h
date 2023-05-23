@@ -313,7 +313,9 @@ namespace comms {
     class NAME : public msg::MessageHelper<NAME> { \
     public: \
         static uint8_t constexpr ID = __COUNTER__ - COUNTER_OFFSET; \
-        static NAME const & fromBuffer(uint8_t const * buffer) { return * reinterpret_cast<NAME const *>(buffer); } \
+        static NAME const & fromBuffer(uint8_t const * buffer) { \
+            return * reinterpret_cast<NAME const *>(buffer); \
+        } \
         __VA_ARGS__ \
     } __attribute__((packed))
 

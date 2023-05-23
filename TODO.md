@@ -32,6 +32,8 @@
 
 ## Bootloader
 
+- add the reset to program setting to programmer
+- add programmer as library
 - cleanup & extend the programmer code so that it can dump the stored files, read/write EEPROM and so on
 
 ## AVR
@@ -43,6 +45,8 @@
 - ensure that the modes and powering on & off works reliably so that we can switch off the I2C display and test comms
 
 ## RPI - RayLib
+
+- die if in bootloader mode 
 
 > To be tested/bugs: 
 
