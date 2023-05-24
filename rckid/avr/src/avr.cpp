@@ -428,6 +428,10 @@ public:
      */
     static void timeoutError() {
         switch (state_.status.mode()) {
+            case Mode::WakeUp:
+                rumblerOk();
+                setMode(Mode::PowerUp);
+                return;
             case Mode::PowerUp:
                 state_.dinfo.setErrorCode(ErrorCode::RPiBootTimeout);
                 break;

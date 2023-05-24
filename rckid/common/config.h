@@ -9,9 +9,9 @@
     
  */
 
-#define BTN_HOME_POWERON_PRESS 250
+#define BTN_HOME_POWERON_PRESS 400
 
-#define BTN_HOME_POWEROFF_PRESS 500
+#define BTN_HOME_POWEROFF_PRESS 800
 
 #define DEFAULT_RUMBLER_STRENGTH 64
 
@@ -57,11 +57,11 @@
 
 /** RPi power up timeout in ticks 
  */
-#define RPI_POWERUP_TIMEOUT 1000
+#define RPI_POWERUP_TIMEOUT 6000
 
 /** RPi powerdown in ticks
  */
-#define RPI_POWERDOWN_TIMEOUT 10000
+#define RPI_POWERDOWN_TIMEOUT 6000
 
 /** RPi ping timeout.
  */

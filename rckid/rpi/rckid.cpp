@@ -326,6 +326,10 @@ void RCKid::processAvrStatus(comms::Status const & status) {
     if (status.recording()) {
         // TODO TODO TODO TODO TODO TODO TODO TODO TODO
     } else {
+        if (status.mode() == comms::Mode::PowerDown) {
+            TraceLog(LOG_INFO, "Power down requeted");
+            system("sudo poweroff");
+        }
         if (setIfDiffers(mode_.mode, status.mode()))
             events_.send(mode_);
         if (setIfDiffers(charging_, ChargingEvent{status.usb(), status.charging()}))

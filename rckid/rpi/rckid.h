@@ -107,6 +107,10 @@ public:
         hwEvents_.send(KeyPress{key, state});
     }
 
+    void powerOff() {
+        hwEvents_.send(msg::PowerDown{});
+    }
+
     /** Returns the current audio volume. 
      */
     int volume() const { return status_.volume; }

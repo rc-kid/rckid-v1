@@ -50,8 +50,11 @@ Window::Window() {
     rckid_ = new RCKid{this};
     carousel_ = new Carousel{this};
     homeMenu_ = new Menu{{
-        new ActionItem{"Power Off", "assets/images/011-power-off.png",[](){
+        new ActionItem{"Exit", "assets/images/011-power-off.png",[](){
             ::exit(0);
+        }},
+        new ActionItem{"Power Off", "assets/images/011-power-off.png",[&](){
+            rckid_->powerOff();
         }},
         new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
         new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{this, 

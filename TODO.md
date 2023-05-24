@@ -39,6 +39,8 @@
 ## AVR
 
 - LED seems not to work
+- BTN_HOME release from long press does not seem to be detected right
+- there is 6mA draw when sleeping, not sure why...
 - add effects for rumbler & rgb 
 - add mic level wakeup and others
 - add alarm wakeup
