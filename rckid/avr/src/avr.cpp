@@ -280,7 +280,6 @@ public:
                     setMode(Mode::PowerDown);
                 break;
             case Mode::On:
-            case Mode::PowerUp: // also in power on mode in case we are in debug mode
                 if (gpio::read(BTN_HOME)) {
                     state_.controls.setButtonHome(true);
                     setTimeout(BTN_HOME_POWERON_PRESS);
@@ -388,11 +387,18 @@ public:
                 setDefaultTxAddress();
                 break;
             case Mode::PowerUp:
-                // if any other than no-error state, or select button being presed as well, make display visible immediately
-                if (state_.dinfo.errorCode() != ErrorCode::NoError || state_.controls.select())
+                // if select is pressed as well, enter power on mode immediately to bypass the timer and enforce display brightness 
+                if (state_.controls.select()) {
+                    state_.einfo.setBrightness(128);
+                    setMode(Mode::On);
+                    rumblerOk();
+                    return;
+                }
+                // if any other than no-error state, make display visible immediately
+                if (state_.dinfo.errorCode() != ErrorCode::NoError)
                     setBrightness(128);
                 // disable the timeout if Select button is pressed
-                setTimeout(state_.controls.select() ? 0 : RPI_POWERUP_TIMEOUT);
+                setTimeout(RPI_POWERUP_TIMEOUT);
                 // rumble to indicate true power on and set the timeout for RPI poweron 
                 rumblerOk();
                 break;
@@ -429,7 +435,6 @@ public:
     static void timeoutError() {
         switch (state_.status.mode()) {
             case Mode::WakeUp:
-                rumblerOk();
                 setMode(Mode::PowerUp);
                 return;
             case Mode::PowerUp:
@@ -652,8 +657,6 @@ public:
             gpio::input(AVR_IRQ);
             TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
             flags_.validBatch = (wrIndex_ >> 5) != state_.status.batchIndex();
-            // reset the watchdog
-            __asm__ __volatile__ ("wdr\n");
         // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise. The buffer is reset to 
         } else if ((status & I2C_START_MASK) == I2C_START_RX) {
             TWI0.SCTRLB = flags_.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;

@@ -327,7 +327,7 @@ void RCKid::processAvrStatus(comms::Status const & status) {
         // TODO TODO TODO TODO TODO TODO TODO TODO TODO
     } else {
         if (status.mode() == comms::Mode::PowerDown) {
-            TraceLog(LOG_INFO, "Power down requeted");
+            TraceLog(LOG_INFO, "Power down requested");
             system("sudo poweroff");
         }
         if (setIfDiffers(mode_.mode, status.mode()))

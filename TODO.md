@@ -39,7 +39,7 @@
 ## AVR
 
 - LED seems not to work
-- BTN_HOME release from long press does not seem to be detected right
+- check power on timeout if it is long enough
 - there is 6mA draw when sleeping, not sure why...
 - add effects for rumbler & rgb 
 - add mic level wakeup and others
@@ -50,6 +50,7 @@
 ## RPI - RayLib
 
 - die if in bootloader mode 
+- read and reset the error in debug at the beginning of the app
 
 > To be tested/bugs: 
 
