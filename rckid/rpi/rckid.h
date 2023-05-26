@@ -10,6 +10,7 @@
 #include "platform/platform.h"
 #include "platform/peripherals/nrf24l01.h"
 #include "platform/peripherals/mpu6050.h"
+#include "platform/color.h"
 
 #include "common/config.h"
 #include "common/comms.h"
@@ -128,6 +129,11 @@ public:
 
     void setBrightness(uint8_t value) { hwEvents_.send(msg::SetBrightness{value}); }
 
+    void rgbOn() { hwEvents_.send(msg::RGBOn{}); }
+    void rgbOff() { hwEvents_.send(msg::RGBOff{}); }
+    void rgbColor(platform::Color color) { hwEvents_.send(msg::RGBColor{color}); }
+
+
     comms::Mode mode() const { return status_.mode; }
     bool usb() const { return status_.usb; }
     bool charging() const { return status_.charging; }
@@ -213,6 +219,9 @@ private:
         msg::RumblerOk, 
         msg::RumblerFail, 
         msg::Rumbler,
+        msg::RGBOn,
+        msg::RGBOff,
+        msg::RGBColor,
         msg::PowerOn,
         msg::PowerDown
     >;

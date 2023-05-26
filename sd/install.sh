@@ -24,6 +24,10 @@ sudo apt-get install wiringpi libi2c-dev
 #sudo systemctl disable hciuart.service
 #sudo systemctl disable bluetooth.service
 
+# disable the splashscreen which plays at the highest layer so obscures everything we have 
+# TODO can we keep the splashscreen for nice splash, but change the layer, or kill it instead?
+sudo systemctl disable asplashscreen.service
+
 # get the ili9341 driver and build it
 cd ~
 git clone https://github.com/juj/fbcp-ili9341.git

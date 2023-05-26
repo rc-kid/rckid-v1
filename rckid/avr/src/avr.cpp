@@ -610,6 +610,19 @@ public:
                 // TODO deal with the timeout
                 break;
             }
+            case RGBOn::ID: {
+                rgbOn();
+                break;
+            }
+            case RGBOff::ID: {
+                rgbOff();
+                break;
+            }
+            case RGBColor::ID: {
+                auto & m = RGBColor::fromBuffer(i2cBuffer_);
+                showColor(m.color);
+                break;
+            }
 
 
             case PowerOn::ID: {

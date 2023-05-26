@@ -23,6 +23,7 @@ struct DispmanXBackgroundLayer {
 #include "game_player.h"
 #include "music_player.h"
 #include "video_player.h"
+#include "torchlight.h"
 
 /** Main RCKid app. 
  
@@ -115,7 +116,7 @@ int main(int argc, char * argv[]) {
         new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
         new Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
         new Submenu{"Apps", "assets/images/022-presents.png", {
-            new Menu::Item{"Torchlight", "assets/images/004-flashlight.png"},
+            new WidgetItem{"Torchlight", "assets/images/004-flashlight.png", new Torchlight{&window}},
             new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{&window}},
             new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
         }},

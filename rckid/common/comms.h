@@ -1,6 +1,7 @@
 #pragma once
 
 #include "platform/platform.h"
+#include "platform/color.h"
 #include "utils/time.h"
 
 #include "config.h"
@@ -387,6 +388,15 @@ namespace msg {
         uint8_t intensity;
         uint16_t duration;
         Rumbler(uint8_t intensity, uint16_t duration): intensity{intensity}, duration{duration} {}
+    );
+
+
+    MESSAGE(RGBOn);
+    MESSAGE(RGBOff);
+
+    MESSAGE(RGBColor, 
+        platform::Color color;
+        RGBColor(platform::Color color): color{color} {}
     );
 
     /** Informs the AVR that the raspberry pi has been powered on and is working. 
