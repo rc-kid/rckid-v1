@@ -1,0 +1,12 @@
+[
+    {
+        "title" : "Title",
+        "image" : "PATH_TO_THE_IMAGE",
+        "path" : "PATH_TO_THE_VIDEO_FILE"
+    },
+    {
+        "title" : "Title",
+        "image" : "PATH_TO_THE_IMAGE",
+        "path" : "PATH_TO_THE_VIDEO_FILE"
+    }
+]

@@ -22,6 +22,7 @@
 
     // game menu is: save game, load game, screenshot, exit game
 
+
  */
 class GamePlayer : public Widget {
 public:
@@ -43,7 +44,17 @@ public:
     bool fullscreen() const { return true; }
 
     void play(json::Value const & game) {
-
+        std::string path = game["path"].value<std::string>();
+        std::string core = (game.containsKey("lrcore")) ? game["lrcore"].value<std::string>() : libretroCoreForPath(path);
+        // TODO append configs and stuff
+        // there is no retropie on my dev machine so playing with glxgears instead
+#if (defined ARCH_RPI)
+        emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "--config", "/home/pi/rckid/retroarch/retroarch.cfg", "-L", core.c_str(), path.c_str()}});
+        //emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch"});
+#else
+        emulator_ = utils::Process::start(utils::Command{"glxgears"});
+#endif
+        window()->enableBackground(false);
     }
 
 protected:
@@ -52,16 +63,8 @@ protected:
             window()->back();
     }
 
-    void onNavigationPush() override {
-        // there is no retropie on my dev machine so playing with glxgears instead
-#if (defined ARCH_RPI)
-        emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "--config", "/home/pi/rckid/retroarch/retroarch.cfg", "-L", "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so", "/rckid/games/game.gbc"}});
-        //emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch"});
-#else
-        emulator_ = utils::Process::start(utils::Command{"glxgears"});
-#endif
-        window()->enableBackground(false);
-    }
+    // handled by the play method above
+    //void onNavigationPush() override { }
 
     void onNavigationPop() override {
         if (!emulator_.done())
@@ -98,6 +101,32 @@ protected:
     void btnHome(bool state) {
         if (state)
             window()->setMenu(& gameMenu_, 0);
+    }
+
+    std::string libretroCoreForPath(std::string const & path) {
+
+        char const * ext = GetFileExtension(path.c_str());
+        // mgba is used to handle all game boy variants 
+        if (strcmp(ext, ".gbc") == 0)
+            return "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so";
+        if (strcmp(ext, ".gba") == 0)
+            return "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so";
+        if (strcmp(ext, ".gb") == 0)
+            return "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so";
+        // SNES
+        if (strcmp(ext, ".sfc") == 0)
+            return "/opt/retropie/libretrocores/";
+        // Sega Genesis (MegaDrive)
+        if (strcmp(ext, ".md") == 0)
+            return "/opt/retropie/libretrocores/";
+        // Nintendo 64
+        if (strcmp(ext, ".n64") == 0)
+            return "/opt/retropie/libretrocores/";
+        // Dosbox
+        if (strcmp(ext, ".EXE") == 0 || strcmp(ext, ".exe"))
+            return "/opt/retropie/libretrocores/";
+        // TODO change to a decent exception
+        UNIMPLEMENTED;
     }
 
     utils::Process emulator_;

@@ -81,7 +81,7 @@ int main(int argc, char * argv[]) {
             "assets/images/001-game-controller.png", 
             [&](Window*) {
                 return new JSONMenu{
-                    "rckid/games/folder.json",
+                    "/rckid/games/folder.json",
                     [&](Window*, json::Value & item) {
                         gamePlayer.play(item);
                     }
@@ -93,7 +93,7 @@ int main(int argc, char * argv[]) {
             "assets/images/005-film-slate.png",
             [&](Window*) {
                 return new JSONMenu{
-                    "rckid/videos/folder.json",
+                    "/rckid/videos/folder.json",
                     [&](Window*, json::Value & item) {
                         videoPlayer.play(item);
                     }
@@ -105,7 +105,7 @@ int main(int argc, char * argv[]) {
             "assets/images/003-music.png",
             [&](Window*) {
                 return new JSONMenu{
-                    "rckid/music/folder.json",
+                    "/rckid/music/folder.json",
                     [&](Window*, json::Value & item) {
                         musicPlayer.play(item);
                     }
