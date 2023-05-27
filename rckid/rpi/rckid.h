@@ -127,7 +127,9 @@ public:
         system(STR("amixer sset -q Headphone -M " << status_.volume << "%").c_str());
     }
 
-    void setBrightness(uint8_t value) { hwEvents_.send(msg::SetBrightness{value}); }
+    uint8_t brightness() const { return status_.brightness; }
+
+    void setBrightness(uint8_t value) { status_.brightness = value; hwEvents_.send(msg::SetBrightness{value}); }
 
     void rgbOn() { hwEvents_.send(msg::RGBOn{}); }
     void rgbOff() { hwEvents_.send(msg::RGBOff{}); }
@@ -421,6 +423,7 @@ private:
         bool wifiHotspot = true;
         std::string ssid = "Internet 10";
         bool nrf = true;
+        uint8_t brightness;
     } status_;
 
     /** The button state objects, managed by the ISR thread 
@@ -455,6 +458,7 @@ private:
     ChargingEvent charging_;
     VoltageEvent voltage_;
     TempEvent temp_;
+    BrightnessEvent brightness_;
 
     platform::NRF24L01 radio_{PIN_NRF_CS, PIN_NRF_RXTX};
     platform::MPU6050 accel_;

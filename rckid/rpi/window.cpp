@@ -57,13 +57,21 @@ Window::Window() {
             rckid_->powerOff();
         }},
         new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
-        new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{this, 
+        new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{this, "Brightness", 0, 255, 16, 
             [this](int value) { 
                 rckid_->setBrightness(value); 
+            },
+            [this](Gauge * g) {
+                g->setValue(rckid_->brightness());
             }
         }},
-        new WidgetItem{"Volume", "assets/images/010-high-volume.png", new Gauge{this, 
-            [](int){}
+        new WidgetItem{"Volume", "assets/images/010-high-volume.png", new Gauge{this, "Volume", 0, 100, 10,
+            [this](int value){
+                rckid_->setVolume(value);
+            },
+            [this](Gauge * g) {
+                g->setValue(rckid_->volume());
+            }
         }},
         new Menu::Item{"WiFi", "assets/images/016-wifi.png"},
         new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{this}},

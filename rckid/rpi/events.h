@@ -83,6 +83,11 @@ struct TempEvent {
     bool operator == (TempEvent const & other) const { return temp == other.temp; }
 };
 
+struct BrightnessEvent {
+    uint8_t brightness;
+    bool operator == (BrightnessEvent const & other) const { return brightness == other.brightness; }
+};
+
 struct HeadphonesEvent {
     bool connected;
 }; 
@@ -95,6 +100,7 @@ using Event = std::variant<
     ChargingEvent,
     VoltageEvent,
     TempEvent, 
+    BrightnessEvent,
     HeadphonesEvent
 >;
 

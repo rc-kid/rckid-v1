@@ -196,6 +196,9 @@ void RCKid::processEvent(Event & e) {
         [this](TempEvent e) {
             status_.avrTemp = e.temp;
         },
+        [this](BrightnessEvent e) {
+            status_.brightness = e.brightness;
+        },
         [this](HeadphonesEvent e) {
             status_.headphones = e.connected;
         }
@@ -369,6 +372,8 @@ void RCKid::processAvrExtendedInfo(comms::ExtendedInfo const & einfo) {
         events_.send(voltage_);
     if (setIfDiffers(temp_, TempEvent{einfo.temp()}))
         events_.send(temp_);
+    if (setIfDiffers(brightness_, BrightnessEvent{einfo.brightness()}))
+        events_.send(brightness_);
 }
 
 void RCKid::initializeISRs() {

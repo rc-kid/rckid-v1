@@ -51,6 +51,9 @@
 
 - die if in bootloader mode 
 - read and reset the error in debug at the beginning of the app
+- background is too dark on RPi, not so much on X
+- add volume progress bar at the top
+- make even the header disappear when games or videos are played
 
 > To be tested/bugs: 
 
