@@ -74,25 +74,25 @@ protected:
     // back 10 seconds
     void dpadLeft(bool state) override {
         if (state)
-            player_.tx("seek -10");
+            player_.tx("seek -10\n");
     }
 
     // forward 10 seconds
     void dpadRight(bool state) override {
         if (state)
-            player_.tx("seek +10");
+            player_.tx("seek +10\n");
     }
 
     // back one minute
     void btnL(bool state) override {
         if (state)
-            player_.tx("seek -60");
+            player_.tx("seek -60\n");
     }
 
     // forward one minute
     void btnR(bool state) override {
         if (state)
-            player_.tx("seek +60");
+            player_.tx("seek +60\n");
     }
 
     utils::Process player_;

@@ -55,6 +55,7 @@ public:
         emulator_ = utils::Process::start(utils::Command{"glxgears"});
 #endif
         window()->enableBackground(false);
+        window()->setWidget(this);
     }
 
 protected:
@@ -115,13 +116,13 @@ protected:
             return "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so";
         // SNES
         if (strcmp(ext, ".sfc") == 0)
-            return "/opt/retropie/libretrocores/";
+            return "/opt/retropie/libretrocores/lr-snes9x2005/snes9x2005_libretro.so";
         // Sega Genesis (MegaDrive)
         if (strcmp(ext, ".md") == 0)
-            return "/opt/retropie/libretrocores/";
+            return "/opt/retropie/libretrocores/lr-genesis-plus-gx/genesis_plus_gx_libretro.so";
         // Nintendo 64
         if (strcmp(ext, ".n64") == 0)
-            return "/opt/retropie/libretrocores/";
+            return "/opt/retropie/libretrocores/lr-mupen64plus/mupen64plus_libretro.so";
         // Dosbox
         if (strcmp(ext, ".EXE") == 0 || strcmp(ext, ".exe"))
             return "/opt/retropie/libretrocores/";

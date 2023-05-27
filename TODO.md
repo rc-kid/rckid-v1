@@ -57,7 +57,6 @@
 
 > To be tested/bugs: 
 
-- increase pause/resume size so that libretro picks it up
 - ensure config on fresh start from clean sd
 
 > I/O items:
