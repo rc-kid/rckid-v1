@@ -304,7 +304,7 @@ void RCKid::accelQueryStatus() {
     uint8_t x = accelTo1GUnsigned(-d.x);
     uint8_t y = accelTo1GUnsigned(-d.y);
     bool report = axisChange(accelTo1GUnsigned(-d.x), accelX_);
-    report = axisChange(accelTo1GUnsigned(-d.y), accelY_);
+    report = axisChange(accelTo1GUnsigned(-d.y), accelY_) || report;
     // TODO convert the temperature and update it as well
     if (report)
         events_.send(AccelEvent{accelX_.current, accelY_.current, accelTo1GUnsigned(-d.z), t});
@@ -361,10 +361,10 @@ void RCKid::processAvrControls(comms::Controls const & controls) {
     if (btnHome_.current != controls.home())
         buttonChange(!controls.home(), btnHome_);
 
-    // TODO reenable when done
-
-    //axisChange(controls.joyH(), thumbX_);
-    //axisChange(controls.joyV(), thumbY_);
+    bool report = axisChange(controls.joyH(), thumbX_);
+    report = axisChange(controls.joyV(), thumbY_) || report;
+    if (report)
+      events_.send(ThumbEvent{thumbX_.current, thumbY_.current});
 }
 
 void RCKid::processAvrExtendedInfo(comms::ExtendedInfo const & einfo) {
