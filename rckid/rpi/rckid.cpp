@@ -310,6 +310,12 @@ void RCKid::accelQueryStatus() {
         events_.send(AccelEvent{accelX_.current, accelY_.current, accelTo1GUnsigned(-d.z), t});
 }
 
+comms::Status RCKid::avrQueryStatus() {
+    comms::Status status;
+    i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& status, sizeof(status));
+    return status;
+}
+
 void RCKid::avrQueryState() {
     comms::State state;
     i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
@@ -462,9 +468,15 @@ void RCKid::initializeLibevdevGamepad() {
 }
 
 void RCKid::initializeAvr() {
+    // check if the AVR is present at all
     if (!i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, nullptr, 0))
         TraceLog(LOG_ERROR, STR("AVR not found:" << errno));
-    // enter the power-on mode
+    // check if the AVR is in bootloader mode
+    comms::Status status = avrQueryStatus();
+    if (status.mode() == comms::Mode::Bootloader) {
+        // TODO TODO TODO TODO TODO 
+    }
+    // enter the power-on mode to disable any timeouts
     sendAvrCommand(msg::PowerOn{});
 }
 

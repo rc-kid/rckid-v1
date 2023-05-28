@@ -25,10 +25,69 @@ struct DispmanXBackgroundLayer {
 #include "video_player.h"
 #include "torchlight.h"
 
+
+void printLogLevel(int logLevel, std::ostream & s) {
+    switch (logLevel) {
+        case LOG_TRACE:
+            s << "TRACE";
+            break;
+        case LOG_DEBUG:
+            s << "DEBUG";
+            break;
+        case LOG_INFO:
+            s << "INFO";
+            break;
+        case LOG_WARNING:
+            s << "WARNING";
+            break;
+        case LOG_ERROR:
+            s << "ERROR";
+            break;
+        case LOG_FATAL:
+            s << "FATAL";
+            break;
+        default:
+            s << "??? (" << logLevel << ")";
+            break;
+    }
+}
+
+void logCallback(int logLevel, const char * text, va_list args) {
+    static std::ofstream logFile{"/rckid/log.txt"};
+    static size_t bufferSize = 1024;
+    static char * buffer = new char[bufferSize];
+    int len = vsnprintf(buffer, bufferSize, text, args);
+    if (len >= bufferSize) {
+        bufferSize = len + 1;
+        delete [] buffer;
+        buffer = new char[bufferSize];
+        len = vsnprintf(buffer, bufferSize, text, args);
+    }
+    if (len >= 0) {
+        buffer[len] = '\0';
+#ifndef NDEBUG
+        printLogLevel(logLevel, std::cout);
+        std::cout << ": " << buffer << std::endl;
+#endif
+        printLogLevel(logLevel, logFile);
+        logFile << ": " << buffer << std::endl;
+        logFile.flush();
+    }
+}
+
+
+/*
+typedef void (*TraceLogCallback)(int logLevel, const char *text, va_list args);  // Logging: Redirect trace log messages
+
+void SetTraceLogCallback(TraceLogCallback callback);  
+*/
+
+
 /** Main RCKid app. 
  
  */
 int main(int argc, char * argv[]) {
+    SetTraceLogCallback(logCallback);
 #ifdef ARCH_RPI
     // make sure that we have the rights to add uinput device    
     system("sudo chown pi /dev/uinput");
@@ -70,64 +129,69 @@ int main(int argc, char * argv[]) {
         vc_dispmanx_update_submit_sync(update);
     }
 #endif
-    Window window;
-    GamePlayer gamePlayer{&window};
-    VideoPlayer videoPlayer{&window};
-    MusicPlayer musicPlayer{&window};
-    window.rckid()->setVolume(AUDIO_DEFAULT_VOLUME);
-    Menu menu{{
-        new LazySubmenu{
-            "Games",
-            "assets/images/001-game-controller.png", 
-            [&](Window*) {
-                return new JSONMenu{
-                    "/rckid/games/folder.json",
-                    [&](Window*, json::Value & item) {
-                        gamePlayer.play(item);
-                    }
-                };
-            }
-        },
-        new LazySubmenu{
-            "Video", 
-            "assets/images/005-film-slate.png",
-            [&](Window*) {
-                return new JSONMenu{
-                    "/rckid/videos/folder.json",
-                    [&](Window*, json::Value & item) {
-                        videoPlayer.play(item);
-                    }
-                };
-            }
-        },
-        new LazySubmenu{
-            "Music", 
-            "assets/images/003-music.png",
-            [&](Window*) {
-                return new JSONMenu{
-                    "/rckid/music/folder.json",
-                    [&](Window*, json::Value & item) {
-                        musicPlayer.play(item);
-                    }
-                };
-            }
-        },
-        //new JSON{"Music", "assets/images/003-music.png", "/rckid/music/folder.json", &window},
-        new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
-        new Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
-        new Submenu{"Apps", "assets/images/022-presents.png", {
-            new WidgetItem{"Torchlight", "assets/images/004-flashlight.png", new Torchlight{&window}},
-            new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{&window}},
-            new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
-        }},
-    }};
-    //Keyboard kb{&window};
-    //window.setWidget(&kb);
-    //DebugView db{&window};
-    //window.setWidget(&db);
-    window.setMenu(& menu, 0);
-    window.loop();
-
+    try {
+        Window window;
+        GamePlayer gamePlayer{&window};
+        VideoPlayer videoPlayer{&window};
+        MusicPlayer musicPlayer{&window};
+        window.rckid()->setVolume(AUDIO_DEFAULT_VOLUME);
+        Menu menu{{
+            new LazySubmenu{
+                "Games",
+                "assets/images/001-game-controller.png", 
+                [&](Window*) {
+                    return new JSONMenu{
+                        "/rckid/games/folder.json",
+                        [&](Window*, json::Value & item) {
+                            gamePlayer.play(item);
+                        }
+                    };
+                }
+            },
+            new LazySubmenu{
+                "Video", 
+                "assets/images/005-film-slate.png",
+                [&](Window*) {
+                    return new JSONMenu{
+                        "/rckid/videos/folder.json",
+                        [&](Window*, json::Value & item) {
+                            videoPlayer.play(item);
+                        }
+                    };
+                }
+            },
+            new LazySubmenu{
+                "Music", 
+                "assets/images/003-music.png",
+                [&](Window*) {
+                    return new JSONMenu{
+                        "/rckid/music/folder.json",
+                        [&](Window*, json::Value & item) {
+                            musicPlayer.play(item);
+                        }
+                    };
+                }
+            },
+            //new JSON{"Music", "assets/images/003-music.png", "/rckid/music/folder.json", &window},
+            new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
+            new Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
+            new Submenu{"Apps", "assets/images/022-presents.png", {
+                new WidgetItem{"Torchlight", "assets/images/004-flashlight.png", new Torchlight{&window}},
+                new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{&window}},
+                new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
+            }},
+        }};
+        //Keyboard kb{&window};
+        //window.setWidget(&kb);
+        //DebugView db{&window};
+        //window.setWidget(&db);
+        window.setMenu(& menu, 0);
+        window.loop();
+    } catch (std::exception const & e) {
+        TraceLog(LOG_FATAL, e.what());
+    } catch (...) {
+        TraceLog(LOG_FATAL, "Unknown exception thrown");
+    }
 #ifdef ARCH_RPI
     // destroy bg layer
     {

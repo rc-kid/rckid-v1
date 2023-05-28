@@ -250,6 +250,10 @@ private:
      */
     void accelQueryStatus() DRIVER_THREAD;
 
+    /** Gets the status byte from the AVR. 
+     */
+    comms::Status avrQueryStatus() DRIVER_THREAD;
+
     /** Requests the fast AVR status update and processes the result.
      */
     void avrQueryState() DRIVER_THREAD;
