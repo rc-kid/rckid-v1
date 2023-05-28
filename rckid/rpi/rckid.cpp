@@ -474,7 +474,10 @@ void RCKid::initializeAvr() {
     // check if the AVR is in bootloader mode
     comms::Status status = avrQueryStatus();
     if (status.mode() == comms::Mode::Bootloader) {
+        TraceLog(LOG_WARNING, "AVR in bootloader mode");
         // TODO TODO TODO TODO TODO 
+        sendAvrCommand(msg::AvrReset{});
+        cpu::delay_ms(100);
     }
     // enter the power-on mode to disable any timeouts
     sendAvrCommand(msg::PowerOn{});

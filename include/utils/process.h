@@ -15,6 +15,8 @@ namespace utils {
     class Command {
     public:
 
+        Command() = default;
+
         Command(std::string_view cmd):
             cmd_{cmd} {
         }

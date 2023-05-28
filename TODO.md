@@ -1,6 +1,17 @@
+# Checklist
+
+- [X] gamepad support in retroarch
+- [ ] analog axes
+- [ ] clean controls
+- [X] basic games working
+- [X] basic video working
+- [X] basic audio playing
+- [ ] DOSBox games basics
+- [ ] remote (NRF)
+- [ ] Walkie-Talkie
+
 # Questions
 
-- which antenna to buy? 
 - PWM motor control frequency - 20kHz should be enough
 
 ## BOM
@@ -18,7 +29,6 @@
 
 ## PCB
 
-- RGB does not seem to be happy
 - AVR chips keep getting bricked... No clue why:(
 - wrong holes wrt center of the joystick
 - not enough room for the battery
@@ -38,14 +48,11 @@
 
 ## AVR
 
-- LED seems not to work
 - check power on timeout if it is long enough
 - there is 6mA draw when sleeping, not sure why...
 - add effects for rumbler & rgb 
 - add mic level wakeup and others
 - add alarm wakeup
-
-- ensure that the modes and powering on & off works reliably so that we can switch off the I2C display and test comms
 
 ## RPI - RayLib
 

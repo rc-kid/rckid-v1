@@ -18,6 +18,8 @@ To configure _retropie_, run the following:
 
     sudo ~/RetroPie-Setup/retropie_setup.sh
 
+Install `dosbox`, `lr-vice`, `cannonball` and `opentyrian`. 
+
 
 When done, run the rest of the SD image setup (see the script file for details):
 

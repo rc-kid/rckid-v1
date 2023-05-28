@@ -306,6 +306,7 @@ public:
         gpio::high(RPI_EN);
         // cut power to the RGB
         gpio::input(RGB_EN);
+        gpio::input(RGB);
         // turn of ADCs
         ADC1.CTRLA = 0;
         ADC0.CTRLA = 0;
@@ -994,6 +995,8 @@ public:
     static void rgbOn() {
         gpio::output(RGB_EN);
         gpio::low(RGB_EN);
+        gpio::output(RGB);
+        gpio::low(RGB);
         delayMs(10);
     }
 
@@ -1001,6 +1004,7 @@ public:
      */
     static void rgbOff() {
         gpio::input(RGB_EN);
+        gpio::input(RGB);
     }
 
     // TODO add timeout

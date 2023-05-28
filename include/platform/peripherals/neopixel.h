@@ -212,7 +212,7 @@ namespace platform {
             #endif
 
             #else
-                    #error "Platform not supported!"
+                #error "Platform not supported!"
             #endif
             sei();
         }

@@ -44,12 +44,24 @@ public:
     bool fullscreen() const { return true; }
 
     void play(json::Value const & game) {
-        std::string path = game["path"].value<std::string>();
-        std::string core = (game.containsKey("lrcore")) ? game["lrcore"].value<std::string>() : libretroCoreForPath(path);
+        std::string emulator = game.containsKey("emulator") ? game["emulator"].value<std::string>() : "retroarch";
+        utils::Command cmd;
+        if (emulator == "retroarch") {
+            std::string path = game["path"].value<std::string>();
+            std::string core = (game.containsKey("lrcore")) ? game["lrcore"].value<std::string>() : libretroCoreForPath(path);
+            cmd = utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "--config", "/home/pi/rckid/retroarch/retroarch.cfg", "-L", core.c_str(), path.c_str()}};
+            //emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch"});
+        } else if (emulator == "dosbox") {
+            std::string config = game["config"].value<std::string>();
+            // /opt/retropie/emulators/dosbox/bin/dosbox -v -conf /rckid/games/dos/WackyWhe/dosbox.conf
+            cmd = utils::Command{"/opt/retropie/emulators/dosbox/bin/dosbox", { "-conf", config.c_str()}};
+        //emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch"});
+
+        }
         // TODO append configs and stuff
         // there is no retropie on my dev machine so playing with glxgears instead
 #if (defined ARCH_RPI)
-        emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "--config", "/home/pi/rckid/retroarch/retroarch.cfg", "-L", core.c_str(), path.c_str()}});
+        emulator_ = utils::Process::start(cmd);
         //emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch"});
 #else
         emulator_ = utils::Process::start(utils::Command{"glxgears"});

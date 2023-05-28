@@ -75,14 +75,6 @@ void logCallback(int logLevel, const char * text, va_list args) {
     }
 }
 
-
-/*
-typedef void (*TraceLogCallback)(int logLevel, const char *text, va_list args);  // Logging: Redirect trace log messages
-
-void SetTraceLogCallback(TraceLogCallback callback);  
-*/
-
-
 /** Main RCKid app. 
  
  */
