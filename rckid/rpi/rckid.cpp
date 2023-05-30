@@ -120,6 +120,7 @@ void RCKid::loop() {
 void RCKid::processEvent(Event & e) {
     std::visit(overloaded{
         [this](ButtonEvent eb) {
+            TraceLog(LOG_DEBUG, STR("Button state change. Button: " << (int)eb.btn << ", state: " << eb.state));
             Widget * w = window_->activeWidget();
             switch (eb.btn) {
                 case Button::A:
@@ -335,6 +336,18 @@ void RCKid::processAvrStatus(comms::Status const & status) {
     if (status.recording()) {
         // TODO TODO TODO TODO TODO TODO TODO TODO TODO
     } else {
+        switch (status.mode()) {
+            case comms::Mode::PowerDown: 
+                TraceLog(LOG_INFO, "Power down requested");
+                system("sudo poweroff");
+                break;
+            case comms::Mode::WakeUp:
+                TraceLog(LOG_WARNING, "WakeUp mode detected when powering on");
+            case comms::Mode::PowerUp:
+                TraceLog(LOG_INFO, "PowerUp mode, switching to ON");
+                // enter the power-on mode to disable any timeouts
+                sendAvrCommand(msg::PowerOn{});
+        }
         if (status.mode() == comms::Mode::PowerDown) {
             TraceLog(LOG_INFO, "Power down requested");
             system("sudo poweroff");
@@ -479,8 +492,6 @@ void RCKid::initializeAvr() {
         sendAvrCommand(msg::AvrReset{});
         cpu::delay_ms(100);
     }
-    // enter the power-on mode to disable any timeouts
-    sendAvrCommand(msg::PowerOn{});
 }
 
 void RCKid::initializeAccel() {
