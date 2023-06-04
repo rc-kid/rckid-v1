@@ -352,8 +352,10 @@ void RCKid::avrQueryExtendedState() {
     comms::ExtendedState state;
     i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
     processAvrStatus(state.status);
-    processAvrControls(state.controls);
-    processAvrExtendedInfo(state.einfo);
+    if (! state.status.recording()) {
+        processAvrControls(state.controls);
+        processAvrExtendedInfo(state.einfo);
+    }
 }
 
 void RCKid::processAvrStatus(comms::Status const & status) {
@@ -422,9 +424,10 @@ void RCKid::avrGetRecording() {
     i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)(&r), sizeof(RecordingEvent));
     // do the normal status processing as we would in non-recording mode
     processAvrStatus(r.status);
-    if (r.status.recording() && recordingLastBatch_ != r.status.batchIndex())
-    if (recordingLastBatch_ != r.status.batchIndex())
+    if (r.status.recording() && recordingLastBatch_ != r.status.batchIndex()) {
+        recordingLastBatch_ = r.status.batchIndex();
         events_.send(r);
+    }
 }
 
 void RCKid::initializeISRs() {

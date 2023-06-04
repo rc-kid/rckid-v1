@@ -11,11 +11,10 @@
 - [ ] Walkie-Talkie
 
 
-- info command should infact clear irq
-- check the bootloader / programmer still works
 - check that we are find detecting first boot with it
 - check recorder in fake mode
 - check recorder proper
+- check if bigger speaker makes difference
 
 # Questions
 
@@ -49,10 +48,6 @@
 
 ## Bootloader
 
-- add programmer as library
-
-
-- add the reset to program setting to programmer
 - cleanup & extend the programmer code so that it can dump the stored files, read/write EEPROM and so on
 
 ## AVR
@@ -64,11 +59,14 @@
 
 ## RPI - RayLib
 
+- spurious buttons after recording end
 - die if in bootloader mode 
 - read and reset the error in debug at the beginning of the app
-- background is too dark on RPi, not so much on X
 - add volume progress bar at the top
 - make even the header disappear when games or videos are played
+
+- scissor mode can be used to draw unfinished hearts & progress bars & stuff
+- with volumne bar on, FPS drops to 30 (?)
 
 > To be tested/bugs: 
 
@@ -134,7 +132,6 @@
 - can we speed things up with crosscompilation? https://deardevices.com/2019/04/18/how-to-crosscompile-raspi/
 
 - should button repeat be user-configurable? 
-- reenable dpad and check that it works
 
 # LEGO Remote
 

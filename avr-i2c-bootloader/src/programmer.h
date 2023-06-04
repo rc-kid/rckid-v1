@@ -94,9 +94,9 @@ public:
 class Programmer {
 public:
 
-    static constexpr size_t LOG_TRACE = 0;
+    static constexpr size_t LOG_TRACE = 2;
     static constexpr size_t LOG_VERBOSE = 1;
-    static constexpr size_t LOG_INFO = 2;
+    static constexpr size_t LOG_INFO = 0;
 
     Programmer(uint8_t address, platform::gpio::Pin irq): address_{address}, avrIrq_{irq} {}
     Programmer(uint8_t address, platform::gpio::Pin irq, std::function<void(std::string const&)> f): address_{address}, avrIrq_{irq}, log_{f} {}

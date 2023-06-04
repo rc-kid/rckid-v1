@@ -671,6 +671,8 @@ public:
             gpio::input(AVR_IRQ);
             TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
             flags_.validBatch = (wrIndex_ >> 5) != state_.status.batchIndex();
+            // reset the num tx bytes
+            i2cNumTxBytes_ = TX_START;
         // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise. The buffer is reset to 
         } else if ((status & I2C_START_MASK) == I2C_START_RX) {
             TWI0.SCTRLB = flags_.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
@@ -679,7 +681,7 @@ public:
             TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
             if (! state_.status.recording()) {
                 setDefaultTxAddress();
-            } else if (i2cNumTxBytes_ == 32 && flags_.validBatch) {
+            } else if (i2cNumTxBytes_ >= 32 && flags_.validBatch) {
                 uint8_t nextBatch = (state_.status.batchIndex() + 1) & 7;
                 state_.status.setBatchIndex(nextBatch);
                 setTxAddress(recBuffer_ + (nextBatch << 5));
@@ -690,7 +692,7 @@ public:
             // reset the watchdog timeout in the poweron state
             //if (RCKid::state_.status.mode() == Mode::On)
             //    RCKid::setTimeout(RPI_PING_TIMEOUT);
-            i2cNumTxBytes_ = TX_START;
+            //i2cNumTxBytes_ = TX_START;
         // receiving finished, inform main loop we have message waiting
         } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
             TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
@@ -916,7 +918,6 @@ public:
         TCB0.CCMP = 625; // for 8kHz
         TCB0.INTCTRL = TCB_CAPT_bm;
         TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc | TCB_ENABLE_bm;
-        micFake_ = 0;
     }
 
     static void stopRecording() {
@@ -929,16 +930,11 @@ public:
         state_.status.setRecording(false);
     }
 
-    // TODO DELETE when done testing the microphone
-    static uint8_t micFake_ = 0;
-
     /** Critical code, just accumulate the sampled value.
      */
     static inline void ADC1_RESRDY_vect(void) __attribute__((always_inline)) {
         ENTER_IRQ;
-        // TODO delete this when ready!
-        micAcc_ += 4 * (micFake_++);
-        //micAcc_ += ADC1.RES;
+        micAcc_ += ADC1.RES;
         micSamples_ += 4; // we do four samples per interrupt
         LEAVE_IRQ;
     }

@@ -131,6 +131,8 @@ int main(int argc, char * argv[]) {
             write(p);
         } else if (command == "erase")
             erase(p);
+        else if (command == "reset")
+            reset(p);
         else
             throw std::runtime_error{STR("Invalid command " << command)};
         std::cout << std::endl << "ALL DONE" << std::endl;

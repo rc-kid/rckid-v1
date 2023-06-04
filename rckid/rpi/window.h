@@ -124,25 +124,7 @@ public:
     Font const & menuFont() const { return menuFont_; }
     Font const & helpFont() const { return helpFont_; }
 
-    /*
-    void drawBackground() {
-        if (backgroundEnabled_) {
-            DrawRectangle(0,0,320,240, BLACK);
-            BeginBlendMode(1);
-            DrawTexture(background_, backgroundSeam_ - 320, 0, ColorAlpha(WHITE, 0.3));
-            DrawTexture(background_, backgroundSeam_, 0, ColorAlpha(WHITE, 0.3));
-            EndBlendMode();
-        }
-    } */
-
     void enableBackground(bool value) { backgroundEnabled_ = value; }
-
-    /*
-    void drawBackground(int seam) {
-        setBackgroundSeam(seam);
-        drawBackground();
-    }
-    */
 
     void setBackgroundSeam(int value) {
         if (value > 320)
@@ -220,8 +202,9 @@ private:
     void swapWidget();
 
     void drawHeader();
+    void drawVolumeBar();
     void drawFooter();
-
+    
     // the rckid driver
     RCKid * rckid_; 
 

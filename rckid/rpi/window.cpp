@@ -220,12 +220,10 @@ void Window::draw() {
     BeginDrawing();
     ClearBackground(ColorAlpha(BLACK, 0.0));
     if (backgroundEnabled_) {
-        // TODO why was this there????
-        //DrawRectangle(0,0,320,240, BLACK);
-        //BeginBlendMode(1);
+        // start with opaque black so that transparency works the way it should
+        DrawRectangle(0,0,320,240, BLACK);
         DrawTexture(background_, backgroundSeam_ - 320, 0, ColorAlpha(WHITE, 0.3));
         DrawTexture(background_, backgroundSeam_, 0, ColorAlpha(WHITE, 0.3));
-        //EndBlendMode();
     }
     ::Color c = WHITE;
     switch (transition_) {
@@ -302,7 +300,7 @@ void Window::drawHeader() {
     }
     x -= 20;
     if (rckid_->volume() == 0)
-        DrawTextEx(headerFont_, "󰸈", x, 0, 20, 1.0, BLUE);
+        DrawTextEx(headerFont_, "󰸈", x, 0, 20, 1.0, RED);
     else if (rckid_->volume() < 6)
         DrawTextEx(headerFont_, "󰕿", x, 0, 20, 1.0, BLUE);
     else if (rckid_->volume() < 12)
@@ -329,6 +327,41 @@ void Window::drawHeader() {
         x -= 20;
         DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, GREEN);
     }
+
+    //drawVolumeBar();
+}
+
+
+void drawProgressBar(int x, int y, int width, int height, ::Color color) {
+    float radius = height / 2.0;
+    DrawCircleSector(Vector2{x + radius, y + radius}, radius, 180, 360, 16, color);
+    DrawRectangle(x + radius, y, width - height, height, color);
+    DrawCircleSector(Vector2{x + width - radius, y + radius}, radius, 0, 180, 16, color);
+}
+
+
+void Window::drawVolumeBar() {
+    DrawRectangle(30, 0, 260, 16, BLACK);
+    DrawRectangle(34, 16, 252, 4, BLACK);
+    DrawCircleSector(Vector2{34, 16}, 4, 270, 360, 16, BLACK);
+    DrawCircleSector(Vector2{286, 16}, 4, 0, 90, 16, BLACK);
+    // draw the icon on the left
+    if (rckid_->volume() == 0)
+        DrawTextEx(headerFont_, "󰸈", 35, 0, 20, 1.0, RED);
+    else if (rckid_->volume() < 40)
+        DrawTextEx(headerFont_, "󰕿", 35, 0, 20, 1.0, BLUE);
+    else if (rckid_->volume() < 80)
+        DrawTextEx(headerFont_, "󰖀", 35, 0, 20, 1.0, BLUE);
+    else
+        DrawTextEx(headerFont_, "󰕾", 35, 0, 20, 1.0, ORANGE);
+    // draw the text on the right
+    std::string vol = STR(rckid_->volume());
+    DrawTextEx(helpFont_, vol.c_str(), 265, 2, 16, 1, WHITE);
+    // draw the slider in the middle
+    drawProgressBar(55, 7, 200, 6, DARKGRAY);
+    BeginScissorMode(55, 7, rckid_->volume() * 2, 6);
+    drawProgressBar(55, 7, 200, 6, BLUE);
+    EndScissorMode();
 }
 
 void Window::drawFooter() {

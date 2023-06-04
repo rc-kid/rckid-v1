@@ -63,7 +63,7 @@ namespace comms {
         bool recording() const { return status_ & RECORDING; }
 
         bool setRecording(bool value) { 
-            if (value == charging())
+            if (value == recording())
                 return false;
             value ? (status_ |= RECORDING) : (status_ &= ~RECORDING);
             return true;

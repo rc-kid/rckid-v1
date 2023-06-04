@@ -137,12 +137,14 @@ public:
     void rgbColor(platform::Color color) { hwEvents_.send(msg::RGBColor{color}); }
 
     void startRecording(std::function<void(RecordingEvent &)> callback) {
+        TraceLog(LOG_DEBUG, "Recording start");
         recordingCallback_ = callback;
         status_.recording = true;
         hwEvents_.send(msg::StartAudioRecording{});
     }
 
     void stopRecording() { 
+        TraceLog(LOG_DEBUG, "Recording stopped");
         hwEvents_.send(msg::StopAudioRecording{}); 
         status_.recording = false; 
     }
