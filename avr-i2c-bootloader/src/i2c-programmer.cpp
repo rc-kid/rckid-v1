@@ -1,3 +1,155 @@
+#include "platform/platform.h"
+#include "utils/utils.h"
+#include "utils/intelhex.h"
+
+#define I2C_ADDRESS 0x43
+//#define PIN_AVR_IRQ 25
+
+
+#include "programmer.h"
+
+using namespace platform;
+
+static std::string command;
+static std::string hexFile;
+
+/** \name Commands
+ */
+
+
+/** Simply checks if there is an I2C device at the given address. 
+ */
+void check(Programmer & p) {
+    if (!i2c::transmit(p.i2cAddress(), nullptr, 0, nullptr, 0))
+        throw std::runtime_error{STR("Device not detected at I2C address " << p.i2cAddress())};
+    std::cout << "Device detected at I2C address " << p.i2cAddress() << std::endl;
+}
+
+
+/** Actually attempts to connect to the device, and obtain the chip information, which is available in both app and bootloader mode. 
+*/
+void info(Programmer & p) {
+    ChipInfo info{p.getChipInfo()};
+    std::cout << std::endl << "Device Info:" << std::endl;
+    std::cout << info << std::endl;
+}
+
+/** Restarts the device in bootloader mode and writes the given program. 
+ */
+void write(Programmer & p) {
+    hex::Program pgm{hex::Program::parseFile(hexFile.c_str())};
+    p.writeProgram(pgm);
+}
+
+void erase(Programmer & p) {
+    p.erase();
+}
+
+void reset(Programmer & p) {
+    p.resetToApp();
+}
+
+void help() {
+    std::cout << "I2C Bootloader for AVR ATTiny series 1 chips" << std::endl << std::endl;
+    std::cout << "Usage:" << std::endl;
+    std::cout << "    i2c-programmer COMMAND [ HEX_FILE] { OPTIONS }" << std::endl << std::endl;
+    std::cout << "Available commands:" << std::endl << std::endl;
+    std::cout << "    help - prints this help" << std::endl;
+    std::cout << "    check - checks if the AVR is present" << std::endl;
+    std::cout << "    info - displays the chip info obtained from the AVR" << std::endl;
+    std::cout << "    write FILE - flashes the given hex file to chip's memory" << std::endl;
+    //std::cout << "    read FILE - reads the entire chip memory into given hex file" << std::endl;
+    std::cout << "    verify FILE - verifies that the memory contains the given hex file" << std::endl;
+    std::cout << "    erase - erases the application memory of the chip" << std::endl;
+    std::cout << "    reset - resets the AVR chip into the app mode" << std::endl;
+    std::cout << "Options" << std::endl << std::endl;
+    std::cout << "    --verbose - enables verbose oiutput" << std::endl;
+    // can be used without the IRQ pin, but the AVR has to leave the IRQ pin alone
+    std::cout << "    --timeout - instead of relying on the IRQ pin, waits 10ms after each command" << std::endl;
+    std::cout << "    --trace - enables even more verbose outputs (namely all read & written buffers)" << std::endl;
+    std::cout << "    --dry - enables dry run, i.e. no pages will be written" << std::endl;
+}
+
+
+
+Programmer parseArguments(int argc, char * argv[]) {
+    Programmer result{I2C_ADDRESS, RPI_PIN_AVR_IRQ, [](std::string const & str) { std::cout << str << std::flush; }};
+    try {
+        int i = 1;
+        if (i > argc)
+            throw STR("No command specified!");
+        command = argv[i++];
+        if (command == "write" || command == "read" || command == "verify") {
+            if (i >= argc)
+                throw STR("No hex file specified");
+            hexFile = argv[i++];
+        }
+        while (i < argc) {
+            std::string arg{argv[i++]};
+            if (arg == "--verbose")
+                result.setLogLevel(Programmer::LOG_VERBOSE);
+            else if (arg == "--timeout")
+                result.setTimeout(10);
+            else if (str::startsWith(arg, "--timeout="))
+                result.setTimeout(static_cast<size_t>(std::atoi(arg.c_str() + 10)));
+            else if (arg == "--trace")
+                result.setLogLevel(Programmer::LOG_TRACE);
+            else if (arg == "--dry")
+                result.setDryRun(true);
+            else if (str::startsWith(arg, "--addr=")) 
+                result.setI2CAddress(static_cast<uint8_t>(std::atoi(arg.c_str() + 7)));
+            else 
+                throw STR("Invalid argument " << arg);
+        }
+        return result;
+    } catch (std::string const & e) {
+        std::cout << "ERROR: Invalid command line usage: " << e << std::endl;
+        help();
+        throw;
+    }
+}
+
+
+
+int main(int argc, char * argv[]) {
+    try {
+        // initialize gpio and i2c
+        gpio::initialize();
+        i2c::initializeMaster();
+        Programmer p{parseArguments(argc, argv)};
+        std::cout << "Programmer configuration:" << std::endl << p << std::endl;
+        if (command == "help")
+            help();
+        else if (command == "check")
+            check(p);
+        else if (command == "info")
+            info(p);
+        else if (command == "write")
+            write(p);
+        else if (command == "verify") {
+            p.setDryRun(true); // force dry run for the verification only
+            write(p);
+        } else if (command == "erase")
+            erase(p);
+        else
+            throw std::runtime_error{STR("Invalid command " << command)};
+        std::cout << std::endl << "ALL DONE" << std::endl;
+    } catch (hex::Error & e) {
+        std::cout << std::endl << "ERROR in parsing the HEX file: " << e << std::endl;
+    } catch (std::exception const & e) {
+        std::cout << std::endl << "ERROR: " << e.what() << std::endl;
+    } catch (...) {
+        std::cout << std::endl << "UNKNOWN ERROR. This should not happen" << std::endl;
+    }
+    return EXIT_FAILURE;
+}
+
+
+
+#ifdef FOO
+
+
+
 #include <cstring>
 #include <iostream>
 #include <iomanip>
@@ -448,3 +600,7 @@ int main(int argc, char * argv[]) {
     }
     return EXIT_FAILURE;
 }
+
+
+
+#endif

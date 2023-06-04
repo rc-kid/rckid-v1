@@ -1,5 +1,7 @@
 #include <iostream>
 
+#include "../avr-i2c-bootloader/src/programmer.h"
+
 #include "window.h"
 #include "rckid.h"
 
@@ -202,6 +204,11 @@ void RCKid::processEvent(Event & e) {
         },
         [this](HeadphonesEvent e) {
             status_.headphones = e.connected;
+        },
+        // simply process the recorded data - we know the function must exist since it must be supplied very time we start recording
+        [this](RecordingEvent e) {
+            if (status_.recording)
+                recordingCallback_(e);
         }
     }, e);
 }
@@ -232,15 +239,24 @@ void RCKid::hwLoop() {
                 buttonTick(btnDpadDown_);
                 buttonTick(btnJoy_);
                 buttonTick(btnHome_);
-                accelQueryStatus();
+                // only query the accell and photores status when we are not recording to keep the I2C fully for the audio recorder
+                if (!recording_) {
+                    accelQueryStatus();
+                    // TODO query photores
+                }
             },
             [this](SecondTick) {
-                avrQueryExtendedState();
+                // only query extended state if we are not recording audio at the same time
+                if (!recording_)
+                    avrQueryExtendedState();
             },
             [this](Irq irq) {
                 switch (irq.pin) {
                     case PIN_AVR_IRQ:
-                        avrQueryState();
+                        if (recording_)
+                            avrGetRecording();
+                        else
+                            avrQueryState();
                         break;
                     default: // don't do anything for irq's we do not care about
                         break;
@@ -257,6 +273,14 @@ void RCKid::hwLoop() {
             },
             [this](EnableGamepad e) {
                 activeDevice_ = e.enable ? gamepad_ : nullptr;
+            },
+            [this](msg::StartAudioRecording e) {
+                sendAvrCommand(e);
+                recording_ = true;
+            },
+            [this](msg::StopAudioRecording e) {
+                sendAvrCommand(e);
+                recording_ = false;
             },
             [this](auto msg) {
                 sendAvrCommand(msg);
@@ -333,9 +357,7 @@ void RCKid::avrQueryExtendedState() {
 }
 
 void RCKid::processAvrStatus(comms::Status const & status) {
-    if (status.recording()) {
-        // TODO TODO TODO TODO TODO TODO TODO TODO TODO
-    } else {
+    if (! status.recording()) {
         switch (status.mode()) {
             case comms::Mode::PowerDown: 
                 TraceLog(LOG_INFO, "Power down requested");
@@ -354,9 +376,9 @@ void RCKid::processAvrStatus(comms::Status const & status) {
         }
         if (setIfDiffers(mode_.mode, status.mode()))
             events_.send(mode_);
-        if (setIfDiffers(charging_, ChargingEvent{status.usb(), status.charging()}))
-            events_.send(charging_);
-    }    
+    }
+    if (setIfDiffers(charging_, ChargingEvent{status.usb(), status.charging()}))
+        events_.send(charging_);
 }
 
 void RCKid::processAvrControls(comms::Controls const & controls) {
@@ -393,6 +415,16 @@ void RCKid::processAvrExtendedInfo(comms::ExtendedInfo const & einfo) {
         events_.send(temp_);
     if (setIfDiffers(brightness_, BrightnessEvent{einfo.brightness()}))
         events_.send(brightness_);
+}
+
+void RCKid::avrGetRecording() {
+    RecordingEvent r;
+    i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)(&r), sizeof(RecordingEvent));
+    // do the normal status processing as we would in non-recording mode
+    processAvrStatus(r.status);
+    if (r.status.recording() && recordingLastBatch_ != r.status.batchIndex())
+    if (recordingLastBatch_ != r.status.batchIndex())
+        events_.send(r);
 }
 
 void RCKid::initializeISRs() {
@@ -485,6 +517,21 @@ void RCKid::initializeAvr() {
     if (!i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, nullptr, 0))
         TraceLog(LOG_ERROR, STR("AVR not found:" << errno));
     // check if the AVR is in bootloader mode
+    try {
+        Programmer pgm{AVR_I2C_ADDRESS, RPI_PIN_AVR_IRQ};
+        pgm.setLogLevel(Programmer::LOG_TRACE);
+        while (true) {
+            ChipInfo ci{pgm.getChipInfo()};
+            if (ci.state.status != bootloader::BOOTLOADER_MODE)
+                break;
+            TraceLog(LOG_WARNING, "AVR in bootloader mode");
+            pgm.resetToApp();
+            cpu::delay_ms(500);
+        }
+    } catch (std::exception const & e) {
+        TraceLog(LOG_ERROR, STR("Cannot talk to AVR: " << e.what()));
+    }
+    /*
     comms::Status status = avrQueryStatus();
     if (status.mode() == comms::Mode::Bootloader) {
         TraceLog(LOG_WARNING, "AVR in bootloader mode");
@@ -492,6 +539,7 @@ void RCKid::initializeAvr() {
         sendAvrCommand(msg::AvrReset{});
         cpu::delay_ms(100);
     }
+    */
 }
 
 void RCKid::initializeAccel() {

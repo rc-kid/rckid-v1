@@ -5,6 +5,7 @@
 #include "utils/time.h"
 
 #include "config.h"
+#include "../avr-i2c-bootloader/src/bootloader_config.h"
 
 namespace comms {
 
@@ -24,7 +25,7 @@ namespace comms {
         WakeUp = 2,
         PowerUp = 3,
         PowerDown = 4,
-        Bootloader = 7,
+        Bootloader = bootloader::BOOTLOADER_MODE,
     }; // comms::Mode
 
 
@@ -302,6 +303,8 @@ namespace comms {
     }; // comms::ExtendedState
 
     static_assert(sizeof(ExtendedState) <= 32);
+
+
 
 } // namespace comms
 

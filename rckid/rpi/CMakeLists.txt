@@ -61,6 +61,7 @@ else()
 
 file(GLOB_RECURSE SRC  *.cpp *.h)
 add_executable(rckid ${SRC})
+target_link_libraries(rckid libi2cprogrammer)
 target_link_libraries(rckid ${EVDEV_LIBRARY})
 target_link_libraries(rckid Threads::Threads)
 target_link_libraries(rckid 

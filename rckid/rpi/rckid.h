@@ -3,6 +3,7 @@
 #include <queue>
 #include <mutex>
 #include <variant>
+#include <functional>
 
 #include "libevdev/libevdev.h"
 #include "libevdev/libevdev-uinput.h"
@@ -135,6 +136,16 @@ public:
     void rgbOff() { hwEvents_.send(msg::RGBOff{}); }
     void rgbColor(platform::Color color) { hwEvents_.send(msg::RGBColor{color}); }
 
+    void startRecording(std::function<void(RecordingEvent &)> callback) {
+        recordingCallback_ = callback;
+        status_.recording = true;
+        hwEvents_.send(msg::StartAudioRecording{});
+    }
+
+    void stopRecording() { 
+        hwEvents_.send(msg::StopAudioRecording{}); 
+        status_.recording = false; 
+    }
 
     comms::Mode mode() const { return status_.mode; }
     bool usb() const { return status_.usb; }
@@ -271,6 +282,10 @@ private:
     void processAvrControls(comms::Controls const & controls) DRIVER_THREAD;
 
     void processAvrExtendedInfo(comms::ExtendedInfo const & einfo) DRIVER_THREAD;
+
+    /** Receives new batch of audio recording from the AVR together with the status information. 
+     */
+    void avrGetRecording();
 
     /** Initializes the ISRs on the rpi pins so that the driver can respond properly.
      */
@@ -428,7 +443,14 @@ private:
         std::string ssid = "Internet 10";
         bool nrf = true;
         uint8_t brightness;
+        // determines if we are recording in the main thread
+        bool recording = false;
     } status_;
+
+    std::function<void(RecordingEvent &)> recordingCallback_ DRIVER_THREAD;
+    bool recording_ = false DRIVER_THREAD;
+    uint8_t recordingLastBatch_ = 0xff DRIVER_THREAD;
+
 
     /** The button state objects, managed by the ISR thread 
      */

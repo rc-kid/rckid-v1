@@ -1,6 +1,6 @@
 #include <avr/io.h>
 
-#include "config.h"
+#include "bootloader_config.h"
 
 /**
                    -- VDD             GND --
@@ -28,6 +28,8 @@
 
 /* Define application pointer type */
 typedef void (*const app_t)(void);
+
+using namespace bootloader;
 
 __attribute__((OS_main)) __attribute__((constructor))
 void boot() {
@@ -58,7 +60,7 @@ void boot() {
         // make sure that the pins are not out - HW issue with the chip, will fail otherwise
         PORTA.OUTCLR = 0x06; // PA1, PA2
         // set the address and disable general call, disable second address and set no address mask (i.e. only the actual address will be responded to)
-        TWI0.SADDR = I2C_ADDRESS << 1;
+        TWI0.SADDR = AVR_I2C_ADDRESS << 1;
         TWI0.SADDRMASK = 0;
         // enable the TWI in slave mode, enable all interrupts
         TWI0.SCTRLA = TWI_DIEN_bm | TWI_APIEN_bm | TWI_PIEN_bm  | TWI_ENABLE_bm;

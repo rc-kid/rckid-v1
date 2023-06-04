@@ -8,7 +8,8 @@ else()
     add_definitions(-DARCH_MOCK)
 endif()
 
-include_directories(${CMAKE_SOURCE_DIR}/../include)
+include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/rckid)
 
 if(DEFINED ARCH_RPI)
     message(STATUS "Building for raspberry pi")
@@ -25,8 +26,13 @@ else()
     add_definitions(-DARCH_MOCK)
 endif()
 
+
+
+add_library(libi2cprogrammer "src/programmer.cpp")
+
 file(GLOB_RECURSE SRC  src/i2c-programmer.cpp)
 add_executable(i2c-programmer ${SRC})
+target_link_libraries(i2c-programmer libi2cprogrammer)
 
 if(DEFINED ARCH_RPI)
     #target_link_libraries(i2c-programmer ${PIGPIO_LIBRARY})

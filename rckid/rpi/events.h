@@ -92,6 +92,17 @@ struct HeadphonesEvent {
     bool connected;
 }; 
 
+/** Audio recording event. 
+ 
+    Contains the status word which can be used to determine the batch and 32 data bytes of the actual recording. 
+ */
+struct RecordingEvent {
+    comms::Status status;
+    uint8_t data[32];
+};
+
+static_assert(sizeof(RecordingEvent) == 33); 
+
 using Event = std::variant<
     ButtonEvent,
     ThumbEvent, 
@@ -101,81 +112,9 @@ using Event = std::variant<
     VoltageEvent,
     TempEvent, 
     BrightnessEvent,
-    HeadphonesEvent
+    HeadphonesEvent,
+    RecordingEvent
 >;
-
-
-#ifdef FOOBAR
-
-/** Window event.
-
-    The window event is effectively a tagged union over the various event types supported by the window.  
- */
-struct Event {
-public:
-    enum class Kind {
-        None, 
-        Button, 
-        Thumb,
-        Accel,
-        State, 
-    }; // Event::Kind
-
-    Kind kind;
-
-    Event():kind{Kind::None} {}
-
-    static Event button(Button btn, bool state) {
-        Event result{Kind::Button};
-        result.button_.btn = btn;
-        result.button_.state = state;
-        return result;
-    }
-
-    static Event accel(uint8_t x, uint8_t y, uint8_t z, uint16_t temp) {
-        Event result{Kind::Accel};
-        result.accel_.x = x;
-        result.accel_.y = y;
-        result.accel_.z = z;
-        result.accel_.temp = temp;
-        return result;
-    }
-
-    ButtonEvent & button() {
-        ASSERT(kind == Kind::Button);
-        return button_;
-    }
-
-    ThumbEvent & thumb() {
-        ASSERT(kind == Kind::Thumb);
-        return thumb_;
-    }
-
-    AccelEvent & accel() {
-        ASSERT(kind == Kind::Accel);
-        return accel_;
-    }
-
-    StateEvent & state() {
-        ASSERT(kind == Kind::State);
-        return state_;
-    }
-
-private:
-
-    Event(Kind kind): kind{kind} {}
-
-    union {
-        ButtonEvent button_;
-        ThumbEvent thumb_;
-        AccelEvent accel_;
-        StateEvent state_;
-    }; 
-
-}; // Event
-
-
-#endif // FOOBAR
 
 /** Event queue.
  */

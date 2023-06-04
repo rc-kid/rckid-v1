@@ -916,6 +916,7 @@ public:
         TCB0.CCMP = 625; // for 8kHz
         TCB0.INTCTRL = TCB_CAPT_bm;
         TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc | TCB_ENABLE_bm;
+        micFake_ = 0;
     }
 
     static void stopRecording() {
@@ -928,11 +929,16 @@ public:
         state_.status.setRecording(false);
     }
 
+    // TODO DELETE when done testing the microphone
+    static uint8_t micFake_ = 0;
+
     /** Critical code, just accumulate the sampled value.
      */
     static inline void ADC1_RESRDY_vect(void) __attribute__((always_inline)) {
         ENTER_IRQ;
-        micAcc_ += ADC1.RES;
+        // TODO delete this when ready!
+        micAcc_ += 4 * (micFake_++);
+        //micAcc_ += ADC1.RES;
         micSamples_ += 4; // we do four samples per interrupt
         LEAVE_IRQ;
     }

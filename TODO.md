@@ -10,6 +10,13 @@
 - [ ] remote (NRF)
 - [ ] Walkie-Talkie
 
+
+- info command should infact clear irq
+- check the bootloader / programmer still works
+- check that we are find detecting first boot with it
+- check recorder in fake mode
+- check recorder proper
+
 # Questions
 
 - PWM motor control frequency - 20kHz should be enough
@@ -42,13 +49,14 @@
 
 ## Bootloader
 
-- add the reset to program setting to programmer
 - add programmer as library
+
+
+- add the reset to program setting to programmer
 - cleanup & extend the programmer code so that it can dump the stored files, read/write EEPROM and so on
 
 ## AVR
 
-- check power on timeout if it is long enough
 - there is 6mA draw when sleeping, not sure why...
 - add effects for rumbler & rgb 
 - add mic level wakeup and others
