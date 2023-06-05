@@ -904,11 +904,14 @@ public:
         setTxAddress(recBuffer_);
         // initialize ADC1
         ADC1.CTRLA = 0; // disable ADC so that any pending read from the main app is cancelled
-        // TODO set reference voltage to something useful, such as 2.5? 
+        // set the ADC1 voltage to 2.5V
+        VREF.CTRLC &= ~VREF_ADC1REFSEL_gm;
+        VREF.CTRLC |= VREF_ADC1REFSEL_2V5_gc;
+        // initialize the ADC 
         ADC1.MUXPOS = ADC_MUXPOS_AIN1_gc;
         ADC1.INTCTRL |= ADC_RESRDY_bm;
         ADC1.CTRLB = ADC_SAMPNUM_ACC4_gc; 
-        ADC1.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm;
+        ADC1.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm;
         ADC1.CTRLD = 0; // no sample delay, no init delay
         ADC1.SAMPCTRL = 0;
         ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc | ADC_FREERUN_bm;
@@ -944,7 +947,7 @@ public:
     static inline void TCB0_INT_vect(void) __attribute__((always_inline)) {
         ENTER_IRQ;
         TCB0.INTFLAGS = TCB_CAPT_bm;
-        recBuffer_[wrIndex_++] = (micSamples_ > 0) ? (micAcc_ / micSamples_) : 0;
+        recBuffer_[wrIndex_++] = (micSamples_ > 0) ? ((micAcc_ / micSamples_) & 0xff) : 0;
         micAcc_ = 0;
         micSamples_ = 0;
         // if we have accumulated a batch of readings, set the IRQ, do not change the batch index and whether we have a valid batch as this is always determined by the I2C routine when slave tx starts/ends.
