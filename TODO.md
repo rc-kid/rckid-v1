@@ -10,12 +10,6 @@
 - [ ] remote (NRF)
 - [ ] Walkie-Talkie
 
-
-- check that we are find detecting first boot with it
-- check recorder in fake mode
-- check recorder proper
-- check if bigger speaker makes difference
-
 # Questions
 
 - PWM motor control frequency - 20kHz should be enough
@@ -34,6 +28,8 @@
 > A section about RCKid alone todos... Split into the schematic & PCB design, AVR code and RPi application and the RPi System in general (SD card settings mostly)
 
 ## PCB
+
+- check if bigger speaker makes difference
 
 - AVR chips keep getting bricked... No clue why:(
 - wrong holes wrt center of the joystick
@@ -58,6 +54,8 @@
 - add alarm wakeup
 
 ## RPI - RayLib
+
+- check that we are find detecting first boot with it
 
 - spurious buttons after recording end
 - die if in bootloader mode 

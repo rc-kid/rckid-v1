@@ -345,7 +345,8 @@ void RCKid::avrQueryState() {
     comms::State state;
     i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
     processAvrStatus(state.status);
-    processAvrControls(state.controls);
+    if (!state.status.recording())
+        processAvrControls(state.controls);
 }
 
 void RCKid::avrQueryExtendedState() {
