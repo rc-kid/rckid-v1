@@ -25,6 +25,17 @@ protected:
     }
 
     void draw() {
+        // now draw the displayed information
+        DrawTextEx(window()->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), STR(window()->rckid()->vcc()).c_str(), 210, 20, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), STR(window()->rckid()->vBatt()).c_str(), 290, 20, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), "TEMP:", 160, 40, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), STR(window()->rckid()->avrTemp()).c_str(), 210, 40, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), STR(window()->rckid()->accelTemp()).c_str(), 290, 40, 16, 1.0, WHITE);
+
+        BeginBlendMode(BLEND_ALPHA);
         // draw rckid's outline
         DrawCircleSector(Vector2{25,40}, 20, 180, 270, 8, DARKGRAY);
         DrawCircleSector(Vector2{25, 215}, 20, 270, 360, 8, DARKGRAY);
@@ -34,17 +45,8 @@ protected:
         DrawRectangle(25, 20, 105, 20, DARKGRAY);
         DrawRectangle(25, 215, 85, 20, DARKGRAY);
         DrawRectangle(125, 40, 20, 155, DARKGRAY);
-        // draw the display cutout joy & accel values
+        // draw the display cutout joy & accel
         DrawRectangle(25, 40, 100, 75, BLACK);
-        DrawTextEx(window()->helpFont(), "Joy", 45, 42, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), "Acc", 85, 42, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), "X", 30, 60, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), "Y", 30, 78, 16, 1.0, DARKGRAY);
-        //DrawTextEx(window->helpFont(), "Z", 30, 96, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR((int)joyX_).c_str(), 45, 60, 16, 1.0, WHITE);
-        DrawTextEx(window()->helpFont(), STR((int)joyY_).c_str(), 45, 78, 16, 1.0, WHITE);
-        DrawTextEx(window()->helpFont(), STR((int)accelX_).c_str(), 85, 60, 16, 1.0, WHITE);
-        DrawTextEx(window()->helpFont(), STR((int)accelY_).c_str(), 85, 78, 16, 1.0, WHITE);
 
         // draw the ABXY buttons
         DrawCircle(125, 155, 10, btnA_ ? YELLOW : BLACK);
@@ -70,16 +72,20 @@ protected:
         // left and right buttons
         DrawRectangle(47, 220, 3, 15, btnL_ ? RED : BLACK);
         DrawRectangle(103, 220, 3, 15, btnR_ ? RED : BLACK);
+        
+        EndBlendMode();
 
-        // now draw the displayed information
-        DrawTextEx(window()->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(window()->rckid()->vcc()).c_str(), 210, 20, 16, 1.0, WHITE);
-        DrawTextEx(window()->helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(window()->rckid()->vBatt()).c_str(), 290, 20, 16, 1.0, WHITE);
-        DrawTextEx(window()->helpFont(), "TEMP:", 160, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(window()->rckid()->avrTemp()).c_str(), 210, 40, 16, 1.0, WHITE);
-        DrawTextEx(window()->helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(window()->helpFont(), STR(window()->rckid()->accelTemp()).c_str(), 290, 40, 16, 1.0, WHITE);
+
+        DrawTextEx(window()->helpFont(), "Joy", 45, 42, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), "Acc", 85, 42, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), "X", 30, 60, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), "Y", 30, 78, 16, 1.0, DARKGRAY);
+        //DrawTextEx(window->helpFont(), "Z", 30, 96, 16, 1.0, DARKGRAY);
+        DrawTextEx(window()->helpFont(), STR((int)joyX_).c_str(), 45, 60, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR((int)joyY_).c_str(), 45, 78, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR((int)accelX_).c_str(), 85, 60, 16, 1.0, WHITE);
+        DrawTextEx(window()->helpFont(), STR((int)accelY_).c_str(), 85, 78, 16, 1.0, WHITE);
+
 
     }
 

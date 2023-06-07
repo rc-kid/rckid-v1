@@ -209,15 +209,18 @@ void Window::draw() {
     redrawDelta_ = static_cast<float>((t - lastDrawTime_) * 1000);
     swap_.update(this);
     lastDrawTime_ = t;
+    BeginDrawing();
+
     // draw the widget which we do on the render texture
     BeginTextureMode(canvas_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
+    BeginBlendMode(BLEND_ADD_COLORS);
     if (widget_ != nullptr)
         widget_->draw();
     // do the fade in or out business
+    EndBlendMode();
     EndTextureMode();
 
-    BeginDrawing();
     ClearBackground(ColorAlpha(BLACK, 0.0));
     if (backgroundEnabled_) {
         // start with opaque black so that transparency works the way it should
@@ -245,41 +248,12 @@ void Window::draw() {
     DrawTextureRec(canvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, c);
     // overlay the header and footer 
     drawHeader();
+
     if (widget_ == nullptr || ! widget_->fullscreen())
         drawFooter();
 
-
-    if (volumeGauge_ != Transition::Hide) {
-        BeginTextureMode(canvas_);
-        ClearBackground(ColorAlpha(BLACK, 0.0));
+    if (volumeGauge_ != Transition::Hide)
         drawVolumeBar();
-        EndTextureMode();
-        float offset = 0;
-        volume_.update(this);
-        switch (volumeGauge_) {
-            case Transition::None:
-                if (volume_.done()) {
-                    volumeGauge_ = Transition::FadeOut;
-                    volume_.start(VOLUME_GAUGE_FADE_TIMER);
-                }
-                break;
-            case Transition::FadeIn:
-                offset -= volume_.interpolate(20, 0, Interpolation::Linear);
-                if (volume_.done()) {
-                    volumeGauge_ = Transition::None;
-                    volume_.start(VOLUME_GAUGE_SHOW_TIME);
-                }
-                break;
-            case Transition::FadeOut:
-                offset -= volume_.interpolate(0, 20, Interpolation::Linear);
-                if (volume_.done())
-                    volumeGauge_ = Transition::Hide;
-                break;
-            default: // don't handle hide here
-                UNREACHABLE;
-        }
-        DrawTextureRec(canvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,offset}, WHITE);
-    }
 
     // and we are done
     EndDrawing();
@@ -362,6 +336,7 @@ void Window::drawHeader() {
         DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, GREEN);
     }
 
+
 }
 
 
@@ -374,6 +349,9 @@ void drawProgressBar(int x, int y, int width, int height, ::Color color) {
 
 
 void Window::drawVolumeBar() {
+    BeginTextureMode(canvas_);
+    ClearBackground(ColorAlpha(BLACK, 0.0));
+
     DrawRectangle(30, 0, 260, 16, BLACK);
     DrawRectangle(34, 16, 252, 4, BLACK);
     DrawCircleSector(Vector2{34, 16}, 4, 270, 360, 16, BLACK);
@@ -395,24 +373,58 @@ void Window::drawVolumeBar() {
     BeginScissorMode(55, 7, rckid_->volume() * 2, 6);
     drawProgressBar(55, 7, 200, 6, BLUE);
     EndScissorMode();
+
+    EndTextureMode();
+    float offset = 0;
+    volume_.update(this);
+    switch (volumeGauge_) {
+        case Transition::None:
+            if (volume_.done()) {
+                volumeGauge_ = Transition::FadeOut;
+                volume_.start(VOLUME_GAUGE_FADE_TIMER);
+            }
+            break;
+        case Transition::FadeIn:
+            offset -= volume_.interpolate(20, 0, Interpolation::Linear);
+            if (volume_.done()) {
+                volumeGauge_ = Transition::None;
+                volume_.start(VOLUME_GAUGE_SHOW_TIME);
+            }
+            break;
+        case Transition::FadeOut:
+            offset -= volume_.interpolate(0, 20, Interpolation::Linear);
+            if (volume_.done())
+                volumeGauge_ = Transition::Hide;
+            break;
+        default: // don't handle hide here
+            UNREACHABLE;
+    }
+    DrawTextureRec(canvas_.texture, Rectangle{0,220,320,-20}, Vector2{0,offset}, WHITE);
+
 }
 
 void Window::drawFooter() {
-    int y = 220;
+    float offset = 0;
     switch (transition_) {
         case Transition::None:
             break;
         case Transition::FadeOut:
-            y += swap_.interpolate(0, 20);
+            offset = swap_.interpolate(0, 20);
             break;
         case Transition::FadeIn:
-            y += swap_.interpolate(20, 0);
+            offset = swap_.interpolate(20, 0);
             break;
     }
+    BeginTextureMode(canvas_);
+    ClearBackground(ColorAlpha(BLACK, 0.0));
+
     int  x = 0;
+    BeginBlendMode(BLEND_ADD_COLORS);
     for (FooterItem const & item: footer_)
-        x = item.draw(this, x, y);
-    DrawTextEx(helpFont_, STR(GetFPS()).c_str(), 300, 222, 16, 1.0, WHITE);
+        x = item.draw(this, x, 0);
+    DrawTextEx(helpFont_, STR(GetFPS()).c_str(), 300, 2, 16, 1.0, WHITE);
+    EndBlendMode();
 
-
+    EndTextureMode();
+    DrawTextureRec(canvas_.texture, Rectangle{0,220,320,-20}, Vector2{0, 220 + offset}, WHITE);
 }

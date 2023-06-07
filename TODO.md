@@ -60,7 +60,6 @@
 - spurious buttons after recording end
 - die if in bootloader mode 
 - read and reset the error in debug at the beginning of the app
-- add volume progress bar at the top
 - make even the header disappear when games or videos are played
 
 - scissor mode can be used to draw unfinished hearts & progress bars & stuff
