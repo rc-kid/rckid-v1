@@ -72,9 +72,9 @@ protected:
     void draw() override {
         if (items_ == nullptr)
             return;
-        if (animation_.update(window())) {
+        animation_.update(window());
+        if (animation_.done())
             transition_ = Transition::None;
-        }
         switch (transition_) {
             case Transition::None: {
                 drawItem(current(), 0, 0);

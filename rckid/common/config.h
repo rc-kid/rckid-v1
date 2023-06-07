@@ -15,6 +15,12 @@
 
 #define DEFAULT_RUMBLER_STRENGTH 64
 
+/** \section UI 
+ */
+
+#define VOLUME_GAUGE_FADE_TIMER 250
+#define VOLUME_GAUGE_SHOW_TIME 2000
+
 
 /** \section Audio 
 

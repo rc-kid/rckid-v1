@@ -24,7 +24,7 @@ public:
 
     void setDuration(float ms) { duration_ = ms; }
 
-    bool update(Window * window);
+    void update(Window * window);
 
     bool running() const { return running_; }
     
@@ -32,6 +32,12 @@ public:
         value_ = 0;
         running_ = true;
         continuous_ = false;
+        done_ = false;
+    }
+
+    void start(float duration) {
+        duration_ = duration;
+        start();
     }
 
     void startContinuous() {
@@ -42,6 +48,14 @@ public:
 
     void stop() {
         running_ = false;
+    }
+
+    /** Returns true if the last update of the animation marked its end. 
+     
+        Note that for continuous animation, the animation will restart after done. 
+     */
+    bool done() const {
+        return done_;
     }
 
     float frame() const { return value_; }
@@ -81,6 +95,7 @@ private:
 
     bool running_ = false;
     bool continuous_ = false;
+    bool done_ = false;
     float duration_ = 0;
     float value_ = 0;
 

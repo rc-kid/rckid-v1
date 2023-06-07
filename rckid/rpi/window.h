@@ -190,13 +190,31 @@ private:
     void draw();
 
     void btnVolUp(bool state) { 
-        if (state) 
+        if (state) { 
             rckid_->setVolume(rckid_->volume() + AUDIO_VOLUME_STEP);  
+            showVolumeGauge();
+        }
     }
 
     void btnVolDown(bool state) {
-        if (state) 
+        if (state) {
             rckid_->setVolume(rckid_->volume() - AUDIO_VOLUME_STEP);  
+            showVolumeGauge();
+        }
+    }
+
+    void showVolumeGauge() {
+        switch (volumeGauge_) {
+            case Transition::None:
+                volume_.start(VOLUME_GAUGE_SHOW_TIME);
+                break;
+            case Transition::Hide:
+                volume_.start(VOLUME_GAUGE_FADE_TIMER);
+                volumeGauge_ = Transition::FadeIn;
+                break;
+            default:
+                break;
+        }
     }
 
     void swapWidget();
@@ -240,6 +258,7 @@ private:
         FadeIn, 
         FadeOut, 
         None, 
+        Hide,
     }; 
 
     Animation swap_{250};
@@ -249,6 +268,9 @@ private:
     int backgroundSeam_ = 160;
     bool backgroundEnabled_ = true;
     RenderTexture2D canvas_;
+
+    Animation volume_{VOLUME_GAUGE_FADE_TIMER};
+    Transition volumeGauge_ = Transition::Hide;
 
     static constexpr int GLYPHS[] = {
         32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations
