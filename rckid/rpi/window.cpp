@@ -57,7 +57,7 @@ Window::Window() {
             rckid_->powerOff();
         }},
         new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
-        new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{this, "Brightness", 0, 255, 16, 
+        new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{this, "assets/images/009-brightness.png", 0, 255, 16, 
             [this](int value) { 
                 rckid_->setBrightness(value); 
             },
@@ -65,7 +65,7 @@ Window::Window() {
                 g->setValue(rckid_->brightness());
             }
         }},
-        new WidgetItem{"Volume", "assets/images/010-high-volume.png", new Gauge{this, "Volume", 0, 100, 10,
+        new WidgetItem{"Volume", "assets/images/010-high-volume.png", new Gauge{this, "assets/images/010-high-volume.png", 0, 100, 10,
             [this](int value){
                 rckid_->setVolume(value);
             },
@@ -109,7 +109,7 @@ void Window::setWidget(Widget * widget) {
         else
             nav_.push_back(NavigationItem(widget_));
         transition_ = Transition::FadeOut;
-        swap_.start();
+        aswap_.start();
     }
 }
 
@@ -127,7 +127,7 @@ void Window::setMenu(Menu * menu, size_t index) {
         else 
             nav_.push_back(NavigationItem(widget_));
         transition_ = Transition::FadeOut;
-        swap_.start();
+        aswap_.start();
     }
 }
 
@@ -152,7 +152,7 @@ void Window::back(size_t numWidgets) {
         swapWidget();
     } else {
         transition_ = Transition::FadeOut;
-        swap_.start();
+        aswap_.start();
     }
 }
 
@@ -189,7 +189,14 @@ void Window::swapWidget() {
     if (widget_ == carousel_)
         carousel_->items()->onFocus();
     transition_ = Transition::FadeIn;
-    swap_.start();
+    if (widget_->fullscreen()) {
+        if (header_ != Transition::Hide)
+            hideHeader(); 
+    } else {
+        if (header_ != Transition::None)
+            showHeader();
+    }
+    aswap_.start();
 }
 
 void Window::loop() {
@@ -207,7 +214,9 @@ void Window::loop() {
 void Window::draw() {
     double t = GetTime();
     redrawDelta_ = static_cast<float>((t - lastDrawTime_) * 1000);
-    swap_.update(this);
+    aswap_.update(this);
+    avolume_.update(this);
+    aheader_.update(this);
     lastDrawTime_ = t;
     BeginDrawing();
 
@@ -233,13 +242,13 @@ void Window::draw() {
         case Transition::None:
             break;
         case Transition::FadeOut:
-            c = ColorAlpha(c, swap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
-            if (swap_.done())
+            c = ColorAlpha(c, aswap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
+            if (aswap_.done())
                 swapWidget();
             break;
         case Transition::FadeIn:
-            c = ColorAlpha(c, swap_.interpolate(0.0f, 1.0f, Interpolation::Linear));
-            if (swap_.done()) 
+            c = ColorAlpha(c, aswap_.interpolate(0.0f, 1.0f, Interpolation::Linear));
+            if (aswap_.done()) 
                 transition_ = Transition::None;
             break;
         default: 
@@ -247,7 +256,13 @@ void Window::draw() {
     }
     DrawTextureRec(canvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, c);
     // overlay the header and footer 
-    drawHeader();
+    if (header_ == Transition::None) {
+        // TODO if the quota is low as well
+        if (rckid_->vBatt() < BATTERY_THRESHOLD_LOW)
+            showHeader();
+    }
+    if (header_ != Transition::Hide) 
+        drawHeader();
 
     if (widget_ == nullptr || ! widget_->fullscreen())
         drawFooter();
@@ -260,19 +275,15 @@ void Window::draw() {
 }
 
 void Window::drawHeader() {
-    //DrawFPS(0,0);
-
-    // battery voltage
-    //DrawRectangle(0, 0, 320, 20, DARKGRAY);
-
+    BeginTextureMode(canvas_);
+    ClearBackground(ColorAlpha(BLACK, 0.0));
 
     //DrawTextEx(menuFont_, "RCGirl", 100, 160, 64, 1.0, WHITE);
     DrawTextEx(headerFont_, "  ", 0, 0, 20, 1.0, PINK);
     DrawRectangle(20, 0, 40, 20, BLACK);
     DrawTextEx(headerFont_, "  ", 0, 0, 20, 1.0, RED);
 
-
-
+    BeginBlendMode(BLEND_ADD_COLORS);
     int x = 320;
     // charging and usb power indicator 
     if (rckid_->usb()) {
@@ -336,7 +347,26 @@ void Window::drawHeader() {
         DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, GREEN);
     }
 
+    EndBlendMode();
 
+    EndTextureMode();
+
+    float offset = 0;
+    switch (header_) {
+        case Transition::None:
+            break;
+        case Transition::FadeOut:
+            offset = aheader_.interpolate(0, 20, Interpolation::Linear);
+            if (aheader_.done())
+                header_ = Transition::Hide;
+            break;
+        case Transition::FadeIn:
+            offset = aheader_.interpolate(20, 0, Interpolation::Linear);
+            if (aheader_.done())
+                header_ = Transition::None;
+            break;
+    }
+    DrawTextureRec(canvas_.texture, Rectangle{0,220,320,-20}, Vector2{0, -offset}, WHITE);
 }
 
 
@@ -376,24 +406,23 @@ void Window::drawVolumeBar() {
 
     EndTextureMode();
     float offset = 0;
-    volume_.update(this);
     switch (volumeGauge_) {
         case Transition::None:
-            if (volume_.done()) {
+            if (avolume_.done()) {
                 volumeGauge_ = Transition::FadeOut;
-                volume_.start(VOLUME_GAUGE_FADE_TIMER);
+                avolume_.start(VOLUME_GAUGE_FADE_TIMER);
             }
             break;
         case Transition::FadeIn:
-            offset -= volume_.interpolate(20, 0, Interpolation::Linear);
-            if (volume_.done()) {
+            offset -= avolume_.interpolate(20, 0, Interpolation::Linear);
+            if (avolume_.done()) {
                 volumeGauge_ = Transition::None;
-                volume_.start(VOLUME_GAUGE_SHOW_TIME);
+                avolume_.start(VOLUME_GAUGE_SHOW_TIME);
             }
             break;
         case Transition::FadeOut:
-            offset -= volume_.interpolate(0, 20, Interpolation::Linear);
-            if (volume_.done())
+            offset -= avolume_.interpolate(0, 20, Interpolation::Linear);
+            if (avolume_.done())
                 volumeGauge_ = Transition::Hide;
             break;
         default: // don't handle hide here
@@ -404,20 +433,9 @@ void Window::drawVolumeBar() {
 }
 
 void Window::drawFooter() {
-    float offset = 0;
-    switch (transition_) {
-        case Transition::None:
-            break;
-        case Transition::FadeOut:
-            offset = swap_.interpolate(0, 20);
-            break;
-        case Transition::FadeIn:
-            offset = swap_.interpolate(20, 0);
-            break;
-    }
+
     BeginTextureMode(canvas_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
-
     int  x = 0;
     BeginBlendMode(BLEND_ADD_COLORS);
     for (FooterItem const & item: footer_)
@@ -426,5 +444,17 @@ void Window::drawFooter() {
     EndBlendMode();
 
     EndTextureMode();
+
+    float offset = 0;
+    switch (transition_) {
+        case Transition::None:
+            break;
+        case Transition::FadeOut:
+            offset = aswap_.interpolate(0, 20);
+            break;
+        case Transition::FadeIn:
+            offset = aswap_.interpolate(20, 0);
+            break;
+    }
     DrawTextureRec(canvas_.texture, Rectangle{0,220,320,-20}, Vector2{0, 220 + offset}, WHITE);
 }

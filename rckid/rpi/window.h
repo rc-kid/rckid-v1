@@ -99,7 +99,7 @@ public:
     /** Returns current active widget. This is nullptr if we are currently transitioning between widgets. 
     */
     Widget * activeWidget() const { 
-        return swap_.running() ? nullptr : widget_;
+        return aswap_.running() ? nullptr : widget_;
     }
 
     /** Returns the time increase since drawing of the last frame begun in milliseconds. Useful for advancing animations and generally keeping pace. 
@@ -119,6 +119,20 @@ public:
 
     void clearFooter() {
         footer_.clear();
+    }
+
+    void showHeader() {
+        if (header_ != Transition::None) { 
+            header_ = Transition::FadeIn;
+            aheader_.start();
+        }
+    }
+
+    void hideHeader() {
+        if (header_ != Transition::Hide) {
+            header_ = Transition::FadeOut;
+            aheader_.start();
+        }
     }
 
     Font const & menuFont() const { return menuFont_; }
@@ -206,10 +220,10 @@ private:
     void showVolumeGauge() {
         switch (volumeGauge_) {
             case Transition::None:
-                volume_.start(VOLUME_GAUGE_SHOW_TIME);
+                avolume_.start(VOLUME_GAUGE_SHOW_TIME);
                 break;
             case Transition::Hide:
-                volume_.start(VOLUME_GAUGE_FADE_TIMER);
+                avolume_.start(VOLUME_GAUGE_FADE_TIMER);
                 volumeGauge_ = Transition::FadeIn;
                 break;
             default:
@@ -261,7 +275,7 @@ private:
         Hide,
     }; 
 
-    Animation swap_{250};
+    Animation aswap_{250};
     Transition transition_ = Transition::None;
 
     Texture2D background_;
@@ -269,8 +283,14 @@ private:
     bool backgroundEnabled_ = true;
     RenderTexture2D canvas_;
 
-    Animation volume_{VOLUME_GAUGE_FADE_TIMER};
+    /** Volume gauge state and animation timer. */
+    Animation avolume_{VOLUME_GAUGE_FADE_TIMER};
     Transition volumeGauge_ = Transition::Hide;
+
+    /** Transition we use to determine the header visibility. 
+     */
+    Animation aheader_{250};
+    Transition header_ = Transition::None;
 
     static constexpr int GLYPHS[] = {
         32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations

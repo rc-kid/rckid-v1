@@ -48,6 +48,7 @@
 
 ## AVR
 
+- ensure home button long press cannot be spurious
 - there is 6mA draw when sleeping, not sure why...
 - add effects for rumbler & rgb 
 - add mic level wakeup and others
@@ -62,7 +63,7 @@
 - read and reset the error in debug at the beginning of the app
 - make even the header disappear when games or videos are played
 
-- scissor mode can be used to draw unfinished hearts & progress bars & stuff
+- scissor mode can be used to draw unfinished hearts
 - with volumne bar on, FPS drops to 30 (?)
 
 > To be tested/bugs: 
@@ -71,7 +72,6 @@
 
 > I/O items:
 
-- thumbstick checking
 - dpad right / start get confused often (debounced must be)
 
 - key repeat is too fast
@@ -94,11 +94,10 @@
 > Audio 
 
 - add player 
-- add microphone reading and check quality 
+- add recorder app
 
 > More apps:
 
-- sound recorder as app?  
 - add torchlight widget
 
 
@@ -107,7 +106,6 @@
 - actually do the audio, video menu
 - on pop for menu so that we can clear it, should we want to
 - modal errors & stuff
-- keep icon instead of text in gauges
 - add a way for the menu / submenu to detect it's been detached
 - add rumbler / sound for ui actions
 - if there are errors during startup a way to show them
