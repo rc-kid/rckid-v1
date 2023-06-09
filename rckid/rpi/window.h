@@ -9,6 +9,7 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <chrono>
 
 
 #include "raylib_cpp.h"
@@ -246,8 +247,10 @@ private:
 
     std::vector<FooterItem> footer_;
 
-    double lastDrawTime_;
-    float redrawDelta_;
+    std::chrono::high_resolution_clock::time_point lastFrameTime_;
+    size_t redrawDelta_; 
+    //double lastDrawTime_;
+    //float redrawDelta_;
     Font helpFont_;
     Font headerFont_;
     Font menuFont_;
@@ -291,6 +294,7 @@ private:
      */
     Animation aheader_{250};
     Transition header_ = Transition::None;
+
 
     static constexpr int GLYPHS[] = {
         32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations

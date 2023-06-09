@@ -49,22 +49,19 @@
 ## AVR
 
 - ensure home button long press cannot be spurious
-- there is 6mA draw when sleeping, not sure why...
+- there is 6mA draw when sleeping, not sure why..., is there? 
 - add effects for rumbler & rgb 
 - add mic level wakeup and others
 - add alarm wakeup
 
 ## RPI - RayLib
 
+- low FPS on rpi, add better FPS detection, switch to custom FPS Mode? 
 - check that we are find detecting first boot with it
 
 - spurious buttons after recording end
 - die if in bootloader mode 
 - read and reset the error in debug at the beginning of the app
-- make even the header disappear when games or videos are played
-
-- scissor mode can be used to draw unfinished hearts
-- with volumne bar on, FPS drops to 30 (?)
 
 > To be tested/bugs: 
 
