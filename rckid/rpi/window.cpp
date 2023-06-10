@@ -1,4 +1,3 @@
-#include <chrono>
 
 #include "platform/platform.h"
 
@@ -46,6 +45,7 @@ Window::Window() {
     menuFont_ = loadFont(MENU_FONT, MENU_FONT_SIZE);
     background_ = LoadTexture("assets/backgrounds/unicorns-black.png");
     canvas_ = LoadRenderTexture(320, 240);
+    buffer_ = LoadRenderTexture(320, 240);
 
     InitAudioDevice();
 
@@ -78,7 +78,7 @@ Window::Window() {
         new Menu::Item{"WiFi", "assets/images/016-wifi.png"},
         new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{this}},
     }};
-    lastFrameTime_ = std::chrono::high_resolution_clock::now();    
+    lastFrameTime_ = now();    
 }
 
 Font Window::loadFont(std::string const & filename, int size) {
@@ -220,6 +220,7 @@ struct RenderingStats {
     unsigned swap;
     unsigned stats;
     unsigned total;
+    unsigned delta;
 };
 
 #define RENDERING_STATS
@@ -230,38 +231,59 @@ RenderingStats frames_[320];
 size_t fti_ = 0;
 #endif
 
+#define foobar
 
 
+#ifndef foobar
 void Window::draw() {
-    auto t = std::chrono::high_resolution_clock::now();
-    redrawDelta_ = std::chrono::duration_cast<std::chrono::milliseconds>(t - lastFrameTime_).count();
+    static Texture2D x = LoadTexture("assets/images/025-heart.png");
+    Timepoint t = now();
+    redrawDelta_ = asMillis(t - lastFrameTime_);
     lastFrameTime_ = t;
+    BeginDrawing();
+    ClearBackground(ColorAlpha(BLACK, 0.0));
+    for (int i = 0; i < 2000; ++i)
+        DrawTexture(x, i / 10, i % 200, WHITE);
+    DrawText(STR(redrawDelta_).c_str(), 270, 30, 16, WHITE);
+    EndDrawing();
+    SwapScreenBuffer();
+}
+#endif
 
-#define GetTime std::chrono::high_resolution_clock::now
-    
-
+#ifdef foobar
+void Window::draw() {
+    Timepoint t = now();
+    redrawDelta_ = asMillis(t - lastFrameTime_);
+    lastFrameTime_ = t;
+    frames_[fti_].delta = redrawDelta_;
     aswap_.update(this);
     avolume_.update(this);
     aheader_.update(this);
-    BeginDrawing();
 
 #if (defined RENDERING_STATS)
-    auto tt = GetTime();
+    Timepoint tt = now();
 #endif
+    BeginTextureMode(canvas_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
+
     if (backgroundEnabled_) {
         // start with opaque black so that transparency works the way it should
         DrawRectangle(0,0,320,240, BLACK);
         DrawTexture(background_, backgroundSeam_ - 320, 0, ColorAlpha(WHITE, 0.3));
         DrawTexture(background_, backgroundSeam_, 0, ColorAlpha(WHITE, 0.3));
     } 
+    EndTextureMode();
+
+
 #if (defined RENDERING_STATS)
     //frames_[fti_].background = static_cast<unsigned>((GetTime() - tt) * 1000);
-    frames_[fti_].background = std::chrono::duration_cast<std::chrono::milliseconds>(GetTime() - tt).count();
-    tt = GetTime();
+    frames_[fti_].background = asMillis(now() - tt);
+    tt = now();
 #endif
+
     // draw the widget which we do on the render texture
-    BeginTextureMode(canvas_);
+    //ClearBackground(ColorAlpha(BLACK, 0.0));
+    BeginTextureMode(buffer_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
     BeginBlendMode(BLEND_ADD_COLORS);
     if (widget_ != nullptr)
@@ -286,10 +308,13 @@ void Window::draw() {
         default: 
             UNREACHABLE; // hide is not applicable here
     }
-    DrawTextureRec(canvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, c);
+    BeginTextureMode(canvas_);
+    DrawTextureRec(buffer_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, c);
+    EndTextureMode();
+
 #if (defined RENDERING_STATS)
-    frames_[fti_].widget = std::chrono::duration_cast<std::chrono::milliseconds>(GetTime() - tt).count();
-    tt = GetTime();
+    frames_[fti_].widget = asMillis(now() - tt);
+    tt = now();
 #endif
     // overlay the header and footer 
     if (header_ == Transition::None) {
@@ -297,27 +322,29 @@ void Window::draw() {
         if (rckid_->vBatt() < BATTERY_THRESHOLD_LOW)
             showHeader();
     }
-    if (header_ != Transition::Hide) 
+    if (header_ != Transition::Hide)
         drawHeader();
 #if (defined RENDERING_STATS)
-    frames_[fti_].header = std::chrono::duration_cast<std::chrono::milliseconds>(GetTime() - tt).count();
-    tt = GetTime();
+    frames_[fti_].header = asMillis(now() - tt);
+    tt = now();
 #endif
     if (widget_ == nullptr || ! widget_->fullscreen())
         drawFooter();
 #if (defined RENDERING_STATS)
-    frames_[fti_].footer = std::chrono::duration_cast<std::chrono::milliseconds>(GetTime() - tt).count();
-    tt = GetTime();
+    frames_[fti_].footer = asMillis(now() - tt);
+    tt = now();
 #endif
     if (volumeGauge_ != Transition::Hide)
         drawVolumeBar();
 #if (defined RENDERING_STATS)
-    frames_[fti_].volume = std::chrono::duration_cast<std::chrono::milliseconds>(GetTime() - tt).count();
-    tt = GetTime();
-#endif
+    frames_[fti_].volume = asMillis(now() - tt);
+    tt = now();
+
+    BeginTextureMode(canvas_);
     // draw FPS and stats
     int i = 0;
     int x = fti_;
+    /*
     while (i < 320) {
         DrawLine(i, 215, i, 215 - frames_[x].total, DARKGRAY);
         int y = 215;
@@ -326,10 +353,10 @@ void Window::draw() {
         DrawLine(i, y, i, y - frames_[x].header, GREEN);
         y -= frames_[x].header;
         DrawLine(i, y, i, y - frames_[x].footer, BLUE);
-
+        DrawPixel(i, 215 - frames_[x].delta, WHITE);
         x = (x + 1) % 320;
         ++i;
-    }
+    }*/
     int last = fti_ == 0 ? 319 : fti_ - 1;
     DrawText(STR(frames_[last].total).c_str(), 270, 30, 16, WHITE);
     DrawText(STR(frames_[last].widget).c_str(), 270, 50, 16, RED);
@@ -337,22 +364,27 @@ void Window::draw() {
     DrawText(STR(frames_[last].header).c_str(), 270, 90, 16, GREEN);
     DrawText(STR(frames_[last].footer).c_str(), 270, 110, 16, BLUE);
     DrawText(STR(frames_[last].volume).c_str(), 270, 130, 16, WHITE);
-    DrawText(STR(frames_[last].stats).c_str(), 270, 150, 16, DARKGRAY);
+    DrawText(STR(frames_[last].stats).c_str(), 270, 150, 16, WHITE);
     DrawText(STR(frames_[last].swap).c_str(), 270, 170, 16, YELLOW);
+    EndTextureMode();
 
-#if (defined RENDERING_STATS)
-    frames_[fti_].stats = std::chrono::duration_cast<std::chrono::milliseconds>(GetTime() - tt).count();
+    frames_[fti_].stats = asMillis(now() - tt);
 #endif
-    // and we are done
+
+    BeginDrawing();
+    ClearBackground(ColorAlpha(BLACK, 0.0));
+    DrawTextureRec(canvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, WHITE);
     EndDrawing();
 
 #if (defined RENDERING_STATS)
-    tt = GetTime();
+    tt = now();
 #endif
+
     SwapScreenBuffer();
+
 #if (defined RENDERING_STATS)
-    frames_[fti_].swap = std::chrono::duration_cast<std::chrono::milliseconds>(GetTime() - tt).count();
-    frames_[fti_].total = std::chrono::duration_cast<std::chrono::milliseconds>(GetTime() - t).count();
+    frames_[fti_].swap = asMillis(now() - tt);
+    frames_[fti_].total = asMillis(now() - t);
     fti_ = (fti_ + 1) % 320;
 #endif
 #if (defined ARCH_MOCK)
@@ -360,9 +392,10 @@ void Window::draw() {
 #endif
 
 }
+#endif
 
 void Window::drawHeader() {
-    BeginTextureMode(canvas_);
+    BeginTextureMode(buffer_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
 
     // The heart, or time left
@@ -437,8 +470,6 @@ void Window::drawHeader() {
 
     EndBlendMode();
 
-    EndTextureMode();
-
     float offset = 0;
     switch (header_) {
         case Transition::None:
@@ -454,7 +485,11 @@ void Window::drawHeader() {
                 header_ = Transition::None;
             break;
     }
-    DrawTextureRec(canvas_.texture, Rectangle{0,220,320,-20}, Vector2{0, -offset}, WHITE);
+    EndTextureMode();
+
+    BeginTextureMode(canvas_);
+    DrawTextureRec(buffer_.texture, Rectangle{0,220,320,-20}, Vector2{0, -offset}, WHITE);
+    EndTextureMode();
 }
 
 
@@ -467,7 +502,7 @@ void drawProgressBar(int x, int y, int width, int height, ::Color color) {
 
 
 void Window::drawVolumeBar() {
-    BeginTextureMode(canvas_);
+    BeginTextureMode(buffer_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
 
     DrawRectangle(30, 0, 260, 16, BLACK);
@@ -492,7 +527,6 @@ void Window::drawVolumeBar() {
     drawProgressBar(55, 7, 200, 6, BLUE);
     EndScissorMode();
 
-    EndTextureMode();
     float offset = 0;
     switch (volumeGauge_) {
         case Transition::None:
@@ -516,21 +550,22 @@ void Window::drawVolumeBar() {
         default: // don't handle hide here
             UNREACHABLE;
     }
-    DrawTextureRec(canvas_.texture, Rectangle{0,220,320,-20}, Vector2{0,offset}, WHITE);
+    EndTextureMode();
+    BeginTextureMode(canvas_);
+    DrawTextureRec(buffer_.texture, Rectangle{0,220,320,-20}, Vector2{0,offset}, WHITE);
+    EndTextureMode();
 
 }
 
 void Window::drawFooter() {
 
-    BeginTextureMode(canvas_);
+    BeginTextureMode(buffer_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
     int  x = 0;
     BeginBlendMode(BLEND_ADD_COLORS);
     for (FooterItem const & item: footer_)
         x = item.draw(this, x, 0);
     EndBlendMode();
-
-    EndTextureMode();
 
     float offset = 0;
     switch (transition_) {
@@ -543,5 +578,10 @@ void Window::drawFooter() {
             offset = aswap_.interpolate(20, 0);
             break;
     }
-    DrawTextureRec(canvas_.texture, Rectangle{0,220,320,-20}, Vector2{0, 220 + offset}, WHITE);
+    EndTextureMode();
+
+    BeginTextureMode(canvas_);
+    DrawTextureRec(buffer_.texture, Rectangle{0,220,320,-20}, Vector2{0, 220 + offset}, WHITE);
+    EndTextureMode();
+
 }

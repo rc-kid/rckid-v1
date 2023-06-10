@@ -9,8 +9,8 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
-#include <chrono>
 
+#include "utils/time.h"
 
 #include "raylib_cpp.h"
 #include "events.h"
@@ -247,7 +247,7 @@ private:
 
     std::vector<FooterItem> footer_;
 
-    std::chrono::high_resolution_clock::time_point lastFrameTime_;
+    Timepoint lastFrameTime_;
     size_t redrawDelta_; 
     //double lastDrawTime_;
     //float redrawDelta_;
@@ -285,6 +285,7 @@ private:
     int backgroundSeam_ = 160;
     bool backgroundEnabled_ = true;
     RenderTexture2D canvas_;
+    RenderTexture2D buffer_;
 
     /** Volume gauge state and animation timer. */
     Animation avolume_{VOLUME_GAUGE_FADE_TIMER};

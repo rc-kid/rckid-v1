@@ -2,7 +2,7 @@
 
 #include "platform/platform.h"
 #include "platform/color.h"
-#include "utils/time.h"
+#include "platform/time.h"
 
 #include "config.h"
 #include "../avr-i2c-bootloader/src/bootloader_config.h"
