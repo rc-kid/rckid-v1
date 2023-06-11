@@ -30,20 +30,18 @@
 
 ## PCB
 
-- check if bigger speaker makes difference
+- enlarge so that we can fit battery (1 - 1.5mm)
+- remove mic parts
+- change mic breakout to smt
+- make room for 27mm speaker with casing
 - add GPIO female thin footprint
-- not enough room for the battery
-
 - wrong holes wrt center of the joystick
-
 - enlarge L and R vertical pin hole pads
-- joystick button test point
+- add solderable pads for the joystick so that adafruit's joycon style joystick can be soldered directly on the main board if we bend the pins
 - proper hole for the thumbstick
+- make RGB face top (?)
+- remove dedicated volume buttons, move select & start to RPI pins direct
 
-
-
-
-- check NRF24, check RGB
 - might also use [this](http://k-silver.com/html_products/JP19%EF%BC%88%E6%AD%A3%E6%8F%92%E8%93%9D%E8%89%B2%E6%91%87%E6%9D%86%EF%BC%89-833.html) thunbstick, that can be bought from [Adafruit](https://www.adafruit.com/product/5628) - will be much easier to solder, might require special pcb board or some such
 
 ## Bootloader
@@ -52,6 +50,7 @@
 
 ## AVR
 
+- avr reboots when DC attached while on battery
 - ensure home button long press cannot be spurious
 - there is 6mA draw when sleeping, not sure why..., is there? 
 - add effects for rumbler & rgb 
@@ -61,6 +60,8 @@
 ## RPI - RayLib
 
 - low FPS on rpi, add better FPS detection, switch to custom FPS Mode? 
+- the GPU performance is well... bad. 
+- check if using VCDispmanX, or SDL can improve things. 
 - check that we are find detecting first boot with it
 
 - spurious buttons after recording end

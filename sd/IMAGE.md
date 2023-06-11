@@ -12,7 +12,7 @@ Then run the following:
 
     git clone git@github.com:zduka/rckid.git
 
-Then run `sudo racpi-config`, enable audio jack audio and i2c, disable the experimental gl driver. 
+Then run `sudo raspi-config`, enable audio jack audio and i2c, disable the experimental gl driver. 
 
 To configure _retropie_, run the following:
 
