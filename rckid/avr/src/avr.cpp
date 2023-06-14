@@ -724,6 +724,8 @@ public:
      */
     //@{
 
+    static inline uint8_t batteryDebounceTimer_ = 0;
+
     /** Starts the measurements on ADC0. 
     */
     static void adcStart() {
@@ -800,10 +802,14 @@ public:
                 state_.einfo.setVcc(value);
                 // if we have critical battery threshold go to powerdown mode immediately, set the battery critical flag
                 if (value <= BATTERY_THRESHOLD_CRITICAL && ! flags_.batteryCritical) {
-                    flags_.irq = true;
-                    flags_.batteryCritical = true;
-                    criticalBatteryWarning();
-                    setMode(Mode::PowerDown);
+                    if (batteryDebounceTimer_-- == 0) {
+                        flags_.irq = true;
+                        flags_.batteryCritical = true;
+                        criticalBatteryWarning();
+                        setMode(Mode::PowerDown);
+                    }
+                } else {
+                    batteryDebounceTimer_ = 10;
                 }
                 flags_.irq = state_.status.setUsb(value >= VCC_THRESHOLD_VUSB) | flags_.irq;
                 flags_.irq = state_.status.setLowBatt(value <= BATTERY_THRESHOLD_LOW) | flags_.irq;
