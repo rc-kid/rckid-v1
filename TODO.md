@@ -31,13 +31,8 @@
 ## PCB
 
 - enlarge so that we can fit battery (1 - 1.5mm)
-- remove mic parts
-- change mic breakout to smt
 - make room for 27mm speaker with casing
-- add GPIO female thin footprint
-- wrong holes wrt center of the joystick
 - enlarge L and R vertical pin hole pads
-- add solderable pads for the joystick so that adafruit's joycon style joystick can be soldered directly on the main board if we bend the pins
 - proper hole for the thumbstick
 - make RGB face top (?)
 - remove dedicated volume buttons, move select & start to RPI pins direct
@@ -73,8 +68,6 @@
 - ensure config on fresh start from clean sd
 
 > I/O items:
-
-- dpad right / start get confused often (debounced must be)
 
 - key repeat is too fast
 - debounce buttons

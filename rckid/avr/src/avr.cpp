@@ -825,8 +825,10 @@ public:
             case ADC_MUXPOS_AIN4_gc:
                 // convert the battery reading to voltage. The battery reading is relative to vcc, which we already have
                 // TODO will this work? when we run on batteries, there might be a voltage drop on the switch? 
-                value = value * 64; 
-                // TODO
+                // VBATT = VCC * VBATT / 255 
+                // but 500 * 255 is too high to fit in uint16, so we divide VCC by 2 and then divide by 128 instead
+                value >>= 2; // go for 8bit precision, which should be enough
+                value = (state_.einfo.vcc() / 2 * value)  / 128; 
                 state_.einfo.setVBatt(value);
                 break;
             // CHARGE 
