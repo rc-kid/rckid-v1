@@ -124,13 +124,17 @@ public:
             value = 0;
         if (value > AUDIO_MAX_VOLUME)
             value = AUDIO_MAX_VOLUME;
+        status_.changed = true;
         status_.volume = value;
         system(STR("amixer sset -q Headphone -M " << status_.volume << "%").c_str());
     }
 
     uint8_t brightness() const { return status_.brightness; }
 
-    void setBrightness(uint8_t value) { status_.brightness = value; hwEvents_.send(msg::SetBrightness{value}); }
+    void setBrightness(uint8_t value) { 
+        status_.changed = true;
+        status_.brightness = value; hwEvents_.send(msg::SetBrightness{value}); 
+    }
 
     void rgbOn() { hwEvents_.send(msg::RGBOn{}); }
     void rgbOff() { hwEvents_.send(msg::RGBOff{}); }
@@ -147,6 +151,17 @@ public:
         TraceLog(LOG_DEBUG, "Recording stopped");
         hwEvents_.send(msg::StopAudioRecording{}); 
         status_.recording = false; 
+    }
+
+    /** Returns true if the device status information changed since the last call. 
+     */
+    bool statusChanged() {
+        if (status_.changed) {
+            status_.changed  = false;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     comms::Mode mode() const { return status_.mode; }
@@ -431,6 +446,7 @@ private:
     /** RCKid's state, available from the main thead. 
      */
     struct Status {
+        bool changed;
         comms::Mode mode;
         bool usb;
         bool charging;

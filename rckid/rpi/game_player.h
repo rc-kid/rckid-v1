@@ -72,6 +72,10 @@ public:
 
 protected:
     void draw() override {
+        cancelRedraw();
+    }
+
+    void idle() override {
         if (emulator_.done())
             window()->back();
     }

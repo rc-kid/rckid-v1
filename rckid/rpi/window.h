@@ -111,26 +111,31 @@ public:
         footer_.clear();
         if (nav_.size() > 0)
             addFooterItem(FooterItem::B("Back"));
+        redrawFooter_ = true;
     }
 
     void addFooterItem(FooterItem item) {
         item.textSize_ = MeasureTextEx(helpFont_, item.text_.c_str(), 16, 1.0);
         footer_.push_back(item);
+        redrawFooter_ = true;
     }
 
     void clearFooter() {
         footer_.clear();
+        redrawFooter_ = true;
     }
 
     void showHeader() {
-        if (header_ != Transition::None) { 
+        if (headerVisible_ == false) { 
             header_ = Transition::FadeIn;
             aheader_.start();
+            redrawHeader_ = true;
+            headerVisible_ = true;
         }
     }
 
     void hideHeader() {
-        if (header_ != Transition::Hide) {
+        if (headerVisible_) {
             header_ = Transition::FadeOut;
             aheader_.start();
         }
@@ -146,7 +151,10 @@ public:
             value -= 320;
         else if (value < 0)
             value += 320;
-        backgroundSeam_ = value;
+        if (backgroundSeam_ != value) {
+            backgroundSeam_ = value;
+            redrawBackground_ = true;
+        }
     }
 
     int backgroundSeam() const { return backgroundSeam_; }
@@ -207,35 +215,19 @@ private:
     void btnVolUp(bool state) { 
         if (state) { 
             rckid_->setVolume(rckid_->volume() + AUDIO_VOLUME_STEP);  
-            showVolumeGauge();
         }
     }
 
     void btnVolDown(bool state) {
         if (state) {
             rckid_->setVolume(rckid_->volume() - AUDIO_VOLUME_STEP);  
-            showVolumeGauge();
         }
     }
 
-    void showVolumeGauge() {
-        switch (volumeGauge_) {
-            case Transition::None:
-                avolume_.start(VOLUME_GAUGE_SHOW_TIME);
-                break;
-            case Transition::Hide:
-                avolume_.start(VOLUME_GAUGE_FADE_TIMER);
-                volumeGauge_ = Transition::FadeIn;
-                break;
-            default:
-                break;
-        }
-    }
 
     void swapWidget();
 
     void drawHeader();
-    void drawVolumeBar();
     void drawFooter();
     
     // the rckid driver
@@ -275,7 +267,6 @@ private:
         FadeIn, 
         FadeOut, 
         None, 
-        Hide,
     }; 
 
     Animation aswap_{250};
@@ -284,17 +275,23 @@ private:
     Texture2D background_;
     int backgroundSeam_ = 160;
     bool backgroundEnabled_ = true;
-    RenderTexture2D canvas_;
-    RenderTexture2D buffer_;
 
-    /** Volume gauge state and animation timer. */
-    Animation avolume_{VOLUME_GAUGE_FADE_TIMER};
-    Transition volumeGauge_ = Transition::Hide;
+    /** Because of the abysmally slow 2D drawing performance on RPi we buffer all the UI elements in rendering textures are only redraw them when necessary. 
+    */
+    RenderTexture2D backgroundCanvas_;
+    RenderTexture2D widgetCanvas_;
+    RenderTexture2D headerCanvas_;
+    RenderTexture2D footerCanvas_;
+
+    bool redrawBackground_ = true;
+    bool redrawHeader_ = true;
+    bool redrawFooter_ = true;
 
     /** Transition we use to determine the header visibility. 
      */
     Animation aheader_{250};
     Transition header_ = Transition::None;
+    bool headerVisible_ = true;
 
 
     static constexpr int GLYPHS[] = {

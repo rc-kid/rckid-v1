@@ -57,8 +57,10 @@ protected:
     void btnR(bool state) { dpadRight(state); }
 
     void btnA(bool state) override {
-        if (state && transition_ == Transition::None && items_ != nullptr)
+        if (state && transition_ == Transition::None && items_ != nullptr) {
             items_->onSelectItem(window(), i_);
+            cancelRedraw();
+        }
     }
 
     void drawItem(Menu::Item * item, int ximg, int xtext, uint8_t alpha = 255) {
@@ -78,6 +80,7 @@ protected:
         switch (transition_) {
             case Transition::None: {
                 drawItem(current(), 0, 0);
+                cancelRedraw();
                 return; // no need to close animation
             }
             case Transition::Left:
@@ -107,8 +110,8 @@ protected:
     size_t leftOf(size_t i) { return i == 0 ? items_->size() - 1 : --i; }
     size_t rightOf(size_t i) { return i == items_->size() - 1 ? 0 : ++i; }
 
-    size_t moveLeft() { return i_ = leftOf(i_); }
-    size_t moveRight() { return i_ = rightOf(i_); }
+    size_t moveLeft() { requestRedraw(); return i_ = leftOf(i_); }
+    size_t moveRight() { requestRedraw(); return i_ = rightOf(i_); }
 
 private:
 

@@ -33,8 +33,6 @@ int FooterItem::draw(Window * window, int x, int y) const {
     return x;
 }
 
-
-
 Window::Window() {
     InitWindow(320, 240, "RCKid");
     //SetTargetFPS(60);
@@ -44,8 +42,10 @@ Window::Window() {
     headerFont_ = loadFont(HELP_FONT, 20);
     menuFont_ = loadFont(MENU_FONT, MENU_FONT_SIZE);
     background_ = LoadTexture("assets/backgrounds/unicorns-black.png");
-    canvas_ = LoadRenderTexture(320, 240);
-    buffer_ = LoadRenderTexture(320, 240);
+    backgroundCanvas_ = LoadRenderTexture(320, 240);
+    widgetCanvas_ = LoadRenderTexture(320, 240);
+    headerCanvas_ = LoadRenderTexture(320, 240);
+    footerCanvas_ = LoadRenderTexture(320, 240);
 
     InitAudioDevice();
 
@@ -197,6 +197,10 @@ void Window::swapWidget() {
     if (!widget_->fullscreen())
         showHeader();
     aswap_.start();
+    // always redraw header when swapping a widget, just to be sure
+    redrawHeader_ = true;
+    // and require redraw
+    widget_->redraw_ = true;
 }
 
 void Window::loop() {
@@ -216,8 +220,7 @@ struct RenderingStats {
     unsigned background;
     unsigned header;
     unsigned footer;
-    unsigned volume;
-    unsigned swap;
+    unsigned render;
     unsigned stats;
     unsigned total;
     unsigned delta;
@@ -231,171 +234,188 @@ RenderingStats frames_[320];
 size_t fti_ = 0;
 #endif
 
-#define foobar
-
-
-#ifndef foobar
-void Window::draw() {
-    static Texture2D x = LoadTexture("assets/images/025-heart.png");
-    Timepoint t = now();
-    redrawDelta_ = asMillis(t - lastFrameTime_);
-    lastFrameTime_ = t;
-    BeginDrawing();
-    ClearBackground(ColorAlpha(BLACK, 0.0));
-    for (int i = 0; i < 2000; ++i)
-        DrawTexture(x, i / 10, i % 200, WHITE);
-    DrawText(STR(redrawDelta_).c_str(), 270, 30, 16, WHITE);
-    EndDrawing();
-    SwapScreenBuffer();
-}
-#endif
-
-#ifdef foobar
 void Window::draw() {
     Timepoint t = now();
     redrawDelta_ = asMillis(t - lastFrameTime_);
     lastFrameTime_ = t;
     frames_[fti_].delta = redrawDelta_;
     aswap_.update(this);
-    avolume_.update(this);
     aheader_.update(this);
 
+    bool redraw = false;
+
+    // Start by rendering the background. 
+    //
+    // TODO this can be simplified by prerendering the background into twice large texture and then only copy the parts of it as needed according to the seam elliminating the need for the 2 texture draws when background changes
 #if (defined RENDERING_STATS)
     Timepoint tt = now();
 #endif
-    BeginTextureMode(canvas_);
-    ClearBackground(ColorAlpha(BLACK, 0.0));
-
-    if (backgroundEnabled_) {
+    if (redrawBackground_) {
+        redraw = true;
+        redrawBackground_ = false;
+        BeginTextureMode(backgroundCanvas_);
+        ClearBackground(ColorAlpha(BLACK, 0.0));
         // start with opaque black so that transparency works the way it should
         DrawRectangle(0,0,320,240, BLACK);
         DrawTexture(background_, backgroundSeam_ - 320, 0, ColorAlpha(WHITE, 0.3));
         DrawTexture(background_, backgroundSeam_, 0, ColorAlpha(WHITE, 0.3));
-    } 
-    EndTextureMode();
-
-
+        EndTextureMode();
+    }
 #if (defined RENDERING_STATS)
     //frames_[fti_].background = static_cast<unsigned>((GetTime() - tt) * 1000);
     frames_[fti_].background = asMillis(now() - tt);
-    tt = now();
 #endif
 
-    // draw the widget which we do on the render texture
-    //ClearBackground(ColorAlpha(BLACK, 0.0));
-    BeginTextureMode(buffer_);
-    ClearBackground(ColorAlpha(BLACK, 0.0));
-    BeginBlendMode(BLEND_ADD_COLORS);
-    if (widget_ != nullptr)
-        widget_->draw();
-    // do the fade in or out business
-    EndBlendMode();
-    EndTextureMode();
-    ::Color c = WHITE;
-    switch (transition_) {
-        case Transition::None:
-            break;
-        case Transition::FadeOut:
-            c = ColorAlpha(c, aswap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
-            if (aswap_.done())
-                swapWidget();
-            break;
-        case Transition::FadeIn:
-            c = ColorAlpha(c, aswap_.interpolate(0.0f, 1.0f, Interpolation::Linear));
-            if (aswap_.done()) 
-                transition_ = Transition::None;
-            break;
-        default: 
-            UNREACHABLE; // hide is not applicable here
-    }
-    BeginTextureMode(canvas_);
-    DrawTextureRec(buffer_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, c);
-    EndTextureMode();
 
+    // Render the widget. 
+    //
+#if (defined RENDERING_STATS)
+    tt = now();
+#endif
+    if (widget_ != nullptr) {
+        if (widget_->redraw_) {
+            redraw = true;
+            BeginTextureMode(widgetCanvas_);
+            ClearBackground(ColorAlpha(BLACK, 0.0));
+            widget_->draw();
+            EndTextureMode();
+        } else {
+            widget_->idle();
+        }
+    }
 #if (defined RENDERING_STATS)
     frames_[fti_].widget = asMillis(now() - tt);
-    tt = now();
 #endif
-    // overlay the header and footer 
-    if (header_ == Transition::None) {
-        // TODO if the quota is low as well
-        if (rckid_->vBatt() < BATTERY_THRESHOLD_LOW)
-            showHeader();
-    }
-    if (header_ != Transition::Hide)
-        drawHeader();
+
+    // Render the header
+    //
 #if (defined RENDERING_STATS)
-    frames_[fti_].header = asMillis(now() - tt);
     tt = now();
 #endif
-    if (widget_ == nullptr || ! widget_->fullscreen())
-        drawFooter();
+    if (rckid_->statusChanged()) 
+        redrawHeader_ = true;
+    if (redrawHeader_) {
+        redraw = true;
+        redrawHeader_ = false;
+        BeginTextureMode(headerCanvas_);
+        drawHeader();
+        EndTextureMode();    
+    }
 #if (defined RENDERING_STATS)
     frames_[fti_].footer = asMillis(now() - tt);
-    tt = now();
-#endif
-    if (volumeGauge_ != Transition::Hide)
-        drawVolumeBar();
-#if (defined RENDERING_STATS)
-    frames_[fti_].volume = asMillis(now() - tt);
-    tt = now();
-
-    BeginTextureMode(canvas_);
-    // draw FPS and stats
-    int i = 0;
-    int x = fti_;
-    /*
-    while (i < 320) {
-        DrawLine(i, 215, i, 215 - frames_[x].total, DARKGRAY);
-        int y = 215;
-        DrawLine(i, y, i, y - frames_[x].widget, RED);
-        y -= frames_[x].widget;
-        DrawLine(i, y, i, y - frames_[x].header, GREEN);
-        y -= frames_[x].header;
-        DrawLine(i, y, i, y - frames_[x].footer, BLUE);
-        DrawPixel(i, 215 - frames_[x].delta, WHITE);
-        x = (x + 1) % 320;
-        ++i;
-    }*/
-    int last = fti_ == 0 ? 319 : fti_ - 1;
-    DrawText(STR(frames_[last].total).c_str(), 270, 30, 16, WHITE);
-    DrawText(STR(frames_[last].widget).c_str(), 270, 50, 16, RED);
-    DrawText(STR(frames_[last].background).c_str(), 270, 70, 16, WHITE);
-    DrawText(STR(frames_[last].header).c_str(), 270, 90, 16, GREEN);
-    DrawText(STR(frames_[last].footer).c_str(), 270, 110, 16, BLUE);
-    DrawText(STR(frames_[last].volume).c_str(), 270, 130, 16, WHITE);
-    DrawText(STR(frames_[last].stats).c_str(), 270, 150, 16, WHITE);
-    DrawText(STR(frames_[last].swap).c_str(), 270, 170, 16, YELLOW);
-    EndTextureMode();
-
-    frames_[fti_].stats = asMillis(now() - tt);
 #endif
 
-    BeginDrawing();
-    ClearBackground(ColorAlpha(BLACK, 0.0));
-    DrawTextureRec(canvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, WHITE);
-    EndDrawing();
-
+    // Render the footer
 #if (defined RENDERING_STATS)
     tt = now();
 #endif
-
-    SwapScreenBuffer();
-
+    if (redrawFooter_) {
+        redraw = true;
+        redrawFooter_ = false;
+        BeginTextureMode(footerCanvas_);
+        drawFooter();
+        EndTextureMode();
+    }
 #if (defined RENDERING_STATS)
-    frames_[fti_].swap = asMillis(now() - tt);
-    frames_[fti_].total = asMillis(now() - t);
-    fti_ = (fti_ + 1) % 320;
+    frames_[fti_].footer = asMillis(now() - tt);
 #endif
+
+    // redraw if transition of either the widget or the header is in progress 
+    redraw = redraw || transition_ == Transition::FadeIn || transition_ == Transition::FadeOut || header_ == Transition::FadeIn || header_ == Transition::FadeOut;
+
+    // finally, piece together the actual frame
+
+    if (redraw) {
+#if (defined RENDERING_STATS)
+        tt = now();
+#endif
+        ::Color widgetAlpha = WHITE;
+        float footerOffset = 0;
+        switch (transition_) {
+            case Transition::FadeOut:
+                footerOffset = aswap_.interpolate(0, 20);
+                widgetAlpha = ColorAlpha(widgetAlpha, aswap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
+                if (aswap_.done())
+                    swapWidget();
+                break;
+            case Transition::FadeIn:
+                footerOffset = aswap_.interpolate(20, 0);
+                widgetAlpha = ColorAlpha(widgetAlpha, aswap_.interpolate(0.0f, 1.0f, Interpolation::Linear));
+                if (aswap_.done()) 
+                    transition_ = Transition::None;
+                break;
+            default:
+                break;
+        }
+        float headerOffset = 0;
+        switch (header_) {
+            case Transition::FadeOut:
+                headerOffset = aheader_.interpolate(0, 20);
+                if (aheader_.done()) {
+                    header_ = Transition::None;
+                    headerVisible_ = false;
+                }
+                break;
+            case Transition::FadeIn:
+                headerOffset = aheader_.interpolate(20, 0);
+                if (aheader_.done())
+                    header_ = Transition::None;
+                break;
+        }
+
+        BeginDrawing();
+        ClearBackground(ColorAlpha(BLACK, 0.0));
+        if (backgroundEnabled_)
+            DrawTextureRec(backgroundCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, WHITE);
+        DrawTextureRec(widgetCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, widgetAlpha);
+        if (headerVisible_)
+            DrawTextureRec(headerCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0, -headerOffset}, WHITE);
+        if (widget_ == nullptr || ! widget_->fullscreen())
+            DrawTextureRec(footerCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0, footerOffset}, WHITE);
+#if (defined RENDERING_STATS)
+        auto astats = now();
+        int i = 0;
+        int x = fti_;
+        /*
+        while (i < 320) {
+            DrawLine(i, 215, i, 215 - frames_[x].total, DARKGRAY);
+            int y = 215;
+            DrawLine(i, y, i, y - frames_[x].widget, RED);
+            y -= frames_[x].widget;
+            DrawLine(i, y, i, y - frames_[x].header, GREEN);
+            y -= frames_[x].header;
+            DrawLine(i, y, i, y - frames_[x].footer, BLUE);
+            DrawPixel(i, 215 - frames_[x].delta, WHITE);
+            x = (x + 1) % 320;
+            ++i;
+        }
+        */
+        int last = fti_ == 0 ? 319 : fti_ - 1;
+        DrawText(STR(frames_[last].total).c_str(), 270, 30, 16, DARKGRAY);
+        DrawText(STR(frames_[last].background).c_str(), 270, 50, 16, WHITE);
+        DrawText(STR(frames_[last].widget).c_str(), 270, 70, 16, RED);
+        DrawText(STR(frames_[last].header).c_str(), 270, 90, 16, GREEN);
+        DrawText(STR(frames_[last].footer).c_str(), 270, 110, 16, BLUE);
+        DrawText(STR(frames_[last].render).c_str(), 270, 130, 16, DARKGRAY);
+        DrawText(STR(frames_[last].stats).c_str(), 270, 150, 16, YELLOW);
+        frames_[fti_].stats = asMillis(now() - astats);
+#endif
+        EndDrawing();
+        SwapScreenBuffer();
+#if (defined RENDERING_STATS)
+        frames_[fti_].render = asMillis(now() - t);
+        frames_[fti_].total = asMillis(now() - t);
+        fti_ = (fti_ + 1) % 320;
+#endif
+    } 
+
 #if (defined ARCH_MOCK)
     PollInputEvents();
 #endif
-
 }
-#endif
 
 void Window::drawHeader() {
-    BeginTextureMode(buffer_);
+    //BeginTextureMode(buffer_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
 
     // The heart, or time left
@@ -469,119 +489,13 @@ void Window::drawHeader() {
     }
 
     EndBlendMode();
-
-    float offset = 0;
-    switch (header_) {
-        case Transition::None:
-            break;
-        case Transition::FadeOut:
-            offset = aheader_.interpolate(0, 20, Interpolation::Linear);
-            if (aheader_.done())
-                header_ = Transition::Hide;
-            break;
-        case Transition::FadeIn:
-            offset = aheader_.interpolate(20, 0, Interpolation::Linear);
-            if (aheader_.done())
-                header_ = Transition::None;
-            break;
-    }
-    EndTextureMode();
-
-    BeginTextureMode(canvas_);
-    DrawTextureRec(buffer_.texture, Rectangle{0,220,320,-20}, Vector2{0, -offset}, WHITE);
-    EndTextureMode();
-}
-
-
-void drawProgressBar(int x, int y, int width, int height, ::Color color) {
-    float radius = height / 2.0;
-    DrawCircleSector(Vector2{x + radius, y + radius}, radius, 180, 360, 16, color);
-    DrawRectangle(x + radius, y, width - height, height, color);
-    DrawCircleSector(Vector2{x + width - radius, y + radius}, radius, 0, 180, 16, color);
-}
-
-
-void Window::drawVolumeBar() {
-    BeginTextureMode(buffer_);
-    ClearBackground(ColorAlpha(BLACK, 0.0));
-
-    DrawRectangle(30, 0, 260, 16, BLACK);
-    DrawRectangle(34, 16, 252, 4, BLACK);
-    DrawCircleSector(Vector2{34, 16}, 4, 270, 360, 16, BLACK);
-    DrawCircleSector(Vector2{286, 16}, 4, 0, 90, 16, BLACK);
-    // draw the icon on the left
-    if (rckid_->volume() == 0)
-        DrawTextEx(headerFont_, "󰸈", 35, 0, 20, 1.0, RED);
-    else if (rckid_->volume() < 40)
-        DrawTextEx(headerFont_, "󰕿", 35, 0, 20, 1.0, BLUE);
-    else if (rckid_->volume() < 80)
-        DrawTextEx(headerFont_, "󰖀", 35, 0, 20, 1.0, BLUE);
-    else
-        DrawTextEx(headerFont_, "󰕾", 35, 0, 20, 1.0, ORANGE);
-    // draw the text on the right
-    std::string vol = STR(rckid_->volume());
-    DrawTextEx(helpFont_, vol.c_str(), 265, 2, 16, 1, WHITE);
-    // draw the slider in the middle
-    drawProgressBar(55, 7, 200, 6, DARKGRAY);
-    BeginScissorMode(55, 7, rckid_->volume() * 2, 6);
-    drawProgressBar(55, 7, 200, 6, BLUE);
-    EndScissorMode();
-
-    float offset = 0;
-    switch (volumeGauge_) {
-        case Transition::None:
-            if (avolume_.done()) {
-                volumeGauge_ = Transition::FadeOut;
-                avolume_.start(VOLUME_GAUGE_FADE_TIMER);
-            }
-            break;
-        case Transition::FadeIn:
-            offset -= avolume_.interpolate(20, 0, Interpolation::Linear);
-            if (avolume_.done()) {
-                volumeGauge_ = Transition::None;
-                avolume_.start(VOLUME_GAUGE_SHOW_TIME);
-            }
-            break;
-        case Transition::FadeOut:
-            offset -= avolume_.interpolate(0, 20, Interpolation::Linear);
-            if (avolume_.done())
-                volumeGauge_ = Transition::Hide;
-            break;
-        default: // don't handle hide here
-            UNREACHABLE;
-    }
-    EndTextureMode();
-    BeginTextureMode(canvas_);
-    DrawTextureRec(buffer_.texture, Rectangle{0,220,320,-20}, Vector2{0,offset}, WHITE);
-    EndTextureMode();
-
 }
 
 void Window::drawFooter() {
-
-    BeginTextureMode(buffer_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
     int  x = 0;
     BeginBlendMode(BLEND_ADD_COLORS);
     for (FooterItem const & item: footer_)
-        x = item.draw(this, x, 0);
+        x = item.draw(this, x, 220);
     EndBlendMode();
-
-    float offset = 0;
-    switch (transition_) {
-        case Transition::None:
-            break;
-        case Transition::FadeOut:
-            offset = aswap_.interpolate(0, 20);
-            break;
-        case Transition::FadeIn:
-            offset = aswap_.interpolate(20, 0);
-            break;
-    }
-    EndTextureMode();
-
-    BeginTextureMode(canvas_);
-    DrawTextureRec(buffer_.texture, Rectangle{0,220,320,-20}, Vector2{0, 220 + offset}, WHITE);
-    EndTextureMode();
-
 }

@@ -24,7 +24,7 @@ protected:
         window()->rckid()->enableGamepad(false);
     }
 
-    void draw() {
+    void draw() override{
         // now draw the displayed information
         DrawTextEx(window()->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
         DrawTextEx(window()->helpFont(), STR(window()->rckid()->vcc()).c_str(), 210, 20, 16, 1.0, WHITE);
@@ -85,7 +85,6 @@ protected:
         DrawTextEx(window()->helpFont(), STR((int)joyY_).c_str(), 45, 78, 16, 1.0, WHITE);
         DrawTextEx(window()->helpFont(), STR((int)accelX_).c_str(), 85, 60, 16, 1.0, WHITE);
         DrawTextEx(window()->helpFont(), STR((int)accelY_).c_str(), 85, 78, 16, 1.0, WHITE);
-
 
     }
 

@@ -21,6 +21,10 @@ protected:
      */
     virtual void draw() = 0;
 
+    /** Called when the widget does not need redraw, but frame event occurs. 
+     */
+    virtual void idle() {}
+
     /** Called when the widget gains focus (becomes visible). 
      */
     virtual void onFocus() {};
@@ -61,6 +65,10 @@ protected:
     Window * window_;
 
 
+protected:
+
+    void requestRedraw() { redraw_ = true; }
+    void cancelRedraw() { redraw_ = false; }
 private: 
 
     friend class Window;
@@ -68,6 +76,7 @@ private:
     /** True if the widget is currently on the navigation stack. 
      */
     bool onNavStack_ = false;
+    bool redraw_ = true;
 
 
 }; // Widget

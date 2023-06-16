@@ -186,23 +186,29 @@ void RCKid::processEvent(Event & e) {
                 {} // TODO
         }, 
         [this](ModeEvent e) {
+            status_.changed = true;
             status_.mode = e.mode;
         },
         [this](ChargingEvent e) {
+            status_.changed = true;
             status_.usb = e.usb;
             status_.charging = e.charging;
         },
         [this](VoltageEvent e) {
+            status_.changed = true;
             status_.vBatt = e.vBatt;
             status_.vcc = e.vcc;
         },
         [this](TempEvent e) {
+            status_.changed = true;
             status_.avrTemp = e.temp;
         },
         [this](BrightnessEvent e) {
+            status_.changed = true;
             status_.brightness = e.brightness;
         },
         [this](HeadphonesEvent e) {
+            status_.changed = true;
             status_.headphones = e.connected;
         },
         // simply process the recorded data - we know the function must exist since it must be supplied very time we start recording
