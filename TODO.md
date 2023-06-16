@@ -43,6 +43,8 @@
 
 ## AVR
 
+- DIFFERENT PIN MAPPING FOR NEW VERSION
+
 - ensure home button long press cannot be spurious
 - there is 6mA draw when sleeping, not sure why..., is there? 
 - add effects for rumbler & rgb 
@@ -50,6 +52,8 @@
 - add alarm wakeup
 
 ## RPI - RayLib
+
+- DIFFERENT PIN MAPPING FOR NEW VERSION
 
 - low FPS on rpi, add better FPS detection, switch to custom FPS Mode? 
 - the GPU performance is well... bad. 
