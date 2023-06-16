@@ -24,6 +24,7 @@ protected:
         DrawCircleLines(160, 90, 60, Color{255, 0, 0, 255});
         DrawCircleLines(130, 140, 60, Color{0, 255, 0, 255});
         DrawCircleLines(190, 140, 60, Color{0, 0, 255, 255});
+        cancelRedraw();
     }
 
     void btnA(bool state) override {
@@ -56,6 +57,7 @@ protected:
     }
 
     void updateColor() {
+        requestRedraw();
         window()->rckid()->rgbColor(platform::Color::RGB(r_, g_, b_));
     }
 
