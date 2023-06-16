@@ -42,10 +42,16 @@ Window::Window() {
     headerFont_ = loadFont(HELP_FONT, 20);
     menuFont_ = loadFont(MENU_FONT, MENU_FONT_SIZE);
     background_ = LoadTexture("assets/backgrounds/unicorns-black.png");
-    backgroundCanvas_ = LoadRenderTexture(320, 240);
+    backgroundCanvas_ = LoadRenderTexture(640, 240);
     widgetCanvas_ = LoadRenderTexture(320, 240);
     headerCanvas_ = LoadRenderTexture(320, 240);
     footerCanvas_ = LoadRenderTexture(320, 240);
+    BeginTextureMode(backgroundCanvas_);
+    ClearBackground(ColorAlpha(BLACK, 0.0));
+    DrawRectangle(0,0,640,240, BLACK);
+    DrawTexture(background_, 0, 0, ColorAlpha(WHITE, 0.3));
+    DrawTexture(background_, 320, 0, ColorAlpha(WHITE, 0.3));
+    EndTextureMode();
 
     InitAudioDevice();
 
@@ -253,6 +259,7 @@ void Window::draw() {
     if (redrawBackground_) {
         redraw = true;
         redrawBackground_ = false;
+        /*
         BeginTextureMode(backgroundCanvas_);
         ClearBackground(ColorAlpha(BLACK, 0.0));
         // start with opaque black so that transparency works the way it should
@@ -260,6 +267,7 @@ void Window::draw() {
         DrawTexture(background_, backgroundSeam_ - 320, 0, ColorAlpha(WHITE, 0.3));
         DrawTexture(background_, backgroundSeam_, 0, ColorAlpha(WHITE, 0.3));
         EndTextureMode();
+        */
     }
 #if (defined RENDERING_STATS)
     //frames_[fti_].background = static_cast<unsigned>((GetTime() - tt) * 1000);
@@ -366,7 +374,7 @@ void Window::draw() {
         BeginDrawing();
         ClearBackground(ColorAlpha(BLACK, 0.0));
         if (backgroundEnabled_)
-            DrawTextureRec(backgroundCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, WHITE);
+            DrawTextureRec(backgroundCanvas_.texture, Rectangle{static_cast<float>(480 - backgroundSeam_),0,320,-240}, Vector2{0,0}, WHITE);
         DrawTextureRec(widgetCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, widgetAlpha);
         if (headerVisible_)
             DrawTextureRec(headerCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0, -headerOffset}, WHITE);

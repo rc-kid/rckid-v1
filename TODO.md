@@ -55,6 +55,7 @@
 
 - DIFFERENT PIN MAPPING FOR NEW VERSION
 
+
 - low FPS on rpi, add better FPS detection, switch to custom FPS Mode? 
 - the GPU performance is well... bad. 
 - check if using VCDispmanX, or SDL can improve things. 
