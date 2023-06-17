@@ -35,7 +35,7 @@ int FooterItem::draw(Window * window, int x, int y) const {
 
 Window::Window() {
     InitWindow(320, 240, "RCKid");
-    //SetTargetFPS(60);
+    SetTargetFPS(60);
     if (! IsWindowReady())
         TraceLog(LOG_ERROR, "Unable to initialize window");
     helpFont_ = loadFont(HELP_FONT, 16);
@@ -159,6 +159,8 @@ void Window::back(size_t numWidgets) {
         nav_.pop_back();
         --numWidgets;
     }
+    if (next_.kind == NavigationItem::Kind::Widget && next_.widget()->fullscreen())
+        hideHeader();
     if (widget_ == nullptr) {
         swapWidget();
     } else {
@@ -250,6 +252,7 @@ void Window::draw() {
 
     bool redraw = false;
 
+
     // Start by rendering the background. 
     //
     // TODO this can be simplified by prerendering the background into twice large texture and then only copy the parts of it as needed according to the seam elliminating the need for the 2 texture draws when background changes
@@ -306,6 +309,7 @@ void Window::draw() {
         redraw = true;
         redrawHeader_ = false;
         BeginTextureMode(headerCanvas_);
+        ClearBackground(ColorAlpha(BLACK, 0.0));
         drawHeader();
         EndTextureMode();    
     }
@@ -321,6 +325,7 @@ void Window::draw() {
         redraw = true;
         redrawFooter_ = false;
         BeginTextureMode(footerCanvas_);
+        ClearBackground(ColorAlpha(BLACK, 0.0));
         drawFooter();
         EndTextureMode();
     }
@@ -332,7 +337,6 @@ void Window::draw() {
     redraw = redraw || transition_ == Transition::FadeIn || transition_ == Transition::FadeOut || header_ == Transition::FadeIn || header_ == Transition::FadeOut;
 
     // finally, piece together the actual frame
-
     if (redraw) {
 #if (defined RENDERING_STATS)
         tt = now();
@@ -373,8 +377,11 @@ void Window::draw() {
 
         BeginDrawing();
         ClearBackground(ColorAlpha(BLACK, 0.0));
-        if (backgroundEnabled_)
+        if (backgroundEnabled_) {
             DrawTextureRec(backgroundCanvas_.texture, Rectangle{static_cast<float>(480 - backgroundSeam_),0,320,-240}, Vector2{0,0}, WHITE);
+        } else {
+            DrawRectangle(0, 0, 320, 240, ColorAlpha(BLACK, 0));
+        }
         DrawTextureRec(widgetCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, widgetAlpha);
         if (headerVisible_)
             DrawTextureRec(headerCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0, -headerOffset}, WHITE);
@@ -409,17 +416,12 @@ void Window::draw() {
         frames_[fti_].stats = asMillis(now() - astats);
 #endif
         EndDrawing();
-        SwapScreenBuffer();
 #if (defined RENDERING_STATS)
         frames_[fti_].render = asMillis(now() - t);
         frames_[fti_].total = asMillis(now() - t);
         fti_ = (fti_ + 1) % 320;
 #endif
     } 
-
-#if (defined ARCH_MOCK)
-    PollInputEvents();
-#endif
 }
 
 void Window::drawHeader() {

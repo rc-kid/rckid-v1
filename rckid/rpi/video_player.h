@@ -30,8 +30,10 @@ public:
 protected:
 
     void draw() override {
+        //DrawRectangle(0,0,320,240, ColorAlpha(BLACK, 0));
         if (player_.done())
             window()->back();
+        cancelRedraw();
     }
 
     void onNavigationPush() override {

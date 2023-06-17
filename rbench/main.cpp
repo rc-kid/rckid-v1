@@ -39,7 +39,8 @@ int main(int argc, char* argv[]) {
     t = now();
     for (size_t i = 0; i < NUM_FRAMES; ++i) {
         BeginDrawing();
-        ClearBackground(BLACK);
+        ClearBackground(ColorAlpha(BLACK, 0.5));
+        DrawRectangle(0,0,320,240,::Color{0,0,0,0});
         DrawTexture(tt, 30, 30, WHITE);
         EndDrawing();
         SwapScreenBuffer();

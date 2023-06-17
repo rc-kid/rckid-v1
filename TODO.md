@@ -55,6 +55,8 @@
 
 - DIFFERENT PIN MAPPING FOR NEW VERSION
 
+- can't see video or games under the window
+- add frame waiting
 
 - low FPS on rpi, add better FPS detection, switch to custom FPS Mode? 
 - the GPU performance is well... bad. 

@@ -50,7 +50,7 @@ pip3 install https://github.com/mraardvark/pyupdi/archive/master.zip
 
 # Install raylib
 cd ~
-git clone --depth=1 https://github.com/zduka/rckid-raylib.git
+git clone --depth=1 --branch=rckid https://github.com/zduka/rckid-raylib.git
 cd rckid-raylib/src
 make PLATFORM=PLATFORM_RPI
 cd ~/rckid

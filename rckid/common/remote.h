@@ -1,6 +1,5 @@
 #pragma once
 
-
 /** Remote communication protocol over NRF. 
 
     Each channel is static.  
