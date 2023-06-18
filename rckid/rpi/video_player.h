@@ -37,7 +37,6 @@ protected:
     }
 
     void onNavigationPush() override {
-        window()->enableBackground(false);
     }
 
     void onNavigationPop() override {
@@ -47,6 +46,7 @@ protected:
     }
 
     void onFocus() {
+        window()->enableBackground(false);
         if (!playing_) {
             playing_ = true;
             player_.tx("play\n");
@@ -54,6 +54,7 @@ protected:
     }
 
     void onBlur() {
+        window()->enableBackgroundDark(VIDEO_PLAYER_BACKGROUND_OPACITY);
         if (playing_) {
             playing_ = false;
             player_.tx("pause\n");

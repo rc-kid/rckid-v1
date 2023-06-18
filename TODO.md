@@ -30,6 +30,7 @@
 
 ## PCB
 
+- make the speaker to use connector and enlarge its hole to the left
 - check that the battery / usb switch works fine
 - add mounting holes and fixes for supports
 - enlarge so that we can fit battery (1 - 1.5mm)

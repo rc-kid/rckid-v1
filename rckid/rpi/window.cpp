@@ -49,8 +49,8 @@ Window::Window() {
     BeginTextureMode(backgroundCanvas_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
     DrawRectangle(0,0,640,240, BLACK);
-    DrawTexture(background_, 0, 0, ColorAlpha(WHITE, 0.3));
-    DrawTexture(background_, 320, 0, ColorAlpha(WHITE, 0.3));
+    DrawTexture(background_, 0, 0, ColorAlpha(WHITE, BACKGROUND_OPACITY));
+    DrawTexture(background_, 320, 0, ColorAlpha(WHITE, BACKGROUND_OPACITY));
     EndTextureMode();
 
     InitAudioDevice();
@@ -234,9 +234,6 @@ struct RenderingStats {
     unsigned delta;
 };
 
-#define RENDERING_STATS
-
-
 #if (defined RENDERING_STATS)
 RenderingStats frames_[320];
 size_t fti_ = 0;
@@ -246,7 +243,6 @@ void Window::draw() {
     Timepoint t = now();
     redrawDelta_ = asMillis(t - lastFrameTime_);
     lastFrameTime_ = t;
-    frames_[fti_].delta = redrawDelta_;
     aswap_.update(this);
     aheader_.update(this);
 
@@ -257,26 +253,17 @@ void Window::draw() {
     //
     // TODO this can be simplified by prerendering the background into twice large texture and then only copy the parts of it as needed according to the seam elliminating the need for the 2 texture draws when background changes
 #if (defined RENDERING_STATS)
+    frames_[fti_].delta = redrawDelta_;
     Timepoint tt = now();
 #endif
     if (redrawBackground_) {
         redraw = true;
         redrawBackground_ = false;
-        /*
-        BeginTextureMode(backgroundCanvas_);
-        ClearBackground(ColorAlpha(BLACK, 0.0));
-        // start with opaque black so that transparency works the way it should
-        DrawRectangle(0,0,320,240, BLACK);
-        DrawTexture(background_, backgroundSeam_ - 320, 0, ColorAlpha(WHITE, 0.3));
-        DrawTexture(background_, backgroundSeam_, 0, ColorAlpha(WHITE, 0.3));
-        EndTextureMode();
-        */
     }
 #if (defined RENDERING_STATS)
     //frames_[fti_].background = static_cast<unsigned>((GetTime() - tt) * 1000);
     frames_[fti_].background = asMillis(now() - tt);
 #endif
-
 
     // Render the widget. 
     //
@@ -377,10 +364,12 @@ void Window::draw() {
 
         BeginDrawing();
         ClearBackground(ColorAlpha(BLACK, 0.0));
-        if (backgroundEnabled_) {
+        if (backgroundOpacity_ == 255) {
             DrawTextureRec(backgroundCanvas_.texture, Rectangle{static_cast<float>(480 - backgroundSeam_),0,320,-240}, Vector2{0,0}, WHITE);
         } else {
-            DrawRectangle(0, 0, 320, 240, ColorAlpha(BLACK, 0));
+            BeginBlendMode(BLEND_ADD_COLORS);
+            DrawRectangle(0, 0, 320, 240, ColorAlpha(BLACK, backgroundOpacity_ / 255.0));
+            EndBlendMode();
         }
         DrawTextureRec(widgetCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, widgetAlpha);
         if (headerVisible_)
@@ -391,7 +380,7 @@ void Window::draw() {
         auto astats = now();
         int i = 0;
         int x = fti_;
-        /*
+#if (defined RENDERING_STATS_DETAILED)
         while (i < 320) {
             DrawLine(i, 215, i, 215 - frames_[x].total, DARKGRAY);
             int y = 215;
@@ -404,7 +393,7 @@ void Window::draw() {
             x = (x + 1) % 320;
             ++i;
         }
-        */
+#endif
         int last = fti_ == 0 ? 319 : fti_ - 1;
         DrawText(STR(frames_[last].total).c_str(), 270, 30, 16, DARKGRAY);
         DrawText(STR(frames_[last].background).c_str(), 270, 50, 16, WHITE);
@@ -414,6 +403,9 @@ void Window::draw() {
         DrawText(STR(frames_[last].render).c_str(), 270, 130, 16, DARKGRAY);
         DrawText(STR(frames_[last].stats).c_str(), 270, 150, 16, YELLOW);
         frames_[fti_].stats = asMillis(now() - astats);
+#endif
+#if (defined RENDERING_STATS_FPS)
+        DrawText(STR(GetFPS()).c_str(), 290, 220, 20, WHITE);
 #endif
         EndDrawing();
 #if (defined RENDERING_STATS)

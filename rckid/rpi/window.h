@@ -144,8 +144,10 @@ public:
     Font const & menuFont() const { return menuFont_; }
     Font const & helpFont() const { return helpFont_; }
 
-    void enableBackground(bool value) { backgroundEnabled_ = value; }
+    void enableBackground(bool value) { backgroundOpacity_ = value ? 255 : 0; }
 
+    void enableBackgroundDark(uint8_t opacity) { backgroundOpacity_ = opacity; }
+ 
     void setBackgroundSeam(int value) {
         if (value > 320)
             value -= 320;
@@ -274,7 +276,7 @@ private:
 
     Texture2D background_;
     int backgroundSeam_ = 160;
-    bool backgroundEnabled_ = true;
+    uint8_t backgroundOpacity_ = 255;
 
     /** Because of the abysmally slow 2D drawing performance on RPi we buffer all the UI elements in rendering textures are only redraw them when necessary. 
     */

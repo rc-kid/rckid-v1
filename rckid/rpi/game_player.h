@@ -66,7 +66,6 @@ public:
 #else
         emulator_ = utils::Process::start(utils::Command{"glxgears"});
 #endif
-        window()->enableBackground(false);
         window()->setWidget(this);
     }
 
@@ -90,6 +89,7 @@ protected:
     }
 
     void onFocus() {
+        window()->enableBackground(false);
         if (! emulator_.done()) {
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
@@ -101,6 +101,7 @@ protected:
     }
 
     void onBlur() {
+        window()->enableBackgroundDark(GAME_PLAYER_BACKGROUND_OPACITY);
         if (! emulator_.done()) {
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
