@@ -16,7 +16,7 @@ Each part of the channel can be empty, depending on the channel type. Channels a
 
 ### Motor channel
 
-The motor channel provides control for single DC brushed motor attached to an H bridge. 
+The motor channel provides control for single DC brushed motor attached to an H bridge. It consists
 
 
 

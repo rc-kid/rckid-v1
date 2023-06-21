@@ -2,10 +2,14 @@
 #include "platform/peripherals/nrf24l01.h"
 #include "platform/peripherals/neopixel.h"
 
-#include "remote.h"
+//#include "remote.h"
+
+#include "remote/remote.h"
 
 using namespace platform;
-using namespace remote;
+
+
+
 
 /** LEGO Remote
  
@@ -52,6 +56,222 @@ using namespace remote;
 
 
  */
+class Remote {
+public:
+
+    static constexpr gpio::Pin NEOPIXEL_PIN = 7; 
+
+    static constexpr gpio::Pin ML1 = 0; // TCD, WOA
+    static constexpr gpio::Pin MR1 = 1; // TCD, WOB
+    static constexpr gpio::Pin ML2 = 10; // TCD, WOC
+    static constexpr gpio::Pin MR2 = 11; // TCD, WOD
+
+    static constexpr gpio::Pin XL1 = 4; // PB5, ADC0-8, TCA-WO2* (low channel 2)
+    static constexpr gpio::Pin XL2 = 5; // PB4, ADC0-9, TCA-WO1* (low channel 1)
+    static constexpr gpio::Pin XR1 = 13; // PC3, ADC1-9, TCA-W03 (high channel 0)
+    static constexpr gpio::Pin XR2 = 12; // PC2, ADC1-8, uses TCA-W0 (low channel 0) cmp and ovf interrupt to drive the pin
+
+    static constexpr gpio::Pin NRF_CS = 13;
+    static constexpr gpio::Pin NRF_RXTX = 12;
+
+    static void initialize() {
+        // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
+        CCP = CCP_IOREG_gc;
+        CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
+        // set configurable channel pins to input 
+        gpio::input(XL1);
+        gpio::input(XL2);
+        gpio::input(XR1);
+        gpio::input(XR2);
+        // initialize TCD used to control the two motors, disable prescalers, set one ramp waveform and set WOC to WOA and WOD to WOB. 
+        TCD0.CTRLA = TCD_CLKSEL_20MHZ_gc | TCD_CNTPRES_DIV1_gc | TCD_SYNCPRES_DIV1_gc;
+        TCD0.CTRLB = TCD_WGMODE_ONERAMP_gc;
+        TCD0.CTRLC = TCD_CMPCSEL_PWMA_gc | TCD_CMPDSEL_PWMB_gc;
+        // disconnect the pins from the timer
+        CPU_CCP = CCP_IOREG_gc;
+        TCD0.FAULTCTRL = 0;
+        // enable the timer
+        while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+        TCD0.CTRLA |= TCD_ENABLE_bm;
+        // ensure motor pins output low so that any connected motors are floating
+        gpio::output(ML1);
+        gpio::low(ML1);
+        gpio::output(ML2);
+        gpio::low(ML2);
+        gpio::output(MR1);
+        gpio::low(MR1);
+        gpio::output(MR2);
+        gpio::low(MR2);
+        // set the reset counter to 255 for both A and B. This gives us 78.4kHz PWM frequency. It is important for both values to be the same. By setting max to 255 we can simply set 
+        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+        TCD0.CMPACLR = 127;
+        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+        TCD0.CMPBCLR = 127;
+        // initialize the RTC to fire every 5ms which gives us a tick that can be used to switch the servo controls, 4 servos max, multiplexed gives the freuency of updates for each at 20ms
+        RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
+        RTC.PER = 164;
+        while (RTC.STATUS != 0) {};
+        RTC.CTRLA = RTC_RTCEN_bm;
+        // initialize TCB0 which is used to time the servo control interval precisely
+        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
+        TCB0.INTCTRL = TCB_CAPT_bm;
+        TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc; // | TCB_ENABLE_bm;
+        // initialize TCA for PWM outputs on the configurable channels. We use split mode
+        TCA0.SPLIT.CTRLD = TCA_SPLIT_SPLITM_bm; // enable split mode
+        TCA0.SPLIT.CTRLB = 0;    
+        //TCA0.SPLIT.CTRLB = TCA_SPLIT_LCMP0EN_bm | TCA_SPLIT_HCMP0EN_bm; // enable W0 and W3 outputs on pins
+        //TCA0.SPLIT.LCMP0 = 64; // backlight at 1/4
+        //TCA0.SPLIT.HCMP0 = 128; // rumbler at 1/2
+        TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc | TCA_SPLIT_ENABLE_bm; 
+
+
+        // clear all RGB colors, set the control LED to green & update
+        rgbColors_.clear();
+        rgbColors_[0] = Color::Green();
+        rgbColors_.update();
+    }
+
+    static void loop() {
+        checkAnalogIn();
+        servoTick();
+        
+    }
+
+
+    /** \name Radio comms
+     */
+    //@{
+    static inline NRF24L01 radio_{NRF_CS, NRF_RXTX};
+    static inline uint8_t txBuffer_[32];
+    static inline uint8_t txIndex_ = 0;
+
+    /** Receive command, process it and optionally send a reply.
+     */
+    static void radioIrq() {
+
+    }
+
+
+    //@}
+
+    /** \name Channels
+     
+     */
+    //@{
+    static inline remote::MotorChannel ml_;
+    static inline remote::MotorChannel mr_;
+    static inline remote::CustomIOChannel l1_;
+    static inline remote::CustomIOChannel l2_;
+    static inline remote::CustomIOChannel r1_;
+    static inline remote::CustomIOChannel r2_;
+    static inline remote::ToneEffectChannel tone_;
+    static inline remote::RGBStripChannel rgb_;
+
+    // channels 8 .. 15 are colors actually, the first LED in the strip is the control led on the device
+    static inline NeopixelStrip<9> rgbColors_{NEOPIXEL_PIN};
+    //@}
+
+    /** \name Motor Control
+     */
+
+    /** \name Servo Control 
+     
+        Uses TCB0 to control any of the Custom IO channels that are set in the servo mode using the 5ms RTC interrupt. Since each servo needs an update only once every ~20ms, all four channels are multiplexed. 
+
+        TODO figure out decent values for the servos
+     */
+    //@{
+    static inline uint8_t activeServoPin_;
+    static inline uint8_t servoTick_ = 0;
+
+    static void servoTick() {
+        servoTick_ = (servoTick_ + 1) % 4;
+        switch (servoTick_) {
+            case 0: 
+                startControlPulse(l1_, XL1);
+                break;
+            case 1:
+                startControlPulse(l2_, XL2);
+                break;
+            case 2:
+                startControlPulse(r1_, XR1);
+                break;
+            case 3:
+                startControlPulse(r1_, XR1);
+                break;
+        }
+    }
+
+    static void startControlPulse(remote::CustomIOChannel const & ch, gpio::Pin pin) {
+        if (ch.config.mode != remote::CustomIOChannel::Mode::Servo)
+            return;
+        activeServoPin_= pin;
+        // calculate the pulse duration from the config
+        TCB0.CTRLA &= ~TCB_ENABLE_bm;
+        TCB0.CCMP = (ch.config.servoEnd - ch.config.servoStart) * ch.control.value / 255 + ch.config.servoStart;
+        gpio::high(activeServoPin_);
+        TCB0.CNT = 0;
+        TCB0.CTRLA |= TCB_ENABLE_bm; 
+    }
+
+    static void terminateControlPulse() {
+        gpio::low(activeServoPin_);
+        TCB0.INTFLAGS = TCB_CAPT_bm;
+        TCB0.CTRLA &= ~TCB_ENABLE_bm;
+    }
+    //}@
+
+    /** \name Analog input 
+     
+        Uses the ADC to read the analog inputs, if any. 
+     */
+    //@{
+    static void checkAnalogIn() {
+        if (! (ADC0.INTFLAGS & ADC_RESRDY_bm))
+            return false;
+        uint8_t muxpos = ADC0.MUXPOS;
+        switch (muxpos) {
+            case ADC_MUXPOS_TEMPSENSE_gc:
+                // TODO calculate temperature
+                // switch to VCC as reference for the custom pins
+                ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; 
+                if (l1_.config.mode == remote::CustomIOChannel::Mode::AnalogIn) {
+                    break;
+                }
+                // fallthrough to next 
+            
+            default:
+                ADC0.MUXPOS = ADC_MUXPOS_TEMPSENSE_gc;
+                ADC0.SAMPCTRL = 31;
+                ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm; // internal reference
+                break;
+        }
+    }
+    //}@
+
+}; // Remote
+
+/** The TCB only fires when the currently multiplexed output is a servo motor. When it fires, we first pull the output low to terminate the control pulse and then disable the timer.
+ */
+ISR(TCB0_INT_vect) {
+    Remote::terminateControlPulse();
+}
+
+
+void setup() {
+    Remote::initialize();
+}
+
+void loop() {
+    Remote::loop();
+}
+
+
+
+
+#ifdef FOOBAR
+
+
 
 class Remote {
 public:
@@ -148,28 +368,30 @@ public:
         01 - Motor L
         02 - Motor R
         03 - Custom L1
-        04 - Custom R1
-        05 - Custom L2
+        04 - Custom L2
+        05 - Custom R1
         06 - Custom R2
-        07 - RGB 
-        08 - Color 1
-        09 - Color 2
-        10 - Color 3
-        11 - Color 4
-        12 - Color 5
-        13 - Color 6
-        14 - Color 7
-        15 - Color 8
+        07 - Tone Effect Generator 
+        08 - RGBStrip
+        09 - Color 1
+        10 - Color 2
+        11 - Color 3
+        12 - Color 4
+        13 - Color 5
+        14 - Color 6
+        15 - Color 7
+        16 - Color 8
 
      */
     //@{
-    static inline channel::Motor ml_;
-    static inline channel::Motor mr_;
-    static inline channel::CustomIO l1_;
-    static inline channel::CustomIO r1_;
-    static inline channel::CustomIO l2_;
-    static inline channel::CustomIO r2_;
-    static inline channel::RGB rgb_;
+    static inline remote::MotorChannel ml_;
+    static inline remote::MotorChannel mr_;
+    static inline remote::CustomIOChannel l1_;
+    static inline remote::CustomIOChannel l2_;
+    static inline remote::CustomIOChannel r1_;
+    static inline remote::CustomIOChannel r2_;
+    static inline remote::ToneEffectChannel tone_;
+    static inline remote::RGBStripChannel rgb_;
 
     // channels 8 .. 15 are colors actually, the first LED in the strip is the control led on the device
     static inline NeopixelStrip<9> rgbColors_{NEOPIXEL_PIN};
@@ -182,11 +404,11 @@ public:
     //@{
 
     static void motorCW(uint8_t i, uint8_t speed) {
-        channel::Motor & m = (i == 0) ? ml_ : mr_;
+        remote::MotorChannel & m = (i == 0) ? ml_ : mr_;
         if (i == 0) {
             while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
             TCD0.CMPASET = 255 - speed;
-            if (m.control.mode != channel::Motor::Mode::CW) {
+            if (m.control.mode != remote::MotorChannel::Mode::CW) {
                 while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                 TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
@@ -199,7 +421,7 @@ public:
         } else {
             while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
             TCD0.CMPBSET = 255 - speed;
-            if (m.control.mode != channel::Motor::Mode::CW) {
+            if (m.control.mode != remote::MotorChannel::Mode::CW) {
                 while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                 TCD0.CTRLA &= ~TCD_ENABLE_bm;
                 CPU_CCP = CCP_IOREG_gc;
@@ -592,4 +814,5 @@ void loop() {
 }
 
 
+#endif
 #endif
