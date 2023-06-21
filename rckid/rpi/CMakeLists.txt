@@ -11,20 +11,26 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 # libevdev is required for simulating the gamepad
-
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PC_EVDEV libevdev REQUIRED)
+find_path(EVDEV_INCLUDE_DIR libevdev/libevdev.h
+          HINTS ${PC_EVDEV_INCLUDE_DIRS} ${PC_EVDEV_INCLUDEDIR})
+find_library(EVDEV_LIBRARY
+        NAMES evdev libevdev)
+include_directories(${EVDEV_INCLUDE_DIR})
+
+# opus library for encoding and decoding audio data
+find_library(OPUS_LIBRARY libopus.so.0)
+find_path(OPUS_INCLUDE_DIR opus/opus.h HINTS /usr/include)
+include_directories(${OPUS_INCLUDE_DIR})
+
 #pkg_check_modules(EGL REQUIRED egl)
 #pkg_check_modules(GLES2 REQUIRED glesv2)    
 find_library(M_LIBRARY libm.so)
 find_library(DL_LIBRARY libdl.so)
 find_library(RT_LIBRARY librt.so)
 
-find_path(EVDEV_INCLUDE_DIR libevdev/libevdev.h
-          HINTS ${PC_EVDEV_INCLUDE_DIRS} ${PC_EVDEV_INCLUDEDIR})
-find_library(EVDEV_LIBRARY
-        NAMES evdev libevdev)
-include_directories(${EVDEV_INCLUDE_DIR})
+
 
 # libraries required for raylib
 
@@ -62,7 +68,7 @@ else()
 file(GLOB_RECURSE SRC  *.cpp *.h)
 add_executable(rckid ${SRC})
 target_link_libraries(rckid libi2cprogrammer)
-target_link_libraries(rckid ${EVDEV_LIBRARY})
+target_link_libraries(rckid ${EVDEV_LIBRARY} ${OPUS_LIBRARY})
 target_link_libraries(rckid Threads::Threads)
 target_link_libraries(rckid 
     ${CMAKE_SOURCE_DIR}/../rckid-raylib/src/libraylib.a 

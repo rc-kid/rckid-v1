@@ -8,9 +8,6 @@
 
 using namespace platform;
 
-
-
-
 /** LEGO Remote
  
     A remote controller to be used mainly with lego. Supports DC motors at 5 or 9V, servo motors, PWM channels, digital and analog inputs, neopixels and tones. 
