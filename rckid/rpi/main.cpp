@@ -26,7 +26,6 @@ struct DispmanXBackgroundLayer {
 #include "torchlight.h"
 #include "recorder.h"
 
-
 void printLogLevel(int logLevel, std::ostream & s) {
     switch (logLevel) {
         case LOG_TRACE:
@@ -80,6 +79,7 @@ void logCallback(int logLevel, const char * text, va_list args) {
  
  */
 int main(int argc, char * argv[]) {
+
     system("cp /rckid/log.txt /rckid/log.old.txt");
     SetTraceLogLevel(LOG_ALL);
     SetTraceLogCallback(logCallback);

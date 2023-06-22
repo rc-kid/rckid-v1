@@ -18,7 +18,6 @@
 ## BOM
 
 - M1.4 screws for thumbstick
-- black M2.5 screws for top
 - better 3.0V LDO (cleaner, higher voltage better for mic & speed, such as https://cz.mouser.com/ProductDetail/Texas-Instruments/TPS7A2030PDBVR?qs=hd1VzrDQEGgZMtQinkbhYw%3D%3D)
 - solder tips, solder flux
 - 5pin 0.5mm pitch connector (https://cz.mouser.com/ProductDetail/Molex/505278-0533?qs=c8NFF48pVsCY0CQNgl3Xjw%3D%3D or https://cz.mouser.com/ProductDetail/Molex/505110-0592?qs=RawsiUxJOFR577kELw3Dww%3D%3D)
@@ -31,10 +30,10 @@
 ## PCB
 
 - make more room for the battery
-- make the speaker to use connector and enlarge its hole to the left
 - check that the battery / usb switch works fine
 - add mounting holes and fixes for supports
 - make RGB face top (?)
+- verify joycon solder pad placement before ordering
 
 - might also use [this](http://k-silver.com/html_products/JP19%EF%BC%88%E6%AD%A3%E6%8F%92%E8%93%9D%E8%89%B2%E6%91%87%E6%9D%86%EF%BC%89-833.html) thunbstick, that can be bought from [Adafruit](https://www.adafruit.com/product/5628) - will be much easier to solder, might require special pcb board or some such
 
@@ -56,15 +55,16 @@
 
 - DIFFERENT PIN MAPPING FOR NEW VERSION
 
-- can't see video or games under the window
-- add frame waiting
 
-- low FPS on rpi, add better FPS detection, switch to custom FPS Mode? 
+- move opus encoder to walkie talkie, add opus decoder. Update to frames, start sending to NRF
+- change recording visualization to something easier to draw. Maybe just less granularity
+- spurious buttons after recording end
+
+
 - the GPU performance is well... bad. 
 - check if using VCDispmanX, or SDL can improve things. 
 - check that we are find detecting first boot with it
 
-- spurious buttons after recording end
 - die if in bootloader mode 
 - read and reset the error in debug at the beginning of the app
 
