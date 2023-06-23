@@ -629,7 +629,11 @@ public:
                     setMode(Mode::PowerDown);
                 break;
             }
-
+            case DInfoClear::ID: {
+                if (state_.dinfo.clear());
+                    rgbOff();
+                break;
+            }
         }
     }
 

@@ -284,6 +284,15 @@ namespace comms {
             raw_ &= ~ERROR_CODE;
             raw_ |= static_cast<uint8_t>(code) & ERROR_CODE;
         }
+
+        bool clear() {
+            if (errorCode() != ErrorCode::NoError) {
+                setErrorCode(ErrorCode::NoError);
+                return true;
+            } else {
+                return false;
+            }
+        }
     
     private:
         static constexpr uint8_t ERROR_CODE = 15;
@@ -413,6 +422,10 @@ namespace msg {
         The poweroff is not immediate since RPI must 
      */
     MESSAGE(PowerDown);
+
+    /** Clears the debug info extended status part, also turns the RGB off in case it was displaying the error.
+     */
+    MESSAGE(DInfoClear);
 
 } // namespace msg
 

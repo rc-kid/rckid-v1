@@ -424,6 +424,8 @@ void RCKid::processAvrExtendedInfo(comms::ExtendedInfo const & einfo) {
         events_.send(temp_);
     if (setIfDiffers(brightness_, BrightnessEvent{einfo.brightness()}))
         events_.send(brightness_);
+    
+    // TODO other einfo members
 }
 
 void RCKid::avrGetRecording() {
