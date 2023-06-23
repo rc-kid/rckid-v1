@@ -79,7 +79,6 @@ void logCallback(int logLevel, const char * text, va_list args) {
  
  */
 int main(int argc, char * argv[]) {
-
     system("cp /rckid/log.txt /rckid/log.old.txt");
     SetTraceLogLevel(LOG_ALL);
     SetTraceLogCallback(logCallback);
