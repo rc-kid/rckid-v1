@@ -52,6 +52,7 @@ namespace platform {
         static void sleep() {
 #if (defined ARCH_AVR_MEGATINY)
             set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+            sleep_enable();
             sleep_cpu();
 #endif
         }

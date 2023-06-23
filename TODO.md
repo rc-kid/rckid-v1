@@ -47,7 +47,8 @@
 - DIFFERENT PIN MAPPING FOR NEW VERSION
 
 - ensure home button long press cannot be spurious
-- there is 6mA draw when sleeping, not sure why..., is there? 
+- waking up works only every second time
+- there is now only 1mA draw when sleeping, not sure why... 
 - add effects for rumbler & rgb 
 - add mic level wakeup and others
 - add alarm wakeup

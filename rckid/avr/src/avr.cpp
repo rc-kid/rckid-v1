@@ -379,11 +379,6 @@ public:
                     rgbOn();
                     showColor(errorCodeColor(state_.dinfo.errorCode()));
                 } 
-                // TODO delete, just to check the LED
-                else {
-                    rgbOn();
-                    showColor(Color::White().withBrightness(16));
-                }
                 // reset the comms state for the power up
                 setDefaultTxAddress();
                 break;
@@ -624,8 +619,6 @@ public:
                 showColor(m.color);
                 break;
             }
-
-
             case PowerOn::ID: {
                 if (state_.status.mode() == Mode::PowerUp)
                     setMode(Mode::On);
