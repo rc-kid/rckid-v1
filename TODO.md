@@ -34,8 +34,6 @@
 - add mounting holes and fixes for supports
 - make RGB face top (?)
 - verify joycon solder pad placement before ordering
-- update mic gain, add decoupling cap? - weird mic noises!!
-- add mic panel to be used instead of MAX9814 in case noise won't go away (try different setups on breadboard)
 
 - might also use [this](http://k-silver.com/html_products/JP19%EF%BC%88%E6%AD%A3%E6%8F%92%E8%93%9D%E8%89%B2%E6%91%87%E6%9D%86%EF%BC%89-833.html) thunbstick, that can be bought from [Adafruit](https://www.adafruit.com/product/5628) - will be much easier to solder, might require special pcb board or some such
 

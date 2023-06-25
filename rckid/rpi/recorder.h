@@ -25,9 +25,9 @@ protected:
             x = (x + 1) % 320;
             ++i;
         }
+
         if (recording_)
             DrawTextEx(window()->helpFont(), "Recording...", 0, 25, 16, 1.0, WHITE);
-            
     }
 
     void btnA(bool state) {
@@ -38,6 +38,11 @@ protected:
                 maxIndex_ = 0;
                 memset(& max_, 0, 320);
                 window()->rckid()->startRecording([this](RecordingEvent & e) {
+                    while (e.status.batchIndex() != nextIndex_) {
+                        nextIndex_ = (nextIndex_ + 1) % 8;
+                        f_.write(reinterpret_cast<char const *>(empty_), 32);
+                    }
+                    nextIndex_ = (nextIndex_ + 1) % 8;
                     //f_ << (int)e.status.batchIndex() << ":";
                     f_.write(reinterpret_cast<char const *>(e.data), 32);
                     uint8_t max = 0;
@@ -66,5 +71,7 @@ protected:
     uint8_t min_[320];
     uint8_t max_[320];
     size_t maxIndex_ = 0;
+    uint8_t nextIndex_ = 0;
     bool recording_ = false;
+    uint8_t empty_[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 }; // Recorder

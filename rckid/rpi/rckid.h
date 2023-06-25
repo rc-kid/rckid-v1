@@ -503,7 +503,6 @@ private:
     VoltageEvent voltage_;
     TempEvent temp_;
     BrightnessEvent brightness_;
-    DebugInfoEvent dInfo_;
 
     platform::NRF24L01 radio_{PIN_NRF_CS, PIN_NRF_RXTX};
     platform::MPU6050 accel_;

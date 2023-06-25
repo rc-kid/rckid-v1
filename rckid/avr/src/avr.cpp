@@ -891,6 +891,8 @@ public:
         While in recording mode, when RPi starts reading, a status byte is sent first, followed by the recording buffer contents. The status byte contains a flag that the AVR is in recording mode and a batch index that will be returned. When 32 bytes after the status byte are read and the batch currently being read has been valid at the beginning of the read sequence (i.e. the whole batch was sent), the batch index is incremented. If the next batch is also available in full, the AVR_IRQ is set, otherwise it will be set when the recorder crosses the batch boundary. 
 
         The 8 batches and AVR_IRQ combined should allow enough time for the RPi to be able to read and buffer the data as needed without skipping any batches - but if a skip occurs the batch index in the status byte should be enough to detect it. 
+
+        NOTE: Not sure why, the sampling on the AVR seems to be a problem for the recording, the more I use the noisier the output is. Not sure why. 
     */
     //@{
 
@@ -905,6 +907,8 @@ public:
 
     static void startRecording() {
         wrIndex_ = 0;
+        micSamples_ = 0;
+        micAcc_ = 0;
         state_.status.setRecording(true);
         setTxAddress(recBuffer_);
         // initialize ADC1
@@ -915,8 +919,8 @@ public:
         // initialize the ADC 
         ADC1.MUXPOS = ADC_MUXPOS_AIN1_gc;
         ADC1.INTCTRL |= ADC_RESRDY_bm;
-        ADC1.CTRLB = ADC_SAMPNUM_ACC4_gc; 
-        ADC1.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm;
+        ADC1.CTRLB = ADC_SAMPNUM_ACC2_gc; 
+        ADC1.CTRLC = ADC_PRESC_DIV2_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm;
         ADC1.CTRLD = 0; // no sample delay, no init delay
         ADC1.SAMPCTRL = 0;
         ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc | ADC_FREERUN_bm;
@@ -943,7 +947,7 @@ public:
     static inline void ADC1_RESRDY_vect(void) __attribute__((always_inline)) {
         ENTER_IRQ;
         micAcc_ += ADC1.RES;
-        micSamples_ += 4; // we do four samples per interrupt
+        micSamples_ += 2; // we do two samples per interrupt
         LEAVE_IRQ;
     }
 
@@ -952,7 +956,7 @@ public:
     static inline void TCB0_INT_vect(void) __attribute__((always_inline)) {
         ENTER_IRQ;
         TCB0.INTFLAGS = TCB_CAPT_bm;
-        recBuffer_[wrIndex_++] = (micSamples_ > 0) ? ((micAcc_ / micSamples_) & 0xff) : 0;
+        recBuffer_[wrIndex_++] = (micSamples_ > 0) ? ((micAcc_ / micSamples_) & 0xff) : 128;
         micAcc_ = 0;
         micSamples_ = 0;
         // if we have accumulated a batch of readings, set the IRQ, do not change the batch index and whether we have a valid batch as this is always determined by the I2C routine when slave tx starts/ends.
