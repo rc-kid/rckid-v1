@@ -227,7 +227,7 @@ public:
         if (adcRead()) {
             if (timeout_ > 0 && --timeout_ == 0)
                 timeoutError();
-            if (flags_.irq)
+            if (flags_.irq && !state_.status.recording())
                 setIrq();
             flags_.irq = false;
         }
@@ -903,7 +903,75 @@ public:
     /// Circular buffer for the mic recorder, conveniently wrapping at 256, giving us 8 32 bytes long batches
     static inline uint8_t recBuffer_[256];
     /// Write index to the circular buffer
-    static inline uint8_t wrIndex_ = 0;
+    static inline volatile uint8_t wrIndex_ = 0;
+
+    static void startRecording() {
+        wrIndex_ = 0;
+        micSamples_ = 0;
+        micAcc_ = 0;
+        state_.status.setRecording(true);
+        setTxAddress(recBuffer_);
+        ADC1.CTRLA = 0; // disable ADC so that any pending read from the main app is cancelled
+        // connect the eventsystem 
+        EVSYS.ASYNCUSER12 = EVSYS_ASYNCUSER12_SYNCCH0_gc;
+        EVSYS.SYNCCH0 = EVSYS_SYNCCH0_TCB0_gc;
+        // set the ADC1 voltage to 2.5V
+        VREF.CTRLC &= ~VREF_ADC1REFSEL_gm;
+        VREF.CTRLC |= VREF_ADC1REFSEL_2V5_gc;
+        // initialize the ADC 
+        ADC1.CTRLB = ADC_SAMPNUM_ACC32_gc; 
+        ADC1.CTRLC = ADC_PRESC_DIV2_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm;
+        ADC1.CTRLD = 0; // no sample delay, no init delay
+        ADC1.SAMPCTRL = 0;
+        ADC1.EVCTRL = ADC_STARTEI_bm; // ADC will be triggered by event
+        ADC1.MUXPOS = ADC_MUXPOS_AIN1_gc;
+        ADC1.INTCTRL = ADC_RESRDY_bm;
+        // turn the ADC on
+        ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc;
+        //ADC1.COMMAND = ADC_STCONV_bm;
+
+        // start the 256kHz timer on TCB0. This is 32x oversample for 8kHz target output
+        TCB0.CTRLA = 0;
+        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
+        TCB0.CCMP = 1250; // for 8kHz
+        //TCB0.INTCTRL = TCB_CAPT_bm;
+        //TCB0.INTFLAGS = 0xff;
+        TCB0.CTRLA =  TCB_CLKSEL_CLKDIV1_gc | TCB_ENABLE_bm;
+    }
+
+    static void stopRecording() {
+        EVSYS.ASYNCUSER12 = 0;
+        ADC1.CTRLA = 0;
+        TCB0.CTRLA = 0;
+        // restore mode and then disable the recording mode, order is important as otherwise we might read the recording batch index and interpret it as mode
+        state_.status.setMode(Mode::On);
+        state_.status.setRecording(false);
+    }
+
+    static inline volatile uint8_t micTest_ = 0;
+
+    /** Critical code, just accumulate the sampled value.
+     */
+    static inline void ADC1_RESRDY_vect(void) __attribute__((always_inline)) {
+        //micAcc_ += ADC1.RES;
+        //if (++micSamples_ == 16) {
+            //recBuffer_[wrIndex_++] = micAcc_; // / 16;
+            //micAcc_ = ADC1.RES;
+            recBuffer_[wrIndex_++] = (ADC1.RES / 32) & 0xff;
+            //recBuffer_[wrIndex_] = micTest_;
+            //wrIndex_ += 1;
+            //micAcc_ = 0;
+            //micSamples_ = 0;
+            // if we have accumulated a batch of readings, set the IRQ, do not change the batch index and whether we have a valid batch as this is always determined by the I2C routine when slave tx starts/ends.
+            if (wrIndex_ % 32 == 0) {
+                //micTest_ = (micTest_ + 1) % 211;
+                setIrq();
+            }
+        //}
+    }
+
+
+#ifdef FOO
 
     static void startRecording() {
         wrIndex_ = 0;
@@ -964,6 +1032,8 @@ public:
             setIrq();
         LEAVE_IRQ;
     }
+
+    #endif // FOO
 
 
     //@}
@@ -1080,11 +1150,13 @@ ISR(ADC1_RESRDY_vect) {
     LEAVE_IRQ;
 }
 
+/*
 ISR(TCB0_INT_vect) { 
     ENTER_IRQ;
     RCKid::TCB0_INT_vect();
     LEAVE_IRQ;
 }
+*/
 
 void setup() { RCKid::initialize(); }
 void loop() { RCKid::loop(); }
