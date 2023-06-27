@@ -79,8 +79,6 @@ public:
         bool irq: 1;
         /// set when I2C command has been received
         bool i2cReady : 1;
-        /// true if there is at least one valid batch of audio data
-        bool validBatch : 1;
         /// RTC one second tick ready
         bool secondTick : 1;
         /// BTN_HOME pin change detected
@@ -667,7 +665,8 @@ public:
         } else if ((status & I2C_START_MASK) == I2C_START_TX) {
             gpio::input(AVR_IRQ);
             TWI0.SCTRLB = TWI_ACKACT_ACK_gc + TWI_SCMD_RESPONSE_gc;
-            flags_.validBatch = (wrIndex_ >> 5) != state_.status.batchIndex();
+            if (state_.status.recording())
+                state_.status.setBatchIncomplete((wrIndex_ >> 5) == state_.status.batchIndex());
             // reset the num tx bytes
             i2cNumTxBytes_ = TX_START;
         // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise. The buffer is reset to 
@@ -678,14 +677,14 @@ public:
             TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
             if (! state_.status.recording()) {
                 setDefaultTxAddress();
-            } else if (i2cNumTxBytes_ >= 32 && flags_.validBatch) {
+            } else if (i2cNumTxBytes_ >= 32 && !state_.status.batchIncomplete()) {
                 uint8_t nextBatch = (state_.status.batchIndex() + 1) & 7;
-                    state_.status.setBatchIndex(nextBatch);
-                    setTxAddress(recBuffer_ + (nextBatch << 5));
+                state_.status.setBatchIndex(nextBatch);
+                setTxAddress(recBuffer_ + (nextBatch << 5));
                 // if the next batch is already available, set the IRQ, otherwise it will be sent when it becomes available by the ADC reader
-                if (nextBatch != (wrIndex_ >> 5))
+                if (nextBatch != (wrIndex_ >> 5)) 
                     setIrq();
-                }
+            }
         // receiving finished, inform main loop we have message waiting
         } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
             TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
@@ -804,8 +803,8 @@ public:
                 } else {
                     batteryDebounceTimer_ = 10;
                 }
-                flags_.irq = state_.status.setUsb(value >= VCC_THRESHOLD_VUSB) | flags_.irq;
-                flags_.irq = state_.status.setLowBatt(value <= BATTERY_THRESHOLD_LOW) | flags_.irq;
+                flags_.irq = state_.einfo.setUsb(value >= VCC_THRESHOLD_VUSB) | flags_.irq;
+                flags_.irq = state_.status.setLowBattery(value <= BATTERY_THRESHOLD_LOW) | flags_.irq;
                 break;
             // convert temperature reading to temperature, the code is taken from the ATTiny datasheet example
             case ADC_MUXPOS_TEMPSENSE_gc: {
@@ -833,7 +832,7 @@ public:
             // CHARGE 
             case ADC_MUXPOS_AIN10_gc:
                 value = (value >> 2) & 0xff;
-                flags_.irq = state_.status.setCharging(value < 32) | flags_.irq;
+                flags_.irq = state_.einfo.setCharging(value < 32) | flags_.irq;
                 break;
             // BTNS_2 
             case ADC_MUXPOS_AIN6_gc:
@@ -882,13 +881,13 @@ public:
 
     /** \name Audio Recording
       
-        When audio recording is enabled, the ADC1 is started in a continuous mode that collects as many of the readings as possible. When the TCB0 fires (8kHz), the accumulated samples are averaged and stored to a circular buffer. The buffer is divided into 8 32byte long batches. Each time there is 32 sampled bytes available, the AVR_IRQ is set informing the RPi to read the batch.  
+        When audio recording is enabled, the ADC1 runs at 5MHz speed in 8bit mode and 32x sample accumulation. The ADC is triggered by TCB0 running at 8kHz and when its measurement is done, it is appended in a circular buffer. The buffer is divided into 8 32byte long batches. Each time there is 32 sampled bytes available, the AVR_IRQ is set informing the RPi to read the batch.  
 
-        While in recording mode, when RPi starts reading, a status byte is sent first, followed by the recording buffer contents. The status byte contains a flag that the AVR is in recording mode and a batch index that will be returned. When 32 bytes after the status byte are read and the batch currently being read has been valid at the beginning of the read sequence (i.e. the whole batch was sent), the batch index is incremented. If the next batch is also available in full, the AVR_IRQ is set, otherwise it will be set when the recorder crosses the batch boundary. 
+        While in recording mode, when RPi starts reading, a status byte is sent first, followed by the recording buffer contents. The status byte contains a flag that the AVR is in recording mode and a batch index that will be returned. Each time a recording data is being downloaded, the status byte's incompleteBatch is set if the batch to be sent has not been finished (i.e. we are writing to it while transmitting). Such batches are to be ignored. 
+        
+        When 32 bytes after the status byte are read and the batch currently being read has been valid at the beginning of the read sequence (i.e. the whole batch was sent), the batch index is incremented. If the next batch is also available in full, the AVR_IRQ is set, otherwise it will be set when the recorder crosses the batch boundary.  
 
         The 8 batches and AVR_IRQ combined should allow enough time for the RPi to be able to read and buffer the data as needed without skipping any batches - but if a skip occurs the batch index in the status byte should be enough to detect it. 
-
-        NOTE: Not sure why, the sampling on the AVR seems to be a problem for the recording, the more I use the noisier the output is. Not sure why. 
     */
     //@{
 
@@ -898,8 +897,11 @@ public:
     static inline volatile uint8_t wrIndex_ = 0;
 
     static void startRecording() {
+        if (state_.status.recording())
+            return;
         wrIndex_ = 0;
         state_.status.setRecording(true);
+        state_.status.setBatchIndex(0);
         setTxAddress(recBuffer_);
         ADC1.CTRLA = 0; // disable ADC so that any pending read from the main app is cancelled
         // connect the eventsystem 
@@ -933,6 +935,7 @@ public:
         // restore mode and then disable the recording mode, order is important as otherwise we might read the recording batch index and interpret it as mode
         state_.status.setMode(Mode::On);
         state_.status.setRecording(false);
+        state_.status.setBatchIncomplete(false);
     }
 
     /** Critical code, just accumulate the sampled value.

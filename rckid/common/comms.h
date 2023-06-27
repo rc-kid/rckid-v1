@@ -69,33 +69,6 @@ namespace comms {
             return true;
         }
 
-        bool usb() const { return status_ & USB_DC; }
-
-        bool setUsb(bool value) {
-            if (value == usb())
-                return false;
-            value ? (status_ |= USB_DC) : (status_ &= ~USB_DC);
-            return true;
-        }
-
-        bool charging() const { return status_ & CHARGING; }
-
-        bool setCharging(bool value) { 
-            if (value == charging())
-                return false;
-            value ? (status_ |= CHARGING) : (status_ &= ~CHARGING);
-            return true;
-        }
-
-        bool lowBatt() const { return status_ & LOW_BATT; }
-
-        bool setLowBatt(bool value) { 
-            if (value == lowBatt())
-                return false;
-            value ? (status_ |= LOW_BATT) : (status_ &= ~LOW_BATT);
-            return true;
-        }
-
         bool alarm() const { return status_ & ALARM; }
 
         bool setAlarm(bool value) { 
@@ -116,14 +89,35 @@ namespace comms {
             status_ |= (index & MODE);
         }
 
+        bool batchIncomplete() const {
+            return status_ & BATCH_INCOMPLETE;
+        }
+
+        bool setBatchIncomplete(bool value) {
+            if (value == batchIncomplete())
+                return false;
+            value ? (status_ |= BATCH_INCOMPLETE) : (status_ &= ~BATCH_INCOMPLETE);
+            return true;
+        }
+
+        bool lowBattery() const {
+            return status_ & LOW_BATT;
+        }
+
+        bool setLowBattery(bool value) {
+            if (value == lowBattery())
+                return false;
+            value ? (status_ |= LOW_BATT) : (status_ &= ~LOW_BATT);
+            return true;
+        }
+
     private:
 
         static constexpr uint8_t MODE = 7;
         static constexpr uint8_t ALARM = 1 << 3;
         static constexpr uint8_t RECORDING = 1 << 4;
-        static constexpr uint8_t USB_DC = 1 << 5;
-        static constexpr uint8_t CHARGING = 1 << 6;
-        static constexpr uint8_t LOW_BATT = 1 << 7;
+        static constexpr uint8_t BATCH_INCOMPLETE = 1 << 5;
+        static constexpr uint8_t LOW_BATT = 1 << 6;
 
         uint8_t status_ = 0;
     }; // comms::Status
@@ -259,11 +253,32 @@ namespace comms {
         void setBrightness(uint8_t value) { brightness_ = value; }
         //@}
 
+        bool usb() const { return flags_ & USB_DC; }
+
+        bool setUsb(bool value) {
+            if (value == usb())
+                return false;
+            value ? (flags_ |= USB_DC) : (flags_ &= ~USB_DC);
+            return true;
+        }
+
+        bool charging() const { return flags_ & CHARGING; }
+
+        bool setCharging(bool value) { 
+            if (value == charging())
+                return false;
+            value ? (flags_ |= CHARGING) : (flags_ &= ~CHARGING);
+            return true;
+        }
+
     private:
+        static constexpr uint8_t USB_DC = 1 << 0; 
+        static constexpr uint8_t CHARGING = 1 << 1;
         uint8_t vcc_;
         uint8_t vbatt_;
         uint8_t temp_;
         uint8_t brightness_ = 128;
+        uint8_t flags_;
     }; // comms::ExtendedInfo;
 
     /** State consists  */

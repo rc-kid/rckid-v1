@@ -467,7 +467,6 @@ private:
 
     std::function<void(RecordingEvent &)> recordingCallback_ DRIVER_THREAD;
     bool recording_ = false DRIVER_THREAD;
-    uint8_t recordingLastBatch_ = 0xff DRIVER_THREAD;
 
 
     /** The button state objects, managed by the ISR thread 

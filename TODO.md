@@ -54,6 +54,7 @@
 
 - DIFFERENT PIN MAPPING FOR NEW VERSION
 
+- second recording does not seem to work
 
 - start sending to / reading from NRF
 - change recording visualization to something easier to draw. Maybe just less granularity
