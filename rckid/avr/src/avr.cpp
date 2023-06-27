@@ -680,16 +680,12 @@ public:
                 setDefaultTxAddress();
             } else if (i2cNumTxBytes_ >= 32 && flags_.validBatch) {
                 uint8_t nextBatch = (state_.status.batchIndex() + 1) & 7;
-                state_.status.setBatchIndex(nextBatch);
-                setTxAddress(recBuffer_ + (nextBatch << 5));
-                // if the next batch is already available, set the IRQ
+                    state_.status.setBatchIndex(nextBatch);
+                    setTxAddress(recBuffer_ + (nextBatch << 5));
+                // if the next batch is already available, set the IRQ, otherwise it will be sent when it becomes available by the ADC reader
                 if (nextBatch != (wrIndex_ >> 5))
                     setIrq();
-            }
-            // reset the watchdog timeout in the poweron state
-            //if (RCKid::state_.status.mode() == Mode::On)
-            //    RCKid::setTimeout(RPI_PING_TIMEOUT);
-            //i2cNumTxBytes_ = TX_START;
+                }
         // receiving finished, inform main loop we have message waiting
         } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
             TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
@@ -896,10 +892,6 @@ public:
     */
     //@{
 
-    /// This is where we accumulate the recorder samples
-    static inline uint16_t micAcc_ = 0;
-    /// Number of samples accumulated so far
-    static inline uint8_t micSamples_ = 0;
     /// Circular buffer for the mic recorder, conveniently wrapping at 256, giving us 8 32 bytes long batches
     static inline uint8_t recBuffer_[256];
     /// Write index to the circular buffer
@@ -907,8 +899,6 @@ public:
 
     static void startRecording() {
         wrIndex_ = 0;
-        micSamples_ = 0;
-        micAcc_ = 0;
         state_.status.setRecording(true);
         setTxAddress(recBuffer_);
         ADC1.CTRLA = 0; // disable ADC so that any pending read from the main app is cancelled
@@ -928,14 +918,11 @@ public:
         ADC1.INTCTRL = ADC_RESRDY_bm;
         // turn the ADC on
         ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc;
-        //ADC1.COMMAND = ADC_STCONV_bm;
 
-        // start the 256kHz timer on TCB0. This is 32x oversample for 8kHz target output
+        // start the 8kHz timer on TCB0. The timer overflow will trigger ADC start
         TCB0.CTRLA = 0;
         TCB0.CTRLB = TCB_CNTMODE_INT_gc;
         TCB0.CCMP = 1250; // for 8kHz
-        //TCB0.INTCTRL = TCB_CAPT_bm;
-        //TCB0.INTFLAGS = 0xff;
         TCB0.CTRLA =  TCB_CLKSEL_CLKDIV1_gc | TCB_ENABLE_bm;
     }
 
@@ -948,93 +935,16 @@ public:
         state_.status.setRecording(false);
     }
 
-    static inline volatile uint8_t micTest_ = 0;
-
-    /** Critical code, just accumulate the sampled value.
-     */
-    static inline void ADC1_RESRDY_vect(void) __attribute__((always_inline)) {
-        //micAcc_ += ADC1.RES;
-        //if (++micSamples_ == 16) {
-            //recBuffer_[wrIndex_++] = micAcc_; // / 16;
-            //micAcc_ = ADC1.RES;
-            recBuffer_[wrIndex_++] = (ADC1.RES / 32) & 0xff;
-            //recBuffer_[wrIndex_] = micTest_;
-            //wrIndex_ += 1;
-            //micAcc_ = 0;
-            //micSamples_ = 0;
-            // if we have accumulated a batch of readings, set the IRQ, do not change the batch index and whether we have a valid batch as this is always determined by the I2C routine when slave tx starts/ends.
-            if (wrIndex_ % 32 == 0) {
-                //micTest_ = (micTest_ + 1) % 211;
-                setIrq();
-            }
-        //}
-    }
-
-
-#ifdef FOO
-
-    static void startRecording() {
-        wrIndex_ = 0;
-        micSamples_ = 0;
-        micAcc_ = 0;
-        state_.status.setRecording(true);
-        setTxAddress(recBuffer_);
-        // initialize ADC1
-        ADC1.CTRLA = 0; // disable ADC so that any pending read from the main app is cancelled
-        // set the ADC1 voltage to 2.5V
-        VREF.CTRLC &= ~VREF_ADC1REFSEL_gm;
-        VREF.CTRLC |= VREF_ADC1REFSEL_2V5_gc;
-        // initialize the ADC 
-        ADC1.MUXPOS = ADC_MUXPOS_AIN1_gc;
-        ADC1.INTCTRL |= ADC_RESRDY_bm;
-        ADC1.CTRLB = ADC_SAMPNUM_ACC2_gc; 
-        ADC1.CTRLC = ADC_PRESC_DIV2_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm;
-        ADC1.CTRLD = 0; // no sample delay, no init delay
-        ADC1.SAMPCTRL = 0;
-        ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc | ADC_FREERUN_bm;
-        ADC1.COMMAND = ADC_STCONV_bm;
-        // start the 8kHz timer on TCB0
-        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
-        TCB0.CCMP = 625; // for 8kHz
-        TCB0.INTCTRL = TCB_CAPT_bm;
-        TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc | TCB_ENABLE_bm;
-    }
-
-    static void stopRecording() {
-        // restore the mode
-        TCB0.CTRLA = 0;
-        ADC1.CTRLA = 0;
-        ADC1.INTCTRL = 0;
-        // restore mode and then disable the recording mode, order is important as otherwise we might read the recording batch index and interpret it as mode
-        state_.status.setMode(Mode::On);
-        state_.status.setRecording(false);
-    }
-
     /** Critical code, just accumulate the sampled value.
      */
     static inline void ADC1_RESRDY_vect(void) __attribute__((always_inline)) {
         ENTER_IRQ;
-        micAcc_ += ADC1.RES;
-        micSamples_ += 2; // we do two samples per interrupt
-        LEAVE_IRQ;
-    }
-
-    /** 
-     */
-    static inline void TCB0_INT_vect(void) __attribute__((always_inline)) {
-        ENTER_IRQ;
-        TCB0.INTFLAGS = TCB_CAPT_bm;
-        recBuffer_[wrIndex_++] = (micSamples_ > 0) ? ((micAcc_ / micSamples_) & 0xff) : 128;
-        micAcc_ = 0;
-        micSamples_ = 0;
-        // if we have accumulated a batch of readings, set the IRQ, do not change the batch index and whether we have a valid batch as this is always determined by the I2C routine when slave tx starts/ends.
+        // we are using 32x oversampling
+        recBuffer_[wrIndex_++] = (ADC1.RES / 32) & 0xff;
         if (wrIndex_ % 32 == 0)
             setIrq();
         LEAVE_IRQ;
     }
-
-    #endif // FOO
-
 
     //@}
 
