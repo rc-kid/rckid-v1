@@ -148,6 +148,24 @@ public:
         RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
         RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
         RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc | RTC_PITEN_bm;
+        // configure the TCB0 timer to 8kHz and enable it SYNCCH0 
+        EVSYS.SYNCCH0 = EVSYS_SYNCCH0_TCB0_gc;
+        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
+        TCB0.CCMP = 1250; // for 8kHz
+        TCB0.CTRLA =  TCB_CLKSEL_CLKDIV1_gc;
+        // set the ADC1 voltage to 2.5V
+        VREF.CTRLC &= ~VREF_ADC1REFSEL_gm;
+        VREF.CTRLC |= VREF_ADC1REFSEL_2V5_gc;
+        // and initialize the ADC1 we use for sound recording
+        ADC1.CTRLA = ADC_RESSEL_8BIT_gc;
+        ADC1.CTRLB = ADC_SAMPNUM_ACC32_gc; 
+        ADC1.CTRLC = ADC_PRESC_DIV2_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm;
+        ADC1.CTRLD = 0; // no sample delay, no init delay
+        ADC1.SAMPCTRL = 0;
+        ADC1.EVCTRL = ADC_STARTEI_bm; // ADC will be triggered by event
+        ADC1.MUXPOS = ADC_MUXPOS_AIN1_gc;
+        ADC1.INTCTRL = ADC_RESRDY_bm;
+        ADC1.CTRLA |= ADC_ENABLE_bm;
         // initialize TCB1 for a 1ms interval so that we can have a millisecond timer for the user interface (can't use cpu::delay_ms as arduino's default implementation uses own timers)
         TCB1.CTRLB = TCB_CNTMODE_INT_gc;
         TCB1.CCMP = 5000; // for 1kHz, 1ms interval
@@ -897,45 +915,28 @@ public:
     static inline volatile uint8_t wrIndex_ = 0;
 
     static void startRecording() {
-        if (state_.status.recording())
-            return;
+        cli();
         wrIndex_ = 0;
         state_.status.setRecording(true);
         state_.status.setBatchIndex(0);
         setTxAddress(recBuffer_);
-        ADC1.CTRLA = 0; // disable ADC so that any pending read from the main app is cancelled
+        sei();
         // connect the eventsystem 
         EVSYS.ASYNCUSER12 = EVSYS_ASYNCUSER12_SYNCCH0_gc;
-        EVSYS.SYNCCH0 = EVSYS_SYNCCH0_TCB0_gc;
-        // set the ADC1 voltage to 2.5V
-        VREF.CTRLC &= ~VREF_ADC1REFSEL_gm;
-        VREF.CTRLC |= VREF_ADC1REFSEL_2V5_gc;
-        // initialize the ADC 
-        ADC1.CTRLB = ADC_SAMPNUM_ACC32_gc; 
-        ADC1.CTRLC = ADC_PRESC_DIV2_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm;
-        ADC1.CTRLD = 0; // no sample delay, no init delay
-        ADC1.SAMPCTRL = 0;
-        ADC1.EVCTRL = ADC_STARTEI_bm; // ADC will be triggered by event
-        ADC1.MUXPOS = ADC_MUXPOS_AIN1_gc;
-        ADC1.INTCTRL = ADC_RESRDY_bm;
-        // turn the ADC on
-        ADC1.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_8BIT_gc;
-
         // start the 8kHz timer on TCB0. The timer overflow will trigger ADC start
-        TCB0.CTRLA = 0;
-        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
-        TCB0.CCMP = 1250; // for 8kHz
-        TCB0.CTRLA =  TCB_CLKSEL_CLKDIV1_gc | TCB_ENABLE_bm;
+        TCB0.CTRLA |= TCB_ENABLE_bm;
     }
 
     static void stopRecording() {
+        // restore mode and then disable the recording mode
+        TCB0.CTRLA &= ~TCB_ENABLE_bm;
         EVSYS.ASYNCUSER12 = 0;
-        ADC1.CTRLA = 0;
-        TCB0.CTRLA = 0;
-        // restore mode and then disable the recording mode, order is important as otherwise we might read the recording batch index and interpret it as mode
+        cli();
         state_.status.setMode(Mode::On);
         state_.status.setRecording(false);
         state_.status.setBatchIncomplete(false);
+        setDefaultTxAddress();
+        sei();
     }
 
     /** Critical code, just accumulate the sampled value.

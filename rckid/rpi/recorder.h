@@ -36,7 +36,9 @@ protected:
                 recording_ = true;
                 f_ = std::ofstream{"/rckid/recording.dat", std::ios::binary};
                 maxIndex_ = 0;
-                memset(& max_, 0, 320);
+                nextIndex_ = 0;
+                memset(max_, 128, 320);
+                memset(min_, 128, 320);
                 window()->rckid()->startRecording([this](RecordingEvent & e) {
                     while (e.status.batchIndex() != nextIndex_) {
                         nextIndex_ = (nextIndex_ + 1) % 8;

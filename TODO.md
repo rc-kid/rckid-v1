@@ -44,8 +44,13 @@
 ## AVR
 
 - DIFFERENT PIN MAPPING FOR NEW VERSION
-- ensure home button long press cannot be spurious
+
 - waking up works only every second time
+- mic does not work after wake up
+
+
+- ensure home button long press cannot be spurious
+
 - add effects for rumbler & rgb 
 - add mic level wakeup and others
 - add alarm wakeup
@@ -54,12 +59,9 @@
 
 - DIFFERENT PIN MAPPING FOR NEW VERSION
 
-- second recording does not seem to work
 
 - start sending to / reading from NRF
 - change recording visualization to something easier to draw. Maybe just less granularity
-- spurious buttons after recording end
-
 
 - the GPU performance is well... bad. 
 - check if using VCDispmanX, or SDL can improve things. 
