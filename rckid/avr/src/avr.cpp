@@ -185,6 +185,7 @@ public:
         if (!canWakeUp())
             sleep();
         // wakeup checks have passed, switch to powerUp phase immediately (no waiting for the home button long press in the case of power on)
+        setMode(Mode::WakeUp);
         setMode(Mode::PowerUp);
     }
 
@@ -282,7 +283,7 @@ public:
         switch (state_.status.mode()) {
             case Mode::WakeUp:
                 // a very crude form of deboucing
-                if (gpio::read(BTN_HOME) == false)
+                if (gpio::read(BTN_HOME) == false && timeout_ < BTN_HOME_POWERON_PRESS / 2)
                     setMode(Mode::PowerDown);
                 break;
             case Mode::On:
@@ -304,9 +305,8 @@ public:
     /** Sleep implementation. Turns everything off and goes to sleep. When sleeping only the BTN_HOME press and RTC second tick will wake the device up and both are acted on accordingly.  
      */
     static void sleep() {
-        // clear irq
+        // clear irq & flags
         gpio::input(AVR_IRQ);
-        flags_.irq = false;
         // cut power to RPI
         gpio::output(RPI_EN);
         gpio::high(RPI_EN);
@@ -388,6 +388,10 @@ public:
             case Mode::Sleep:
                 break;
             case Mode::WakeUp:
+                // clear flags so that there are no leftovers from previous run
+                flags_.irq = false;
+                flags_.i2cReady = false;
+                // turn rpi on
                 gpio::input(RPI_EN);
                 setTimeout(BTN_HOME_POWERON_PRESS);
                 // if we have error condition show that on the RGB led
@@ -409,10 +413,10 @@ public:
                 // if any other than no-error state, make display visible immediately
                 if (state_.dinfo.errorCode() != ErrorCode::NoError)
                     setBrightness(128);
-                // disable the timeout if Select button is pressed
-                setTimeout(RPI_POWERUP_TIMEOUT);
                 // rumble to indicate true power on and set the timeout for RPI poweron 
                 rumblerOk();
+                // disable the timeout if Select button is pressed
+                setTimeout(RPI_POWERUP_TIMEOUT);
                 break;
             case Mode::PowerDown:
                 stopRecording();
@@ -455,7 +459,11 @@ public:
             case Mode::PowerDown:
                 state_.dinfo.setErrorCode(ErrorCode::RPiPowerDownTimeout);
                 break;
+            // timeout in mode::on is HOME button long press
             case Mode::On:
+                // double check that the button is indeed still pressed so that we do not accidentally poweroff
+                if (gpio::read(BTN_HOME) == false)
+                    return;
                 rumblerFail();
                 setMode(Mode::PowerDown);
                 setIrq();
@@ -689,7 +697,12 @@ public:
             i2cNumTxBytes_ = TX_START;
         // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise. The buffer is reset to 
         } else if ((status & I2C_START_MASK) == I2C_START_RX) {
-            TWI0.SCTRLB = flags_.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
+            if (flags_.i2cReady) {
+                TWI0.SCTRLB = TWI_ACKACT_NACK_gc;
+            } else {
+                TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
+                i2cBuffer_[0] = msg::Nop::ID; // will be overwritten by the command if any data sent, but we must clear it in case it's just a device ping
+            }
         // sending finished, reset the tx address and when in recording mode determine if more data is available
         } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
             TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;

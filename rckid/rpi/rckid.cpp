@@ -380,12 +380,6 @@ void RCKid::processAvrStatus(comms::Status const & status) {
                 // enter the power-on mode to disable any timeouts
                 sendAvrCommand(msg::PowerOn{});
         }
-        /*
-        if (status.mode() == comms::Mode::PowerDown) {
-            TraceLog(LOG_INFO, "Power down requested");
-            system("sudo poweroff");
-        }
-        */
         if (setIfDiffers(mode_.mode, status.mode()))
             events_.send(mode_);
     }
@@ -544,15 +538,15 @@ void RCKid::initializeAvr() {
     } catch (std::exception const & e) {
         TraceLog(LOG_ERROR, STR("Cannot talk to AVR: " << e.what()));
     }
-    /*
+    // we are now in non-bootloader mode, check all is good
     comms::Status status = avrQueryStatus();
-    if (status.mode() == comms::Mode::Bootloader) {
-        TraceLog(LOG_WARNING, "AVR in bootloader mode");
-        // TODO TODO TODO TODO TODO 
-        sendAvrCommand(msg::AvrReset{});
-        cpu::delay_ms(100);
+    TraceLog(LOG_INFO, STR("Power-on AVR status: " << status).c_str());
+    // if we are to terminate immediately because the current status is power down, shutdown and terminate itself immediately
+    if (status.mode() == comms::Mode::PowerDown) {
+        TraceLog(LOG_INFO, "Spurious power-up. Powering down immediately");
+        system("sudo poweroff");
+        exit(EXIT_SUCCESS);
     }
-    */
 }
 
 void RCKid::initializeAccel() {

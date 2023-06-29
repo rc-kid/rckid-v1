@@ -45,10 +45,8 @@
 
 - DIFFERENT PIN MAPPING FOR NEW VERSION
 
-- waking up works only every second time
-
-
 - ensure home button long press cannot be spurious
+- flash the LED when charging & idle
 
 - add effects for rumbler & rgb 
 - add mic level wakeup and others

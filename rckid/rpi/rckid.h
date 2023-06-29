@@ -109,7 +109,12 @@ public:
         hwEvents_.send(KeyPress{key, state});
     }
 
+    /** Turns RCKid off. 
+     
+        Tells the AVR to enter the power down mode. AVR does this and then waits for the RPI_POWEROFF signal, while when we detect the transition to powerOff state actually happening, we do rpi shutdown in the main loop.  
+    */
     void powerOff() {
+        TraceLog(LOG_INFO, "Power down initiated from RPi");
         hwEvents_.send(msg::PowerDown{});
     }
 

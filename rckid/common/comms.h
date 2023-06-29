@@ -1,5 +1,9 @@
 #pragma once
 
+#if (defined ARCH_MOCK | defined ARCH_RPI)
+    #include <iostream>
+#endif
+
 #include "platform/platform.h"
 #include "platform/color.h"
 #include "platform/time.h"
@@ -120,6 +124,19 @@ namespace comms {
         static constexpr uint8_t LOW_BATT = 1 << 6;
 
         uint8_t status_ = 0;
+
+
+#if (defined ARCH_RPI || defined ARCH_MOCK)
+        friend std::ostream & operator << (std::ostream & s, Status const & status) {
+            if (status.recording())
+                s << "mode : recording, batch index: " << (int)status.batchIndex();
+            else
+                s << "mode " << (int) status.mode();
+            s  << ", batch incomplete:" << status.batchIncomplete() << ", alarm: " << status.alarm() << ", low batt: ";
+            return s;
+        }
+#endif
+
     }; // comms::Status
 
     /** Information about the input controls connected to the RPi. 
