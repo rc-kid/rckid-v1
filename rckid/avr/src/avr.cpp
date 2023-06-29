@@ -156,16 +156,6 @@ public:
         // set the ADC1 voltage to 2.5V
         VREF.CTRLC &= ~VREF_ADC1REFSEL_gm;
         VREF.CTRLC |= VREF_ADC1REFSEL_2V5_gc;
-        // and initialize the ADC1 we use for sound recording
-        ADC1.CTRLA = ADC_RESSEL_8BIT_gc;
-        ADC1.CTRLB = ADC_SAMPNUM_ACC32_gc; 
-        ADC1.CTRLC = ADC_PRESC_DIV2_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm;
-        ADC1.CTRLD = 0; // no sample delay, no init delay
-        ADC1.SAMPCTRL = 0;
-        ADC1.EVCTRL = ADC_STARTEI_bm; // ADC will be triggered by event
-        ADC1.MUXPOS = ADC_MUXPOS_AIN1_gc;
-        ADC1.INTCTRL = ADC_RESRDY_bm;
-        ADC1.CTRLA |= ADC_ENABLE_bm;
         // initialize TCB1 for a 1ms interval so that we can have a millisecond timer for the user interface (can't use cpu::delay_ms as arduino's default implementation uses own timers)
         TCB1.CTRLB = TCB_CNTMODE_INT_gc;
         TCB1.CCMP = 5000; // for 1kHz, 1ms interval
@@ -383,6 +373,16 @@ public:
             case Mode::On:
                 setTimeout(0); // disable the timeout
                 setBrightness(state_.einfo.brightness());
+                // and initialize the ADC1 we use for sound recording
+                ADC1.CTRLA = ADC_RESSEL_8BIT_gc;
+                ADC1.CTRLB = ADC_SAMPNUM_ACC32_gc; 
+                ADC1.CTRLC = ADC_PRESC_DIV2_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm;
+                ADC1.CTRLD = 0; // no sample delay, no init delay
+                ADC1.SAMPCTRL = 0;
+                ADC1.EVCTRL = ADC_STARTEI_bm; // ADC will be triggered by event
+                ADC1.MUXPOS = ADC_MUXPOS_AIN1_gc;
+                ADC1.INTCTRL = ADC_RESRDY_bm;
+                ADC1.CTRLA |= ADC_ENABLE_bm;
                 break;
             // for sleep, don't do anything, all will be handled by the main loop that will enter sleep immediately
             case Mode::Sleep:

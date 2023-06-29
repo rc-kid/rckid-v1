@@ -46,7 +46,6 @@
 - DIFFERENT PIN MAPPING FOR NEW VERSION
 
 - waking up works only every second time
-- mic does not work after wake up
 
 
 - ensure home button long press cannot be spurious

@@ -374,15 +374,18 @@ void RCKid::processAvrStatus(comms::Status const & status) {
                 break;
             case comms::Mode::WakeUp:
                 TraceLog(LOG_WARNING, "WakeUp mode detected when powering on");
+                // fallthrough
             case comms::Mode::PowerUp:
                 TraceLog(LOG_INFO, "PowerUp mode, switching to ON");
                 // enter the power-on mode to disable any timeouts
                 sendAvrCommand(msg::PowerOn{});
         }
+        /*
         if (status.mode() == comms::Mode::PowerDown) {
             TraceLog(LOG_INFO, "Power down requested");
             system("sudo poweroff");
         }
+        */
         if (setIfDiffers(mode_.mode, status.mode()))
             events_.send(mode_);
     }
