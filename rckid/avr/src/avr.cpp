@@ -697,12 +697,7 @@ public:
             i2cNumTxBytes_ = TX_START;
         // master requests to write data itself. ACK if there is no pending I2C message, NACK otherwise. The buffer is reset to 
         } else if ((status & I2C_START_MASK) == I2C_START_RX) {
-            if (flags_.i2cReady) {
-                TWI0.SCTRLB = TWI_ACKACT_NACK_gc;
-            } else {
-                TWI0.SCTRLB = TWI_SCMD_RESPONSE_gc;
-                i2cBuffer_[0] = msg::Nop::ID; // will be overwritten by the command if any data sent, but we must clear it in case it's just a device ping
-            }
+            TWI0.SCTRLB = flags_.i2cReady ? TWI_ACKACT_NACK_gc : TWI_SCMD_RESPONSE_gc;
         // sending finished, reset the tx address and when in recording mode determine if more data is available
         } else if ((status & I2C_STOP_MASK) == I2C_STOP_TX) {
             TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
@@ -716,10 +711,11 @@ public:
                 if (nextBatch != (wrIndex_ >> 5)) 
                     setIrq();
             }
-        // receiving finished, inform main loop we have message waiting
+        // receiving finished, inform main loop we have message waiting if we have received at laast one byte (0 bytes received is just I2C ping)
         } else if ((status & I2C_STOP_MASK) == I2C_STOP_RX) {
             TWI0.SCTRLB = TWI_SCMD_COMPTRANS_gc;
-            flags_.i2cReady = true;
+            if (i2cBufferIdx_ > 0)
+                flags_.i2cReady = true;
         } else {
             // error - a state we do not know how to handle
         }
