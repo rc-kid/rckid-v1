@@ -221,7 +221,7 @@ void RCKid::processEvent(Event & e) {
 
 void RCKid::hwLoop() {
     // query avr status
-    avrQueryState();
+    avrQueryExtendedState();
     setBrightness(255);
     while (true) {
         std::visit(overloaded{
@@ -362,6 +362,12 @@ void RCKid::avrQueryExtendedState() {
     if (! state.status.recording()) {
         processAvrControls(state.controls);
         processAvrExtendedInfo(state.einfo);
+        // if its the first time boot, clear the dinfo error
+        if (state.dinfo.errorCode() == comms::ErrorCode::InitialPowerOn) {
+            TraceLog(LOG_WARNING, "First boot detected");
+            msg::DInfoClear m;
+            i2c::transmit(AVR_I2C_ADDRESS, (uint8_t*)&m, sizeof(m), nullptr, 0);
+        }
     }
 }
 

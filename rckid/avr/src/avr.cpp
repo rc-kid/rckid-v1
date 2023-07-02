@@ -179,8 +179,11 @@ public:
         static_assert(BTN_HOME == 13); // PC3
         PORTC.PIN3CTRL |= PORT_ISC_BOTHEDGES_gc | PORT_PULLUPEN_bm | PORT_INVEN_bm;
         // check if we have a WDT reset and set the debug info accordingly
-        if (RSTCTRL.RSTFR | RSTCTRL_WDRF_bm)
+        if (RSTCTRL.RSTFR | RSTCTRL_PORF_bm)
+            state_.dinfo.setErrorCode(ErrorCode::InitialPowerOn);
+        else if (RSTCTRL.RSTFR | RSTCTRL_WDRF_bm)
             state_.dinfo.setErrorCode(ErrorCode::WatchdogTimeout);
+        RSTCTRL.RSTFR = 0xff;
         // verify that wakeup conditions have been met, i.e. that we have enough voltage, etc. and go to sleep immediately if that is not the case. Repeat until we can wakeup. NOTE going to sleep here cuts the power to RPi immediately which can be harmful, but if we are powering on with low battery, there is not much else we can do and the idea is that this ends long time before the RPi gets far enough in the booting process to be able to actually cause an SD card damage  
         if (!canWakeUp())
             sleep();
@@ -497,13 +500,13 @@ public:
     static Color errorCodeColor(ErrorCode e) {
         switch (e) {
             case ErrorCode::InitialPowerOn:
-                return Color::White();
+                return Color::White().withBrightness(10);
             case ErrorCode::WatchdogTimeout:
-                return Color::Cyan();
+                return Color::Cyan().withBrightness(10);
             case ErrorCode::RPiBootTimeout:
-                return Color::Blue();
+                return Color::Blue().withBrightness(10);
             case ErrorCode::RPiPowerDownTimeout:
-                return Color::Green();
+                return Color::Green().withBrightness(10);
             default:
                 return Color::Black();
         }

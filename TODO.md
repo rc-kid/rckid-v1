@@ -60,9 +60,6 @@
 - start sending to / reading from NRF
 - change recording visualization to something easier to draw. Maybe just less granularity
 
-- the GPU performance is well... bad. 
-- check if using VCDispmanX, or SDL can improve things. 
-- check that we are find detecting first boot with it
 
 - die if in bootloader mode 
 - read and reset the error in debug at the beginning of the app
@@ -99,6 +96,11 @@
 
 - add torchlight widget
 
+
+
+- the GPU performance is well... bad. 
+- check if using VCDispmanX, or SDL can improve things. 
+- check that we are find detecting first boot with it
 
 
 - handle errors in player configs
