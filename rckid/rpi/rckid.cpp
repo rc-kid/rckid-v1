@@ -297,6 +297,8 @@ void RCKid::hwLoop() {
 
 #if (defined ARCH_MOCK)
 void RCKid::checkMockButtons() {
+    // need to poll the events since we may have 0 framerate when updates to the screen are not necessary
+    PollInputEvents();
 #define CHECK_RPI_KEY(KEY, VALUE) if (IsKeyDown(KEY) != VALUE.current) buttonChange(VALUE.current, VALUE);
 #define CHECK_AVR_KEY(KEY, VALUE) if (IsKeyDown(KEY) != VALUE.current) buttonChange(VALUE.current, VALUE);
     CHECK_RPI_KEY(KeyboardKey::KEY_A, btnA_);
