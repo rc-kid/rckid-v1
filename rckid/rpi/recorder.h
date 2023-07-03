@@ -10,12 +10,12 @@ public:
 
 protected:
 
-    void onBlur() {
+    void onBlur() override {
         window()->rckid()->stopRecording();
         recording_ = false;
     }
 
-    void draw() {
+    void draw() override {
         int i = 0;
         int x = maxIndex_;
         while (i < 320) {
@@ -30,7 +30,7 @@ protected:
             DrawTextEx(window()->helpFont(), "Recording...", 0, 25, 16, 1.0, WHITE);
     }
 
-    void btnA(bool state) {
+    void btnA(bool state) override {
         if (state) {
             if (! recording_) {
                 recording_ = true;

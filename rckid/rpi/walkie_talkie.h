@@ -27,5 +27,32 @@
  */
 class WalkieTalkie : public Widget {
 public:
+    WalkieTalkie(Window * window): Widget{window} {}
+
+protected:
+
+    void draw() override {
+
+    }
+
+    void idle() override {
+
+    }
+
+    void onFocus() override {
+
+    }
+
+    void onBlur() override {
+    }
+
+    void btnA(bool state) override {
+
+    }
+
+private:
+
+    opus::RawEncoder enc_;
+    opus::RawDecoder dec_;
 
 }; // WalkieTalkie

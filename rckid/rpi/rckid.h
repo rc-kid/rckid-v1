@@ -169,6 +169,17 @@ public:
         }
     }
 
+    /** \name NRF Radio control 
+     
+        The radio control. 
+     */
+    //@{
+
+    //void initialize(char const * rxAddr, char const * txAddr, uint8_t ch = 86);
+
+
+    //@}
+
     comms::Mode mode() const { return status_.mode; }
     bool usb() const { return status_.usb; }
     bool charging() const { return status_.charging; }

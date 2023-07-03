@@ -237,6 +237,8 @@ public:
         if (adcRead()) {
             if (timeout_ > 0 && --timeout_ == 0)
                 timeoutError();
+            //if (state_.einfo.charging())
+                chargingEffect();
             if (flags_.irq && !state_.status.recording())
                 setIrq();
             flags_.irq = false;
@@ -1001,6 +1003,7 @@ public:
     //@{
 
     static inline NeopixelStrip<1> rgb_{RGB};
+    static inline ColorStrip<1> rgbTarget_;
 
     static void rgbOn() {
         gpio::output(RGB_EN);
@@ -1015,14 +1018,15 @@ public:
     static void rgbOff() {
         gpio::input(RGB_EN);
         gpio::input(RGB);
+        rgbTarget_.fill(Color::Black());
     }
 
     // TODO add timeout
     static void showColor(Color c) {
+        rgbTarget_.fill(c);
         rgb_.fill(c);
         rgb_.update(true);
     }
-
 
     /** Flashes the critical battery warning, 5 short red flashes. 
      */
@@ -1037,6 +1041,21 @@ public:
             delayMs(100);
         }
         rgbOff();
+    }
+
+    static void chargingEffect() {
+        /*
+        if (! rgb_.moveTowards(rgbTarget_)) {
+            if (rgbTarget_[0] == Color::Black())
+                rgbTarget_[0] = Color::Green();
+            else
+                rgbTarget_[0] = Color::Black();
+        } else {
+            rgb_.update(true);
+        }
+        */z
+        rgb_.fill(Color::Green().withBrightness(5));
+        rgb_.update(true);
     }
 
     //@}

@@ -25,6 +25,7 @@ protected:
     }
 
     void draw() override{
+        BeginBlendMode(BLEND_ADD_COLORS);
         // now draw the displayed information
         DrawTextEx(window()->helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
         DrawTextEx(window()->helpFont(), STR(window()->rckid()->vcc()).c_str(), 210, 20, 16, 1.0, WHITE);
@@ -34,6 +35,12 @@ protected:
         DrawTextEx(window()->helpFont(), STR(window()->rckid()->avrTemp()).c_str(), 210, 40, 16, 1.0, WHITE);
         DrawTextEx(window()->helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
         DrawTextEx(window()->helpFont(), STR(window()->rckid()->accelTemp()).c_str(), 290, 40, 16, 1.0, WHITE);
+
+        DrawTextEx(window()->helpFont(), "CHRG:", 160, 60, 16, 1, DARKGRAY);
+        DrawTextEx(window()->helpFont(), window()->rckid()->charging() ? "1" : "0", 210, 60, 16, 1.0, WHITE);
+        EndBlendMode();
+
+
 
         BeginBlendMode(BLEND_ALPHA);
         // draw rckid's outline
