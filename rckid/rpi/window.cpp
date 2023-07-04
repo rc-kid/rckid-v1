@@ -275,7 +275,9 @@ void Window::draw() {
             redraw = true;
             BeginTextureMode(widgetCanvas_);
             ClearBackground(ColorAlpha(BLACK, 0.0));
+            BeginBlendMode(BLEND_ADD_COLORS);
             widget_->draw();
+            EndBlendMode();
             EndTextureMode();
         } else {
             widget_->idle();

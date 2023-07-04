@@ -15,6 +15,8 @@
 
 #define DEFAULT_RUMBLER_STRENGTH 64
 
+#define CHARGING_COLOR Color::RGB(0, 64, 0)
+
 /** \section UI 
  */
 

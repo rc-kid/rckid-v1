@@ -341,11 +341,10 @@ namespace comms {
         DebugInfo dinfo;
         utils::DateTime time;
         utils::DateTime alarm;
+        uint32_t uptime = 0;
     }; // comms::ExtendedState
 
     static_assert(sizeof(ExtendedState) <= 32);
-
-
 
 } // namespace comms
 

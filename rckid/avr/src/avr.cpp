@@ -156,9 +156,9 @@ public:
         // set the ADC1 voltage to 2.5V
         VREF.CTRLC &= ~VREF_ADC1REFSEL_gm;
         VREF.CTRLC |= VREF_ADC1REFSEL_2V5_gc;
-        // initialize TCB1 for a 1ms interval so that we can have a millisecond timer for the user interface (can't use cpu::delay_ms as arduino's default implementation uses own timers)
+        // initialize TCB1 for the effects, which run at 100Hz. Also used for the delayMsBlocking function (can't use cpu::delay_ms as arduino's default implementation uses own timers)
         TCB1.CTRLB = TCB_CNTMODE_INT_gc;
-        TCB1.CCMP = 5000; // for 1kHz, 1ms interval
+        TCB1.CCMP = 50000; // for 100Hz, 10ms interval
         TCB1.INTCTRL = 0;
         TCB1.CTRLA = TCB_CLKSEL_CLKDIV2_gc | TCB_ENABLE_bm;
         // initialize TCA for the backlight and rumbler PWM without turning it on, remeber that for the waveform generator to work on the respective pins, they must be configured as output pins (!)
@@ -190,6 +190,8 @@ public:
         // wakeup checks have passed, switch to powerUp phase immediately (no waiting for the home button long press in the case of power on)
         setMode(Mode::WakeUp);
         setMode(Mode::PowerUp);
+        // reset the uptime clock
+        state_.uptime = 0;
     }
 
 
@@ -237,12 +239,12 @@ public:
         if (adcRead()) {
             if (timeout_ > 0 && --timeout_ == 0)
                 timeoutError();
-            //if (state_.einfo.charging())
-                chargingEffect();
             if (flags_.irq && !state_.status.recording())
                 setIrq();
             flags_.irq = false;
         }
+        // check the effects tick used for the RGB & rumbler
+        effectTick();
         // second tick timekeeping and wdt
         if (flags_.secondTick) {
             secondTick();
@@ -264,21 +266,11 @@ public:
         }
     }
 
-    /** Busy delays the given amount of milliseconds using the otherwise unused TCB1. The delay function also resets the watchdog ensuring that even large delays can be processes savely. 
-     */
-    static void delayMs(uint16_t value) {
-        while (value > 0) {
-            while (! TCB1.INTFLAGS & TCB_CAPT_bm);
-            TCB1.INTFLAGS |= TCB_CAPT_bm;
-            --value;
-            wdt::reset();
-        }
-    }
-
     /** A one-second tick from the RTC, used for timekeeping. 
      */
     static void secondTick() {
         state_.time.secondTick();
+        ++state_.uptime;
         wdt::reset();
     }
 
@@ -412,14 +404,14 @@ public:
                 if (state_.controls.select()) {
                     state_.einfo.setBrightness(128);
                     setMode(Mode::On);
-                    rumblerOk();
+                    rumblerOkBlocking();
                     return;
                 }
                 // if any other than no-error state, make display visible immediately
                 if (state_.dinfo.errorCode() != ErrorCode::NoError)
                     setBrightness(128);
                 // rumble to indicate true power on and set the timeout for RPI poweron 
-                rumblerOk();
+                rumblerOkBlocking();
                 // disable the timeout if Select button is pressed
                 setTimeout(RPI_POWERUP_TIMEOUT);
                 break;
@@ -469,14 +461,14 @@ public:
                 // double check that the button is indeed still pressed so that we do not accidentally poweroff
                 if (gpio::read(BTN_HOME) == false)
                     return;
-                rumblerFail();
+                rumblerFailBlocking();
                 setMode(Mode::PowerDown);
                 setIrq();
                 return;
         }
         rgbOn();
         showColor(errorCodeColor(state_.dinfo.errorCode()));
-        rumblerFail();
+        rumblerFailBlocking();
         setMode(Mode::Sleep);
     }
 
@@ -631,8 +623,7 @@ public:
             }
             case Rumbler::ID: {
                 auto & m = Rumbler::fromBuffer(i2cBuffer_);
-                setRumbler(m.intensity);
-                // TODO deal with the timeout
+                rumblerEffect(m.intensity, m.duration);
                 break;
             }
             case RGBOn::ID: {
@@ -864,7 +855,15 @@ public:
             // CHARGE 
             case ADC_MUXPOS_AIN10_gc:
                 value = (value >> 2) & 0xff;
-                flags_.irq = state_.einfo.setCharging(value < 32) | flags_.irq;
+                value = value < 32;
+                if (state_.einfo.setCharging(value)) {
+                    flags_.irq = true;
+                    // update the RGB output accordingly
+                    if (value) 
+                        rgbOn();
+                    else if (rgbIdle_)
+                        rgbOff();
+                }
                 break;
             // BTNS_2 
             case ADC_MUXPOS_AIN6_gc:
@@ -970,22 +969,30 @@ public:
      */
     //@{
 
-    static void rumblerOk() {
-        setRumbler(DEFAULT_RUMBLER_STRENGTH);
-        delayMs(750);
-        setRumbler(0);
+    static inline uint8_t rumblerStrength_ = 0;
+    static inline uint8_t rumblerEffectRepeat_ = 0;
+    static inline uint16_t rumblerEffectLength_ = 0;
+    static inline uint16_t rumblerEffectPause_ = 0;
+    static inline uint16_t rumblerEffectCountdown_ = 0;
+
+    static void rumblerEffect(uint8_t strength, uint16_t length) {
+        setRumbler(strength);
+        rumblerEffectLength_ = length;
+        rumblerEffectPause_ = 0;
+        rumblerEffectRepeat_ = 1;
+        rumblerEffectCountdown_ = length;
     }
 
-    static void rumblerFail() {
-        for (int i = 0; i < 3; ++i) {
-            setRumbler(DEFAULT_RUMBLER_STRENGTH); 
-            delayMs(100);
-            setRumbler(0);
-            delayMs(230);
-        }
+    static void rumblerEffect(uint8_t strength, uint16_t length, uint16_t pause, uint8_t repeat) {
+        setRumbler(strength);
+        rumblerEffectLength_ = length;
+        rumblerEffectPause_ = pause;
+        rumblerEffectRepeat_ = repeat;
+        rumblerEffectCountdown_ = length;
     }
 
     static void setRumbler(uint8_t value) {
+        rumblerStrength_ = value;
         if (value == 0) { // turn off
             TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_HCMP0EN_bm;
             gpio::input(VIB_EN);
@@ -996,36 +1003,63 @@ public:
         }
     }
 
+    static void rumblerOk() {
+        rumblerEffect(DEFAULT_RUMBLER_STRENGTH, 750);
+    }
+
+    static void rumblerFail() {
+        rumblerEffect(DEFAULT_RUMBLER_STRENGTH, 100, 230, 3);
+    }
+
+    static void rumblerOkBlocking() {
+        setRumbler(DEFAULT_RUMBLER_STRENGTH);
+        delayMsBlocking(750);
+        setRumbler(0);
+    }
+
+    static void rumblerFailBlocking() {
+        for (int i = 0; i < 3; ++i) {
+            setRumbler(DEFAULT_RUMBLER_STRENGTH); 
+            delayMsBlocking(100);
+            setRumbler(0);
+            delayMsBlocking(230);
+        }
+    }
+
     //@}
 
-    /** \name RGB Led and status information. 
+    /** \name RGB Led
+
+        The RGB led is used for various status information by default, but can also be directly controlled by the RPi for feedback / flashlight. Uses the TCB1 timer for a frame information running at 80Hz, which seems to be enough for most LED effects.  
+
      */
     //@{
 
     static inline NeopixelStrip<1> rgb_{RGB};
     static inline ColorStrip<1> rgbTarget_;
+    static inline bool rgbIdle_ = true;
 
     static void rgbOn() {
         gpio::output(RGB_EN);
         gpio::low(RGB_EN);
         gpio::output(RGB);
         gpio::low(RGB);
-        delayMs(10);
+        rgbIdle_ = true;
     }
 
     /** Turns the RGB led off. 
      */
     static void rgbOff() {
-        gpio::input(RGB_EN);
-        gpio::input(RGB);
-        rgbTarget_.fill(Color::Black());
+        showColor(Color::Black());
+        if (! state_.einfo.charging()) {
+            gpio::input(RGB_EN);
+            gpio::input(RGB);
+        }
     }
 
-    // TODO add timeout
     static void showColor(Color c) {
-        rgbTarget_.fill(c);
-        rgb_.fill(c);
-        rgb_.update(true);
+        rgbTarget_[0] = c;
+        rgbIdle_ = c.isBlack();
     }
 
     /** Flashes the critical battery warning, 5 short red flashes. 
@@ -1035,32 +1069,63 @@ public:
         for (int i = 0; i < 5; ++i) {
             rgb_.fill(Color::Red());
             rgb_.update();
-            delayMs(100);
+            delayMsBlocking(100);
             rgb_.fill(Color::Black());
             rgb_.update();
-            delayMs(100);
+            delayMsBlocking(100);
         }
         rgbOff();
     }
 
-    static void chargingEffect() {
-        /*
-        if (! rgb_.moveTowards(rgbTarget_)) {
-            if (rgbTarget_[0] == Color::Black())
-                rgbTarget_[0] = Color::Green();
-            else
-                rgbTarget_[0] = Color::Black();
-        } else {
-            rgb_.update(true);
-        }
-        */z
-        rgb_.fill(Color::Green().withBrightness(5));
-        rgb_.update(true);
-    }
-
     //@}
 
+    /** \name Feedback effects (Rumbler & RGB)
+     */
+    //@{
 
+
+    static void effectTick() {
+        if (! TCB1.INTFLAGS & TCB_CAPT_bm)
+            return;
+        TCB1.INTFLAGS |= TCB_CAPT_bm;
+        // turn the rumbler off if the countdown has been done
+        if (rumblerEffectCountdown_ > 0 && --rumblerEffectCountdown_ == 0) {
+            if (rumblerStrength_ != 0) {
+                setRumbler(0);
+                rumblerEffectCountdown_ = rumblerEffectPause_;
+            } else if (rumblerEffectRepeat_ > 1) {
+                setRumbler(rumblerStrength_);
+                rumblerEffectCountdown_ = rumblerEffectLength_;
+                --rumblerEffectRepeat_;
+            }
+        }
+        // update the RGB based on effect
+        if (rgb_.moveTowards(rgbTarget_, 1))
+            rgb_.update();
+        // if the rgb is idle, show the charging animation instead
+        if (rgbIdle_ && state_.einfo.charging()) {
+            if (rgb_[0] == Color::Black())
+                rgbTarget_[0] = CHARGING_COLOR;
+            else if (rgb_[0] == CHARGING_COLOR)
+                rgbTarget_[0] = Color::Black();
+        }
+    }
+
+    /** Busy delays the given amount of milliseconds using the effects timer. 
+     
+        The effect timer does not have a millisecond precision, and likewise this function will only wait the nearest (larger or equal) multiply of the timer frequency of 10ms. Note that the delayMs function is a busy wait and the main loop will not be useable while it runs and therefore should only be used in very rare circumstances when the main loop is not expected to run at all. Use the effects for all other things. 
+
+        WDT is being reset periodically while waiting. 
+     */
+    static void delayMsBlocking(uint16_t value) {
+        while (value > 0) {
+            while (! TCB1.INTFLAGS & TCB_CAPT_bm);
+            TCB1.INTFLAGS |= TCB_CAPT_bm;
+            value = value < 10 ? 0 : value - 10;
+            wdt::reset();
+        }
+    }
+    //@}
 
 
 }; // RCKid

@@ -1,6 +1,11 @@
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 
-- check if blend mode makes things more visible for widgets (BLEND_ADD_COLORS)
+- change rumblers in startup / powerdown to the non-blocking ones
+- make the charging light work even when RPi off / sleeping
+- add sin based interleaving (? - would it be enough)
+- maybe do just 1sec quick bursts (easier in sleep)
+- switch charging control to no resistors and use internal pullup? 
+
 - change recording visualization to something easier to draw. Maybe just less granularity
 
 > Things to buy / test. 
@@ -38,6 +43,7 @@
 ## RCKid RPi
 
 - DIFFERENT PIN MAPPING FOR NEW VERSION
+- check uptime is working & display in debug mode
 - audio player
 - game player menu implementation (load/save, etc.)
 - torchlight widget

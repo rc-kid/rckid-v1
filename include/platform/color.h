@@ -195,7 +195,6 @@ namespace platform {
                 channel -= step;
             return true;
         }
-        
     } __attribute__((packed));
 
     /** Array of N pixels that supports basic drawing and effects. 

@@ -576,12 +576,16 @@ void RCKid::initializeNrf() {
 void RCKid::buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {
     btn.reported = btn.current;
     btn.autorepeat = BTN_AUTOREPEAT_DURATION;
-    if (activeDevice_ != nullptr && btn.evdevId != KEY_RESERVED) {
-        if (btn.axisValue == 0)
-            libevdev_uinput_write_event(activeDevice_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
-        else
-            libevdev_uinput_write_event(activeDevice_, EV_ABS, btn.evdevId, btn.reported ? btn.axisValue : 0);
-        libevdev_uinput_write_event(activeDevice_, EV_SYN, SYN_REPORT, 0);
+    if (activeDevice_ != nullptr) {
+        if (btn.evdevId != KEY_RESERVED) {
+            if (btn.axisValue == 0)
+                libevdev_uinput_write_event(activeDevice_, EV_KEY, btn.evdevId, btn.reported ? 1 : 0);
+            else
+                libevdev_uinput_write_event(activeDevice_, EV_ABS, btn.evdevId, btn.reported ? btn.axisValue : 0);
+            libevdev_uinput_write_event(activeDevice_, EV_SYN, SYN_REPORT, 0);
+        }
+    } else if (btn.reported) {
+        sendAvrCommand(msg::Rumbler{96, 10});
     }
     // send the appropriate action to the main thread
     events_.send(ButtonEvent{btn.button, btn.reported});
