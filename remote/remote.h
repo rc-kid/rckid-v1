@@ -2,116 +2,160 @@
 
 #include "platform/platform.h"
 
+/** \page Remote Control Protocol
+
+    
+
+ */
 namespace remote {
 
-    /** Channel types supported by the remote protocol. 
-     */
-    enum class ChannelKind {
-        Motor = 1, 
-        CustomIO = 2, 
-        ToneEffect = 3, 
-        RGBStrip = 4, 
-        RGBColor = 5,
-    }; // remote::ChannelKind
+    namespace channel {
+        /** Channel types supported by the remote protocol. 
+         */
+        enum class Kind {
+            Motor = 1, 
+            CustomIO = 2, 
+            ToneEffect = 3, 
+            RGBStrip = 4, 
+            RGBColor = 5,
+        }; // channel::Kind
 
-    class MotorChannel {
-    public:
-        enum class Mode {
-            Coast, 
-            Brake, 
-            CW, 
-            CCW
-        }; // MotorChannel::Mode
+        class Motor {
+        public:
+            enum class Mode {
+                Coast, 
+                Brake, 
+                CW, 
+                CCW
+            }; // MotorChannel::Mode
 
-        struct Control {
-            Mode mode;
-            uint8_t speed;
-        };
+            struct Control {
+                Mode mode;
+                uint8_t speed;
 
-        struct Feedback {
-            bool overcurrent;
-            uint8_t v;
-            uint8_t i;
-        };
+                bool operator == (Control const & other) const {
+                    return mode == other.mode && speed == other.speed;
+                }
 
-        struct Config {
-            uint8_t overcurrent;
-        };
+                bool operator != (Control const & other) const {
+                    return mode != other.mode || speed != other.speed;
+                }
+            };
 
-        Control control;
-        Feedback feedback;
-        Config config;
-    }; // remote::MotorChannel
+            struct Feedback {
+                bool overcurrent;
+                uint8_t v;
+                uint8_t i;
+            };
 
-    class CustomIOChannel {
-    public:
-        enum class Mode {
-            DigitalOut = 0, 
-            DigitalIn = 1, 
-            AnalogOut = 2, 
-            AnalogIn = 3, 
-            PWM = 4, 
-            Servo = 5, 
-            Tone = 6, 
-        }; 
+            struct Config {
+                uint8_t overcurrent;
+            };
 
-        struct Control {
-            uint16_t value;
-        }; 
+            Control control;
+            Feedback feedback;
+            Config config;
 
-        struct Feedback {
-            uint8_t value;
-        };
+            bool isSpinning() const {
+                return control.mode == Mode::CW || control.mode == Mode::CCW;
+            }
+        }; // channel::Motor
 
-        struct Config {
-            Mode mode;
-            uint16_t servoStart;
-            uint16_t servoEnd;
-        };
+        class CustomIO {
+        public:
+            enum class Mode {
+                DigitalOut = 0, 
+                DigitalIn = 1, 
+                AnalogOut = 2, 
+                AnalogIn = 3, 
+                PWM = 4, 
+                Servo = 5, 
+                Tone = 6, 
+            }; 
 
-        Control control;
-        Feedback feedback;
-        Config config;
+            struct Control {
+                uint16_t value;
+            }; 
 
-    }; // remote::CustomIOChannel
+            struct Feedback {
+                uint8_t value;
+            };
 
-    class ToneEffectChannel {
-    public:
-        struct Control {
+            struct Config {
+                Mode mode;
+                uint16_t servoStart;
+                uint16_t servoEnd;
+            };
 
-        }; 
-        struct Feedback {
+            Control control;
+            Feedback feedback;
+            Config config;
 
-        };
-        struct Config {
+        }; // channel::CustomIO
 
-        };
-    }; // remote::ToneEffectChannel
+        class ToneEffect {
+        public:
+            struct Control {
 
-    class RGBStripChannel {
-    public:
-        struct Control {
+            }; 
+            struct Feedback {
 
-        }; 
-        struct Feedback {
+            };
+            struct Config {
 
-        };
-        struct Config {
+            };
+        }; // channel::ToneEffect
 
-        };
-    }; // remote::RGBStripChannel
+        class RGBStrip {
+        public:
+            struct Control {
 
-    class RGBColorChannel {
-    public:
-        struct Control {
+            }; 
+            struct Feedback {
 
-        }; 
-        struct Feedback {
+            };
+            struct Config {
 
-        };
-        struct Config {
+            };
+        }; // channel::RGBStrip
 
-        };
-    }; // remote::RGBColorChannel
+        class RGBColor {
+        public:
+            struct Control {
+
+            }; 
+            struct Feedback {
+
+            };
+            struct Config {
+
+            };
+        }; // channel::RGBColor
+
+
+    } // namespace remote::channel
+
+    /** 
+
+    */
+    namespace msg {
+
+        /** When incoming packet starts with 0, the packet is a command packet, in which the second byte is the command itself, followed by up to 30 bytes of data depending on the command itself. If the first byte is non-zero, it is interpreted as a channel control packet message. 
+         */
+        constexpr uint8_t CommandPacket = 0;
+
+        enum class Kind : uint8_t {
+            ResponseOK, 
+            ResponseFail,
+            SetChannelConfig,
+            GetChannelConfig,
+            SetChannelControl,
+            GetChannelControl,
+            GetChannelFeedback, 
+        }; // msg::Kind
+
+    } // namespace remote::msg
+
+
 
 } // namespace remote
