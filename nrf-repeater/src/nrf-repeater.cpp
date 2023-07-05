@@ -1,33 +1,114 @@
 #include "platform/platform.h"
 #include "platform/peripherals/nrf24l01.h"
 #include "platform/peripherals/ssd1306.h"
-#include "platform/peripherals/sx1278.h"
+
+using namespace platform;
 
 /** Chip Pinout
                -- VDD             GND --
-               -- (00) PA4   PA3 (16) -- SCK
+         DEBUG -- (00) PA4   PA3 (16) -- SCK
                -- (01) PA5   PA2 (15) -- MISO
                -- (02) PA6   PA1 (14) -- MOSI
                -- (03) PA7   PA0 (17) -- UPDI
-       LORA_CS -- (04) PB5   PC3 (13) -- NRF_CS
-      LORA_IRQ -- (05) PB4   PC2 (12) -- NRF_RXTX
+               -- (04) PB5   PC3 (13) -- NRF_CS
+               -- (05) PB4   PC2 (12) -- NRF_RXTX
        NRF_IRQ -- (06) PB3   PC1 (11) -- 
                -- (07) PB2   PC0 (10) -- 
            SDA -- (08) PB1   PB0 (09) -- SCL
  */
+class Repeater {
+public:
 
-constexpr gpio::Pin NRF_CS = 13;
-constexpr gpio::Pin NRF_RXTX = 12;
-constexpr gpio::Pin NRF_IRQ = 6;
+    static constexpr gpio::Pin NRF_CS = 13;
+    static constexpr gpio::Pin NRF_RXTX = 12;
+    static constexpr gpio::Pin NRF_IRQ = 6;
 
-constexpr gpio::Pin LORA_CS = 4;
-constexpr gpio::Pin LORA_IRQ = 5;
+    static constexpr gpio::Pin DEBUG_PIN = 0;
 
-constexpr gpio::Pin DEBUG_PIN = 10;
+    static inline NRF24L01 nrf_{NRF_CS, NRF_RXTX};
+    static inline SSD1306 oled_;
+    static inline uint16_t msgs_;
+    static inline uint16_t msgsNow_;
+    static inline uint16_t msgsLastSec_;
+    static inline uint8_t buffer_[32];
 
-NRF24L01 nrf{NRF_CS, NRF_RXTX};
-SX1278 lora{LORA_CS};
-SSD1306 oled;
+
+    static void initialize() {
+        // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
+        CCP = CCP_IOREG_gc;
+        CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
+        //cpu::delay_ms(100);
+        // initialize basic peripherals
+        gpio::initialize();
+        //spi::initialize();
+
+        i2c::initializeMaster();
+
+
+        // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
+        RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
+        //RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
+        RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc | RTC_PITEN_bm;
+
+
+
+        gpio::output(DEBUG_PIN);
+        gpio::high(DEBUG_PIN);
+
+        // initialize the OLED display
+        oled_.initialize128x32();
+        oled_.normalMode();
+        oled_.clear32();
+        oled_.write(0,0,"NRF REPEATER");
+        oled_.write(0,2, "Total:");
+        oled_.write(0,3, "Last:");
+        oled_.write(64, 2, "Errors:");
+
+/*
+        if (nrf_.initialize("AAAAA", "BBBBB")) 
+           oled_.write(64, 0, "NRF OK");
+        else 
+            oled_.write(64, 0, "NRF FAIL"); 
+        nrf_.standby();
+        nrf_.enableReceiver();
+    */
+    }
+
+    static void loop() {
+        /*
+        if (gpio::read(NRF_IRQ)) {
+            nrf_.clearDataReadyIrq();
+            while (nrf_.receive(buffer_, 32)) {
+                ++msgs_;
+                ++msgsNow_;
+            }
+        }
+        */
+        if (RTC.PITINTFLAGS == RTC_PI_bm) {
+            RTC_PITINTFLAGS |= RTC_PI_bm;
+            if (gpio::read(DEBUG_PIN))
+                gpio::low(DEBUG_PIN);
+            else 
+                gpio::high(DEBUG_PIN);
+            oled_.write(35,2, msgs_);
+        }
+
+    }
+
+
+}; // Repeater
+
+
+void setup() {
+    Repeater::initialize();
+}
+
+void loop() {
+    Repeater::loop();
+}
+
+#ifdef FOOBAR
+
 
 // 0X3C+SA0 - 0x3C or 0x3D
 #define I2C_ADDRESS 0x3C
@@ -159,3 +240,6 @@ void loop() {
         lora_errors = 0;
     }
 }
+
+
+#endif

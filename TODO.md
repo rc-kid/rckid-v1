@@ -1,5 +1,9 @@
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 
+- battery on: 1:05
+
+- spi does not work in AVR it seems
+
 - change rumblers in startup / powerdown to the non-blocking ones
 - make the charging light work even when RPi off / sleeping
 - add sin based interleaving (? - would it be enough)
@@ -30,7 +34,7 @@
 - add mounting holes and fixes for supports
 - make RGB face top (?)
 - verify joycon solder pad placement before ordering
-- check charging detection works, can perhaps ignore the pullup/downs? into middle and use just one pullup/down? 
+- check charging detection works, can perhaps ignore the pullup/downs? into middle and use just one pullup/down? Needs external pull-up. Only works when USB is present - need better USB checking
 
 ## RCKid AVR
 
