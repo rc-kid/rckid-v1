@@ -13,16 +13,16 @@ using namespace remote;
  
     A remote controller to be used mainly with lego. Supports DC motors at 5 or 9V, servo motors, PWM channels, digital and analog inputs, neopixels and tones. 
 
-               -- VDD             GND --
-     ML1 (WOA) -- (00) PA4   PA3 (16) -- SCK
-     MR1 (WOB) -- (01) PA5   PA2 (15) -- MISO
-           XL1 -- (02) PA6   PA1 (14) -- MOSI
-           XL2 -- (03) PA7   PA0 (17) -- UPDI
-           XR1 -- (04) PB5   PC3 (13) -- NRF_CS
-           XR2 -- (05) PB4   PC2 (12) -- NRF_RXTX
-       NRF_IRQ -- (06) PB3   PC1 (11) -- MR2(WOD)
-  NEOPIXEL_PIN -- (07) PB2   PC0 (10) -- ML2(WOC)
-           SDA -- (08) PB1   PB0 (09) -- SCL
+                     -- VDD             GND --
+           ML1 (WOA) -- (00) PA4   PA3 (16) -- SCK
+           MR1 (WOB) -- (01) PA5   PA2 (15) -- MISO
+              NRF_CS -- (02) PA6   PA1 (14) -- MOSI
+            NRF_RXTX -- (03) PA7   PA0 (17) -- UPDI
+    XR1 (WO2*, A0-8) -- (04) PB5   PC3 (13) -- XL1 (WO3*, A1-9)
+    XR2 (WO1*, A0-9) -- (05) PB4   PC2 (12) -- XL2 (lcmp0, A1-8) -- use interrupt for waveform
+             NRF_IRQ -- (06) PB3   PC1 (11) -- MR2(WOD)
+        NEOPIXEL_PIN -- (07) PB2   PC0 (10) -- ML2(WOC)
+                 SDA -- (08) PB1   PB0 (09) -- SCL
 
     Motor Channels
 
@@ -48,6 +48,17 @@ using namespace remote;
     - 2 8bit timers in TCA split mode
     - 1 16bit timer in TCB1 
 
+
+
+
+    - RTC is used for delays
+    - TCD is used for motors exclusively
+    - TCB0 is used for precise servo control timing
+    - TCA0 in split mode is used for the PWM channels (2 extra pins left) -- some positioned directly
+    - TCB1 for tone generation
+
+    - maye have the tone generator repurpose customIOs w/o tone stuff in the custom (i.e. mark it as out)
+
  */
 class Remote {
 public:
@@ -72,7 +83,6 @@ public:
         // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
         CCP = CCP_IOREG_gc;
         CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
-        cpu::initialize();
         gpio::initialize();
         // set configurable channel pins to input 
         gpio::input(XL1);
@@ -105,8 +115,9 @@ public:
         TCD0.CMPBCLR = 127;
         // initialize the RTC to fire every 5ms which gives us a tick that can be used to switch the servo controls, 4 servos max, multiplexed gives the freuency of updates for each at 20ms
         RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
+        while (RTC.STATUS & RTC_PERBUSY_bm);
         RTC.PER = 164;
-        while (RTC.STATUS != 0) {};
+        while (RTC.STATUS & RTC_CTRLABUSY_bm);
         RTC.CTRLA = RTC_RTCEN_bm;
         // initialize TCB0 which is used to time the servo control interval precisely
         TCB0.CTRLB = TCB_CNTMODE_INT_gc;

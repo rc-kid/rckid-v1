@@ -427,9 +427,10 @@ namespace msg {
 
     MESSAGE(RumblerOk);
     MESSAGE(RumblerFail);
+
     MESSAGE(Rumbler,
         uint8_t intensity;
-        uint16_t duration;
+        uint16_t duration; // duration in 10ms intervals
         Rumbler(uint8_t intensity, uint16_t duration): intensity{intensity}, duration{duration} {}
     );
 

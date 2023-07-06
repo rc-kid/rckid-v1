@@ -39,20 +39,20 @@ public:
         CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
         //cpu::delayMs(100);
         // initialize basic peripherals
-        cpu::initialize();
         gpio::initialize();
-        //spi::initialize();
+        spi::initialize();
         i2c::initializeMaster();
 
         // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
-        RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
+        //RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
         //RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
-        RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc | RTC_PITEN_bm;
+        //RTC.PITCTRLA = RTC_PERIOD_CYC32768_gc | RTC_PITEN_bm;
 
 
 
         gpio::output(DEBUG_PIN);
         gpio::high(DEBUG_PIN);
+        
         while (true) {
             cpu::delayMs(500);
             gpio::low(DEBUG_PIN);
@@ -90,7 +90,7 @@ public:
         }
         */
         if (RTC.PITINTFLAGS == RTC_PI_bm) {
-            RTC_PITINTFLAGS |= RTC_PI_bm;
+            RTC.PITINTFLAGS = RTC_PI_bm;
             if (gpio::read(DEBUG_PIN))
                 gpio::low(DEBUG_PIN);
             else 

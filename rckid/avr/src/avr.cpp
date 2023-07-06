@@ -103,7 +103,6 @@ public:
         // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
         CCP = CCP_IOREG_gc;
         CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
-        cpu::initialize();
         gpio::initialize();
         // ensure pins are floating if for whatever reason they would not be
         gpio::input(RPI_EN);
@@ -147,7 +146,9 @@ public:
         PORTC.PIN1CTRL |= PORT_ISC_INPUT_DISABLE_gc;
         PORTC.PIN1CTRL &= ~PORT_PULLUPEN_bm;
         // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
+        RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
         RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
+        while (RTC.PITSTATUS & RTC_CTRLBUSY_bm);
         RTC.PITCTRLA = RTC_PERIOD_CYC32768_gc | RTC_PITEN_bm;
         // configure the TCB0 timer to 8kHz and enable it SYNCCH0 
         EVSYS.SYNCCH0 = EVSYS_SYNCCH0_TCB0_gc;
@@ -1006,11 +1007,11 @@ public:
     }
 
     static void rumblerOk() {
-        rumblerEffect(DEFAULT_RUMBLER_STRENGTH, 750);
+        rumblerEffect(DEFAULT_RUMBLER_STRENGTH, 75);
     }
 
     static void rumblerFail() {
-        rumblerEffect(DEFAULT_RUMBLER_STRENGTH, 100, 230, 3);
+        rumblerEffect(DEFAULT_RUMBLER_STRENGTH, 10, 23, 3);
     }
 
     static void rumblerOkBlocking() {
@@ -1089,7 +1090,7 @@ public:
     static void effectTick() {
         if (! TCB1.INTFLAGS & TCB_CAPT_bm)
             return;
-        TCB1.INTFLAGS |= TCB_CAPT_bm;
+        TCB1.INTFLAGS = TCB_CAPT_bm;
         // turn the rumbler off if the countdown has been done
         if (rumblerEffectCountdown_ > 0 && --rumblerEffectCountdown_ == 0) {
             if (rumblerStrength_ != 0) {
@@ -1121,7 +1122,7 @@ public:
  */
 ISR(PORTC_PORT_vect) { 
     ENTER_IRQ;
-    VPORTC.INTFLAGS |= (1 << 3); // PC3
+    VPORTC.INTFLAGS = (1 << 3); // PC3
     RCKid::flags_.btnHome = true;
     LEAVE_IRQ;
 }

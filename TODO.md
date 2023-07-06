@@ -2,11 +2,7 @@
 
 - battery on: 1:05
 
-- delayMs and delayUs in platform replaced to use RTC. Check that it works
-- spi does not work in AVR it seems (nrf-repeater)
-- check if we can control servo with the RTC PIT
 
-- change rumblers in startup / powerdown to the non-blocking ones
 - make the charging light work even when RPi off / sleeping (check)
 - add sin based interleaving (? - would it be enough)
 - maybe do just 1sec quick bursts (easier in sleep)
