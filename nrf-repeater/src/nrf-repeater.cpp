@@ -37,13 +37,12 @@ public:
         // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
         CCP = CCP_IOREG_gc;
         CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
-        //cpu::delay_ms(100);
+        //cpu::delayMs(100);
         // initialize basic peripherals
+        cpu::initialize();
         gpio::initialize();
         //spi::initialize();
-
         i2c::initializeMaster();
-
 
         // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
         RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
@@ -54,6 +53,12 @@ public:
 
         gpio::output(DEBUG_PIN);
         gpio::high(DEBUG_PIN);
+        while (true) {
+            cpu::delayMs(500);
+            gpio::low(DEBUG_PIN);
+            cpu::delayMs(500);
+            gpio::high(DEBUG_PIN);
+        }
 
         // initialize the OLED display
         oled_.initialize128x32();
@@ -97,7 +102,6 @@ public:
 
 
 }; // Repeater
-
 
 void setup() {
     Repeater::initialize();
@@ -147,7 +151,7 @@ ISR(TCB0_INT_vect) {
 }
 
 void setup() {
-    cpu::delay_ms(100);
+    cpu::delayMs(100);
     gpio::initialize();
     spi::initialize();
     i2c::initializeMaster();

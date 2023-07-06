@@ -8,11 +8,11 @@ namespace platform {
 
     class cpu {
     public:
-        static void delay_us(unsigned value) {
+        static void delayUs(unsigned value) {
             std::this_thread::sleep_for(std::chrono::microseconds(value));        
         }
 
-        static void delay_ms(unsigned value) {
+        static void delayMs(unsigned value) {
             std::this_thread::sleep_for(std::chrono::milliseconds(value));        
         }
 

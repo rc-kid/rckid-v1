@@ -41,12 +41,52 @@ namespace platform {
 
     class cpu {
     public:
-        static void delay_us(unsigned value) {
-            delayMicroseconds(value);
+
+        /** On MEGATINY architectures, we take over the RTC clock that is internally used for the us and ms timers. This is done by setting the clock to 32768 ticks per second for greatest microsecond precision of 30.5. The PIT is left alone so that it can be used by the applications. 
+          */
+        static void initialize() {
+#if (defined ARCH_AVR_MEGATINY)
+            while (RTC.STATUS & 0xf) {};
+            RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
+#endif
         }
 
-        static void delay_ms(unsigned value) {
+        static void delayUs(unsigned value) {
+#if (defined ARCH_AVR_MEGATINY)
+            RTC.CTRLA = 0;
+            while (RTC.STATUS & 0xf) {};
+            RTC.CNT = 0;
+            value = (value % 30 ? 0 : 1) + (value / 30);
+            RTC.CMP = value;
+            RTC.INTFLAGS = 0;
+            RTC.CTRLA = RTC_RTCEN_bm; 
+            if (value > 0) {
+                while ( !RTC.INTFLAGS & RTC_CMP_bm) {};
+                RTC.INTFLAGS = 0;
+            }
+            RTC.CTRLA = 0;
+#else
+            delayMicroseconds(value);
+#endif
+        }
+
+        static void delayMs(unsigned value) {
+#if (defined ARCH_AVR_MEGATINY)
+            RTC.CTRLA = 0;
+            while (RTC.STATUS & 0xf) {};
+            RTC.CNT = 0;
+            RTC.CMP = value * 33;
+            RTC.INTFLAGS = 0;
+            RTC.CTRLA = RTC_RTCEN_bm; 
+            while (value > 0) {
+                while ( !RTC.INTFLAGS & RTC_CMP_bm) {};
+                RTC.INTFLAGS = 0;
+                --value;
+            }
+            RTC.CTRLA = 0;
+#else
             delay(value);
+#endif
         }
 
         static void sleep() {
@@ -330,7 +370,7 @@ namespace platform {
 #if (defined ARCH_AVR_MEGATINY)
             SPI0.CTRLA = SPI_MASTER_bm | SPI_ENABLE_bm | SPI_CLK2X_bm;
             SPI0.CTRLB = SPI_SSD_bm;
-    #if (defined ARCH_ATTINY_1616) | (defined ARCH_ATTINY_3216)
+    #if (defined ARCH_ATTINY_1616) || (defined ARCH_ATTINY_3216)
             gpio::output(16); // SCK
             gpio::input(15); // MISO
             gpio::output(14); // MOSI

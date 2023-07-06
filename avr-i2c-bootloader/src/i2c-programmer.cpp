@@ -301,11 +301,11 @@ public:
 
 void waitForDevice() {
     if (timeout != 0)
-        cpu::delay_ms(timeout);
+        cpu::delayMs(timeout);
     size_t i = 0;
     while (gpio::read(PIN_AVR_IRQ) == false) {
         if (++i > 1000) {
-            cpu::delay_ms(1);
+            cpu::delayMs(1);
             if (i > 2000)
                 ERROR("Waiting for command timed out");
         }
@@ -375,7 +375,7 @@ void enterBootloader() {
     // wait for th I2C comms to start
     size_t i = 0;
     while (true) {
-        cpu::delay_ms(250);
+        cpu::delayMs(250);
         if (i2c::transmit(I2C_ADDRESS, nullptr, 0, nullptr, 0))
             break;
         if (i++ == 0) 
@@ -500,7 +500,7 @@ void keepalive(ChipInfo & info) {
     INFO("Entering bootloader and stayiling indefinitely..." << std::endl);
     while (true) {
         setAddress(0x8000);
-        cpu::delay_ms(200);
+        cpu::delayMs(200);
     }
 }
 

@@ -140,7 +140,7 @@ namespace platform {
             // enable interrupts (ok to enable all of them)
             config_ &= ~(CONFIG_MASK_MAX_RT | CONFIG_MASK_RX_DR | CONFIG_MASK_TX_DS);
             writeRegister(CONFIG, config_);
-            cpu::delay_ms(3); // startup time by the datasheet is 1.5ms
+            cpu::delayMs(3); // startup time by the datasheet is 1.5ms
             // reset the chip state
             flushTx();
             flushRx();
@@ -355,12 +355,12 @@ namespace platform {
 
         void begin() {
             spi::begin(CS);
-            cpu::delay_us(2);
+            cpu::delayUs(2);
         }
 
         void end() {
             spi::end(CS);
-            cpu::delay_us(2);
+            cpu::delayUs(2);
         }
 
 

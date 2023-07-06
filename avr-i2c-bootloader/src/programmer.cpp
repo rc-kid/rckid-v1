@@ -72,7 +72,7 @@ bool Programmer::resetToApp() {
 ChipInfo Programmer::getChipInfo() {
     sendCommand(bootloader::CMD_INFO, /* wait */ false);
     // explicit delay of 10 ms to ensure that the AVR had plenty of time to finish the command
-    cpu::delay_ms(10);
+    cpu::delayMs(10);
     bootloader::State state;
     readBuffer((uint8_t *) & state, sizeof(bootloader::State));
     return ChipInfo{state};
@@ -85,7 +85,7 @@ void Programmer::enterBootloader() {
     // wait for th I2C comms to start
     size_t i = 0;
     while (true) {
-        cpu::delay_ms(250);
+        cpu::delayMs(250);
         if (i2c::transmit(address_, nullptr, 0, nullptr, 0))
             break;
         if (i++ == 0) 
@@ -188,11 +188,11 @@ void Programmer::verifyProgram(ChipInfo & info, uint8_t const * pgm, uint16_t st
 
 void Programmer::waitForDevice() {
     if (timeout_ != 0)
-        cpu::delay_ms(timeout_);
+        cpu::delayMs(timeout_);
     size_t i = 0;
     while (gpio::read(avrIrq_) == false) {
         if (++i > 1000) {
-            cpu::delay_ms(1);
+            cpu::delayMs(1);
             if (i > 2000)
                 ERROR("Waiting for command timed out");
         }

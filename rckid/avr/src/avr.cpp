@@ -103,6 +103,8 @@ public:
         // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
         CCP = CCP_IOREG_gc;
         CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
+        cpu::initialize();
+        gpio::initialize();
         // ensure pins are floating if for whatever reason they would not be
         gpio::input(RPI_EN);
         gpio::input(AVR_IRQ);
@@ -145,9 +147,8 @@ public:
         PORTC.PIN1CTRL |= PORT_ISC_INPUT_DISABLE_gc;
         PORTC.PIN1CTRL &= ~PORT_PULLUPEN_bm;
         // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
-        RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
         RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
-        RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc | RTC_PITEN_bm;
+        RTC.PITCTRLA = RTC_PERIOD_CYC32768_gc | RTC_PITEN_bm;
         // configure the TCB0 timer to 8kHz and enable it SYNCCH0 
         EVSYS.SYNCCH0 = EVSYS_SYNCCH0_TCB0_gc;
         TCB0.CTRLB = TCB_CNTMODE_INT_gc;
@@ -156,7 +157,7 @@ public:
         // set the ADC1 voltage to 2.5V
         VREF.CTRLC &= ~VREF_ADC1REFSEL_gm;
         VREF.CTRLC |= VREF_ADC1REFSEL_2V5_gc;
-        // initialize TCB1 for the effects, which run at 100Hz. Also used for the delayMsBlocking function (can't use cpu::delay_ms as arduino's default implementation uses own timers)
+        // initialize TCB1 for the effects, which run at 100Hz. 
         TCB1.CTRLB = TCB_CNTMODE_INT_gc;
         TCB1.CCMP = 50000; // for 100Hz, 10ms interval
         TCB1.INTCTRL = 0;
@@ -404,14 +405,14 @@ public:
                 if (state_.controls.select()) {
                     state_.einfo.setBrightness(128);
                     setMode(Mode::On);
-                    rumblerOkBlocking();
+                    rumblerOk();
                     return;
                 }
                 // if any other than no-error state, make display visible immediately
                 if (state_.dinfo.errorCode() != ErrorCode::NoError)
                     setBrightness(128);
                 // rumble to indicate true power on and set the timeout for RPI poweron 
-                rumblerOkBlocking();
+                rumblerOk();
                 // disable the timeout if Select button is pressed
                 setTimeout(RPI_POWERUP_TIMEOUT);
                 break;
@@ -461,13 +462,14 @@ public:
                 // double check that the button is indeed still pressed so that we do not accidentally poweroff
                 if (gpio::read(BTN_HOME) == false)
                     return;
-                rumblerFailBlocking();
+                rumblerFail();
                 setMode(Mode::PowerDown);
                 setIrq();
                 return;
         }
         rgbOn();
         showColor(errorCodeColor(state_.dinfo.errorCode()));
+        // we need blocking failure here since we go to sleep immediately 
         rumblerFailBlocking();
         setMode(Mode::Sleep);
     }
@@ -1013,16 +1015,16 @@ public:
 
     static void rumblerOkBlocking() {
         setRumbler(DEFAULT_RUMBLER_STRENGTH);
-        delayMsBlocking(750);
+        cpu::delayMs(750);
         setRumbler(0);
     }
 
     static void rumblerFailBlocking() {
         for (int i = 0; i < 3; ++i) {
             setRumbler(DEFAULT_RUMBLER_STRENGTH); 
-            delayMsBlocking(100);
+            cpu::delayMs(100);
             setRumbler(0);
-            delayMsBlocking(230);
+            cpu::delayMs(230);
         }
     }
 
@@ -1069,10 +1071,10 @@ public:
         for (int i = 0; i < 5; ++i) {
             rgb_.fill(Color::Red());
             rgb_.update();
-            delayMsBlocking(100);
+            cpu::delayMs(100);
             rgb_.fill(Color::Black());
             rgb_.update();
-            delayMsBlocking(100);
+            cpu::delayMs(100);
         }
         rgbOff();
     }
@@ -1108,21 +1110,6 @@ public:
                 rgbTarget_[0] = CHARGING_COLOR;
             else if (rgb_[0] == CHARGING_COLOR)
                 rgbTarget_[0] = Color::Black();
-        }
-    }
-
-    /** Busy delays the given amount of milliseconds using the effects timer. 
-     
-        The effect timer does not have a millisecond precision, and likewise this function will only wait the nearest (larger or equal) multiply of the timer frequency of 10ms. Note that the delayMs function is a busy wait and the main loop will not be useable while it runs and therefore should only be used in very rare circumstances when the main loop is not expected to run at all. Use the effects for all other things. 
-
-        WDT is being reset periodically while waiting. 
-     */
-    static void delayMsBlocking(uint16_t value) {
-        while (value > 0) {
-            while (! TCB1.INTFLAGS & TCB_CAPT_bm);
-            TCB1.INTFLAGS |= TCB_CAPT_bm;
-            value = value < 10 ? 0 : value - 10;
-            wdt::reset();
         }
     }
     //@}

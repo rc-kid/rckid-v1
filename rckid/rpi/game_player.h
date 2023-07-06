@@ -93,7 +93,7 @@ protected:
         if (! emulator_.done()) {
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
-            platform::cpu::delay_ms(50);
+            platform::cpu::delayMs(50);
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
         }
@@ -105,7 +105,7 @@ protected:
         if (! emulator_.done()) {
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
-            platform::cpu::delay_ms(50);
+            platform::cpu::delayMs(50);
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
             window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
         }

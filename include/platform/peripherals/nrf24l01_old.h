@@ -239,7 +239,7 @@ namespace platform {
             gpio::low(RXTX);
             config_ |= CONFIG_PWR_UP | CONFIG_PRIM_RX;
             writeRegister(CONFIG, config_);
-            cpu::delay_ms(3); // startup time by the datasheet is 1.5ms
+            cpu::delayMs(3); // startup time by the datasheet is 1.5ms
         }
 
         /** Starts the receiver. 
@@ -298,7 +298,7 @@ namespace platform {
             end();
             // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
             gpio::high(RXTX);
-            cpu::delay_us(15); // some margin to 10us required by the datasheet
+            cpu::delayUs(15); // some margin to 10us required by the datasheet
             gpio::low(RXTX);
         }
 
@@ -318,7 +318,7 @@ namespace platform {
             end();
             // send RXTX pulse to initiate the transmission, datasheet requires 10 us delay
             gpio::high(RXTX);
-            cpu::delay_us(15); // some margin
+            cpu::delayUs(15); // some margin
             gpio::low(RXTX);
         }
 
@@ -371,12 +371,12 @@ namespace platform {
 
         void begin() {
             spi::begin(CS);
-            cpu::delay_us(2);
+            cpu::delayUs(2);
         }
 
         void end() {
             spi::end(CS);
-            cpu::delay_us(2);
+            cpu::delayUs(2);
         }
 
         uint8_t readRegister(uint8_t reg) {

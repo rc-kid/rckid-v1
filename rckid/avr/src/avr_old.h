@@ -127,7 +127,7 @@ public:
         RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
         RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
         RTC.PITCTRLA = RTC_PERIOD_CYC1024_gc | RTC_PITEN_bm;
-        // initialize TCB1 for a 1ms interval so that we can have a millisecond timer for the user interface (can't use cpu::delay_ms as arduino's default implementation uses own timers)
+        // initialize TCB1 for a 1ms interval so that we can have a millisecond timer for the user interface (can't use cpu::delayMs as arduino's default implementation uses own timers)
         TCB1.CTRLB = TCB_CNTMODE_INT_gc;
         TCB1.CCMP = 5000; // for 1kHz, 1ms interval
         TCB1.INTCTRL = 0;
@@ -2101,16 +2101,16 @@ void setup() {
     if (FUSE.OSCCFG == 1) {
         led::setColor(Color::Red());
         led::tick();
-        cpu::delay_ms(200);
+        cpu::delayMs(200);
     }
     */
     for (int i = 0; i < 3; ++i) {
         led::setColor(Color::White().withBrightness(32));
         led::tick();
-        cpu::delay_ms(100);
+        cpu::delayMs(100);
         led::setColor(Color::Black());
         led::tick();
-        cpu::delay_ms(100);
+        cpu::delayMs(100);
     }
     //led::off();
     //gpio::input(BACKLIGHT);

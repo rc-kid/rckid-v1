@@ -11,11 +11,11 @@ namespace platform {
 
     class cpu {
     public:
-        static void delay_us(unsigned value) {
+        static void delayUs(unsigned value) {
             sleep_us(value);  
         }
 
-        static void delay_ms(unsigned value) {
+        static void delayMs(unsigned value) {
             sleep_ms(value);  
         }
 

@@ -96,13 +96,13 @@ RCKid::RCKid(Window * window):
     t.detach();
     std::thread tickTimer{[this](){
         while (true) {
-            cpu::delay_ms(10);
+            cpu::delayMs(10);
             this->hwEvents_.send(Tick{});
         }
     }};
     std::thread secondTimer{[this](){
         while (true) {
-            cpu::delay_ms(1000);
+            cpu::delayMs(1000);
             this->hwEvents_.send(SecondTick{});
         }
     }};
@@ -541,7 +541,7 @@ void RCKid::initializeAvr() {
                 break;
             TraceLog(LOG_WARNING, "AVR in bootloader mode");
             pgm.resetToApp();
-            cpu::delay_ms(500);
+            cpu::delayMs(500);
         }
     } catch (std::exception const & e) {
         TraceLog(LOG_ERROR, STR("Cannot talk to AVR: " << e.what()));

@@ -229,12 +229,12 @@ namespace platform {
 
         void begin() {
             spi::begin(CS);
-            cpu::delay_us(2);
+            cpu::delayUs(2);
         }
 
         void end() {
             spi::end(CS);
-            cpu::delay_us(2);
+            cpu::delayUs(2);
         }
 
         void writeRegister(uint8_t reg, uint8_t value) {

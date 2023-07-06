@@ -19,11 +19,11 @@ namespace platform {
 
     class cpu {
     public:
-        static void delay_us(unsigned value) {
+        static void delayUs(unsigned value) {
             std::this_thread::sleep_for(std::chrono::microseconds(value));        
         }
 
-        static void delay_ms(unsigned value) {
+        static void delayMs(unsigned value) {
             std::this_thread::sleep_for(std::chrono::milliseconds(value));        
         }
 
@@ -219,7 +219,7 @@ namespace platform {
             spi.tx_buf = (unsigned long) tx;
             spi.rx_buf = (unsigned long) rx;
             spi.len = numBytes;
-            //spi.delay_usecs = 0;
+            //spi.delayUsecs = 0;
             spi.speed_hz = baudrate_;
             spi.bits_per_word = 8;
             ioctl(handle_, SPI_IOC_MESSAGE(1), &spi);

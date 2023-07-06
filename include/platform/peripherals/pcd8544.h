@@ -24,7 +24,7 @@ namespace platform {
         
         void reset() {
             gpio::low(RST);
-            cpu::delay_ms(10);
+            cpu::delayMs(10);
             gpio::high(RST);
         }
         

@@ -72,6 +72,8 @@ public:
         // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
         CCP = CCP_IOREG_gc;
         CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
+        cpu::initialize();
+        gpio::initialize();
         // set configurable channel pins to input 
         gpio::input(XL1);
         gpio::input(XL2);
@@ -785,7 +787,7 @@ void setup() {
     leds.fill(Color::White().withBrightness(32));
     leds.update();
     // wait for voltages to stabilize
-    cpu::delay_ms(200);
+    cpu::delayMs(200);
     // initialize internal state
     outputs_[0].pin = XL1_PIN;
     outputs_[1].pin = XL2_PIN;
