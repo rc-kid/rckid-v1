@@ -1,6 +1,13 @@
+#define DEBUG_OLED
+
+
 #include "platform/platform.h"
 #include "platform/peripherals/nrf24l01.h"
 #include "platform/peripherals/neopixel.h"
+#ifdef DEBUG_OLED
+#include "platform/peripherals/ssd1306.h"
+#endif
+
 
 //#include "remote.h"
 
@@ -8,6 +15,7 @@
 
 using namespace platform;
 using namespace remote;
+
 
 /** LEGO Remote
  
@@ -18,8 +26,8 @@ using namespace remote;
            MR1 (WOB) -- (01) PA5   PA2 (15) -- MISO
               NRF_CS -- (02) PA6   PA1 (14) -- MOSI
             NRF_RXTX -- (03) PA7   PA0 (17) -- UPDI
-    XR1 (WO2*, A0-8) -- (04) PB5   PC3 (13) -- XL1 (WO3*, A1-9)
-    XR2 (WO1*, A0-9) -- (05) PB4   PC2 (12) -- XL2 (lcmp0, A1-8) -- use interrupt for waveform
+    XL1 (WO2*, A0-8) -- (04) PB5   PC3 (13) -- XR1 (WO3*, A1-9)
+    XL2 (WO1*, A0-9) -- (05) PB4   PC2 (12) -- XR2 (lcmp0, A1-8) -- use interrupt for waveform
              NRF_IRQ -- (06) PB3   PC1 (11) -- MR2(WOD)
         NEOPIXEL_PIN -- (07) PB2   PC0 (10) -- ML2(WOC)
                  SDA -- (08) PB1   PB0 (09) -- SCL
@@ -63,6 +71,10 @@ using namespace remote;
 class Remote {
 public:
 
+#ifdef DEBUG_OLED
+    static inline SSD1306 oled_;
+#endif    
+
     static constexpr gpio::Pin NEOPIXEL_PIN = 7; 
 
     static constexpr gpio::Pin ML1_PIN = 0; // TCD, WOA
@@ -72,7 +84,7 @@ public:
 
     static constexpr gpio::Pin XL1_PIN = 4; // PB5, ADC0-8, TCA-WO2* (low channel 2)
     static constexpr gpio::Pin XL2_PIN = 5; // PB4, ADC0-9, TCA-WO1* (low channel 1)
-    static constexpr gpio::Pin XR1_PIN = 13; // PC3, ADC1-9, TCA-W03 (high channel 0)
+    static constexpr gpio::Pin XR1_PIN = 13; // PC3, ADC1-9, TCA-W03* (high channel 0)
     static constexpr gpio::Pin XR2_PIN = 12; // PC2, ADC1-8, uses TCA-W0 (low channel 0) cmp and ovf interrupt to drive the pin
 
     static constexpr gpio::Pin NRF_CS_PIN = 13;
@@ -84,6 +96,15 @@ public:
         CCP = CCP_IOREG_gc;
         CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
         gpio::initialize();
+        i2c::initializeMaster();
+        spi::initialize();
+#ifdef DEBUG_OLED
+        oled_.initialize128x32();
+        oled_.normalMode();
+        oled_.clear32();
+        oled_.write(0,0,"START");
+#endif
+
         // set configurable channel pins to input 
         gpio::input(XL1_PIN);
         gpio::input(XL2_PIN);
@@ -104,17 +125,26 @@ public:
         initializeAnalogInputs();
         initializePWMOutputs();
         
+        oled_.write(0,1,"INIT DONE");
 
 
 
         // initialize the NRF radio
         initializeRadio();
+        oled_.write(0,2, "RADIO DONE");
 
 
         // clear all RGB colors, set the control LED to green & update
         rgbColors_.clear();
         rgbColors_[0] = Color::Green();
         rgbColors_.update();
+
+        //l1_.config.mode = channel::CustomIO::Mode::PWM;
+        setPWMXL1(32);
+        setPWMXL2(64);
+        setPWMXR1(128);
+        setPWMXR2(192);
+        tone(ML1_PIN, 440);
     }
 
     static void loop() {
@@ -582,13 +612,13 @@ public:
         Low 0 :  XR2, cmp and ovf interrupts are used to start/stop the pulse on the pin 
         Low 1 :  XL2, TCA-WO1 in alternate location 
         Low 2 :  XL1, TCA-WO2 in alternate location
-        High 0 : XR1, TCA-WO3 
+        High 0 : XR1, TCA-WO3 in alternate location
      */
     //@{
 
     static void initializePWMOutputs() {
         // enable alternate locations of TCA-WO1 and TCA-WO2
-        PORTMUX.CTRLC = PORTMUX_TCA01_bm | PORTMUX_TCA02_bm;
+        PORTMUX.CTRLC = PORTMUX_TCA01_bm | PORTMUX_TCA02_bm | PORTMUX_TCA03_bm;
 
         // initialize TCA for PWM outputs on the configurable channels. We use split mode
         TCA0.SPLIT.CTRLD = TCA_SPLIT_SPLITM_bm; // enable split mode
@@ -598,22 +628,26 @@ public:
     }
 
     static void setPWMXL1(uint8_t value) {
-        TCA0.SPLIT.LCMP2 = 255 - value;
+        gpio::output(XL1_PIN);
+        TCA0.SPLIT.LCMP2 = value;
         TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP2EN_bm;
     }
 
     static void setPWMXL2(uint8_t value) {
-        TCA0.SPLIT.LCMP1 = 255 - value;
+        gpio::output(XL2_PIN);
+        TCA0.SPLIT.LCMP1 = value;
         TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP1EN_bm;
     }
 
     static void setPWMXR1(uint8_t value) {
-        TCA0.SPLIT.HCMP0 = 255 - value;
+        gpio::output(XR1_PIN);
+        TCA0.SPLIT.HCMP0 = value;
         TCA0.SPLIT.CTRLB |= TCA_SPLIT_HCMP0EN_bm;
     }
 
     static void setPWMXR2(uint8_t value) {
-        TCA0.SPLIT.LCMP0 = 255 - value;
+        gpio::output(XR2_PIN);
+        TCA0.SPLIT.LCMP0 = value;
         TCA0.SPLIT.INTCTRL = TCA_SPLIT_LCMP0_bm | TCA_SPLIT_LUNF_bm;
     }
 
@@ -646,12 +680,12 @@ ISR(TCB1_INT_vect) {
 
 ISR(TCA0_LUNF_vect) {
     TCA0.SPLIT.INTFLAGS = TCA_SPLIT_LUNF_bm;
-    gpio::high(Remote::XR2_PIN);
+    gpio::low(Remote::XR2_PIN);
 }
 
 ISR(TCA0_LCMP0_vect) {
     TCA0.SPLIT.INTFLAGS = TCA_SPLIT_LCMP0_bm;
-    gpio::low(Remote::XR2_PIN);
+    gpio::high(Remote::XR2_PIN);
 }
 
 void setup() {
@@ -661,9 +695,6 @@ void setup() {
 void loop() {
     Remote::loop();
 }
-
-
-
 
 #ifdef FOOBAR
 
