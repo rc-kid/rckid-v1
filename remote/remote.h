@@ -79,10 +79,12 @@ namespace remote {
                 uint8_t value;
             };
 
+            /** The custom IO channel is configured by its mode of operation, and the min and max pulse width for servo control, specified in microseconds. By default, this corresponds to a 270 degree standard servo with neutral position at 1500uS. You may wish to experiment with other values for particular servos.  
+            */
             struct Config {
                 Mode mode;
-                uint16_t servoStart;
-                uint16_t servoEnd;
+                uint16_t servoStart = 500; // 0.5mssss
+                uint16_t servoEnd = 2500; // 2.5ms
             };
 
             Control control;

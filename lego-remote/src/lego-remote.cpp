@@ -125,33 +125,38 @@ public:
         initializeAnalogInputs();
         initializePWMOutputs();
         
+#ifdef DEBUG_OLED
         oled_.write(0,1,"INIT DONE");
-
+#endif
 
 
         // initialize the NRF radio
         initializeRadio();
-        oled_.write(0,2, "RADIO DONE");
 
+#ifdef DEBUG_OLED
+        oled_.write(0,2, "RADIO DONE");
+#endif
 
         // clear all RGB colors, set the control LED to green & update
         rgbColors_.clear();
         rgbColors_[0] = Color::Green();
         rgbColors_.update();
 
-        //l1_.config.mode = channel::CustomIO::Mode::PWM;
-        setPWMXL1(32);
-        setPWMXL2(64);
-        setPWMXR1(128);
-        setPWMXR2(192);
-        tone(ML1_PIN, 440);
+        l1_.config.mode = channel::CustomIO::Mode::Servo;
+        l1_.control.value = 128;
+        gpio::output(XL1_PIN);
+        //setPWMXL1(32);
+        //setPWMXL2(64);
+        //setPWMXR1(128);
+        //setPWMXR2(192);
+        //tone(ML1_PIN, 440);
     }
 
     static void loop() {
         checkAnalogIn();
         servoTick();
-        if (gpio::read(NRF_IRQ_PIN))
-            radioIrq();
+        //if (gpio::read(NRF_IRQ_PIN))
+        //    radioIrq();
     }
 
 
@@ -465,7 +470,9 @@ public:
         activeServoPin_= pin;
         // calculate the pulse duration from the config
         TCB1.CTRLA &= ~TCB_ENABLE_bm;
-        TCB1.CCMP = (ch.config.servoEnd - ch.config.servoStart) * ch.control.value / 255 + ch.config.servoStart;
+        uint32_t duration = (ch.config.servoEnd - ch.config.servoStart);
+        duration = duration * 10 * ch.control.value / 255 + ch.config.servoStart * 10;
+        TCB1.CCMP = duration & 0xffff;
         TCB1.CNT = 0;
         gpio::high(activeServoPin_);
         TCB1.CTRLA |= TCB_ENABLE_bm; 
