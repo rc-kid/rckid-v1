@@ -71,12 +71,13 @@
 
 ## LEGO Remote AVR
 
-- maybe use only 0..63 values for the motor speed with higher frequency, then whole motor fits in single byte 
-- write servo code & channels
-- verify motors & servos
-- actually write the code
-- allow to set servo min & max pulse and then interpolate between them for more precission control
+- test the buzzer
+- check motor control
+- check analog input
+- make channel i/o settings when the channel mode changes and not when control value changes
 - PWM motor control frequency - 20kHz should be enough
+- add RTC PIT for effects
+- add INA219
 
 > Non-critical things that would be nice to have, but don't jeopardize the xmas delivery. 
 

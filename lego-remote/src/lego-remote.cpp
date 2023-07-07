@@ -87,8 +87,8 @@ public:
     static constexpr gpio::Pin XR1_PIN = 13; // PC3, ADC1-9, TCA-W03* (high channel 0)
     static constexpr gpio::Pin XR2_PIN = 12; // PC2, ADC1-8, uses TCA-W0 (low channel 0) cmp and ovf interrupt to drive the pin
 
-    static constexpr gpio::Pin NRF_CS_PIN = 13;
-    static constexpr gpio::Pin NRF_RXTX_PIN = 12;
+    static constexpr gpio::Pin NRF_CS_PIN = 2;
+    static constexpr gpio::Pin NRF_RXTX_PIN = 3;
     static constexpr gpio::Pin NRF_IRQ_PIN = 6;
 
     static void initialize() {
@@ -133,9 +133,6 @@ public:
         // initialize the NRF radio
         initializeRadio();
 
-#ifdef DEBUG_OLED
-        oled_.write(0,2, "RADIO DONE");
-#endif
 
         // clear all RGB colors, set the control LED to green & update
         rgbColors_.clear();
@@ -155,8 +152,8 @@ public:
     static void loop() {
         checkAnalogIn();
         servoTick();
-        //if (gpio::read(NRF_IRQ_PIN))
-        //    radioIrq();
+        if (gpio::read(NRF_IRQ_PIN) == 0)
+            radioIrq();
     }
 
 
@@ -171,7 +168,13 @@ public:
     /** Initializes the radio and enters the receiver mode.
      */
     static void initializeRadio() {
-        radio_.initialize("AAAAA", "BBBBB");
+        if (radio_.initialize("AAAAA", "BBBBB")) {
+#if (defined DEBUG_OLED)
+            oled_.write(0,2, "RADIO OK");
+        } else {
+            oled_.write(0,2, "RADIO FAIL");
+#endif
+        }
         radio_.standby();
         radio_.enableReceiver();
     }
