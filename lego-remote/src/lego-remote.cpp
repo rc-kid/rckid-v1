@@ -53,9 +53,9 @@ using namespace remote;
 
     - RTC is used for delays
     - TCD is used for motors exclusively
-    - TCB0 is used for precise servo control timing
+    - TCB1 is used for precise servo control timing
     - TCA0 in split mode is used for the PWM channels (2 extra pins left) -- some positioned directly
-    - TCB1 for tone generation
+    - TCB0 for tone generation (so that we can use arduino's tone function by default)
 
     - maye have the tone generator repurpose customIOs w/o tone stuff in the custom (i.e. mark it as out)
 
@@ -65,19 +65,19 @@ public:
 
     static constexpr gpio::Pin NEOPIXEL_PIN = 7; 
 
-    static constexpr gpio::Pin ML1 = 0; // TCD, WOA
-    static constexpr gpio::Pin MR1 = 1; // TCD, WOB
-    static constexpr gpio::Pin ML2 = 10; // TCD, WOC
-    static constexpr gpio::Pin MR2 = 11; // TCD, WOD
+    static constexpr gpio::Pin ML1_PIN = 0; // TCD, WOA
+    static constexpr gpio::Pin MR1_PIN = 1; // TCD, WOB
+    static constexpr gpio::Pin ML2_PIN = 10; // TCD, WOC
+    static constexpr gpio::Pin MR2_PIN = 11; // TCD, WOD
 
-    static constexpr gpio::Pin XL1 = 4; // PB5, ADC0-8, TCA-WO2* (low channel 2)
-    static constexpr gpio::Pin XL2 = 5; // PB4, ADC0-9, TCA-WO1* (low channel 1)
-    static constexpr gpio::Pin XR1 = 13; // PC3, ADC1-9, TCA-W03 (high channel 0)
-    static constexpr gpio::Pin XR2 = 12; // PC2, ADC1-8, uses TCA-W0 (low channel 0) cmp and ovf interrupt to drive the pin
+    static constexpr gpio::Pin XL1_PIN = 4; // PB5, ADC0-8, TCA-WO2* (low channel 2)
+    static constexpr gpio::Pin XL2_PIN = 5; // PB4, ADC0-9, TCA-WO1* (low channel 1)
+    static constexpr gpio::Pin XR1_PIN = 13; // PC3, ADC1-9, TCA-W03 (high channel 0)
+    static constexpr gpio::Pin XR2_PIN = 12; // PC2, ADC1-8, uses TCA-W0 (low channel 0) cmp and ovf interrupt to drive the pin
 
-    static constexpr gpio::Pin NRF_CS = 13;
-    static constexpr gpio::Pin NRF_RXTX = 12;
-    static constexpr gpio::Pin NRF_IRQ = 6;
+    static constexpr gpio::Pin NRF_CS_PIN = 13;
+    static constexpr gpio::Pin NRF_RXTX_PIN = 12;
+    static constexpr gpio::Pin NRF_IRQ_PIN = 6;
 
     static void initialize() {
         // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
@@ -85,51 +85,25 @@ public:
         CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
         gpio::initialize();
         // set configurable channel pins to input 
-        gpio::input(XL1);
-        gpio::input(XL2);
-        gpio::input(XR1);
-        gpio::input(XR2);
-        // initialize TCD used to control the two motors, disable prescalers, set one ramp waveform and set WOC to WOA and WOD to WOB. 
-        TCD0.CTRLA = TCD_CLKSEL_20MHZ_gc | TCD_CNTPRES_DIV1_gc | TCD_SYNCPRES_DIV1_gc;
-        TCD0.CTRLB = TCD_WGMODE_ONERAMP_gc;
-        TCD0.CTRLC = TCD_CMPCSEL_PWMA_gc | TCD_CMPDSEL_PWMB_gc;
-        // disconnect the pins from the timer
-        CPU_CCP = CCP_IOREG_gc;
-        TCD0.FAULTCTRL = 0;
-        // enable the timer
-        while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
-        TCD0.CTRLA |= TCD_ENABLE_bm;
+        gpio::input(XL1_PIN);
+        gpio::input(XL2_PIN);
+        gpio::input(XR1_PIN);
+        gpio::input(XR2_PIN);
         // ensure motor pins output low so that any connected motors are floating
-        gpio::output(ML1);
-        gpio::low(ML1);
-        gpio::output(ML2);
-        gpio::low(ML2);
-        gpio::output(MR1);
-        gpio::low(MR1);
-        gpio::output(MR2);
-        gpio::low(MR2);
-        // set the reset counter to 255 for both A and B. This gives us 78.4kHz PWM frequency. It is important for both values to be the same. By setting max to 255 we can simply set 
-        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPACLR = 127;
-        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPBCLR = 127;
-        // initialize the RTC to fire every 5ms which gives us a tick that can be used to switch the servo controls, 4 servos max, multiplexed gives the freuency of updates for each at 20ms
-        RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
-        while (RTC.STATUS & RTC_PERBUSY_bm);
-        RTC.PER = 164;
-        while (RTC.STATUS & RTC_CTRLABUSY_bm);
-        RTC.CTRLA = RTC_RTCEN_bm;
-        // initialize TCB0 which is used to time the servo control interval precisely
-        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
-        TCB0.INTCTRL = TCB_CAPT_bm;
-        TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc; // | TCB_ENABLE_bm;
-        // initialize TCA for PWM outputs on the configurable channels. We use split mode
-        TCA0.SPLIT.CTRLD = TCA_SPLIT_SPLITM_bm; // enable split mode
-        TCA0.SPLIT.CTRLB = 0;    
-        //TCA0.SPLIT.CTRLB = TCA_SPLIT_LCMP0EN_bm | TCA_SPLIT_HCMP0EN_bm; // enable W0 and W3 outputs on pins
-        //TCA0.SPLIT.LCMP0 = 64; // backlight at 1/4
-        //TCA0.SPLIT.HCMP0 = 128; // rumbler at 1/2
-        TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc | TCA_SPLIT_ENABLE_bm; 
+        gpio::output(ML1_PIN);
+        gpio::low(ML1_PIN);
+        gpio::output(ML2_PIN);
+        gpio::low(ML2_PIN);
+        gpio::output(MR1_PIN);
+        gpio::low(MR1_PIN);
+        gpio::output(MR2_PIN);
+        gpio::low(MR2_PIN);
+
+        initializeMotorControl();
+        initializeServoControl();
+        initializeAnalogInputs();
+        initializePWMOutputs();
+        
 
 
 
@@ -146,7 +120,7 @@ public:
     static void loop() {
         checkAnalogIn();
         servoTick();
-        if (gpio::read(NRF_IRQ))
+        if (gpio::read(NRF_IRQ_PIN))
             radioIrq();
     }
 
@@ -154,7 +128,7 @@ public:
     /** \name Radio comms
      */
     //@{
-    static inline NRF24L01 radio_{NRF_CS, NRF_RXTX};
+    static inline NRF24L01 radio_{NRF_CS_PIN, NRF_RXTX_PIN};
     static inline uint8_t rxBuffer_[32];
     static inline uint8_t txBuffer_[32];
     static inline uint8_t txIndex_ = 0;
@@ -262,6 +236,27 @@ public:
      */
     //{@
 
+    static void initializeMotorControl() {
+        // initialize TCD used to control the two motors, disable prescalers, set one ramp waveform and set WOC to WOA and WOD to WOB. 
+        TCD0.CTRLA = TCD_CLKSEL_20MHZ_gc | TCD_CNTPRES_DIV1_gc | TCD_SYNCPRES_DIV1_gc;
+        TCD0.CTRLB = TCD_WGMODE_ONERAMP_gc;
+        TCD0.CTRLC = TCD_CMPCSEL_PWMA_gc | TCD_CMPDSEL_PWMB_gc;
+        // disconnect the pins from the timer
+        CPU_CCP = CCP_IOREG_gc;
+        TCD0.FAULTCTRL = 0;
+        // enable the timer
+        while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
+        TCD0.CTRLA |= TCD_ENABLE_bm;
+
+        // TODO what is the below???????
+
+        // set the reset counter to 255 for both A and B. This gives us 78.4kHz PWM frequency. It is important for both values to be the same. By setting max to 255 we can simply set 
+        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+        TCD0.CMPACLR = 127;
+        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
+        TCD0.CMPBCLR = 127;        
+    }
+
     static void setMotorL(channel::Motor::Control const & ctrl) {
         if (ctrl != ml_.control) {
             switch (ctrl.mode) {
@@ -274,8 +269,8 @@ public:
                         while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                         TCD0.CTRLA |= TCD_ENABLE_bm;
                     };
-                    gpio::high(ML1);
-                    gpio::high(ML2);
+                    gpio::high(ML1_PIN);
+                    gpio::high(ML2_PIN);
                     break;
                 case channel::Motor::Mode::Coast:
                     if (ml_.isSpinning()) {
@@ -286,8 +281,8 @@ public:
                         while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                         TCD0.CTRLA |= TCD_ENABLE_bm;
                     }
-                    gpio::low(ML1);
-                    gpio::low(ML2);
+                    gpio::low(ML1_PIN);
+                    gpio::low(ML2_PIN);
                     break;
                 case channel::Motor::Mode::CW:
                     while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
@@ -334,8 +329,8 @@ public:
                         while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                         TCD0.CTRLA |= TCD_ENABLE_bm;
                     }
-                    gpio::high(MR1);
-                    gpio::high(MR2);
+                    gpio::high(MR1_PIN);
+                    gpio::high(MR2_PIN);
                     break;
                 case channel::Motor::Mode::Coast:
                     if (mr_.isSpinning()) {
@@ -346,8 +341,8 @@ public:
                         while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                         TCD0.CTRLA |= TCD_ENABLE_bm;
                     }
-                    gpio::low(MR1);
-                    gpio::low(MR2);
+                    gpio::low(MR1_PIN);
+                    gpio::low(MR2_PIN);
                     break;
                 case channel::Motor::Mode::CW:
                     while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
@@ -388,28 +383,48 @@ public:
 
     /** \name Servo Control 
      
-        Uses TCB0 to control any of the Custom IO channels that are set in the servo mode using the 5ms RTC interrupt. Since each servo needs an update only once every ~20ms, all four channels are multiplexed. 
+        To be able to drive four servos with single timer (TCB1) we use the RTC overflow timer set to 5ms to multiplex the possibly four times so that each servo motor will get its pulse once per 20ms window as requested by the servo control protocol. 
+
+        The servo tick happens every time the RTC overflows and cycles through the 4 custom IO channels. If the current channel is a servo control, then the TCB1 duration is set according to its pulse and the timer is started while the channel pin is driven high to start the pulse. The interrupt attached to the TCB1 simply turns the timer off and pulls the pin channel pin low.  
 
         TODO figure out decent values for the servos
+
+        TODO check servos work as intended
      */
     //@{
     static inline uint8_t activeServoPin_;
     static inline uint8_t servoTick_ = 0;
 
+    static void initializeServoControl() {
+        // initialize the RTC to fire every 5ms which gives us a tick that can be used to switch the servo controls, 4 servos max, multiplexed gives the freuency of updates for each at 20ms
+        RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
+        while (RTC.STATUS & RTC_PERBUSY_bm);
+        RTC.PER = 164;
+        while (RTC.STATUS & RTC_CTRLABUSY_bm);
+        RTC.CTRLA = RTC_RTCEN_bm;
+        // initialize TCB0 which is used to time the servo control interval precisely
+        TCB1.CTRLB = TCB_CNTMODE_INT_gc;
+        TCB1.INTCTRL = TCB_CAPT_bm;
+        TCB1.CTRLA = TCB_CLKSEL_CLKDIV1_gc; // | TCB_ENABLE_bm;
+    }
+
     static void servoTick() {
+        if (! (RTC.INTFLAGS & RTC_OVF_bm))
+            return; // no tick
+        RTC.INTFLAGS = RTC_OVF_bm;
         servoTick_ = (servoTick_ + 1) % 4;
         switch (servoTick_) {
             case 0: 
-                startControlPulse(l1_, XL1);
+                startControlPulse(l1_, XL1_PIN);
                 break;
             case 1:
-                startControlPulse(l2_, XL2);
+                startControlPulse(l2_, XL2_PIN);
                 break;
             case 2:
-                startControlPulse(r1_, XR1);
+                startControlPulse(r1_, XR1_PIN);
                 break;
             case 3:
-                startControlPulse(r1_, XR1);
+                startControlPulse(r1_, XR1_PIN);
                 break;
         }
     }
@@ -419,54 +434,224 @@ public:
             return;
         activeServoPin_= pin;
         // calculate the pulse duration from the config
-        TCB0.CTRLA &= ~TCB_ENABLE_bm;
-        TCB0.CCMP = (ch.config.servoEnd - ch.config.servoStart) * ch.control.value / 255 + ch.config.servoStart;
+        TCB1.CTRLA &= ~TCB_ENABLE_bm;
+        TCB1.CCMP = (ch.config.servoEnd - ch.config.servoStart) * ch.control.value / 255 + ch.config.servoStart;
+        TCB1.CNT = 0;
         gpio::high(activeServoPin_);
-        TCB0.CNT = 0;
-        TCB0.CTRLA |= TCB_ENABLE_bm; 
+        TCB1.CTRLA |= TCB_ENABLE_bm; 
     }
 
     static void terminateControlPulse() {
         gpio::low(activeServoPin_);
-        TCB0.INTFLAGS = TCB_CAPT_bm;
-        TCB0.CTRLA &= ~TCB_ENABLE_bm;
+        TCB1.INTFLAGS = TCB_CAPT_bm;
+        TCB1.CTRLA &= ~TCB_ENABLE_bm;
     }
     //}@
 
-    /** \name Analog input 
+    /** \name Analog inputs
      
+        We use both ADC0 and ADC1 to measure the analog values of the custom channels. The ADCs cycle through the connected channels. 
+
         Uses the ADC to read the analog inputs, if any. 
      */
     //@{
+
+    static void initializeAnalogInputs() {
+
+        // voltage reference to 1.1V (internal for the temperature sensor)
+        VREF.CTRLA &= ~ VREF_ADC0REFSEL_gm;
+        VREF.CTRLA |= VREF_ADC0REFSEL_1V1_gc;
+        // TODO the above for ADC1 too
+
+
+
+        ADC0.CTRLA = ADC_RESSEL_8BIT_gc;
+        ADC0.CTRLB = ADC_SAMPNUM_ACC64_gc; 
+        ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm;
+        ADC0.CTRLD = 0; // no sample delay, no init delay
+        ADC0.SAMPCTRL = 0;
+        ADC0.MUXPOS = ADC_MUXPOS_INTREF_gc;
+
+        ADC1.CTRLA = ADC_RESSEL_8BIT_gc;
+        ADC1.CTRLB = ADC_SAMPNUM_ACC64_gc; 
+        ADC1.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm;
+        ADC1.CTRLD = 0; // no sample delay, no init delay
+        ADC1.SAMPCTRL = 0;
+        ADC1.MUXPOS = ADC_MUXPOS_INTREF_gc;
+    
+        ADC0.CTRLA |= ADC_ENABLE_bm;
+        ADC1.CTRLA |= ADC_ENABLE_bm;
+    }
+
     static void checkAnalogIn() {
-        if (! (ADC0.INTFLAGS & ADC_RESRDY_bm))
-            return false;
-        uint8_t muxpos = ADC0.MUXPOS;
-        switch (muxpos) {
-            case ADC_MUXPOS_TEMPSENSE_gc:
-                // TODO calculate temperature
-                // switch to VCC as reference for the custom pins
-                ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; 
-                if (l1_.config.mode == channel::CustomIO::Mode::AnalogIn) {
+        if (ADC0.INTFLAGS & ADC_RESRDY_bm) {
+            uint8_t muxpos = ADC0.MUXPOS;
+            uint8_t value = ADC0.RES / 64; // 64 samples
+            switch (muxpos) {
+                case ADC_MUXPOS_INTREF_gc:
+                    // TODO deal with the VCC we have just measured
                     break;
-                }
-                // fallthrough to next 
-            
-            default:
-                ADC0.MUXPOS = ADC_MUXPOS_TEMPSENSE_gc;
-                ADC0.SAMPCTRL = 31;
-                ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_INTREF_gc | ADC_SAMPCAP_bm; // internal reference
-                break;
+                case ADC_MUXPOS_AIN8_gc:
+                    if (l1_.config.mode == channel::CustomIO::Mode::AnalogIn) {
+                        if (l1_.feedback.value != value) {
+                            l1_.feedback.value = value;
+                            // TODO make note of the change
+                        }
+                    }
+                    break;
+                case ADC_MUXPOS_AIN9_gc:
+                    if (l2_.config.mode == channel::CustomIO::Mode::AnalogIn) {
+                        if (l2_.feedback.value != value) {
+                            l2_.feedback.value = value;
+                            // TODO make note of the change
+                        }
+                    }
+                    break;
+            }
+            switch (muxpos) {
+                case ADC_MUXPOS_INTREF_gc:
+                    if (l1_.config.mode == channel::CustomIO::Mode::AnalogIn) {
+                        ADC0.MUXPOS = ADC_MUXPOS_AIN8_gc;
+                        break;
+                    }
+                    // fallthrough
+                case ADC_MUXPOS_AIN8_gc:
+                    if (l2_.config.mode == channel::CustomIO::Mode::AnalogIn) {
+                        ADC0.MUXPOS = ADC_MUXPOS_AIN9_gc;
+                        break;
+                    }
+                    // fallthrough
+                case ADC_MUXPOS_AIN9_gc:
+                default:
+                    ADC0.MUXPOS = ADC_MUXPOS_INTREF_gc;
+                    break;
+            }
+            ADC0.CTRLA |= ADC_ENABLE_bm;
+        }
+        if (ADC1.INTFLAGS & ADC_RESRDY_bm) {
+            uint8_t muxpos = ADC1.MUXPOS;
+            uint8_t value = ADC1.RES / 64; // 64 samples
+            switch (muxpos) {
+                case ADC_MUXPOS_INTREF_gc:
+                    // TODO deal with the VCC we have just measured
+                    break;
+                case ADC_MUXPOS_AIN9_gc:
+                    if (r1_.config.mode == channel::CustomIO::Mode::AnalogIn) {
+                        if (r1_.feedback.value != value) {
+                            r1_.feedback.value = value;
+                            // TODO make note of the change
+                        }
+                    }
+                    break;
+                case ADC_MUXPOS_AIN8_gc:
+                    if (r2_.config.mode == channel::CustomIO::Mode::AnalogIn) {
+                        if (r2_.feedback.value != value) {
+                            r2_.feedback.value = value;
+                            // TODO make note of the change
+                        }
+                    }
+                    break;
+            }
+            switch (muxpos) {
+                case ADC_MUXPOS_INTREF_gc:
+                    if (r1_.config.mode == channel::CustomIO::Mode::AnalogIn) {
+                        ADC1.MUXPOS = ADC_MUXPOS_AIN9_gc;
+                        break;
+                    }
+                    // fallthrough
+                case ADC_MUXPOS_AIN9_gc:
+                    if (r2_.config.mode == channel::CustomIO::Mode::AnalogIn) {
+                        ADC1.MUXPOS = ADC_MUXPOS_AIN8_gc;
+                        break;
+                    }
+                    // fallthrough
+                case ADC_MUXPOS_AIN8_gc:
+                default:
+                    ADC1.MUXPOS = ADC_MUXPOS_INTREF_gc;
+                    break;
+            }
+            ADC1.CTRLA |= ADC_ENABLE_bm;
         }
     }
     //}@
+
+    /** \name PWM Outputs 
+
+        TCA in split mode is used to provide 4 8-bit PWM channels (out of 6 it supports). All low channels (0, 1 and 2) as well as high channel 0 are used:
+
+        Low 0 :  XR2, cmp and ovf interrupts are used to start/stop the pulse on the pin 
+        Low 1 :  XL2, TCA-WO1 in alternate location 
+        Low 2 :  XL1, TCA-WO2 in alternate location
+        High 0 : XR1, TCA-WO3 
+     */
+    //@{
+
+    static void initializePWMOutputs() {
+        // enable alternate locations of TCA-WO1 and TCA-WO2
+        PORTMUX.CTRLC = PORTMUX_TCA01_bm | PORTMUX_TCA02_bm;
+
+        // initialize TCA for PWM outputs on the configurable channels. We use split mode
+        TCA0.SPLIT.CTRLD = TCA_SPLIT_SPLITM_bm; // enable split mode
+        TCA0.SPLIT.CTRLB = 0; // disable all outputs    
+        // this gives us ~600Hz PWM frequency @ 10MHz
+        TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc | TCA_SPLIT_ENABLE_bm; 
+    }
+
+    static void setPWMXL1(uint8_t value) {
+        TCA0.SPLIT.LCMP2 = 255 - value;
+        TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP2EN_bm;
+    }
+
+    static void setPWMXL2(uint8_t value) {
+        TCA0.SPLIT.LCMP1 = 255 - value;
+        TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP1EN_bm;
+    }
+
+    static void setPWMXR1(uint8_t value) {
+        TCA0.SPLIT.HCMP0 = 255 - value;
+        TCA0.SPLIT.CTRLB |= TCA_SPLIT_HCMP0EN_bm;
+    }
+
+    static void setPWMXR2(uint8_t value) {
+        TCA0.SPLIT.LCMP0 = 255 - value;
+        TCA0.SPLIT.INTCTRL = TCA_SPLIT_LCMP0_bm | TCA_SPLIT_LUNF_bm;
+    }
+
+    static void disablePWMXL1() {
+        TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP2EN_bm;
+    }
+
+    static void disablePWNXL2() {
+        TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP1EN_bm;
+    }
+
+    static void disablePWMXR1() {
+        TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_HCMP0EN_bm;
+    }
+
+    static void disablePWNXR2() {
+        TCA0.SPLIT.INTCTRL = 0;
+        TCA0.SPLIT.INTFLAGS = 0xff; // and clear the flags
+    }
+
+    //@}
 
 }; // Remote
 
 /** The TCB only fires when the currently multiplexed output is a servo motor. When it fires, we first pull the output low to terminate the control pulse and then disable the timer.
  */
-ISR(TCB0_INT_vect) {
+ISR(TCB1_INT_vect) {
     Remote::terminateControlPulse();
+}
+
+ISR(TCA0_LUNF_vect) {
+    TCA0.SPLIT.INTFLAGS = TCA_SPLIT_LUNF_bm;
+    gpio::high(Remote::XR2_PIN);
+}
+
+ISR(TCA0_LCMP0_vect) {
+    TCA0.SPLIT.INTFLAGS = TCA_SPLIT_LCMP0_bm;
+    gpio::low(Remote::XR2_PIN);
 }
 
 void setup() {

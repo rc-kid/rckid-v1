@@ -64,13 +64,11 @@ namespace remote {
         class CustomIO {
         public:
             enum class Mode {
-                DigitalOut = 0, 
-                DigitalIn = 1, 
-                AnalogOut = 2, 
-                AnalogIn = 3, 
-                PWM = 4, 
-                Servo = 5, 
-                Tone = 6, 
+                DigitalIn = 0, 
+                DigitalOut = 1, 
+                AnalogIn = 2, // ADC
+                PWM = 3, // PWM
+                Servo = 4, // Servo pulse 
             }; 
 
             struct Control {

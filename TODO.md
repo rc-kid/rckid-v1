@@ -1,6 +1,6 @@
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 
-- battery on: 1:05
+- battery on: 1:05, 3:50
 
 
 - make the charging light work even when RPi off / sleeping (check)
