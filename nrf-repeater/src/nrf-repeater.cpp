@@ -8,10 +8,10 @@ using namespace platform;
                -- VDD             GND --
          DEBUG -- (00) PA4   PA3 (16) -- SCK
                -- (01) PA5   PA2 (15) -- MISO
-               -- (02) PA6   PA1 (14) -- MOSI
-               -- (03) PA7   PA0 (17) -- UPDI
-               -- (04) PB5   PC3 (13) -- NRF_CS
-               -- (05) PB4   PC2 (12) -- NRF_RXTX
+        NRF_CS -- (02) PA6   PA1 (14) -- MOSI
+      NRF_RXTX -- (03) PA7   PA0 (17) -- UPDI
+               -- (04) PB5   PC3 (13) -- 
+               -- (05) PB4   PC2 (12) -- 
        NRF_IRQ -- (06) PB3   PC1 (11) -- 
                -- (07) PB2   PC0 (10) -- 
            SDA -- (08) PB1   PB0 (09) -- SCL
@@ -19,13 +19,13 @@ using namespace platform;
 class Repeater {
 public:
 
-    static constexpr gpio::Pin NRF_CS = 13;
-    static constexpr gpio::Pin NRF_RXTX = 12;
-    static constexpr gpio::Pin NRF_IRQ = 6;
+    static constexpr gpio::Pin NRF_CS_PIN = 2;
+    static constexpr gpio::Pin NRF_RXTX_PIN = 3;
+    static constexpr gpio::Pin NRF_IRQ_PIN = 6;
 
     static constexpr gpio::Pin DEBUG_PIN = 0;
 
-    static inline NRF24L01 nrf_{NRF_CS, NRF_RXTX};
+    static inline NRF24L01 nrf_{NRF_CS_PIN, NRF_RXTX_PIN};
     static inline SSD1306 oled_;
     static inline uint16_t msgs_;
     static inline uint16_t msgsNow_;
@@ -50,16 +50,6 @@ public:
 
 
 
-        gpio::output(DEBUG_PIN);
-        gpio::high(DEBUG_PIN);
-        
-        while (true) {
-            cpu::delayMs(500);
-            gpio::low(DEBUG_PIN);
-            cpu::delayMs(500);
-            gpio::high(DEBUG_PIN);
-        }
-
         // initialize the OLED display
         oled_.initialize128x32();
         oled_.normalMode();
@@ -69,26 +59,22 @@ public:
         oled_.write(0,3, "Last:");
         oled_.write(64, 2, "Errors:");
 
-/*
         if (nrf_.initialize("AAAAA", "BBBBB")) 
            oled_.write(64, 0, "NRF OK");
         else 
             oled_.write(64, 0, "NRF FAIL"); 
         nrf_.standby();
         nrf_.enableReceiver();
-    */
     }
 
     static void loop() {
-        /*
-        if (gpio::read(NRF_IRQ)) {
+        if (gpio::read(NRF_IRQ_PIN) == 0) {
             nrf_.clearDataReadyIrq();
             while (nrf_.receive(buffer_, 32)) {
                 ++msgs_;
                 ++msgsNow_;
             }
         }
-        */
         if (RTC.PITINTFLAGS == RTC_PI_bm) {
             RTC.PITINTFLAGS = RTC_PI_bm;
             if (gpio::read(DEBUG_PIN))
