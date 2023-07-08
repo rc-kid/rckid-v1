@@ -215,6 +215,15 @@ void RCKid::processEvent(Event & e) {
         [this](RecordingEvent e) {
             if (status_.recording)
                 recordingCallback_(e);
+        },
+        [this](NRFPacketEvent e) {
+            // TODO TODO TODO TODO
+        },
+        [this](NRFTxAckEvent e) {
+            nrfState_ = e.newState;
+        }, 
+        [this](NRFTxFailEvent e) {
+            nrfState_ = e.newState;
         }
     }, e);
 }
@@ -264,6 +273,12 @@ void RCKid::hwLoop() {
                         else
                             avrQueryState();
                         break;
+                    case PIN_NRF_IRQ:
+                        if (driverStatus_.nrfState == NRFState::Transmitting)
+                            nrfTxDone();
+                        else
+                            nrfReceivePackets();
+                        break;
                     default: // don't do anything for irq's we do not care about
                         break;
                 }
@@ -281,25 +296,31 @@ void RCKid::hwLoop() {
                 activeDevice_ = e.enable ? gamepad_ : nullptr;
             },
             [this](NRFInitialize e) {
+                // TODO process error
                 nrf_.initialize(e.rxAddr, e.txAddr, e.channel);
+                driverStatus_.nrfState = NRFState::Standby;
             },
             [this](NRFStandby e) {
+                driverStatus_.nrfState = NRFState::Standby;
                 nrf_.standby();
             },
             [this](NRFPowerDown e) {
+                driverStatus_.nrfState = NRFState::PowerDown;
                 nrf_.powerDown();
             },
             [this](NRFEnableReceiver e) {
+                driverStatus_.nrfState = NRFState::Receiver;
                 nrf_.enableReceiver();
             },
             [this](NRFTransmit e) {
+                driverStatus_.nrfReceiveAfterTransmit = driverStatus_.nrfState == NRFState::Receiver;
                 nrf_.standby();
+                driverStatus_.nrfState = NRFState::Transmitting;
                 if (e.ack)
                     nrf_.transmit(e.packet, 32);
                 else
                     nrf_.transmitNoAck(e.packet,32);
                 nrf_.enableTransmitter();
-                
             },
             [this](msg::StartAudioRecording e) {
                 sendAvrCommand(e);
@@ -463,9 +484,31 @@ void RCKid::avrGetRecording() {
         events_.send(r);
 }
 
+void RCKid::nrfReceivePackets() {
+    NRF24L01::Status status = nrf_.getStatus();
+    std::cout << (int)status << std::endl;
+    nrf_.clearIrq();
+}
+
+void RCKid::nrfTxDone() {
+    NRF24L01::Status status = nrf_.getStatus();
+    std::cout << (int)status.raw << std::endl;
+    nrf_.clearIrq();
+    if (driverStatus_.nrfReceiveAfterTransmit) {
+        driverStatus_.nrfState = NRFState::Receiver;
+        nrf_.enableReceiver();
+    } else {
+        driverStatus_.nrfState = NRFState::Standby;
+        nrf_.standby();
+    }
+    if (status.txDataSentIrq())
+        events_.send(NRFTxAckEvent{driverStatus_.nrfState});
+    else
+        events_.send(NRFTxFailEvent{driverStatus_.nrfState});
+
+}
+
 void RCKid::initializeISRs() {
-    gpio::inputPullup(PIN_AVR_IRQ);
-    gpio::attachInterrupt(PIN_AVR_IRQ, gpio::Edge::Falling, & isrAvrIrq);
 
     gpio::input(PIN_HEADPHONES);
     gpio::attachInterrupt(PIN_HEADPHONES, gpio::Edge::Both, & isrHeadphones);
@@ -576,6 +619,10 @@ void RCKid::initializeAvr() {
         system("sudo poweroff");
         exit(EXIT_SUCCESS);
     }
+    // attach the interrupt
+    gpio::inputPullup(PIN_AVR_IRQ);
+    gpio::attachInterrupt(PIN_AVR_IRQ, gpio::Edge::Falling, & isrAvrIrq);
+
 }
 
 void RCKid::initializeAccel() UI_THREAD {
@@ -594,6 +641,9 @@ void RCKid::initializeNrf() UI_THREAD {
         TraceLog(LOG_ERROR, "Radio not found");
         nrfState_ = NRFState::Error;
     }
+    // attach the interrupt handler
+    gpio::input(PIN_NRF_IRQ);
+    gpio::attachInterrupt(PIN_NRF_IRQ, gpio::Edge::Falling, & isrNrfIrq);
 }
 
 void RCKid::buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {

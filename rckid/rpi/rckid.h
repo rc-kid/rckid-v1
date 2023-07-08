@@ -65,17 +65,6 @@
 
 class Window; 
 
-/** State of the NRF chip. 
- */
-enum class NRFState {
-    Error,
-    PowerDown, 
-    Standby,
-    Receiver,
-    Transmitting,
-};
-
-
 /** RCKid Driver
 
     Communicates with the attached hardware - AVR, NRF, accelerometer and photoresistor.
@@ -388,6 +377,12 @@ private:
      */
     void avrGetRecording();
 
+
+    void nrfReceivePackets();
+
+    void nrfTxDone();
+
+
     /** Initializes the ISRs on the rpi pins so that the driver can respond properly.
      */
     void initializeISRs() UI_THREAD;
@@ -554,6 +549,14 @@ private:
 
     std::function<void(RecordingEvent &)> recordingCallback_ DRIVER_THREAD;
     bool recording_ = false DRIVER_THREAD;
+
+
+    struct {
+
+
+        NRFState nrfState;
+        bool nrfReceiveAfterTransmit;
+    } driverStatus_ DRIVER_THREAD;
 
 
     /** The button state objects, managed by the ISR thread 

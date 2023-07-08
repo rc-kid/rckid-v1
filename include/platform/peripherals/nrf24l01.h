@@ -103,9 +103,34 @@ namespace platform {
             RXTX{rxtx} {
         }
 
-        /** Initializes the driver and returns true if successful, false is not. 
+        /** Initializes the driver in the Enhanced shock-burst and returns true if successful, false is not. 
          */
         bool initialize(char const * rxAddr, char const * txAddr, uint8_t ch = 86) {
+            gpio::output(RXTX);
+            gpio::low(RXTX);
+            gpio::output(CS);
+            gpio::high(CS);
+            // set channel and rx & tx addresses
+            setChannel(ch);
+            setTxAddress(txAddr);
+            setRxAddress(rxAddr);
+            // disable enhanced shock burst
+            writeRegister(EN_AA, 0); // no auto-ack
+            writeRegister(SETUP_RETR, 0); // no retransmit
+            writeRegister(FEATURE, 0); // no advanced features
+            // enable largest payload size by default
+            setPayloadSize(32);
+            // set default rf settings - highest power, slowest speed
+            setRfSettings(nrf24l01::Power::dbm0, nrf24l01::Speed::k250);
+            // and finally time to initialize the config register
+            config_ = CONFIG_CRCO | CONFIG_EN_CRC;
+            writeRegister(CONFIG, config_);
+            return readRegister(CONFIG) == config_;
+        }
+
+        /** Initializes the driver in the Enhanced shock-burst and returns true if successful, false is not. 
+         */
+        bool initializeESB(char const * rxAddr, char const * txAddr, uint8_t ch = 86) {
             gpio::output(RXTX);
             gpio::low(RXTX);
             gpio::output(CS);

@@ -11,6 +11,16 @@
 
 #include "common/comms.h"
 
+/** State of the NRF chip. 
+ */
+enum class NRFState {
+    Error,
+    PowerDown, 
+    Standby,
+    Receiver,
+    Transmitting,
+};
+
 // helper type for the std::visit deconstruction
 template<class... Ts>
 struct overloaded : Ts... { using Ts::operator()...; };
@@ -101,6 +111,13 @@ struct RecordingEvent {
     uint8_t data[32];
 };
 
+struct NRFPacketEvent {
+    uint8_t packet[32];
+};
+
+struct NRFTxAckEvent { NRFState newState; };
+struct NRFTxFailEvent { NRFState newState; };
+
 static_assert(sizeof(RecordingEvent) == 33); 
 
 using Event = std::variant<
@@ -113,7 +130,10 @@ using Event = std::variant<
     TempEvent, 
     BrightnessEvent,
     HeadphonesEvent,
-    RecordingEvent
+    RecordingEvent,
+    NRFPacketEvent,
+    NRFTxAckEvent,
+    NRFTxFailEvent
 >;
 
 /** Event queue.

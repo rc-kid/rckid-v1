@@ -1,7 +1,7 @@
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 
-- battery on: 8:00
-
+- battery on: 9:30
+- charging: 9:45
 
 - make the charging light work even when RPi off / sleeping (check)
 - add sin based interleaving (? - would it be enough)
@@ -14,6 +14,7 @@
 
 ## Shopping List
 
+- buy some more NRFs (not the cheapest ones)
 - https://martybugs.net/wireless/rubberducky.cgi -- site that seems to have decent info on antennas
 - M1.4 screws for thumbstick
 - better 3.0V LDO (cleaner, higher voltage better for mic & speed, such as https://cz.mouser.com/ProductDetail/Texas-Instruments/TPS7A2030PDBVR?qs=hd1VzrDQEGgZMtQinkbhYw%3D%3D)

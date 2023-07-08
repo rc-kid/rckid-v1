@@ -41,7 +41,7 @@ protected:
     }
 
     void onFocus() override {
-        window()->rckid()->nrfInitialize("AAAAA", "AAAAA", 86);
+        window()->rckid()->nrfInitialize("AAAAA", "BBBBB", 86);
         window()->rckid()->nrfEnableReceiver();
     }
 
