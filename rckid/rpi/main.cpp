@@ -25,6 +25,7 @@ struct DispmanXBackgroundLayer {
 #include "video_player.h"
 #include "torchlight.h"
 #include "recorder.h"
+#include "walkie_talkie.h"
 
 void printLogLevel(int logLevel, std::ostream & s) {
     switch (logLevel) {
@@ -168,7 +169,7 @@ int main(int argc, char * argv[]) {
             },
             //new JSON{"Music", "assets/images/003-music.png", "/rckid/music/folder.json", &window},
             new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
-            new Menu::Item{"Walkie-Talkie", "assets/images/007-baby-monitor.png"},
+            new WidgetItem{"Walkie-Talkie", "assets/images/007-baby-monitor.png", new WalkieTalkie{&window}},
             new Submenu{"Apps", "assets/images/022-presents.png", {
                 new WidgetItem{"Torchlight", "assets/images/004-flashlight.png", new Torchlight{&window}},
                 new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{&window}},

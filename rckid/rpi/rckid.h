@@ -219,6 +219,7 @@ public:
             return false;
         hwEvents_.send(NRFTransmit{packet, ack});
         nrfState_ = NRFState::Transmitting;
+        return true;
     }
 
     comms::Mode mode() const { return status_.mode; }

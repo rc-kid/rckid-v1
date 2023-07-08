@@ -16,6 +16,7 @@
     
     1xxxxxxx = special command. Can be one of:
 
+    beep 
     voice start (who)
     voice end (who)
     data start (what img)
@@ -40,19 +41,29 @@ protected:
     }
 
     void onFocus() override {
-
+        window()->rckid()->nrfInitialize("AAAAA", "AAAAA", 86);
+        window()->rckid()->nrfEnableReceiver();
     }
 
     void onBlur() override {
+        window()->rckid()->nrfStandby();
     }
 
     void btnA(bool state) override {
 
     }
 
+    void btnX(bool state) override {
+        if (state) {
+            window()->rckid()->nrfTransmit(msgBeep_, true);
+        }
+    }
+
 private:
 
     opus::RawEncoder enc_;
     opus::RawDecoder dec_;
+
+    uint8_t msgBeep_[32] = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 }; // WalkieTalkie
