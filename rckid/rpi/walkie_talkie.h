@@ -53,6 +53,8 @@ protected:
 
     }
 
+    /** Sends the BEEP msg. 
+     */
     void btnX(bool state) override {
         if (state) {
             window()->rckid()->nrfTransmit(msgBeep_, true);
