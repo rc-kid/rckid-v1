@@ -280,6 +280,27 @@ void RCKid::hwLoop() {
             [this](EnableGamepad e) {
                 activeDevice_ = e.enable ? gamepad_ : nullptr;
             },
+            [this](NRFInitialize e) {
+                nrf_.initialize(e.rxAddr, e.txAddr, e.channel);
+            },
+            [this](NRFStandby e) {
+                nrf_.standby();
+            },
+            [this](NRFPowerDown e) {
+                nrf_.powerDown();
+            },
+            [this](NRFEnableReceiver e) {
+                nrf_.enableReceiver();
+            },
+            [this](NRFTransmit e) {
+                nrf_.standby();
+                if (e.ack)
+                    nrf_.transmit(e.packet, 32);
+                else
+                    nrf_.transmitNoAck(e.packet,32);
+                nrf_.enableTransmitter();
+                
+            },
             [this](msg::StartAudioRecording e) {
                 sendAvrCommand(e);
                 recording_ = true;
@@ -557,7 +578,7 @@ void RCKid::initializeAvr() {
     }
 }
 
-void RCKid::initializeAccel() {
+void RCKid::initializeAccel() UI_THREAD {
     if (accel_.deviceIdentification() == 104) {
         accel_.reset();
     } else {
@@ -565,11 +586,13 @@ void RCKid::initializeAccel() {
     }
 }
 
-void RCKid::initializeNrf() {
-    if (radio_.initialize("TEST1", "TEST2")) {
-        radio_.standby();
+void RCKid::initializeNrf() UI_THREAD {
+    if (nrf_.initialize("TEST1", "TEST2")) {
+        nrf_.standby();
+        nrfState_ = NRFState::Standby;
     } else {
         TraceLog(LOG_ERROR, "Radio not found");
+        nrfState_ = NRFState::Error;
     }
 }
 

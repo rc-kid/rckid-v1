@@ -60,6 +60,19 @@ protected:
     virtual void accel(uint8_t x, uint8_t y) {}
     virtual void btnHome(bool state);
 
+
+    /** Packet received callback. 
+     */
+    virtual void nrfPacketReceived(uint8_t  * packet) {}
+    
+    /** Packet transmit error callback. 
+     */
+    virtual void nrfTxError() {}
+
+    /** Packet transmit ack success.
+     */
+    virtual void nrfTxAck() {}  
+
     Window * window() { return window_; }
 
     Window * window_;

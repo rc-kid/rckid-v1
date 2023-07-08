@@ -487,11 +487,20 @@ void Window::drawHeader() {
             DrawTextEx(headerFont_, "󰖩", x, 0, 20, 1.0, BLUE);
     }
     // NRF Radio
-    if (rckid_->nrf()) {
-        x -= 20;
-        DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, GREEN);
+    switch (rckid_->nrfState()) {
+        case NRFState::Error:
+            x -= 20;
+            DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, RED);
+            break;
+        case NRFState::Receiver:
+            x -= 20;
+            DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, GREEN);
+            break;
+        case NRFState::Transmitting:
+            x -= 20;
+            DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, BLUE);
+            break;
     }
-
     EndBlendMode();
 }
 

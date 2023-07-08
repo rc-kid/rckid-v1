@@ -41,6 +41,10 @@ namespace platform {
         Initialize, then standby. When there are messages to be sent, use the transmit() or transmitNoAck() methods to transfer the payloads to the chip. Start the transmitter by calling enableTransmitter(). This will send the messages and generate interrupts each time either a message is sent, or max number of retransmits has been reached. Either poll, or wait for interrupt to call the checkTransmitIrq() method. 
 
         !!! Note that the device must not transmit for more than 4ms. After whole tx fifo is transmitted, standby-ii mode is entered. At this point either power down, or add more stuff to tx buffer, but tx buffer can't be filled in while actually transmitting as this could exceed the time. 
+
+        !! Fake NRF chips !!
+
+        They have often a bug with the ACK in the Enhanced Shock-Burst, meaning that dynamic payload sizes cannot be ACKed.  
         
     */
     class NRF24L01 {

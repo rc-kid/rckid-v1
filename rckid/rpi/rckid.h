@@ -59,18 +59,26 @@
 #define PIN_BTN_JOY 26
 
 
-#define MAIN_THREAD
+#define UI_THREAD
 #define DRIVER_THREAD
 #define ISR_THREAD
 
 class Window; 
 
+/** State of the NRF chip. 
+ */
+enum class NRFState {
+    Error,
+    PowerDown, 
+    Standby,
+    Receiver,
+    Transmitting,
+};
+
+
 /** RCKid Driver
- 
-    // pause = A
-    // load state = X
-    // save state = Y
-    // 
+
+    Communicates with the attached hardware - AVR, NRF, accelerometer and photoresistor.
  */
 class RCKid {
 public:
@@ -92,7 +100,7 @@ public:
 
         The initializer starts the hw loop and initializes the libevdev gamepad layer. 
      */
-    RCKid(Window * window) MAIN_THREAD;
+    RCKid(Window * window);
 
     ~RCKid() {
         libevdev_uinput_destroy(gamepad_);
@@ -169,16 +177,49 @@ public:
         }
     }
 
-    /** \name NRF Radio control 
-     
-        The radio control. 
-     */
-    //@{
+    bool nrfInitialize(char const * rxAddr, char const * txAddr, uint8_t channel = 86) {
+        if (nrfState_ == NRFState::Error)
+            return false;
+        hwEvents_.send(NRFInitialize{rxAddr, txAddr, channel});
+        nrfState_ = NRFState::Standby;
+        // TODO ensbure that the initialize does indeed take the radio to standby mode
+        return true;
+    }
 
-    //void initialize(char const * rxAddr, char const * txAddr, uint8_t ch = 86);
+    NRFState nrfState() const {
+        return nrfState_;
+    }
 
+    bool nrfStandby() {
+        if (nrfState_ == NRFState::Error || nrfState_ == NRFState::Transmitting)
+            return false;
+        hwEvents_.send(NRFStandby{});
+        nrfState_ = NRFState::Standby;
+        return true;
+    }
 
-    //@}
+    bool nrfPowerDown() {
+        if (nrfState_ == NRFState::Error || nrfState_ == NRFState::Transmitting)
+            return false;
+        hwEvents_.send(NRFPowerDown{});
+        nrfState_ = NRFState::PowerDown;
+        return true;
+    }
+
+    bool nrfEnableReceiver() {
+        if (nrfState_ == NRFState::Error || nrfState_ == NRFState::Transmitting)
+            return false;
+        hwEvents_.send(NRFEnableReceiver{});
+        nrfState_ = NRFState::Receiver;
+        return true;
+    }
+
+    bool nrfTransmit(uint8_t * packet, bool ack = true) {
+        if (nrfState_ == NRFState::Error || nrfState_ == NRFState::Transmitting)
+            return false;
+        hwEvents_.send(NRFTransmit{packet, ack});
+        nrfState_ = NRFState::Transmitting;
+    }
 
     comms::Mode mode() const { return status_.mode; }
     bool usb() const { return status_.usb; }
@@ -191,7 +232,6 @@ public:
     bool wifi() const { return status_.wifi; }
     bool wifiHotspot() const { return status_.wifiHotspot; }
     std::string const & ssid() const { return status_.ssid; }
-    bool nrf() const { return status_.nrf; }
 
 private:
 
@@ -246,6 +286,28 @@ private:
     struct Irq { unsigned pin; };
     struct KeyPress{ int key; bool state; };
     struct EnableGamepad{ bool enable; };
+    struct NRFInitialize{ 
+        char rxAddr[5]; 
+        char txAddr[5]; 
+        uint8_t channel; 
+
+        NRFInitialize(char const * rxAddr, char const * txAddr, uint8_t channel):
+            channel{channel} {
+            memcpy(this->rxAddr, rxAddr, 5);
+            memcpy(this->txAddr, txAddr, 5);
+        }
+    };
+    struct NRFStandby{};
+    struct NRFPowerDown{};
+    struct NRFEnableReceiver{};
+    struct NRFTransmit{
+        uint8_t packet[32]; 
+        bool ack; 
+        NRFTransmit(uint8_t * packet, bool ack):
+            ack{ack} {
+            memcpy(this->packet, packet, 32);
+        }
+    };
 
     /** Event for the driver's main loop to react to. Events with specified numbers are changes on the specified pins.
     */
@@ -255,6 +317,11 @@ private:
         Irq, 
         KeyPress,
         EnableGamepad,
+        NRFInitialize, 
+        NRFStandby,
+        NRFPowerDown,
+        NRFEnableReceiver,
+        NRFTransmit,
         msg::AvrReset, 
         msg::Info, 
         msg::StartAudioRecording, 
@@ -278,9 +345,9 @@ private:
     }
 
     /** The UI loop, should be called by the window's loop function. Processes the events from the driver to the main thread and calls the specific event handlers in the window. */
-    void loop() MAIN_THREAD;
+    void loop() UI_THREAD;
 
-    void processEvent(Event & e) MAIN_THREAD; 
+    void processEvent(Event & e) UI_THREAD; 
 
     /** The HW loop, proceses events from the hw event queue. This method is executed in a separate thread, which isthe only thread that accesses the GPIOs and i2c/spi connections. 
      */
@@ -322,17 +389,17 @@ private:
 
     /** Initializes the ISRs on the rpi pins so that the driver can respond properly.
      */
-    void initializeISRs() MAIN_THREAD;
+    void initializeISRs() UI_THREAD;
 
     /** Initializes the libevdev gamepad device for other applications. 
      */
-    void initializeLibevdevGamepad() MAIN_THREAD;
+    void initializeLibevdevGamepad() UI_THREAD;
 
-    void initializeAvr() MAIN_THREAD;
+    void initializeAvr() UI_THREAD;
 
-    void initializeAccel() MAIN_THREAD;
+    void initializeAccel() UI_THREAD;
 
-    void initializeNrf() MAIN_THREAD;
+    void initializeNrf() UI_THREAD;
 
     /** Transmits the given command to the AVR. 
      */
@@ -475,11 +542,14 @@ private:
         bool wifi = true;
         bool wifiHotspot = true;
         std::string ssid = "Internet 10";
-        bool nrf = true;
         uint8_t brightness;
         // determines if we are recording in the main thread
         bool recording = false;
     } status_;
+
+
+    // status of the NRF chip.
+    NRFState nrfState_ UI_THREAD;
 
     std::function<void(RecordingEvent &)> recordingCallback_ DRIVER_THREAD;
     bool recording_ = false DRIVER_THREAD;
@@ -519,7 +589,7 @@ private:
     TempEvent temp_;
     BrightnessEvent brightness_;
 
-    platform::NRF24L01 radio_{PIN_NRF_CS, PIN_NRF_RXTX};
+    platform::NRF24L01 nrf_{PIN_NRF_CS, PIN_NRF_RXTX};
     platform::MPU6050 accel_;
 
     /** Libevdev gamepad. 

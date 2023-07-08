@@ -44,11 +44,8 @@ public:
         i2c::initializeMaster();
 
         // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
-        //RTC.CLKSEL = RTC_CLKSEL_INT1K_gc; // select internal oscillator divided by 32
-        //RTC.PITINTCTRL |= RTC_PI_bm; // enable the interrupt
-        //RTC.PITCTRLA = RTC_PERIOD_CYC32768_gc | RTC_PITEN_bm;
-
-
+        RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
+        RTC.PITCTRLA = RTC_PERIOD_CYC32768_gc | RTC_PITEN_bm;
 
         // initialize the OLED display
         oled_.initialize128x32();
@@ -73,6 +70,7 @@ public:
             while (nrf_.receive(buffer_, 32)) {
                 ++msgs_;
                 ++msgsNow_;
+                
             }
         }
         if (RTC.PITINTFLAGS == RTC_PI_bm) {
