@@ -56,7 +56,7 @@ public:
         oled_.write(0,3, "Last:");
         oled_.write(64, 2, "Errors:");
 
-        if (nrf_.initialize("BBBBB", "AAAAA", 86)) 
+        if (nrf_.initialize("AAAAA", "AAAAA", 86)) 
            oled_.write(64, 0, "NRF OK");
         else 
             oled_.write(64, 0, "NRF FAIL"); 
