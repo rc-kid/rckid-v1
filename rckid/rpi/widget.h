@@ -60,6 +60,9 @@ protected:
     virtual void accel(uint8_t x, uint8_t y) {}
     virtual void btnHome(bool state);
 
+    /** Called when audio packet (32 bytes) has been recorded by the AVR. 
+     */
+    virtual void audioRecorded(RecordingEvent e) {}
 
     /** Packet received callback. 
      */
@@ -72,6 +75,9 @@ protected:
     /** Packet transmit ack success.
      */
     virtual void nrfTxAck() {}  
+
+
+
 
     Window * window() { return window_; }
 

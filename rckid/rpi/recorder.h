@@ -7,7 +7,6 @@ class Recorder : public Widget {
 public:
     Recorder(Window * window): Widget{window} {}
 
-
 protected:
 
     void onBlur() override {
@@ -39,34 +38,36 @@ protected:
                 nextIndex_ = 0;
                 memset(max_, 128, 320);
                 memset(min_, 128, 320);
-                window()->rckid()->startRecording([this](RecordingEvent & e) {
-                    while (e.status.batchIndex() != nextIndex_) {
-                        nextIndex_ = (nextIndex_ + 1) % 8;
-                        f_.write(reinterpret_cast<char const *>(empty_), 32);
-                    }
-                    nextIndex_ = (nextIndex_ + 1) % 8;
-                    //f_ << (int)e.status.batchIndex() << ":";
-                    f_.write(reinterpret_cast<char const *>(e.data), 32);
-                    uint8_t max = 0;
-                    uint8_t min = 255;
-                    for (size_t i = 0; i < 32; ++i) {
-                        //f_ <<  " " << (int)e.data[i];
-                        if (e.data[i] > max)
-                            max = e.data[i];
-                        if (e.data[i] < min)
-                            min = e.data[i];
-                    }
-                    min_[maxIndex_] = min;
-                    max_[maxIndex_] = max;
-                    maxIndex_ = (maxIndex_ + 1) % 320;
-                    //f_ << std::endl;
-                });
+                window()->rckid()->startRecording();
             }
         } else {
             recording_ = false;
             window()->rckid()->stopRecording();
             f_.close();
         }
+    }
+
+    void audioRecorded(RecordingEvent & e) {
+        while (e.status.batchIndex() != nextIndex_) {
+            nextIndex_ = (nextIndex_ + 1) % 8;
+            f_.write(reinterpret_cast<char const *>(empty_), 32);
+        }
+        nextIndex_ = (nextIndex_ + 1) % 8;
+        //f_ << (int)e.status.batchIndex() << ":";
+        f_.write(reinterpret_cast<char const *>(e.data), 32);
+        uint8_t max = 0;
+        uint8_t min = 255;
+        for (size_t i = 0; i < 32; ++i) {
+            //f_ <<  " " << (int)e.data[i];
+            if (e.data[i] > max)
+                max = e.data[i];
+            if (e.data[i] < min)
+                min = e.data[i];
+        }
+        min_[maxIndex_] = min;
+        max_[maxIndex_] = max;
+        maxIndex_ = (maxIndex_ + 1) % 320;
+        //f_ << std::endl;
     }
 
     std::ofstream f_;

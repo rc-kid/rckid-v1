@@ -119,7 +119,7 @@ void RCKid::loop() {
         }
 }
 
-void RCKid::processEvent(Event & e) {
+void RCKid::processEvent(Event & e) UI_THREAD {
     std::visit(overloaded{
         [this](ButtonEvent eb) {
             TraceLog(LOG_DEBUG, STR("Button state change. Button: " << (int)eb.btn << ", state: " << eb.state));
@@ -213,8 +213,10 @@ void RCKid::processEvent(Event & e) {
         },
         // simply process the recorded data - we know the function must exist since it must be supplied very time we start recording
         [this](RecordingEvent e) {
-            if (status_.recording)
-                recordingCallback_(e);
+            if (status_.recording) {
+                Widget * w = window_->activeWidget();
+                w->audioRecorded(e);
+            }
         },
         [this](NRFPacketEvent e) {
             // TODO TODO TODO TODO
@@ -255,20 +257,20 @@ void RCKid::hwLoop() {
                 buttonTick(btnJoy_);
                 buttonTick(btnHome_);
                 // only query the accell and photores status when we are not recording to keep the I2C fully for the audio recorder
-                if (!recording_) {
+                if (!driverStatus_.recording) {
                     accelQueryStatus();
                     // TODO query photores
                 }
             },
             [this](SecondTick) {
                 // only query extended state if we are not recording audio at the same time
-                if (!recording_)
+                if (!driverStatus_.recording)
                     avrQueryExtendedState();
             },
             [this](Irq irq) {
                 switch (irq.pin) {
                     case PIN_AVR_IRQ:
-                        if (recording_)
+                        if (driverStatus_.recording)
                             avrGetRecording();
                         else
                             avrQueryState();
@@ -298,6 +300,7 @@ void RCKid::hwLoop() {
             [this](NRFInitialize e) {
                 // TODO process error
                 nrf_.initialize(e.rxAddr, e.txAddr, e.channel);
+                nrf_.standby();
                 driverStatus_.nrfState = NRFState::Standby;
             },
             [this](NRFStandby e) {
@@ -316,19 +319,16 @@ void RCKid::hwLoop() {
                 driverStatus_.nrfReceiveAfterTransmit = driverStatus_.nrfState == NRFState::Receiver;
                 nrf_.standby();
                 driverStatus_.nrfState = NRFState::Transmitting;
-                if (e.ack)
-                    nrf_.transmit(e.packet, 32);
-                else
-                    nrf_.transmitNoAck(e.packet,32);
+                nrf_.transmit(e.packet, 32);
                 nrf_.enableTransmitter();
             },
             [this](msg::StartAudioRecording e) {
                 sendAvrCommand(e);
-                recording_ = true;
+                driverStatus_.recording = true;
             },
             [this](msg::StopAudioRecording e) {
                 sendAvrCommand(e);
-                recording_ = false;
+                driverStatus_.recording = false;
             },
             [this](auto msg) {
                 sendAvrCommand(msg);
@@ -544,8 +544,6 @@ void RCKid::initializeLibevdevGamepad() {
 
     libevdev_enable_event_code(gamepadDev_, EV_KEY, RETROARCH_HOTKEY_ENABLE, nullptr);
 
-    //libevdev_enable_event_code(gamepadDev_, EV_KEY, btnVolDown_.evdevId, nullptr);
-    //libevdev_enable_event_code(gamepadDev_, EV_KEY, btnVolUp_.evdevId, nullptr);
     libevdev_enable_event_code(gamepadDev_, EV_KEY, btnA_.evdevId, nullptr);
     libevdev_enable_event_code(gamepadDev_, EV_KEY, btnB_.evdevId, nullptr);
     libevdev_enable_event_code(gamepadDev_, EV_KEY, btnX_.evdevId, nullptr);
@@ -634,7 +632,7 @@ void RCKid::initializeAccel() UI_THREAD {
 }
 
 void RCKid::initializeNrf() UI_THREAD {
-    if (nrf_.initialize("TEST1", "TEST2")) {
+    if (nrf_.initialize("RCKID", "RCKID")) {
         nrf_.standby();
         nrfState_ = NRFState::Standby;
     } else {

@@ -1,12 +1,13 @@
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 
 - battery on: 9:30
-- charging: 9:45
+- charging: 9:45 - 11:22
 
+- charging light does not seem to work that well
 - make the charging light work even when RPi off / sleeping (check)
 - add sin based interleaving (? - would it be enough)
 - maybe do just 1sec quick bursts (easier in sleep)
-- switch charging control to no resistors and use internal pullup? 
+- switch charging control single pullup 
 
 - change recording visualization to something easier to draw. Maybe just less granularity
 

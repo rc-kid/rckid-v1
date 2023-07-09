@@ -10,13 +10,13 @@
 
 /** Walkie Talkie
  
-    A simple NRF24L01 based walkie talkie. It supports sending opus encoded voice in real-time as well as sending files (images). 
+    A simple NRF24L01 based walkie talkie. The primary purpose of the walkie talkie is to send and receive real-time raw opus encoded audio (no headers) similar to a PTT walkie-talkie.  
 
     000xxxxx yyyyyyyy = opus data packet, x = packet size, y = packet index
     
     1xxxxxxx = special command. Can be one of:
 
-    beep 
+    beep =
     voice start (who)
     voice end (who)
     data start (what img)
@@ -24,6 +24,8 @@
     data end
     data failure 
     heartbeat (?)
+
+    # Heartbeats
 
  */
 class WalkieTalkie : public Widget {

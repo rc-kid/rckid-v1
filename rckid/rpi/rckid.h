@@ -58,7 +58,6 @@
 #define PIN_BTN_RVOL 1
 #define PIN_BTN_JOY 26
 
-
 #define UI_THREAD
 #define DRIVER_THREAD
 #define ISR_THREAD
@@ -142,9 +141,8 @@ public:
     void rgbOff() { hwEvents_.send(msg::RGBOff{}); }
     void rgbColor(platform::Color color) { hwEvents_.send(msg::RGBColor{color}); }
 
-    void startRecording(std::function<void(RecordingEvent &)> callback) {
+    void startRecording() {
         TraceLog(LOG_DEBUG, "Recording start");
-        recordingCallback_ = callback;
         status_.recording = true;
         hwEvents_.send(msg::StartAudioRecording{});
     }
@@ -203,10 +201,10 @@ public:
         return true;
     }
 
-    bool nrfTransmit(uint8_t * packet, bool ack = true) {
+    bool nrfTransmit(uint8_t * packet, uint8_t length = 32) {
         if (nrfState_ == NRFState::Error || nrfState_ == NRFState::Transmitting)
             return false;
-        hwEvents_.send(NRFTransmit{packet, ack});
+        hwEvents_.send(NRFTransmit{packet, length});
         nrfState_ = NRFState::Transmitting;
         return true;
     }
@@ -292,10 +290,8 @@ private:
     struct NRFEnableReceiver{};
     struct NRFTransmit{
         uint8_t packet[32]; 
-        bool ack; 
-        NRFTransmit(uint8_t * packet, bool ack):
-            ack{ack} {
-            memcpy(this->packet, packet, 32);
+        NRFTransmit(uint8_t * packet, uint8_t length = 32) {
+            memcpy(this->packet, packet, length);
         }
     };
 
@@ -547,12 +543,9 @@ private:
     // status of the NRF chip.
     NRFState nrfState_ UI_THREAD;
 
-    std::function<void(RecordingEvent &)> recordingCallback_ DRIVER_THREAD;
-    bool recording_ = false DRIVER_THREAD;
-
-
     struct {
 
+        bool recording = false;
 
         NRFState nrfState;
         bool nrfReceiveAfterTransmit;
