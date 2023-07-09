@@ -2,6 +2,7 @@
 
 #include "widget.h"
 #include "window.h"
+#include "audio.h"
 
 class Recorder : public Widget {
 public:
@@ -15,6 +16,7 @@ protected:
     }
 
     void draw() override {
+        /*
         int i = 0;
         int x = maxIndex_;
         while (i < 320) {
@@ -23,7 +25,9 @@ protected:
             DrawLine(i, 184 - max, i, 184 - min, GREEN);
             x = (x + 1) % 320;
             ++i;
-        }
+        } */
+
+        avis_.draw(window(), 0, 50, 320, 140);
 
         if (recording_)
             DrawTextEx(window()->helpFont(), "Recording...", 0, 25, 16, 1.0, WHITE);
@@ -38,6 +42,7 @@ protected:
                 nextIndex_ = 0;
                 memset(max_, 128, 320);
                 memset(min_, 128, 320);
+                avis_.reset();
                 window()->rckid()->startRecording();
             }
         } else {
@@ -68,6 +73,7 @@ protected:
         max_[maxIndex_] = max;
         maxIndex_ = (maxIndex_ + 1) % 320;
         //f_ << std::endl;
+        avis_.addData(e.data, 32);
     }
 
     std::ofstream f_;
@@ -77,4 +83,7 @@ protected:
     uint8_t nextIndex_ = 0;
     bool recording_ = false;
     uint8_t empty_[32] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+
+    AudioVisualizer avis_{8000, 60, 1};
 }; // Recorder

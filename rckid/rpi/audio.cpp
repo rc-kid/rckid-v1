@@ -2,13 +2,15 @@
 
 #include "audio.h"
 
-void AudioVisualizer::draw(Window * window, int top, int left, int width, int height) {
+void AudioVisualizer::draw(Window * window, int left, int top, int width, int height) {
     size_t p = pos_;
     int barWidth = width / numBars_;
+    left += (width - barWidth * numBars_) / 2; // center
     for (size_t i = 0; i < numBars_; ++i) {
-        int t = (255 - maxs_[p]) * height / 255 + top;
-        int h = (maxs_[p] - mins_[p]) * height / 255;
-        DrawRectangle(left + barWidth * i, t, barWidth, h, GREEN);
+        int t = (top + height) - (maxs_[p]) * height / 255;
+        int d = (maxs_[p] - mins_[p]);
+        int h = d * height / 255;
+        DrawRectangle(left + barWidth * i, t, barWidth, h, ColorAlpha(GREEN, 0.5 + d/512.0));
         p = (p + 1) % numBars_;             
     }
 }

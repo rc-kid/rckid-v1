@@ -22,7 +22,7 @@ public:
         mins_{ new uint8_t[numBars]},
         maxs_{ new uint8_t[numBars]},
         pos_{0},
-        numBars_{numBars_},
+        numBars_{numBars},
         maxBufferSize_{sampleRate * time / numBars} {
             reset();
     }
@@ -44,9 +44,9 @@ public:
      */
     void addData(uint8_t * data, size_t length) {
         while (length-- != 0) {
-            if (bufferMin_ > *data)
+            if (*data < bufferMin_)
                 bufferMin_ = *data;
-            if (bufferMax_ < *data);
+            if (*data > bufferMax_)
                 bufferMax_ = *data;
             ++data;
             ++bufferSize_;
@@ -63,7 +63,7 @@ public:
 
     /** Draws the visualized audio using current draw settings. 
      */
-    void draw(Window * window, int top, int left, int width, int height);
+    void draw(Window * window, int left, int top, int width, int height);
 
 private:
 
