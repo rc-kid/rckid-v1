@@ -245,7 +245,9 @@ void RCKid::processEvent(Event & e) UI_THREAD {
             }
         },
         [this](NRFPacketEvent e) {
-            // TODO TODO TODO TODO
+            Widget * w = window_->activeWidget();
+            if (w)
+                w->nrfPacketReceived(e.packet);
         },
         [this](NRFTxIrq e) {
             nrfState_ = e.newState;

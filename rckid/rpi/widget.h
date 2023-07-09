@@ -64,9 +64,9 @@ protected:
      */
     virtual void audioRecorded(RecordingEvent & e) {}
 
-    /** Packet received callback. 
+    /** Packet received callback. All packets are 32 bytes long. 
      */
-    virtual void nrfPacketReceived(uint8_t  * packet) {}
+    virtual void nrfPacketReceived(uint8_t const * packet) {}
     
     /** Packet transmit callback. 
      */
