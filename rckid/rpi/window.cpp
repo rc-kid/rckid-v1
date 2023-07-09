@@ -415,7 +415,9 @@ void Window::draw() {
         frames_[fti_].total = asMillis(now() - t);
         fti_ = (fti_ + 1) % 320;
 #endif
-    } 
+    } else {
+        platform::cpu::delayMs(16); // to maintain 60fps illusion
+    }
 }
 
 void Window::drawHeader() {
