@@ -247,11 +247,12 @@ void RCKid::processEvent(Event & e) UI_THREAD {
         [this](NRFPacketEvent e) {
             // TODO TODO TODO TODO
         },
-        [this](NRFTxAckEvent e) {
+        [this](NRFTxIrq e) {
             nrfState_ = e.newState;
-        }, 
-        [this](NRFTxFailEvent e) {
-            nrfState_ = e.newState;
+            nrfTxQueueSize_ = e.txQueueSize;
+            Widget * w = window_->activeWidget();
+            if (w) 
+                w->nrfTxCallback(! e.nrfStatus.txDataFailIrq());
         }
     }, e);
 }
@@ -329,24 +330,30 @@ void RCKid::hwLoop() {
                 nrf_.standby();
                 driverStatus_.nrfState = NRFState::Standby;
             },
-            [this](NRFStandby e) {
-                driverStatus_.nrfState = NRFState::Standby;
-                nrf_.standby();
-            },
-            [this](NRFPowerDown e) {
-                driverStatus_.nrfState = NRFState::PowerDown;
-                nrf_.powerDown();
-            },
-            [this](NRFEnableReceiver e) {
-                driverStatus_.nrfState = NRFState::Receiver;
-                nrf_.enableReceiver();
+            [this](NRFStateChange e) {
+                switch (e.state) {
+                    case NRFState::Standby:
+                        nrf_.standby();
+                        break;
+                    case NRFState::PowerDown:
+                        nrf_.powerDown();
+                        break;
+                    case NRFState::Receiver:
+                        nrf_.enableReceiver();
+                        break;
+                }
+                driverStatus_.nrfState = e.state;
             },
             [this](NRFTransmit e) {
-                driverStatus_.nrfReceiveAfterTransmit = driverStatus_.nrfState == NRFState::Receiver;
-                nrf_.standby();
-                driverStatus_.nrfState = NRFState::Transmitting;
-                nrf_.transmit(e.packet, 32);
-                nrf_.enableTransmitter();
+                if (driverStatus_.nrfState != NRFState::Transmitting) {
+                    driverStatus_.nrfReceiveAfterTransmit = driverStatus_.nrfState == NRFState::Receiver;
+                    nrf_.standby();
+                    driverStatus_.nrfState = NRFState::Transmitting;
+                    nrf_.transmit(e.packet, 32);
+                    nrf_.enableTransmitter();
+                } else {
+                    driverStatus_.nrfTxQueue.push_back(e);
+                }
             },
             [this](msg::StartAudioRecording e) {
                 sendAvrCommand(e);
@@ -519,17 +526,22 @@ void RCKid::nrfReceivePackets() {
 void RCKid::nrfTxDone() {
     NRF24L01::Status status = nrf_.getStatus();
     nrf_.clearIrq();
-    if (driverStatus_.nrfReceiveAfterTransmit) {
-        driverStatus_.nrfState = NRFState::Receiver;
-        nrf_.enableReceiver();
+    // we are now in standby 1 mode (assuming we transmit one message per invocation). Check if there is more messages, and if yes, trasnmit them immediately w/o going to real standby
+    if (! driverStatus_.nrfTxQueue.empty()) {
+        nrf_.transmit(driverStatus_.nrfTxQueue.front().packet, 32);
+        driverStatus_.nrfTxQueue.pop_front();
+        // send the IRQ events with current state 
+        events_.send(NRFTxIrq{status, driverStatus_.nrfState, driverStatus_.nrfTxQueue.size()});
     } else {
-        driverStatus_.nrfState = NRFState::Standby;
-        nrf_.standby();
+        if (driverStatus_.nrfReceiveAfterTransmit) {
+            driverStatus_.nrfState = NRFState::Receiver;
+            nrf_.enableReceiver();
+        } else {
+            driverStatus_.nrfState = NRFState::Standby;
+            nrf_.standby();
+        }
+        events_.send(NRFTxIrq{status, driverStatus_.nrfState, driverStatus_.nrfTxQueue.size()});
     }
-    if (status.txDataSentIrq())
-        events_.send(NRFTxAckEvent{driverStatus_.nrfState});
-    else
-        events_.send(NRFTxFailEvent{driverStatus_.nrfState});
 }
 
 void RCKid::initializeISRs() {
@@ -663,6 +675,7 @@ void RCKid::initializeNrf() UI_THREAD {
         TraceLog(LOG_ERROR, "Radio not found");
         nrfState_ = NRFState::Error;
     }
+    nrfTxQueueSize_ = 0;
     // attach the interrupt handler
     gpio::input(PIN_NRF_IRQ);
     gpio::attachInterrupt(PIN_NRF_IRQ, gpio::Edge::Falling, & isrNrfIrq);

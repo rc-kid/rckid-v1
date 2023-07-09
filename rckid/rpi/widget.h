@@ -68,13 +68,10 @@ protected:
      */
     virtual void nrfPacketReceived(uint8_t  * packet) {}
     
-    /** Packet transmit error callback. 
+    /** Packet transmit callback. 
      */
-    virtual void nrfTxError() {}
+    virtual void nrfTxCallback(bool ok) {}
 
-    /** Packet transmit ack success.
-     */
-    virtual void nrfTxAck() {}  
 
 
 

@@ -187,7 +187,7 @@ public:
     bool nrfStandby() {
         if (nrfState_ == NRFState::Error || nrfState_ == NRFState::Transmitting)
             return false;
-        hwEvents_.send(NRFStandby{});
+        hwEvents_.send(NRFStateChange{NRFState::Standby});
         nrfState_ = NRFState::Standby;
         return true;
     }
@@ -195,7 +195,7 @@ public:
     bool nrfPowerDown() {
         if (nrfState_ == NRFState::Error || nrfState_ == NRFState::Transmitting)
             return false;
-        hwEvents_.send(NRFPowerDown{});
+        hwEvents_.send(NRFStateChange{NRFState::PowerDown});
         nrfState_ = NRFState::PowerDown;
         return true;
     }
@@ -203,18 +203,20 @@ public:
     bool nrfEnableReceiver() {
         if (nrfState_ == NRFState::Error || nrfState_ == NRFState::Transmitting)
             return false;
-        hwEvents_.send(NRFEnableReceiver{});
+        hwEvents_.send(NRFStateChange{NRFState::Receiver});
         nrfState_ = NRFState::Receiver;
         return true;
     }
 
     bool nrfTransmit(uint8_t const * packet, uint8_t length = 32) {
-        if (nrfState_ == NRFState::Error || nrfState_ == NRFState::Transmitting)
+        if (nrfState_ == NRFState::Error)
             return false;
         hwEvents_.send(NRFTransmit{packet, length});
         nrfState_ = NRFState::Transmitting;
         return true;
     }
+
+    size_t nrfTxQueueSize() const { return nrfTxQueueSize_; }
 
     comms::Mode mode() const { return status_.mode; }
     bool usb() const { return status_.usb; }
@@ -292,16 +294,14 @@ private:
             memcpy(this->txAddr, txAddr, 5);
         }
     };
-    struct NRFStandby{};
-    struct NRFPowerDown{};
-    struct NRFEnableReceiver{};
+    struct NRFStateChange{ NRFState state; };
     struct NRFTransmit{
         uint8_t packet[32]; 
         NRFTransmit(uint8_t const * packet, uint8_t length = 32) {
             memcpy(this->packet, packet, length);
         }
     };
-
+    
     /** Event for the driver's main loop to react to. Events with specified numbers are changes on the specified pins.
     */
     using HWEvent = std::variant<
@@ -311,9 +311,7 @@ private:
         KeyPress,
         EnableGamepad,
         NRFInitialize, 
-        NRFStandby,
-        NRFPowerDown,
-        NRFEnableReceiver,
+        NRFStateChange,
         NRFTransmit,
         msg::AvrReset, 
         msg::Info, 
@@ -331,6 +329,7 @@ private:
         msg::PowerOn,
         msg::PowerDown
     >;
+
 
     static RCKid * & instance() {
         static RCKid * i;
@@ -549,6 +548,7 @@ private:
 
     // status of the NRF chip.
     NRFState nrfState_ UI_THREAD;
+    size_t nrfTxQueueSize_ UI_THREAD;
 
     struct {
 
@@ -556,7 +556,9 @@ private:
 
         NRFState nrfState;
         bool nrfReceiveAfterTransmit;
+        std::deque<NRFTransmit> nrfTxQueue;
     } driverStatus_ DRIVER_THREAD;
+
 
 #if (defined ARCH_MOCK)
     volatile bool mockRecording_ = false;

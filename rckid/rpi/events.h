@@ -7,6 +7,7 @@
 #include <variant>
 
 #include "platform/platform.h"
+#include "platform/peripherals/nrf24l01.h"
 #include "utils/utils.h"
 
 #include "common/comms.h"
@@ -110,15 +111,14 @@ struct RecordingEvent {
     comms::Status status;
     uint8_t data[32];
 };
+static_assert(sizeof(RecordingEvent) == 33); 
 
 struct NRFPacketEvent {
     uint8_t packet[32];
 };
 
-struct NRFTxAckEvent { NRFState newState; };
-struct NRFTxFailEvent { NRFState newState; };
+struct NRFTxIrq { platform::NRF24L01::Status nrfStatus; NRFState newState; size_t txQueueSize; };
 
-static_assert(sizeof(RecordingEvent) == 33); 
 
 using Event = std::variant<
     ButtonEvent,
@@ -132,8 +132,7 @@ using Event = std::variant<
     HeadphonesEvent,
     RecordingEvent,
     NRFPacketEvent,
-    NRFTxAckEvent,
-    NRFTxFailEvent
+    NRFTxIrq
 >;
 
 /** Event queue.

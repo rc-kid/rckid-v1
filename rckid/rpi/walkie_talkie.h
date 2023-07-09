@@ -48,6 +48,7 @@ protected:
         DrawText(STR(compressedLength_).c_str(), 0, 50, 20, WHITE);
         DrawText(STR(packetsSent_).c_str(), 0, 70, 20, WHITE);
         DrawText(STR(packetErrors_).c_str(), 0, 90, 20, RED);
+        DrawText(STR(window()->rckid()->nrfTxQueueSize()).c_str(), 0, 110, 20, BLUE);
     }
 
     void idle() override {
@@ -103,12 +104,15 @@ protected:
         rawLength_ += 32;
         if (enc_.encode(e.data, 32))
             compressedLength_ += enc_.currentFrameSize();
-        if (enc_.currentFrameValid()) {
-            if (window()->rckid()->nrfTransmit(enc_.currentFrame(), 32))
-                ++packetsSent_;
-            else
-                ++packetErrors_;
-        }
+        if (enc_.currentFrameValid())
+            window()->rckid()->nrfTransmit(enc_.currentFrame(), 32);
+    }
+
+    void nrfTxCallback(bool ok) override {
+        if (ok) 
+            ++packetsSent_;
+        else 
+            ++packetErrors_;
     }
 
 
