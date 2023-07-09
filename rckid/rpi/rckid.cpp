@@ -518,7 +518,6 @@ void RCKid::nrfReceivePackets() {
 
 void RCKid::nrfTxDone() {
     NRF24L01::Status status = nrf_.getStatus();
-    std::cout << (int)status.raw << std::endl;
     nrf_.clearIrq();
     if (driverStatus_.nrfReceiveAfterTransmit) {
         driverStatus_.nrfState = NRFState::Receiver;
@@ -531,7 +530,6 @@ void RCKid::nrfTxDone() {
         events_.send(NRFTxAckEvent{driverStatus_.nrfState});
     else
         events_.send(NRFTxFailEvent{driverStatus_.nrfState});
-
 }
 
 void RCKid::initializeISRs() {

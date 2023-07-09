@@ -82,7 +82,7 @@ public:
 
     static constexpr uint8_t BTN_DEBOUNCE_DURATION = 2;
 
-    static constexpr uint8_t BTN_AUTOREPEAT_DURATION = 20;
+    static constexpr uint8_t BTN_AUTOREPEAT_DURATION = 20; 
 
     /** Initializes the RCKid driver. 
 
@@ -208,7 +208,7 @@ public:
         return true;
     }
 
-    bool nrfTransmit(uint8_t * packet, uint8_t length = 32) {
+    bool nrfTransmit(uint8_t const * packet, uint8_t length = 32) {
         if (nrfState_ == NRFState::Error || nrfState_ == NRFState::Transmitting)
             return false;
         hwEvents_.send(NRFTransmit{packet, length});
@@ -297,7 +297,7 @@ private:
     struct NRFEnableReceiver{};
     struct NRFTransmit{
         uint8_t packet[32]; 
-        NRFTransmit(uint8_t * packet, uint8_t length = 32) {
+        NRFTransmit(uint8_t const * packet, uint8_t length = 32) {
             memcpy(this->packet, packet, length);
         }
     };

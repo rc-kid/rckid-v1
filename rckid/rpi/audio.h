@@ -124,6 +124,7 @@ namespace opus {
             if (err != OPUS_OK)
                 throw OpusError{STR("Unable to create opus encoder, code: " << err)};
             opus_encoder_ctl(encoder_, OPUS_SET_BITRATE(6000));                
+            frame_[0] = 0;
         }
 
         ~RawEncoder() {
@@ -135,21 +136,27 @@ namespace opus {
             Returns true if there has been a new encoded frame created during the recording, in which case the call should be followed by sending the frame packet. 
          */
         bool encode(uint8_t const * data, size_t len) {
-            frame_[0] = 0;
+            bool newFrame = false;
             while (len-- > 0) {
                 buffer_.push_back(static_cast<opus_int16>(*(data++)) - 128 * 256);
                 if (buffer_.size() == RAW_FRAME_LENGTH) {
                     ++frame_[1];
                     int result = opus_encode(encoder_, buffer_.data(), buffer_.size(), frame_ + 2, sizeof(frame_) - 2);
-                    if (result > 0)
+                    if (result > 0) {
                         frame_[0] = result & 0xff;
-                    else
+                        newFrame = true;
+                    } else {
                         throw OpusError{STR("Unable to encode frame, code:  " << result)};
+                    }
                     buffer_.clear();
                 }
             }
-            return frame_[0] != 0;
+            return newFrame;
         }
+
+        /** Returns true if the current frame is valid, i.e. it has length of greater than 0. This will be always true after enough data for at least a single frame has been accumulated. 
+         */
+        bool currentFrameValid() const { return frame_[0] != 0; }
 
         /** Returns the encoded frame buffer.
          */
