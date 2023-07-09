@@ -47,7 +47,7 @@ protected:
         }
     }
 
-    void audioRecorded(RecordingEvent & e) {
+    void audioRecorded(RecordingEvent & e) override {
         while (e.status.batchIndex() != nextIndex_) {
             nextIndex_ = (nextIndex_ + 1) % 8;
             f_.write(reinterpret_cast<char const *>(empty_), 32);

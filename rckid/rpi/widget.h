@@ -62,7 +62,7 @@ protected:
 
     /** Called when audio packet (32 bytes) has been recorded by the AVR. 
      */
-    virtual void audioRecorded(RecordingEvent e) {}
+    virtual void audioRecorded(RecordingEvent & e) {}
 
     /** Packet received callback. 
      */

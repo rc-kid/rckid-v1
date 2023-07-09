@@ -108,6 +108,32 @@ RCKid::RCKid(Window * window):
     }};
     tickTimer.detach();
     secondTimer.detach();
+
+#if (defined ARCH_MOCK)
+    std::thread mockRecording{[this](){
+        std::vector<uint8_t> rec;
+        std::ifstream f{"assets/recording/test.dat"};
+        while (!f.eof())
+            rec.push_back(f.get());
+        TraceLog(LOG_DEBUG, STR("Loaded mock recording with size " << rec.size()).c_str());
+        size_t i = 0;
+        while (true) {
+            cpu::delayMs(4);
+            if (mockRecording_) {
+                RecordingEvent e;
+                e.status.setRecording(true);
+                e.status.setBatchIndex(mockRecBatch_);
+                mockRecBatch_ = (mockRecBatch_ + 1) % 8;
+                for (size_t x = 0; x < 32; ++x) {
+                    e.data[x] = rec[i];
+                    i = (i + 1) % rec.size();
+                }
+                events_.send(e);
+            }
+        }
+    }};
+    mockRecording.detach();
+#endif
 }
 
 void RCKid::loop() {

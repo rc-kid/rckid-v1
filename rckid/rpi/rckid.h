@@ -145,12 +145,19 @@ public:
         TraceLog(LOG_DEBUG, "Recording start");
         status_.recording = true;
         hwEvents_.send(msg::StartAudioRecording{});
+#if (defined ARCH_MOCK)
+        mockRecBatch_ = 0;
+        mockRecording_ = true;
+#endif
     }
 
     void stopRecording() { 
         TraceLog(LOG_DEBUG, "Recording stopped");
         hwEvents_.send(msg::StopAudioRecording{}); 
         status_.recording = false; 
+#if (defined ARCH_MOCK)
+        mockRecording_ = false;
+#endif
     }
 
     /** Returns true if the device status information changed since the last call. 
@@ -550,6 +557,11 @@ private:
         NRFState nrfState;
         bool nrfReceiveAfterTransmit;
     } driverStatus_ DRIVER_THREAD;
+
+#if (defined ARCH_MOCK)
+    volatile bool mockRecording_ = false;
+    volatile uint8_t mockRecBatch_ = 0;
+#endif
 
 
     /** The button state objects, managed by the ISR thread 

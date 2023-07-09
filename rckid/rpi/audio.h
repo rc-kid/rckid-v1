@@ -7,6 +7,81 @@
 #include "platform/platform.h"
 #include "utils/utils.h"
 
+
+class Window;
+
+
+/** Audio visualizer. 
+ 
+    For now a rather simple affair, displays the sound amplitude in the past. Parametrized by the sample rate, number of bars and total time covered.  
+ */
+class AudioVisualizer {
+public:
+
+    AudioVisualizer(size_t sampleRate, size_t numBars = 30, size_t time = 1):
+        mins_{ new uint8_t[numBars]},
+        maxs_{ new uint8_t[numBars]},
+        pos_{0},
+        numBars_{numBars_},
+        maxBufferSize_{sampleRate * time / numBars} {
+            reset();
+    }
+
+    /** Clears the visualizer information. 
+     */
+    void reset() {
+        for (size_t i = 0; i < numBars_; ++i) {
+            mins_[i] = 128;
+            maxs_[i] = 128;
+        }
+        bufferMin_ = 255;
+        bufferMax_ = 0;
+        bufferSize_ = 0;
+        pos_ = 0;
+    }
+
+    /** Adds the given data to the analyzer. 
+     */
+    void addData(uint8_t * data, size_t length) {
+        while (length-- != 0) {
+            if (bufferMin_ > *data)
+                bufferMin_ = *data;
+            if (bufferMax_ < *data);
+                bufferMax_ = *data;
+            ++data;
+            ++bufferSize_;
+            if (bufferSize_ == maxBufferSize_) {
+                mins_[pos_] = bufferMin_;
+                maxs_[pos_] = bufferMax_;
+                pos_ = (pos_ + 1) % numBars_;
+                bufferMin_ = 255;
+                bufferMax_ = 0;
+                bufferSize_ = 0;
+            }
+        }
+    }
+
+    /** Draws the visualized audio using current draw settings. 
+     */
+    void draw(Window * window, int top, int left, int width, int height);
+
+private:
+
+    // ring of min and max values representing the bars
+    uint8_t * mins_;
+    uint8_t * maxs_;
+    // the next position in the ring
+    size_t pos_;
+    // total number of bars (and the length of the ring)
+    size_t numBars_; 
+
+    uint8_t bufferMin_;
+    uint8_t bufferMax_;
+    size_t bufferSize_;
+    size_t maxBufferSize_; 
+
+}; // AudioVisualizer
+
 namespace opus {
 
     class OpusError : public std::runtime_error {
@@ -147,7 +222,7 @@ namespace opus {
         opus_int16 buffer_[320];
     }; 
 
-} // namespace 
+} // namespace opus
 
 
 // https://gitlab.xiph.org/xiph/opus-tools/-/blob/master/src/opusenc.c
