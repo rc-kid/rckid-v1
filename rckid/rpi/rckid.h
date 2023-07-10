@@ -82,7 +82,7 @@ public:
 
     static constexpr uint8_t BTN_DEBOUNCE_DURATION = 2;
 
-    static constexpr uint8_t BTN_AUTOREPEAT_DURATION = 20; 
+    static constexpr uint8_t BTN_AUTOREPEAT_DURATION = 0; // 20; 
 
     /** Initializes the RCKid driver. 
 
@@ -497,7 +497,7 @@ private:
         if (btn.debounce > 0 && --(btn.debounce) == 0)
             if (btn.reported != btn.current)
                 buttonAction(btn);
-        if (btn.reported && btn.autorepeat > 0 && --(btn.autorepeat) == 0)
+        if (btn.reported && (btn.autorepeat > 0) && (--(btn.autorepeat) == 0))
             buttonAction(btn);
     }
 

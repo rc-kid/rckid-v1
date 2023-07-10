@@ -271,6 +271,7 @@ void Window::draw() {
     tt = now();
 #endif
     if (widget_ != nullptr) {
+        widget_->tick();
         if (widget_->redraw_) {
             redraw = true;
             BeginTextureMode(widgetCanvas_);
@@ -279,8 +280,6 @@ void Window::draw() {
             widget_->draw();
             EndBlendMode();
             EndTextureMode();
-        } else {
-            widget_->idle();
         }
     }
 #if (defined RENDERING_STATS)

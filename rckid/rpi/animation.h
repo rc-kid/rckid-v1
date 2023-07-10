@@ -100,3 +100,49 @@ private:
     float value_ = 0;
 
 }; // Animation
+
+/** A simple timer.  
+*/
+class Timer {
+public:
+    bool update(Window * window);
+
+    bool running() const { return running_; }
+
+    void start(float duration) {
+        duration_ = duration;
+        value_ = 0;
+        running_ = true;
+        singleShot_ = true;
+    }
+
+    void start() { start(duration_); }
+
+    /** Starts the timer with a random duration from the min-max interval in milliseconds. 
+     */
+    void startRandom(float min, float max) {
+        float  d = min + (max - min) * (rand() % 10000) / 10000;
+        start(d);
+    }
+
+    void startContinuous(float duration) {
+        duration_ = duration;
+        value_ = 0;
+        running_ = true;
+        singleShot_ = false;
+    } 
+
+    void startContinuous() { startContinuous(duration_); }
+
+    void stop() {
+        running_ = false;
+    }
+
+    bool done() const { return value_ >= duration_; }
+
+private:
+    bool running_ = false;
+    bool singleShot_ = false;
+    float duration_ = 0;
+    float value_ = 0;
+}; 

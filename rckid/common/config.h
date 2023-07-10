@@ -98,3 +98,10 @@
 
 /** When VCC is above this value (set to be greater than that produced by Li-Ion battery, but lower than 5V to account for voltage drop) we can assume that we are running from the USB power. */
 #define VCC_THRESHOLD_VUSB 440
+
+
+/** \section Walkie-Talkie
+*/
+
+#define WALKIE_TALKIE_HEARTBEAT_INTERVAL_MIN 300
+#define WALKIE_TALKIE_HEARTBEAT_INTERVAL_MAX 500

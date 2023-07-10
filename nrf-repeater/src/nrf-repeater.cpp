@@ -66,11 +66,14 @@ public:
 
     static void loop() {
         if (gpio::read(NRF_IRQ_PIN) == 0) {
+            if (transmitting_) {
+                transmitting_ = false;
+                nrf_.enableReceiver();
+            }
             nrf_.clearDataReadyIrq();
             while (nrf_.receive(buffer_, 32)) {
                 ++msgs_;
                 ++msgsNow_;
-
             }
         }
         if (RTC.PITINTFLAGS == RTC_PI_bm) {
@@ -80,9 +83,26 @@ public:
             else 
                 gpio::high(DEBUG_PIN);
             oled_.write(35,2, msgs_);
+            // send the heartbeat
+            //walkieTalkieHeartbeat();
         }
 
     }
+
+    static void walkieTalkieHeartbeat() {
+        uint8_t packet[32];
+        packet[0] = 0x80; // heartbeat id
+        packet[1] = heartbeatIndex_++;
+        packet[2] = 12;
+        memcpy(packet + 3, "NRF_REPEATER", 12);
+        nrf_.standby();
+        nrf_.transmit(packet, 32);
+        nrf_.enableTransmitter();
+        transmitting_ = true;
+    }
+
+    static inline uint8_t heartbeatIndex_ = 0;
+    static inline bool transmitting_ = false;
 
 
 }; // Repeater

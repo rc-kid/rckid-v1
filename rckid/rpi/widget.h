@@ -17,13 +17,13 @@ protected:
      */
     virtual bool fullscreen() const { return false; }
 
+    /** Called every time the UI is about to redraw itself (approx 60times per second in ideal conditions)
+     */
+    virtual void tick() {};
+
     /** Override this to draw the widget.
      */
     virtual void draw() = 0;
-
-    /** Called when the widget does not need redraw, but frame event occurs. 
-     */
-    virtual void idle() {}
 
     /** Called when the widget gains focus (becomes visible). 
      */
@@ -64,9 +64,9 @@ protected:
      */
     virtual void audioRecorded(RecordingEvent & e) {}
 
-    /** Packet received callback. All packets are 32 bytes long. 
+    /** Packet received callback. 
      */
-    virtual void nrfPacketReceived(uint8_t const * packet) {}
+    virtual void nrfPacketReceived(NRFPacketEvent & e) {}
     
     /** Packet transmit callback. 
      */

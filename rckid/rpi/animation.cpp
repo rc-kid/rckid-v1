@@ -18,3 +18,18 @@ void Animation::update(Window * window) {
         done_ = true;
     }
 }
+
+bool Timer::update(Window * window) {
+    if (!running_)
+        return false;
+    value_ += window->redrawDelta();
+    if (value_ >= duration_) {
+        if (singleShot_)
+            running_ = false;
+        else
+            value_ -= duration_;
+        return true;
+    } else {
+        return false;
+    }    
+}

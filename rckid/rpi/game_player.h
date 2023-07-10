@@ -70,13 +70,13 @@ public:
     }
 
 protected:
-    void draw() override {
-        cancelRedraw();
-    }
-
-    void idle() override {
+    void tick() override {
         if (emulator_.done())
             window()->back();
+    }
+
+    void draw() override {
+        cancelRedraw();
     }
 
     // handled by the play method above
