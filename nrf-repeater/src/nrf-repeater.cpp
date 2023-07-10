@@ -31,6 +31,7 @@ public:
     static inline uint16_t msgsNow_;
     static inline uint16_t msgsLastSec_;
     static inline uint8_t buffer_[32];
+    static inline uint16_t errors_ = 0;
 
 
     static void initialize() {
@@ -66,11 +67,16 @@ public:
 
     static void loop() {
         if (gpio::read(NRF_IRQ_PIN) == 0) {
+            NRF24L01::Status status = nrf_.getStatus();
             if (transmitting_) {
-                transmitting_ = false;
-                nrf_.enableReceiver();
+                if (status.txDataSentIrq() || status.txDataFailIrq()) {
+                    transmitting_ = false;
+                    nrf_.enableReceiver();
+                }
             }
-            nrf_.clearDataReadyIrq();
+            if (status.txDataFailIrq())
+                ++errors_;
+            nrf_.clearIrq();
             while (nrf_.receive(buffer_, 32)) {
                 ++msgs_;
                 ++msgsNow_;
@@ -83,8 +89,10 @@ public:
             else 
                 gpio::high(DEBUG_PIN);
             oled_.write(35,2, msgs_);
+            oled_.write(35, 3, heartbeatIndex_);
+            oled_.write(80,2, errors_);
             // send the heartbeat
-            //walkieTalkieHeartbeat();
+            walkieTalkieHeartbeat();
         }
 
     }
@@ -103,6 +111,7 @@ public:
 
     static inline uint8_t heartbeatIndex_ = 0;
     static inline bool transmitting_ = false;
+
 
 
 }; // Repeater

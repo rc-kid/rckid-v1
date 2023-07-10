@@ -520,9 +520,10 @@ void RCKid::avrGetRecording() {
 }
 
 void RCKid::nrfReceivePackets() {
-    NRF24L01::Status status = nrf_.getStatus();
-    std::cout << (int)status << std::endl;
-    nrf_.clearIrq();
+    NRFPacketEvent e;
+    nrf_.clearDataReadyIrq();
+    while (nrf_.receive(e.packet, 32))
+        events_.send(e);
 }
 
 void RCKid::nrfTxDone() {
