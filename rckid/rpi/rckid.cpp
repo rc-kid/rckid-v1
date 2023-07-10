@@ -237,6 +237,9 @@ void RCKid::processEvent(Event & e) UI_THREAD {
             status_.changed = true;
             status_.headphones = e.connected;
         },
+        [this](UptimeEvent e) {
+            status_.avrUptime = e.uptime;
+        },
         // simply process the recorded data - we know the function must exist since it must be supplied very time we start recording
         [this](RecordingEvent e) {
             if (status_.recording) {
@@ -446,6 +449,10 @@ void RCKid::avrQueryExtendedState() {
             TraceLog(LOG_WARNING, "First boot detected");
             msg::DInfoClear m;
             i2c::transmit(AVR_I2C_ADDRESS, (uint8_t*)&m, sizeof(m), nullptr, 0);
+        }
+        if (driverStatus_.avrUptime != state.uptime) {
+            driverStatus_.avrUptime = state.uptime;
+            events_.send(UptimeEvent{state.uptime});
         }
     }
 }

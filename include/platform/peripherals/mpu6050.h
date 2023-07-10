@@ -78,14 +78,16 @@ namespace platform {
             return AccelData{buffer};
         }
 
+        /** Returns the temperature measured by the sensor in degrees C * 10, i.e. 365 == 36.5 C temperature. 
+         */
         int16_t readTemp() {
             uint8_t cmd[] = { CMD_READ_TEMP };
             uint8_t buffer[2];
             i2c::transmit(address, cmd, 1, buffer, sizeof(buffer));
-            return buffer[0] << 8 | buffer[1];
+            int16_t result = (buffer[0] << 8) | buffer[1];
+            // from the datasheet this is TEMP_OUT / 340 + 36.53, we do not in tenths of degree only
+            return result / 34 + 365;
         }
-
-
 
     private:
         static constexpr uint8_t CMD_READ_ACCEL = 0x3b;

@@ -103,6 +103,10 @@ struct HeadphonesEvent {
     bool connected;
 }; 
 
+struct UptimeEvent {
+    uint32_t uptime;
+}; 
+
 /** Audio recording event. 
  
     Contains the status word which can be used to determine the batch and 32 data bytes of the actual recording. 
@@ -130,6 +134,7 @@ using Event = std::variant<
     TempEvent, 
     BrightnessEvent,
     HeadphonesEvent,
+    UptimeEvent,
     RecordingEvent,
     NRFPacketEvent,
     NRFTxIrq

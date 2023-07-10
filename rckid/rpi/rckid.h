@@ -114,6 +114,10 @@ public:
         hwEvents_.send(msg::PowerDown{});
     }
 
+    uint32_t avrUptime() const {
+        return status_.avrUptime;
+    }
+
     /** Returns the current audio volume. 
      */
     int volume() const { return status_.volume; }
@@ -543,6 +547,7 @@ private:
         uint8_t brightness;
         // determines if we are recording in the main thread
         bool recording = false;
+        uint32_t avrUptime = 0; 
     } status_;
 
 
@@ -551,6 +556,7 @@ private:
     size_t nrfTxQueueSize_ UI_THREAD;
 
     struct {
+        uint32_t avrUptime = 0;
 
         bool recording = false;
 

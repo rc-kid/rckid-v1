@@ -137,7 +137,7 @@ namespace comms {
         }
 #endif
 
-    }; // comms::Status
+    } __attribute__((packed)); // comms::Status
 
     /** Information about the input controls connected to the RPi. 
     */
@@ -206,7 +206,7 @@ namespace comms {
         uint8_t buttons_;
         uint8_t joyH_;
         uint8_t joyV_;
-    }; // comms::Controls 
+    } __attribute__((packed)); // comms::Controls 
 
     class ExtendedInfo {
     public:
@@ -296,14 +296,14 @@ namespace comms {
         uint8_t temp_;
         uint8_t brightness_ = 128;
         uint8_t flags_;
-    }; // comms::ExtendedInfo;
+    } __attribute__((packed)); // comms::ExtendedInfo;
 
     /** State consists  */
     class State {
     public:
        Status status;
        Controls controls;
-    }; // comms::State
+    } __attribute__((packed)); // comms::State
 
     static_assert(sizeof(State) == 4);
 
@@ -331,7 +331,7 @@ namespace comms {
         // 4 free bits
         uint8_t raw_;
 
-    }; // comms::DebugInfo
+    } __attribute__((packed)); // comms::DebugInfo
 
     class ExtendedState {
     public:
@@ -342,7 +342,7 @@ namespace comms {
         utils::DateTime time;
         utils::DateTime alarm;
         uint32_t uptime = 0;
-    }; // comms::ExtendedState
+    } __attribute__((packed));// comms::ExtendedState
 
     static_assert(sizeof(ExtendedState) <= 32);
 

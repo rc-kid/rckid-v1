@@ -47,15 +47,13 @@
 ## RCKid RPi
 
 - DIFFERENT PIN MAPPING FOR NEW VERSION
-- check uptime is working & display in debug mode
 - audio player
 - game player menu implementation (load/save, etc.)
 - torchlight widget
 - walkie talkie widget
 - heart bar for time spent, track time spent when widgets are in foreground
+- photores
 
-- accelerometer is very noisy
-- add accel temperature processing
 - key repeat is too fast
 - debounce buttons
 

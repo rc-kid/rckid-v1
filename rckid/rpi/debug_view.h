@@ -38,9 +38,10 @@ protected:
 
         DrawTextEx(window()->helpFont(), "CHRG:", 160, 60, 16, 1, DARKGRAY);
         DrawTextEx(window()->helpFont(), window()->rckid()->charging() ? "1" : "0", 210, 60, 16, 1.0, WHITE);
+
+        DrawTextEx(window()->helpFont(), "UP:", 160, 80, 16, 1, DARKGRAY);
+        DrawTextEx(window()->helpFont(), STR(window()->rckid()->avrUptime()).c_str(), 210, 80, 16, 1.0, WHITE);
         EndBlendMode();
-
-
 
         BeginBlendMode(BLEND_ALPHA);
         // draw rckid's outline
