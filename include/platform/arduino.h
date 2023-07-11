@@ -112,6 +112,10 @@ namespace platform {
         static bool read(Pin pin) {
             return digitalRead(pin);
         }
+
+        static void write(Pin pin, bool value) {
+            value ? gpio::high(pin) : gpio::low(pin);
+        }
     }; // gpio
 
     class i2c {

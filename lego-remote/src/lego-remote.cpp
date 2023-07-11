@@ -16,7 +16,6 @@
 using namespace platform;
 using namespace remote;
 
-
 /** LEGO Remote
  
     A remote controller to be used mainly with lego. Supports DC motors at 5 or 9V, servo motors, PWM channels, digital and analog inputs, neopixels and tones. 
@@ -98,6 +97,7 @@ public:
         gpio::initialize();
         i2c::initializeMaster();
         spi::initialize();
+
 #ifdef DEBUG_OLED
         oled_.initialize128x32();
         oled_.normalMode();
@@ -139,9 +139,9 @@ public:
         rgbColors_[0] = Color::Green();
         rgbColors_.update();
 
-        l1_.config.mode = channel::CustomIO::Mode::Servo;
-        l1_.control.value = 128;
-        gpio::output(XL1_PIN);
+        //l1_.config.mode = channel::CustomIO::Mode::Servo;
+        //l1_.control.value = 128;
+        //gpio::output(XL1_PIN);
         //setPWMXL1(32);
         //setPWMXL2(64);
         //setPWMXR1(128);
@@ -207,18 +207,19 @@ public:
 
     static void setChannelConfig(uint8_t channel, uint8_t * data) {
         switch (channel) {
-            case 1: // Motor L
+            case CHANNEL_ML: 
                 ml_.config = *reinterpret_cast<channel::Motor::Config*>(data);
                 break;
-            case 2: // Motor R
+            case CHANNEL_MR: 
                 mr_.config = *reinterpret_cast<channel::Motor::Config*>(data);
                 break;
-            case 3: // L1
-            case 4: // R1
-            case 5: // L2
-            case 6: // R2
-            case 7: // tone effect
-            case 8: //  RGBStrip
+            case CHANNEL_L1:
+                break;
+            case CHANNEL_R1: 
+            case CHANNEL_L2: 
+            case CHANNEL_R2:
+            case CHANNEL_TONE_EFFECT: 
+            case CHANNEL_RGB_STRIP: 
             default:
                 // error
                 break;
@@ -229,10 +230,10 @@ public:
      */
     static uint8_t setChannelControl(uint8_t channelIndex, uint8_t * data) {
         switch (channelIndex) {
-            case 1:
+            case CHANNEL_ML:
                 setMotorL(*reinterpret_cast<channel::Motor::Control*>(data));
                 return sizeof(channel::Motor::Control);
-            case 2:
+            case CHANNEL_MR:
                 setMotorR(*reinterpret_cast<channel::Motor::Control*>(data));
                 return sizeof(channel::Motor::Control);
             /*
@@ -254,6 +255,16 @@ public:
      
      */
     //@{
+    static constexpr uint8_t CHANNEL_ML = 1;
+    static constexpr uint8_t CHANNEL_MR = 2;
+    static constexpr uint8_t CHANNEL_L1 = 3;
+    static constexpr uint8_t CHANNEL_R1 = 4;
+    static constexpr uint8_t CHANNEL_L2 = 5;
+    static constexpr uint8_t CHANNEL_R2 = 6;
+    static constexpr uint8_t CHANNEL_TONE_EFFECT = 7;
+    static constexpr uint8_t CHANNEL_RGB_STRIP = 8;
+
+
     static inline channel::Motor ml_; // 1
     static inline channel::Motor mr_; // 2
     static inline channel::CustomIO l1_; // 3
@@ -265,6 +276,58 @@ public:
 
     // channels 8 .. 15 are colors actually, the first LED in the strip is the control led on the device
     static inline NeopixelStrip<9> rgbColors_{NEOPIXEL_PIN};
+
+    static bool setCustomIOConfig(uint8_t channel, channel::CustomIO::Config const * config) {
+        // first clear the channel outputs accordingly
+        switch (channel) {
+            case CHANNEL_L1:
+                disablePWMXL1();
+                gpio::input(XL1_PIN);
+                // TODO enable digital buffers on pin
+                l1_.config = *config;
+                switch (l1_.config.mode) {
+                    case channel::CustomIO::Mode::DigitalIn:
+                        if (l1_.config.pullup)
+                            gpio::inputPullup(XL1_PIN);
+                        break;
+                    case channel::CustomIO::Mode::DigitalOut:
+                        gpio::output(XL1_PIN);
+                        gpio::write(XL1_PIN, l1_.control.value != 0);
+                        break;
+                    case channel::CustomIO::Mode::AnalogIn:
+                        // TODO disable digital buffers
+                        break; 
+                    case channel::CustomIO::Mode::PWM:
+                        setPWMXL1(l1_.control.value & 0xff);
+                        break;
+                    case channel::CustomIO::Mode::Servo:
+                        gpio::output(XL1_PIN);
+                        gpio::low(XL1_PIN);
+                        break;
+                    default:
+                        // TODO error & set to digital input
+                        break;
+
+                }
+                return true;
+            case CHANNEL_L2:
+                disablePWMXL2();
+                gpio::input(XL2_PIN);
+                return true;
+            case CHANNEL_R1:
+                disablePWMXR1();
+                gpio::input(XR1_PIN);
+                return true;
+            case CHANNEL_R2:
+                disablePWMXR2();
+                gpio::input(XR2_PIN);
+                return true;
+            default:
+                // TODO error
+                return false;
+        }
+    }
+
     //@}
 
     /** \name Motor Control
@@ -481,10 +544,23 @@ public:
         TCB1.CTRLA |= TCB_ENABLE_bm; 
     }
 
-    static void terminateControlPulse() {
-        gpio::low(activeServoPin_);
+    static void terminateControlPulse() __attribute__((always_inline)) {
         TCB1.INTFLAGS = TCB_CAPT_bm;
         TCB1.CTRLA &= ~TCB_ENABLE_bm;
+        switch (activeServoPin_) {
+            case XL1_PIN: // PB5
+                PORTB.OUTCLR = (1 << 5);
+                break;
+            case XL2_PIN: // PB4
+                PORTB.OUTCLR = (1 << 5);
+                break;
+            case XR1_PIN: // PC3
+                PORTC.OUTCLR = (1 << 3);
+                break;
+            case XR2_PIN: // PC2
+                PORTC.OUTCLR = (1 << 2);
+                break;
+        }
     }
     //}@
 
@@ -665,7 +741,7 @@ public:
         TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP2EN_bm;
     }
 
-    static void disablePWNXL2() {
+    static void disablePWMXL2() {
         TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP1EN_bm;
     }
 
@@ -673,7 +749,7 @@ public:
         TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_HCMP0EN_bm;
     }
 
-    static void disablePWNXR2() {
+    static void disablePWMXR2() {
         TCA0.SPLIT.INTCTRL = 0;
         TCA0.SPLIT.INTFLAGS = 0xff; // and clear the flags
     }
@@ -690,12 +766,14 @@ ISR(TCB1_INT_vect) {
 
 ISR(TCA0_LUNF_vect) {
     TCA0.SPLIT.INTFLAGS = TCA_SPLIT_LUNF_bm;
-    gpio::low(Remote::XR2_PIN);
+    static_assert(Remote::XR2_PIN == 12); // PC2
+    PORTC.OUTCLR = (1 << 2);
 }
 
 ISR(TCA0_LCMP0_vect) {
     TCA0.SPLIT.INTFLAGS = TCA_SPLIT_LCMP0_bm;
-    gpio::high(Remote::XR2_PIN);
+    static_assert(Remote::XR2_PIN == 12); // PC2
+    PORTC.OUTSET = (1 << 2);
 }
 
 void setup() {

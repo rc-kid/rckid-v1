@@ -46,7 +46,8 @@ public:
 
         // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
         RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
-        RTC.PITCTRLA = RTC_PERIOD_CYC32768_gc | RTC_PITEN_bm;
+        //RTC.PITCTRLA = RTC_PERIOD_CYC32768_gc | RTC_PITEN_bm;
+        RTC.PITCTRLA = RTC_PERIOD_CYC512_gc | RTC_PITEN_bm;
 
         // initialize the OLED display
         oled_.initialize128x32();
@@ -56,6 +57,11 @@ public:
         oled_.write(0,2, "Total:");
         oled_.write(0,3, "Last:");
         oled_.write(64, 2, "Errors:");
+        // 3684
+        TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc; // | TCB_ENABLE_bm;
+        TCB0.INTCTRL = TCB_CAPT_bm;
+
+
 
         if (nrf_.initialize("AAAAA", "AAAAA", 86)) 
            oled_.write(64, 0, "NRF OK");
@@ -63,9 +69,37 @@ public:
             oled_.write(64, 0, "NRF FAIL"); 
         nrf_.standby();
         nrf_.enableReceiver();
+        gpio::inputPullup(5);
+        gpio::output(4);
+        gpio::high(4);
     }
 
+    static void myTone(uint16_t freq) {
+        TCB0.CCMP = 2500000 / freq;
+        TCB0.CTRLA |= TCB_ENABLE_bm;
+    }
+
+    static void myNoTone() {
+        TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc;
+        gpio::high(4);
+    }
+
+    static inline uint16_t freq = 0;
+    static inline int8_t siren_ = 0;
+    static inline bool xx ;
+
     static void loop() {
+        if (gpio::read(5)) {
+            if (freq != 0) {
+                freq = 0;
+                myNoTone();
+            }
+        } else {
+            if (freq == 0) {
+                freq = 600;
+                myTone(freq);
+            }
+        }
         if (gpio::read(NRF_IRQ_PIN) == 0) {
             NRF24L01::Status status = nrf_.getStatus();
             if (transmitting_) {
@@ -92,7 +126,33 @@ public:
             oled_.write(35, 3, heartbeatIndex_);
             oled_.write(80,2, errors_);
             // send the heartbeat
-            walkieTalkieHeartbeat();
+            //walkieTalkieHeartbeat();
+            if (freq != 0) {
+                if (siren_) {
+                    freq += 3;
+                    if (freq >= 1200) {
+                        freq = 1200;
+                        siren_ = 0;
+                    }
+                } else {
+                    freq -= 3;
+                    if (freq <= 600) {
+                        freq = 600;
+                        siren_ = 1;
+                    }
+                }
+            } 
+
+            /* hi-low 0.5s
+             if (freq == 450) {
+                freq = 600;
+            } else {
+                if (freq == 600)
+                    freq = 450;
+            } 
+            */
+            if (freq != 0)
+                myTone(freq);
         }
 
     }
@@ -115,6 +175,20 @@ public:
 
 
 }; // Repeater
+
+uint8_t * addr = PORTB.OUTTGL;
+uint8_t pins = 1 << 5;
+
+// 3404
+ISR(TCB0_INT_vect) {
+    TCB0.INTFLAGS = TCB_CAPT_bm;
+    PORTB.OUTTGL = 1 << 5;
+    //*addr = pins;
+    /*
+    Repeater::xx ? gpio::high(4) : gpio::low(4);
+    Repeater::xx = !Repeater::xx;
+    */
+}
 
 void setup() {
     Repeater::initialize();

@@ -10,6 +10,7 @@
 namespace remote {
 
     namespace channel {
+
         /** Channel types supported by the remote protocol. 
          */
         enum class Kind {
@@ -82,27 +83,48 @@ namespace remote {
             /** The custom IO channel is configured by its mode of operation, and the min and max pulse width for servo control, specified in microseconds. By default, this corresponds to a 270 degree standard servo with neutral position at 1500uS. You may wish to experiment with other values for particular servos.  
             */
             struct Config {
-                Mode mode;
-                uint16_t servoStart = 500; // 0.5mssss
+                Mode mode = Mode::DigitalIn;
+                uint16_t servoStart = 500; // 0.5ms
                 uint16_t servoEnd = 2500; // 2.5ms
+                bool pullup = false;
             };
 
             Control control;
             Feedback feedback;
             Config config;
-
         }; // channel::CustomIO
 
+
+        /** 
+         
+            Hi-low siren = 450/600Hz in 0.5 sec interval
+            Wail siren = 600 - 1200Hz sweep, sweep takes ~3 seconds up, 3 seconds down
+
+            wail siren = 600-1200Hz sweep
+         */
         class ToneEffect {
         public:
-            struct Control {
+            enum class Effect : uint8_t {
+                None, 
+                Wail,
+                HiLow,
+                Horn, 
 
+            }; // Effect
+
+            struct Control {
+                Effect effect;
+                uint16_t freq;
+                uint16_t duration;
             }; 
+
             struct Feedback {
 
             };
-            struct Config {
 
+            /** Configuration is the channel */
+            struct Config {
+                uint8_t outputChannel;
             };
         }; // channel::ToneEffect
 
