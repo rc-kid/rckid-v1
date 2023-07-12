@@ -92,6 +92,11 @@ namespace remote {
                 uint16_t servoStart = 500; // 0.5ms
                 uint16_t servoEnd = 2500; // 2.5ms
                 bool pullup = false;
+
+                static Config input() { Config c; return c; }
+                static Config inputPullup() { Config c; c.pullup = true; return c; }
+                static Config output() { Config c; c.mode = Mode::DigitalOut; return c; }
+
             } __attribute__((packed));
 
             Control control;
@@ -110,15 +115,29 @@ namespace remote {
         public:
             enum class Effect : uint8_t {
                 None, 
-                Wail,
-                HiLow,
-                Horn, 
+                Wail, // freq -> freq2 -> freq
+                Yelp, // freq -> freq2
+                HiLow, // freq | freq2 | freq
             }; // Effect
 
             struct Control {
                 Effect effect;
                 uint16_t freq;
-                uint16_t duration;
+                uint16_t freq2;
+                uint16_t transition;
+
+                static Control wail(uint16_t fStart, uint16_t fEnd, uint16_t duration) {
+                    return Control{Effect::Wail, fStart, fEnd, duration};
+                }
+
+                static Control yelp(uint16_t fStart, uint16_t fEnd, uint16_t duration) {
+                    return Control{Effect::Yelp, fStart, fEnd, duration};
+                }
+
+                static Control hiLow(uint16_t fStart, uint16_t fEnd, uint16_t duration) {
+                    return Control{Effect::HiLow, fStart, fEnd, duration};
+                }
+
             } __attribute__((packed)); 
 
             struct Feedback {

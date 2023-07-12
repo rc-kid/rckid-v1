@@ -67,14 +67,12 @@
 
 ## LEGO Remote PCB & Case
 
-- add I2C mem for sound effects?
+- how to do charging (?)
 
 ## LEGO Remote AVR
 
-- test the buzzer
 - check motor control
 - check analog input
-- make channel i/o settings when the channel mode changes and not when control value changes
 - PWM motor control frequency - 20kHz should be enough
 - add RTC PIT for effects
 - add INA219

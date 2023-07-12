@@ -134,6 +134,10 @@ public:
         rgbColors_[0] = Color::Green();
         rgbColors_.update();
 
+        setChannelConfig(LegoRemote::CHANNEL_L1, (uint8_t*) & channel::CustomIO::Config::output());
+        setChannelConfig(LegoRemote::CHANNEL_L2, (uint8_t*) & channel::CustomIO::Config::inputPullup());
+        setChannelConfig(LegoRemote::CHANNEL_TONE_EFFECT, (uint8_t*) & channel::ToneEffect::Config{LegoRemote::CHANNEL_L1});
+        startToneEffect(& channel::ToneEffect::Control::yelp(600, 1200, 1500));
     }
 
     static void loop() {
@@ -365,6 +369,9 @@ public:
                 setCustomIOConfig(r2_, R2_PIN, reinterpret_cast<channel::CustomIO::Config*>(data));
                 break;
             case LegoRemote::CHANNEL_TONE_EFFECT: 
+                tone_.config = *reinterpret_cast<channel::ToneEffect::Config*>(data);
+                // TODO check that the output channel is output and error otherwise
+                break;
             case LegoRemote::CHANNEL_RGB_STRIP: 
             default:
                 error(msg::ErrorKind::InvalidChannel, & channel, 1);
@@ -394,6 +401,9 @@ public:
             case LegoRemote::CHANNEL_R2:
                 setCustomIOControl(r2_, R2_PIN, reinterpret_cast<channel::CustomIO::Control*>(data));
                 return sizeof(channel::CustomIO::Control);
+            case LegoRemote::CHANNEL_TONE_EFFECT:
+                startToneEffect(reinterpret_cast<channel::ToneEffect::Control*>(data));
+                return sizeof(channel::ToneEffect::Control);
             default:
                 error(msg::ErrorKind::InvalidChannel, & channel, 1);
                 // return 32 which will make processing any further channels that might have been in the message impossible as it overflows the rxBuffer  
@@ -920,8 +930,8 @@ public:
     //@{
 
     static inline uint16_t freq_ = 0;
-    static inline uint16_t toneTimer_ = 0;
-    static inline uint16_t toneEffect_ = 0;
+    static inline uint8_t toneTickDuration_ = 0;
+    static inline uint8_t toneEffect_ = 0;
 
     static void initializeAudio() {
         TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc; // | TCB_ENABLE_bm;
@@ -953,6 +963,26 @@ public:
         }
     }
 
+    static void startToneEffect(channel::ToneEffect::Control const * ctrl) {
+        tone_.control = *ctrl;
+        toneTickDuration_ = tone_.control.transition / 10 * 64 / 100; 
+        switch (tone_.control.effect) {
+            case channel::ToneEffect::Effect::None:
+                break;
+            case channel::ToneEffect::Effect::Wail:
+                tone(tone_.control.freq);
+                toneEffect_ = 1;
+                break;
+            case channel::ToneEffect::Effect::Yelp:
+                tone(tone_.control.freq);
+                break;
+            case channel::ToneEffect::Effect::HiLow:
+                tone(tone_.control.freq);
+                toneEffect_ = toneTickDuration_;
+                break;
+        }
+    }
+
     static void toneEffectTick() {
         if (tone_.config.outputChannel == 0)
             return;
@@ -960,15 +990,34 @@ public:
             case channel::ToneEffect::Effect::None:
                 break;
             case channel::ToneEffect::Effect::Wail:
+                if (toneEffect_) {
+                    tone(freq_ + (tone_.control.freq2 - tone_.control.freq) / toneTickDuration_);
+                    if (freq_ >= tone_.control.freq2)
+                        toneEffect_ = 0;
+                } else {
+                    tone(freq_ - (tone_.control.freq2 - tone_.control.freq) / toneTickDuration_);
+                    if (freq_ <= tone_.control.freq)
+                        toneEffect_ = 1;
+                }
+                break;
+            case channel::ToneEffect::Effect::Yelp:
+                if (freq_ >= tone_.control.freq2)
+                    tone(tone_.control.freq);
+                else 
+                    tone(freq_ + (tone_.control.freq2 - tone_.control.freq) / toneTickDuration_);
                 break;
             case channel::ToneEffect::Effect::HiLow:
-                break;
-            case channel::ToneEffect::Effect::Horn:
+                if (--toneEffect_ == 0) {
+                    tone(freq_ == tone_.control.freq ? tone_.control.freq2 : tone_.control.freq);
+                    toneEffect_ = toneTickDuration_;
+                }
                 break;
         }
     }
 
     static void toneFlip() __attribute__((always_inline)) {
+                PORTB.OUTTGL = (1 << 5);
+                return;
         switch (tone_.config.outputChannel) {
             case LegoRemote::CHANNEL_L1: // PB5
                 PORTB.OUTTGL = (1 << 5);
@@ -1006,7 +1055,6 @@ ISR(TCB1_INT_vect) {
 
 ISR(TCB0_INT_vect) {
     TCB0.INTFLAGS = TCB_CAPT_bm;
-    TCB0.CTRLA &= ~TCB_ENABLE_bm;
     Remote::toneFlip();
 }
 
