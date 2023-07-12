@@ -269,6 +269,15 @@ namespace platform {
             }
         }
 
+        /** Clears the TX irqs (failure or sent). 
+         */
+        void clearTxIrqs() {
+            begin();
+            Status status = spi::transfer(WRITEREGISTER | STATUS);
+            spi::transfer(STATUS_TX_DS | STATUS_MAX_RT); // clear the IRQs
+            end();
+        }
+
         /** Checks the last transmission and returns its status.
          */
         TxStatus checkTransmitIrq(bool stopOnFailure = true) {

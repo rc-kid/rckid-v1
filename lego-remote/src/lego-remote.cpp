@@ -8,10 +8,10 @@
 #include "platform/peripherals/ssd1306.h"
 #endif
 
-
-//#include "remote.h"
-
-#include "remote/remote.h"
+#include "remote/lego_remote.h"
+/** Sets the connection timeout interval after which the motors turn off. Expressed in 64ths of a second. 
+ */
+#define CONNECTION_TIMEOUT 32  
 
 using namespace platform;
 using namespace remote;
@@ -81,10 +81,10 @@ public:
     static constexpr gpio::Pin ML2_PIN = 10; // TCD, WOC
     static constexpr gpio::Pin MR2_PIN = 11; // TCD, WOD
 
-    static constexpr gpio::Pin XL1_PIN = 4; // PB5, ADC0-8, TCA-WO2* (low channel 2)
-    static constexpr gpio::Pin XL2_PIN = 5; // PB4, ADC0-9, TCA-WO1* (low channel 1)
-    static constexpr gpio::Pin XR1_PIN = 13; // PC3, ADC1-9, TCA-W03* (high channel 0)
-    static constexpr gpio::Pin XR2_PIN = 12; // PC2, ADC1-8, uses TCA-W0 (low channel 0) cmp and ovf interrupt to drive the pin
+    static constexpr gpio::Pin L1_PIN = 4; // PB5, ADC0-8, TCA-WO2* (low channel 2)
+    static constexpr gpio::Pin L2_PIN = 5; // PB4, ADC0-9, TCA-WO1* (low channel 1)
+    static constexpr gpio::Pin R1_PIN = 13; // PC3, ADC1-9, TCA-W03* (high channel 0)
+    static constexpr gpio::Pin R2_PIN = 12; // PC2, ADC1-8, uses TCA-W0 (low channel 0) cmp and ovf interrupt to drive the pin
 
     static constexpr gpio::Pin NRF_CS_PIN = 2;
     static constexpr gpio::Pin NRF_RXTX_PIN = 3;
@@ -106,10 +106,10 @@ public:
 #endif
 
         // set configurable channel pins to input 
-        gpio::input(XL1_PIN);
-        gpio::input(XL2_PIN);
-        gpio::input(XR1_PIN);
-        gpio::input(XR2_PIN);
+        gpio::input(L1_PIN);
+        gpio::input(L2_PIN);
+        gpio::input(R1_PIN);
+        gpio::input(R2_PIN);
         // ensure motor pins output low so that any connected motors are floating
         gpio::output(ML1_PIN);
         gpio::low(ML1_PIN);
@@ -124,11 +124,17 @@ public:
         initializeServoControl();
         initializeAnalogInputs();
         initializePWMOutputs();
+        initializeAudio();
+
+        // initialize the effects timer of 64Hz (15.6ms) for RGB & tone switches
+        RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
+        RTC.PITCTRLA = RTC_PERIOD_CYC512_gc | RTC_PITEN_bm;
+        // TODO also use this to ensure that we have a connection with the controller and turn off motors & stuff if we don't 
+
         
 #ifdef DEBUG_OLED
         oled_.write(0,1,"INIT DONE");
 #endif
-
 
         // initialize the NRF radio
         initializeRadio();
@@ -141,7 +147,7 @@ public:
 
         //l1_.config.mode = channel::CustomIO::Mode::Servo;
         //l1_.control.value = 128;
-        //gpio::output(XL1_PIN);
+        //gpio::output(L1_PIN);
         //setPWMXL1(32);
         //setPWMXL2(64);
         //setPWMXR1(128);
@@ -150,10 +156,22 @@ public:
     }
 
     static void loop() {
+        checkDigitalIn();
         checkAnalogIn();
         servoTick();
         if (gpio::read(NRF_IRQ_PIN) == 0)
             radioIrq();
+        if (RTC.PITINTFLAGS == RTC_PI_bm) {
+            RTC.PITINTFLAGS = RTC_PI_bm;
+            // if we have connection timeout, signal connection loss
+            if (connTimeout_ > 0 && --connTimeout_ == 0)
+                connectionLost();
+            // do tone effect if any
+            toneEffectTick();
+            // do rgb effect, if any 
+            rgbEffectTick();
+        }
+    
     }
 
 
@@ -161,9 +179,11 @@ public:
      */
     //@{
     static inline NRF24L01 radio_{NRF_CS_PIN, NRF_RXTX_PIN};
+    static inline bool transmitting_ = false;
     static inline uint8_t rxBuffer_[32];
-    static inline uint8_t txBuffer_[32];
-    static inline uint8_t txIndex_ = 0;
+    static inline uint8_t errorBuffer_[32];
+    static inline uint8_t errorIndex_; 
+    static inline uint16_t connTimeout_ = CONNECTION_TIMEOUT;
 
     /** Initializes the radio and enters the receiver mode.
      */
@@ -177,23 +197,59 @@ public:
         }
         radio_.standby();
         radio_.enableReceiver();
+        errorBuffer_[0] = static_cast<uint8_t>(msg::Kind::Error);
+    }
+
+    static void error(msg::ErrorKind err, char const * einfo = nullptr) {
+        // 30 because 1 byte for error code and 1 byte for length
+        error(err, einfo, einfo == nullptr ? 0 : strnlen(einfo, 30 - errorIndex_));
+    }
+
+    static void error(msg::ErrorKind err, uint8_t * data, uint8_t dataLen) {
+        errorBuffer_[errorIndex_++] = static_cast<uint8_t>(err);
+        errorBuffer_[errorIndex_++] = dataLen;
+        memcpy(errorBuffer_ + errorIndex_, data, dataLen);
+        errorIndex_ += dataLen;
     }
 
     /** Receive command, process it and optionally send a reply.
      */
     static void radioIrq() {
-        radio_.clearDataReadyIrq();
-        while (radio_.receive(rxBuffer_, 32)) {
+        
+        if (transmitting_) {
+            radio_.clearIrq();
+            NRF24L01::FifoStatus fifo = radio_.getFifoStatus();
+            if (fifo.txEmpty()) {
+                radio_.standby();
+                radio_.enableReceiver();
+                transmitting_ = false;
+                // if the rx fifo is empty, we can quit immediately and will be notified of the next message by the IRQ, otherwise if there is something continue to the receive check and message processing to ensure the message will be processes (the IRQ is lost by the above clear action)
+                if (fifo.rxEmpty())
+                    return;
+            } else {
+                return;
+            }
+        } else {
+            radio_.clearDataReadyIrq();
+        }
+        // try processing the message, if any
+        if  (radio_.receive(rxBuffer_, 32)) {
+            // reset the connection timeout
+            connTimeout_ = CONNECTION_TIMEOUT;
+            // reset the error size so that we know whether to send it or not
+            errorIndex_ = 1;
+            // process the message as either a command or control packet
             if (rxBuffer_[0] == msg::CommandPacket) {
-                switch (static_cast<msg::Kind>(txBuffer_[1])) {
+                switch (static_cast<msg::Kind>(rxBuffer_[1])) {
                     case msg::Kind::SetChannelConfig: 
                         setChannelConfig(rxBuffer_[1], rxBuffer_ + 2);
                         break;
-                    default:
+                    default:    
+                        error(msg::ErrorKind::InvalidCommand, rxBuffer_ + 1, 1);
                         break;
                 }
            
-            // we are dealing with a channel packet message, parse it into channels and process them one by one 
+            // we are dealing with a control packet message, parse it into channels and process them one by one 
             } else {
                 uint8_t i = 0;
                 while (i < 32) {
@@ -202,51 +258,79 @@ public:
                     i += setChannelControl(channelIndex, rxBuffer_ + i);
                 }
             }
+            // send the optional error and feedback back to keep the comms
+            radio_.standby();
+            if (errorIndex_ > 1)
+                radio_.transmit(errorBuffer_, 32);
+            radio_.transmit(reinterpret_cast<uint8_t const *>(&feedback_), 32);
+            transmitting_ = true;
+            radio_.enableTransmitter();
         }
     }
 
     static void setChannelConfig(uint8_t channel, uint8_t * data) {
         switch (channel) {
-            case CHANNEL_ML: 
+            case LegoRemote::CHANNEL_ML: 
                 ml_.config = *reinterpret_cast<channel::Motor::Config*>(data);
                 break;
-            case CHANNEL_MR: 
+            case LegoRemote::CHANNEL_MR: 
                 mr_.config = *reinterpret_cast<channel::Motor::Config*>(data);
                 break;
-            case CHANNEL_L1:
+            case LegoRemote::CHANNEL_L1:
+                setCustomIOConfig(l1_, L1_PIN, reinterpret_cast<channel::CustomIO::Config*>(data));
                 break;
-            case CHANNEL_R1: 
-            case CHANNEL_L2: 
-            case CHANNEL_R2:
-            case CHANNEL_TONE_EFFECT: 
-            case CHANNEL_RGB_STRIP: 
+            case LegoRemote::CHANNEL_R1: 
+                setCustomIOConfig(r1_, R1_PIN, reinterpret_cast<channel::CustomIO::Config*>(data));
+                break;
+            case LegoRemote::CHANNEL_L2: 
+                setCustomIOConfig(l2_, L2_PIN, reinterpret_cast<channel::CustomIO::Config*>(data));
+                break;
+            case LegoRemote::CHANNEL_R2:
+                setCustomIOConfig(r2_, R2_PIN, reinterpret_cast<channel::CustomIO::Config*>(data));
+                break;
+            case LegoRemote::CHANNEL_TONE_EFFECT: 
+            case LegoRemote::CHANNEL_RGB_STRIP: 
             default:
-                // error
+                error(msg::ErrorKind::InvalidChannel, & channel, 1);
                 break;
         }
     }
 
     /** Sets channel control for the given channel indes and returns the length of bytes read. 
      */
-    static uint8_t setChannelControl(uint8_t channelIndex, uint8_t * data) {
-        switch (channelIndex) {
-            case CHANNEL_ML:
+    static uint8_t setChannelControl(uint8_t channel, uint8_t * data) {
+        switch (channel) {
+            case LegoRemote::CHANNEL_ML:
                 setMotorL(*reinterpret_cast<channel::Motor::Control*>(data));
                 return sizeof(channel::Motor::Control);
-            case CHANNEL_MR:
+            case LegoRemote::CHANNEL_MR:
                 setMotorR(*reinterpret_cast<channel::Motor::Control*>(data));
                 return sizeof(channel::Motor::Control);
-            /*
-            case 3: 
-                setChannelL1(*reinterpret_cast<channel::CustomIO::Control*>(data));
+            case LegoRemote::CHANNEL_L1:
+                setCustomIOControl(l1_, L1_PIN, reinterpret_cast<channel::CustomIO::Control*>(data));
                 return sizeof(channel::CustomIO::Control);
-            */
+            case LegoRemote::CHANNEL_L2:
+                setCustomIOControl(l2_, L2_PIN, reinterpret_cast<channel::CustomIO::Control*>(data));
+                return sizeof(channel::CustomIO::Control);
+            case LegoRemote::CHANNEL_R1:
+                setCustomIOControl(r1_, R1_PIN, reinterpret_cast<channel::CustomIO::Control*>(data));
+                return sizeof(channel::CustomIO::Control);
+            case LegoRemote::CHANNEL_R2:
+                setCustomIOControl(r2_, R2_PIN, reinterpret_cast<channel::CustomIO::Control*>(data));
+                return sizeof(channel::CustomIO::Control);
             default:
-                // TODO ERROR
+                error(msg::ErrorKind::InvalidChannel, & channel, 1);
                 // return 32 which will make processing any further channels that might have been in the message impossible as it overflows the rxBuffer  
                 return 32; 
-                
         }
+    }
+
+    /** Loss of connection event. 
+     */
+    static void connectionLost() {
+        setMotorL(channel::Motor::Control::Coast());
+        setMotorR(channel::Motor::Control::Coast());
+        // TODO turn off the rest
     }
 
     //@}
@@ -255,14 +339,6 @@ public:
      
      */
     //@{
-    static constexpr uint8_t CHANNEL_ML = 1;
-    static constexpr uint8_t CHANNEL_MR = 2;
-    static constexpr uint8_t CHANNEL_L1 = 3;
-    static constexpr uint8_t CHANNEL_R1 = 4;
-    static constexpr uint8_t CHANNEL_L2 = 5;
-    static constexpr uint8_t CHANNEL_R2 = 6;
-    static constexpr uint8_t CHANNEL_TONE_EFFECT = 7;
-    static constexpr uint8_t CHANNEL_RGB_STRIP = 8;
 
 
     static inline channel::Motor ml_; // 1
@@ -274,58 +350,78 @@ public:
     static inline channel::ToneEffect tone_; // 7
     static inline channel::RGBStrip rgb_; // 8
 
+    /** Feedback for all channels. 
+     */
+    static inline LegoRemote::Feedback feedback_;
+
+    /** Bit vector of channel updates.
+     */
+    static inline uint8_t feedbackChanged_ = 0;
+
     // channels 8 .. 15 are colors actually, the first LED in the strip is the control led on the device
     static inline NeopixelStrip<9> rgbColors_{NEOPIXEL_PIN};
 
-    static bool setCustomIOConfig(uint8_t channel, channel::CustomIO::Config const * config) {
-        // first clear the channel outputs accordingly
-        switch (channel) {
-            case CHANNEL_L1:
-                disablePWMXL1();
-                gpio::input(XL1_PIN);
-                // TODO enable digital buffers on pin
-                l1_.config = *config;
-                switch (l1_.config.mode) {
-                    case channel::CustomIO::Mode::DigitalIn:
-                        if (l1_.config.pullup)
-                            gpio::inputPullup(XL1_PIN);
-                        break;
-                    case channel::CustomIO::Mode::DigitalOut:
-                        gpio::output(XL1_PIN);
-                        gpio::write(XL1_PIN, l1_.control.value != 0);
-                        break;
-                    case channel::CustomIO::Mode::AnalogIn:
-                        // TODO disable digital buffers
-                        break; 
-                    case channel::CustomIO::Mode::PWM:
-                        setPWMXL1(l1_.control.value & 0xff);
-                        break;
-                    case channel::CustomIO::Mode::Servo:
-                        gpio::output(XL1_PIN);
-                        gpio::low(XL1_PIN);
-                        break;
-                    default:
-                        // TODO error & set to digital input
-                        break;
+    static void setFeedbackChanged(uint8_t channel) {
+        feedbackChanged_ |= (1 << (channel - 1));
+    }
 
-                }
-                return true;
-            case CHANNEL_L2:
-                disablePWMXL2();
-                gpio::input(XL2_PIN);
-                return true;
-            case CHANNEL_R1:
-                disablePWMXR1();
-                gpio::input(XR1_PIN);
-                return true;
-            case CHANNEL_R2:
-                disablePWMXR2();
-                gpio::input(XR2_PIN);
-                return true;
+    static bool isFeedbackChanged(uint8_t channel) {
+        return feedbackChanged_ & ( 1 << (channel - 1));
+    }
+
+    static void setCustomIOConfig(channel::CustomIO & channel, gpio::Pin pin, channel::CustomIO::Config const * config) {
+        disablePWM(pin);
+        gpio::input(pin);
+        channel.config = *config;
+        switch (channel.config.mode) {
+            case channel::CustomIO::Mode::DigitalIn:
+                if (channel.config.pullup)
+                    gpio::inputPullup(pin);
+                break;
+            case channel::CustomIO::Mode::DigitalOut:
+                gpio::output(pin);
+                gpio::write(pin, channel.control.value != 0);
+                break;
+            case channel::CustomIO::Mode::AnalogIn:
+                // TODO disable digital buffers
+                break; 
+            case channel::CustomIO::Mode::PWM:
+                setPWM(pin, channel.control.value & 0xff);
+                break;
+            case channel::CustomIO::Mode::Servo:
+                gpio::output(pin);
+                gpio::low(pin);
+                break;
             default:
-                // TODO error
-                return false;
+                // TODO error & set to digital input
+                break;
         }
+    }
+
+    static void setCustomIOControl(channel::CustomIO & channel, gpio::Pin pin, channel::CustomIO::Control const * control) {
+        channel.control = *control;
+        switch (channel.config.mode) {
+            case channel::CustomIO::Mode::DigitalOut:
+                gpio::write(pin, channel.control.value != 0);
+                break;
+            case channel::CustomIO::Mode::PWM:
+                setPWM(pin, channel.control.value & 0xff);
+                break;
+            default:
+                // nothing to do for Digital & analog In and servo 
+                break;
+        }
+    }
+
+    static void checkDigitalIn() {
+        if (l1_.config.mode == channel::CustomIO::Mode::DigitalIn)
+            feedback_.l1.value = gpio::read(L1_PIN);
+        if (l2_.config.mode == channel::CustomIO::Mode::DigitalIn) 
+            feedback_.l2.value = gpio::read(L2_PIN);
+        if (r1_.config.mode == channel::CustomIO::Mode::DigitalIn) 
+            feedback_.r1.value = gpio::read(R1_PIN);
+        if (r2_.config.mode == channel::CustomIO::Mode::DigitalIn) 
+            feedback_.r2.value = gpio::read(R2_PIN);
     }
 
     //@}
@@ -516,16 +612,16 @@ public:
         servoTick_ = (servoTick_ + 1) % 4;
         switch (servoTick_) {
             case 0: 
-                startControlPulse(l1_, XL1_PIN);
+                startControlPulse(l1_, L1_PIN);
                 break;
             case 1:
-                startControlPulse(l2_, XL2_PIN);
+                startControlPulse(l2_, L2_PIN);
                 break;
             case 2:
-                startControlPulse(r1_, XR1_PIN);
+                startControlPulse(r1_, R1_PIN);
                 break;
             case 3:
-                startControlPulse(r1_, XR1_PIN);
+                startControlPulse(r1_, R1_PIN);
                 break;
         }
     }
@@ -545,19 +641,17 @@ public:
     }
 
     static void terminateControlPulse() __attribute__((always_inline)) {
-        TCB1.INTFLAGS = TCB_CAPT_bm;
-        TCB1.CTRLA &= ~TCB_ENABLE_bm;
         switch (activeServoPin_) {
-            case XL1_PIN: // PB5
+            case L1_PIN: // PB5
                 PORTB.OUTCLR = (1 << 5);
                 break;
-            case XL2_PIN: // PB4
+            case L2_PIN: // PB4
                 PORTB.OUTCLR = (1 << 5);
                 break;
-            case XR1_PIN: // PC3
+            case R1_PIN: // PC3
                 PORTC.OUTCLR = (1 << 3);
                 break;
-            case XR2_PIN: // PC2
+            case R2_PIN: // PC2
                 PORTC.OUTCLR = (1 << 2);
                 break;
         }
@@ -608,20 +702,12 @@ public:
                     // TODO deal with the VCC we have just measured
                     break;
                 case ADC_MUXPOS_AIN8_gc:
-                    if (l1_.config.mode == channel::CustomIO::Mode::AnalogIn) {
-                        if (l1_.feedback.value != value) {
-                            l1_.feedback.value = value;
-                            // TODO make note of the change
-                        }
-                    }
+                    if (l1_.config.mode == channel::CustomIO::Mode::AnalogIn)
+                        feedback_.l1.value = value;
                     break;
                 case ADC_MUXPOS_AIN9_gc:
-                    if (l2_.config.mode == channel::CustomIO::Mode::AnalogIn) {
-                        if (l2_.feedback.value != value) {
-                            l2_.feedback.value = value;
-                            // TODO make note of the change
-                        }
-                    }
+                    if (l2_.config.mode == channel::CustomIO::Mode::AnalogIn)
+                        feedback_.l2.value = value;
                     break;
             }
             switch (muxpos) {
@@ -652,20 +738,12 @@ public:
                     // TODO deal with the VCC we have just measured
                     break;
                 case ADC_MUXPOS_AIN9_gc:
-                    if (r1_.config.mode == channel::CustomIO::Mode::AnalogIn) {
-                        if (r1_.feedback.value != value) {
-                            r1_.feedback.value = value;
-                            // TODO make note of the change
-                        }
-                    }
+                    if (r1_.config.mode == channel::CustomIO::Mode::AnalogIn)
+                        feedback_.r1.value = value;
                     break;
                 case ADC_MUXPOS_AIN8_gc:
-                    if (r2_.config.mode == channel::CustomIO::Mode::AnalogIn) {
-                        if (r2_.feedback.value != value) {
-                            r2_.feedback.value = value;
-                            // TODO make note of the change
-                        }
-                    }
+                    if (r2_.config.mode == channel::CustomIO::Mode::AnalogIn)
+                        feedback_.r2.value = value;
                     break;
             }
             switch (muxpos) {
@@ -713,47 +791,130 @@ public:
         TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc | TCA_SPLIT_ENABLE_bm; 
     }
 
-    static void setPWMXL1(uint8_t value) {
-        gpio::output(XL1_PIN);
-        TCA0.SPLIT.LCMP2 = value;
-        TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP2EN_bm;
+    static void setPWM(gpio::Pin pin, uint8_t value) {
+        switch (pin) {
+            case L1_PIN:
+                gpio::output(L1_PIN);
+                TCA0.SPLIT.LCMP2 = value;
+                TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP2EN_bm;
+                break;
+            case L2_PIN:
+                gpio::output(L2_PIN);
+                TCA0.SPLIT.LCMP1 = value;
+                TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP1EN_bm;
+                break;
+            case R1_PIN:
+                gpio::output(R1_PIN);
+                TCA0.SPLIT.HCMP0 = value;
+                TCA0.SPLIT.CTRLB |= TCA_SPLIT_HCMP0EN_bm;
+                break;
+            case R2_PIN:
+                gpio::output(R2_PIN);
+                TCA0.SPLIT.LCMP0 = value;
+                TCA0.SPLIT.INTCTRL = TCA_SPLIT_LCMP0_bm | TCA_SPLIT_LUNF_bm;
+                break;
+        }
     }
 
-    static void setPWMXL2(uint8_t value) {
-        gpio::output(XL2_PIN);
-        TCA0.SPLIT.LCMP1 = value;
-        TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP1EN_bm;
+    static void disablePWM(gpio::Pin pin) {
+        switch (pin) {
+            case L1_PIN:
+                TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP2EN_bm;
+                break;
+            case L2_PIN:
+                TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP1EN_bm;
+                break;
+            case R1_PIN:
+                TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_HCMP0EN_bm;
+                break;
+            case R2_PIN:
+                TCA0.SPLIT.INTCTRL = 0;
+                TCA0.SPLIT.INTFLAGS = 0xff; // and clear the flags
+                break;
+        }
     }
 
-    static void setPWMXR1(uint8_t value) {
-        gpio::output(XR1_PIN);
-        TCA0.SPLIT.HCMP0 = value;
-        TCA0.SPLIT.CTRLB |= TCA_SPLIT_HCMP0EN_bm;
+    //@}
+
+    /** \name Audio 
+     
+        Audio runs using the TCB0 at 5Mhz and can output to any of the custom IO channels. Enabling the tone enables the interrupt on the timer oveflow which toggles the appropriate pin. The timer is thus run at twice the frequency of the required tone, given the tone range of 40Hz - 20kHz.
+     */
+    //@{
+
+    static inline uint16_t freq_ = 0;
+    static inline uint16_t toneTimer_ = 0;
+    static inline uint16_t toneEffect_ = 0;
+
+    static void initializeAudio() {
+        TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc; // | TCB_ENABLE_bm;
+        TCB0.INTCTRL = TCB_CAPT_bm;
     }
 
-    static void setPWMXR2(uint8_t value) {
-        gpio::output(XR2_PIN);
-        TCA0.SPLIT.LCMP0 = value;
-        TCA0.SPLIT.INTCTRL = TCA_SPLIT_LCMP0_bm | TCA_SPLIT_LUNF_bm;
+    static void tone(uint16_t freq) {
+        TCB0.CCMP = 2500000 / freq;
+        TCB0.CTRLA |= TCB_ENABLE_bm;
+        freq_ = freq;
     }
 
-    static void disablePWMXL1() {
-        TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP2EN_bm;
+    static void noTone() {
+        TCB0.CTRLA = TCB_CLKSEL_CLKDIV2_gc;
+        freq_ = 0;
+        switch (tone_.config.outputChannel) {
+            case LegoRemote::CHANNEL_L1: // PB5
+                PORTB.OUTSET = (1 << 5);
+                break;
+            case LegoRemote::CHANNEL_L2: // PB4
+                PORTB.OUTSET = (1 << 4);
+                break;
+            case LegoRemote::CHANNEL_R1: // PC3
+                PORTC.OUTSET = (1 << 3);
+                break;
+            case LegoRemote::CHANNEL_R2: // PC2
+                PORTC.OUTSET = (1 << 2);
+                break;
+        }
     }
 
-    static void disablePWMXL2() {
-        TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_LCMP1EN_bm;
+    static void toneEffectTick() {
+        if (tone_.config.outputChannel == 0)
+            return;
+        switch (tone_.control.effect) {
+            case channel::ToneEffect::Effect::None:
+                break;
+            case channel::ToneEffect::Effect::Wail:
+                break;
+            case channel::ToneEffect::Effect::HiLow:
+                break;
+            case channel::ToneEffect::Effect::Horn:
+                break;
+        }
     }
 
-    static void disablePWMXR1() {
-        TCA0.SPLIT.CTRLB &= ~TCA_SPLIT_HCMP0EN_bm;
+    static void toneFlip() __attribute__((always_inline)) {
+        switch (tone_.config.outputChannel) {
+            case LegoRemote::CHANNEL_L1: // PB5
+                PORTB.OUTTGL = (1 << 5);
+                break;
+            case LegoRemote::CHANNEL_L2: // PB4
+                PORTB.OUTTGL = (1 << 4);
+                break;
+            case LegoRemote::CHANNEL_R1: // PC3
+                PORTC.OUTTGL = (1 << 3);
+                break;
+            case LegoRemote::CHANNEL_R2: // PC2
+                PORTC.OUTTGL = (1 << 2);
+                break;
+        }
     }
+    //@}
 
-    static void disablePWMXR2() {
-        TCA0.SPLIT.INTCTRL = 0;
-        TCA0.SPLIT.INTFLAGS = 0xff; // and clear the flags
+    /** \name RGB Strip Control & Effects 
+     */
+    //@{
+    static void rgbEffectTick() {
+
     }
-
     //@}
 
 }; // Remote
@@ -761,18 +922,26 @@ public:
 /** The TCB only fires when the currently multiplexed output is a servo motor. When it fires, we first pull the output low to terminate the control pulse and then disable the timer.
  */
 ISR(TCB1_INT_vect) {
+    TCB1.INTFLAGS = TCB_CAPT_bm;
+    TCB1.CTRLA &= ~TCB_ENABLE_bm;
     Remote::terminateControlPulse();
+}
+
+ISR(TCB0_INT_vect) {
+    TCB0.INTFLAGS = TCB_CAPT_bm;
+    TCB0.CTRLA &= ~TCB_ENABLE_bm;
+    Remote::toneFlip();
 }
 
 ISR(TCA0_LUNF_vect) {
     TCA0.SPLIT.INTFLAGS = TCA_SPLIT_LUNF_bm;
-    static_assert(Remote::XR2_PIN == 12); // PC2
+    static_assert(Remote::R2_PIN == 12); // PC2
     PORTC.OUTCLR = (1 << 2);
 }
 
 ISR(TCA0_LCMP0_vect) {
     TCA0.SPLIT.INTFLAGS = TCA_SPLIT_LCMP0_bm;
-    static_assert(Remote::XR2_PIN == 12); // PC2
+    static_assert(Remote::R2_PIN == 12); // PC2
     PORTC.OUTSET = (1 << 2);
 }
 
@@ -783,420 +952,3 @@ void setup() {
 void loop() {
     Remote::loop();
 }
-
-#ifdef FOOBAR
-
-
-
-class Remote {
-public:
-
-    static constexpr gpio::Pin NEOPIXEL_PIN = 7; 
-
-    static constexpr gpio::Pin ML1 = 0; // TCD, WOA
-    static constexpr gpio::Pin MR1 = 1; // TCD, WOB
-    static constexpr gpio::Pin ML2 = 10; // TCD, WOC
-    static constexpr gpio::Pin MR2 = 11; // TCD, WOD
-
-    static constexpr gpio::Pin XL1 = 4; // PB5, ADC0-8, TCA-WO2* (low channel 2)
-    static constexpr gpio::Pin XL2 = 5; // PB4, ADC0-9, TCA-WO1* (low channel 1)
-    static constexpr gpio::Pin XR1 = 13; // PC3, ADC1-9, TCA-W03 (high channel 0)
-    static constexpr gpio::Pin XR2 = 12; // PC2, ADC1-8, uses TCA-W0 (low channel 0) cmp and ovf interrupt to drive the pin
-
-    // PA6 ADC0-6, ADC1-2
-    // PA7 ADC0-7, ADC1-3
-    // PB5 ADC0-8, TCA-WO2* -----
-    // PB4 ADC0-9, TCA-WO1* -----
-    // PB3 TCA-WO0 
-    // PB2 TCA-WO2
-    // PC3 ADC1-9, TCA-W03 ------
-    // PC2 ADC1-8, will use TCA-W0 interrupt to change pin value 
-    // 
-
-    static void initialize() {
-        // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
-        CCP = CCP_IOREG_gc;
-        CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
-        // set configurable channel pins to input 
-        gpio::input(XL1);
-        gpio::input(XL2);
-        gpio::input(XR1);
-        gpio::input(XR2);
-        // initialize TCD used to control the two motors, disable prescalers, set one ramp waveform and set WOC to WOA and WOD to WOB. 
-        TCD0.CTRLA = TCD_CLKSEL_20MHZ_gc | TCD_CNTPRES_DIV1_gc | TCD_SYNCPRES_DIV1_gc;
-        TCD0.CTRLB = TCD_WGMODE_ONERAMP_gc;
-        TCD0.CTRLC = TCD_CMPCSEL_PWMA_gc | TCD_CMPDSEL_PWMB_gc;
-        // disconnect the pins from the timer
-        CPU_CCP = CCP_IOREG_gc;
-        TCD0.FAULTCTRL = 0;
-        // enable the timer
-        while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
-        TCD0.CTRLA |= TCD_ENABLE_bm;
-        // ensure motor pins output low so that any connected motors are floating
-        gpio::output(ML1);
-        gpio::low(ML1);
-        gpio::output(ML2);
-        gpio::low(ML2);
-        gpio::output(MR1);
-        gpio::low(MR1);
-        gpio::output(MR2);
-        gpio::low(MR2);
-        // set the reset counter to 255 for both A and B. This gives us 78.4kHz PWM frequency. It is important for both values to be the same. By setting max to 255 we can simply set 
-        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPACLR = 127;
-        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPBCLR = 127;
-        // initialize the RTC to fire every 5ms which gives us a tick that can be used to switch the servo controls, 4 servos max, multiplexed gives the freuency of updates for each at 20ms
-        RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
-        RTC.PER = 164;
-        while (RTC.STATUS != 0) {};
-        RTC.CTRLA = RTC_RTCEN_bm;
-        // initialize TCB0 which is used to time the servo control interval precisely
-        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
-        TCB0.INTCTRL = TCB_CAPT_bm;
-        TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc; // | TCB_ENABLE_bm;
-        // initialize TCA for PWM outputs on the configurable channels. We use split mode
-        TCA0.SPLIT.CTRLD = TCA_SPLIT_SPLITM_bm; // enable split mode
-        TCA0.SPLIT.CTRLB = 0;    
-        //TCA0.SPLIT.CTRLB = TCA_SPLIT_LCMP0EN_bm | TCA_SPLIT_HCMP0EN_bm; // enable W0 and W3 outputs on pins
-        //TCA0.SPLIT.LCMP0 = 64; // backlight at 1/4
-        //TCA0.SPLIT.HCMP0 = 128; // rumbler at 1/2
-        TCA0.SPLIT.CTRLA = TCA_SPLIT_CLKSEL_DIV64_gc | TCA_SPLIT_ENABLE_bm; 
-
-
-        // clear all RGB colors, set the control LED to green & update
-        rgbColors_.clear();
-        rgbColors_[0] = Color::Green();
-        rgbColors_.update();
-
-
-        //motorCW(0, 4);
-        //motorCW(0, 144);
-        //motorCoast(0);
-    }
-
-
-    /** \name Channels 
-
-        Channels:
-
-        01 - Motor L
-        02 - Motor R
-        03 - Custom L1
-        04 - Custom L2
-        05 - Custom R1
-        06 - Custom R2
-        07 - Tone Effect Generator 
-        08 - RGBStrip
-        09 - Color 1
-        10 - Color 2
-        11 - Color 3
-        12 - Color 4
-        13 - Color 5
-        14 - Color 6
-        15 - Color 7
-        16 - Color 8
-
-     */
-    //@{
-    static inline remote::MotorChannel ml_;
-    static inline remote::MotorChannel mr_;
-    static inline remote::CustomIOChannel l1_;
-    static inline remote::CustomIOChannel l2_;
-    static inline remote::CustomIOChannel r1_;
-    static inline remote::CustomIOChannel r2_;
-    static inline remote::ToneEffectChannel tone_;
-    static inline remote::RGBStripChannel rgb_;
-
-    // channels 8 .. 15 are colors actually, the first LED in the strip is the control led on the device
-    static inline NeopixelStrip<9> rgbColors_{NEOPIXEL_PIN};
-    //@}
-
-    /** \name Servo Motors
-     */
-    //@{
-
-    static inline gpio::Pin activeServoPin_;
-
-    static void servoTick() {
-        // if the index'th output is servo, then calculate the duration of the pulse 
-        uint8_t value = 67;
-        TCB0.CCMP = 5000 + (157 * 67) / 2; 
-        //activeServoPin_ = pin;
-        TCB0.CNT = 0;
-        //gpio::high(pin);
-        TCB0.CTRLA |= TCB_ENABLE_bm;
-    }
-
-    //@}
-
-}; // Remote
-
-/** The TCB only fires when the currently multiplexed output is a servo motor. When it fires, we first pull the output low to terminate the control pulse and then disable the timer.
- */
-ISR(TCB0_INT_vect) {
-    gpio::low(Remote::activeServoPin_);
-    TCB0.INTFLAGS = TCB_CAPT_bm;
-    TCB0.CTRLA &= ~TCB_ENABLE_bm;
-}
-
-
-void setup() {
-    Remote::initialize();
-}
-
-void loop() {
-
-}
-
-
-
-#ifdef OLD
-constexpr gpio::Pin NRF_CS_PIN = 13;
-constexpr gpio::Pin NRF_RXTX_PIN = 12;
-constexpr gpio::Pin NRF_IRQ_PIN = 6;
-constexpr gpio::Pin NEOPIXEL_PIN = 7;
-
-constexpr gpio::Pin XL1_PIN = 2;
-constexpr gpio::Pin XL2_PIN = 3;
-constexpr gpio::Pin XR1_PIN = 4;
-constexpr gpio::Pin XR2_PIN = 5;
-
-constexpr gpio::Pin ML1_PIN = 0;
-constexpr gpio::Pin ML2_PIN = 10;
-constexpr gpio::Pin MR1_PIN = 1;
-constexpr gpio::Pin MR2_PIN = 11;
-
-NRF24L01 nrf_{NRF_CS_PIN, NRF_RXTX_PIN};
-
-NeopixelStrip<5> leds{NEOPIXEL_PIN};
-
-struct {
-    volatile bool tick : 1;
-    uint8_t tickCounter : 2;
-    volatile bool radioIrq : 1;
-} status_;
-
-enum class OutputKind {
-    None,
-    DigitalInput, // button, IRQ on the pin
-    AnalogInput, // photoresistor, etc, repeated ADC
-    DigitalOutput, // on or off
-    Servo, // Servo control
-    // since these use timer A, there can only be two peripherals of this type attached at once
-    Audio, // 50% duty cycle audio 0..8000 Hz
-    AnalogOutput, // duty-cycle PWM
-};
-
-struct IOOutput {
-    gpio::Pin pin;
-    OutputKind kind;
-    uint8_t value;
-};
-
-IOOutput outputs_[4];
-
-/** Motor Control
- 
-    The idea is to use TCD to control both motors: mirror the A and B waveforms on the C and D outputs respectively and then depending on the desired value do the following:
-
-    - idle = disable WOA and WOC, set gpios to low
-    - brake = disable WOA and WOC, set the gpios to high
-    - clockwise = enable WOA, disable WOC, set WOC pin to low
-    - counter-clockwise = enable WOC, disable WOA, set WOA pin to low
- */
-namespace motor {
-    void initialize() {
-        TCD0.CTRLA = TCD_CLKSEL_20MHZ_gc | TCD_CNTPRES_DIV1_gc | TCD_SYNCPRES_DIV1_gc;
-        TCD0.CTRLB = TCD_WGMODE_ONERAMP_gc;
-        TCD0.CTRLC = TCD_CMPCSEL_PWMA_gc | TCD_CMPDSEL_PWMB_gc;
-        // unlock the protected fault register before writing to it 
-        CPU_CCP = CCP_IOREG_gc;
-        TCD0.FAULTCTRL = TCD_CMPAEN_bm;
-        // set the counters to reset at 1024 for roughly 20kHz 
-        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPACLR = 256;
-        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPBCLR = 256;
-        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPASET = 128;
-        while (TCD0.STATUS & TCD_CMDRDY_bm == 0) {};
-        TCD0.CMPBSET = 128;
-        // enable the timer
-        while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
-        TCD0.CTRLA |= TCD_ENABLE_bm;
-    }
-}
-
-/** Servo Control
-
-    One timer is enough for all 4 outputs since the servo expects a short pulse (0.5..2.5ms in the lego servo case) every 20 or so ms. RTC ticks are used to switch between outputs and TCB0 is used to precisely terminate the pulse. 
-
-    TCB0 interrupt simply puts the control pin low to end the servo control pulse.
- 
- */
-namespace servo {
-    void initialize() {
-        // initialize TCB0 which we use for the servo pulse timing
-        // assuming the clock frequency is 10Mhz, then CCMP should be in the range of 5000 to 25000 for 5 to 2.5ms pulse
-        TCB0.CTRLB = TCB_CNTMODE_INT_gc;
-        TCB0.INTCTRL = TCB_CAPT_bm;
-        TCB0.CTRLA = TCB_CLKSEL_CLKDIV1_gc; // | TCB_ENABLE_bm;
-    }
-
-    void tick() {
-        uint8_t i = status_.tickCounter;
-        if (outputs_[i].kind == OutputKind::Servo) {
-            TCB0.CTRLA &= ~TCB_ENABLE_bm;
-            // currently 1964 .. 9821 for 0.5 to 2.5ms pulse duration
-            // TODO the real numbers are incorrect because wrong CLKDIV was used
-            //TCB0.CCMP = 1964 + (outputs_[i].value & 0xff) * 31;
-            TCB0.CCMP = (1964 * 2) + (outputs_[i].value & 0xff) * 31 * 2;
-            gpio::high(outputs_[i].pin);
-            TCB0.CNT = 0;
-            TCB0.CTRLA |= TCB_ENABLE_bm; 
-        }
-    }
-}
-
-ISR(TCB0_INT_vect) {
-    gpio::low(outputs_[status_.tickCounter].pin);
-    TCB0.INTFLAGS = TCB_CAPT_bm;
-    TCB0.CTRLA &= ~TCB_ENABLE_bm;
-}
-
-/** PWM and tone generation. 
- 
-    Since both PWM and audio use TCA, it needs to run off the same clock.
- */
-namespace pwm {
-    void initialize() {
-    }
-}
-
-namespace radio {
-
-    void irq() {
-        status_.radioIrq = true;
-    }
-
-    void initialize() {
-        if (! nrf_.initialize("TEST2", "TEST1"))
-            leds.fill(Color::Red().withBrightness(32));
-        else
-            leds.fill(Color::Black());
-        leds.update();
-        gpio::input(NRF_IRQ_PIN);
-        attachInterrupt(digitalPinToInterrupt(NRF_IRQ_PIN), radio::irq, FALLING);
-        nrf_.standby();
-        nrf_.enableReceiver();
-    }
-
-
-}
-
-
-void setup() {
-    gpio::initialize();
-    // flash the white LED to notify we are awake
-    leds.fill(Color::White().withBrightness(32));
-    leds.update();
-    // wait for voltages to stabilize
-    cpu::delayMs(200);
-    // initialize internal state
-    outputs_[0].pin = XL1_PIN;
-    outputs_[1].pin = XL2_PIN;
-    outputs_[2].pin = XR1_PIN;
-    outputs_[3].pin = XR2_PIN;
-    outputs_[0].kind = OutputKind::Servo;
-    outputs_[0].value = 255;
-    outputs_[1].kind = OutputKind::Servo;
-    outputs_[1].value = 255;
-
-    gpio::output(XL1_PIN);
-    gpio::output(XR2_PIN);
-    gpio::output(ML1_PIN);
-    gpio::output(ML2_PIN);
-    gpio::output(MR1_PIN);
-    gpio::output(MR2_PIN);
-
-
-    // initialize the peripherals
-    spi::initialize();
-    i2c::initializeMaster();
-
-    // initialize the RTC timer to to fire every 5 ms, which for 4 outputs multiplexed gives 20ms per input
-    RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
-    RTC.PER = 164;
-    while (RTC.STATUS != 0) {};
-    RTC.CTRLA = RTC_RTCEN_bm;
-
-    motor::initialize();
-    servo::initialize();
-    pwm::initialize();
-    radio::initialize();
-
-
-
-
-
-
-    DDISP_INITIALIZE();
-
-
-    DDISP(0,0,"Setup Done");
-
-}
-
-uint8_t x = 0;
-
-void loop() {
-    if (RTC.INTFLAGS & RTC_OVF_bm) {
-        RTC.INTFLAGS = RTC_OVF_bm;
-        //status_.tick = false;
-        ++status_.tickCounter;
-        servo::tick();
-        if (++x % 128 == 0) {
-            outputs_[0].value += 1;
-        }
-    }
-    /*
-    if (status_.radioIrq) {
-        // TODO
-    }
-    */
-    /*
-    if (radio_irq) {
-        radio_irq = false;
-        radio.clearDataReadyIrq();
-        uint8_t msg[32];
-        while (radio.receive(msg, 32)) {
-            received += 1;
-            while (++x != msg[0])
-                ++errors;
-            //x = msg[0];
-        }
-        gpio::low(DEBUG_PIN);
-    }
-    if (tick) {
-        tickMark = ! tickMark;
-        tick = false;
-        oled.gotoXY(0,0);
-        oled.writeChar(tickMark ? '-' : '|');
-        oled.gotoXY(0,1);
-        oled.write(received, ' ');
-        oled.gotoXY(64,1);
-        oled.write(errors, ' ');
-        oled.gotoXY(0,2);
-        oled.write(radio.getStatus().raw, ' ');
-        oled.gotoXY(50,2);
-        oled.write(radio.readRegister(NRF24L01::CONFIG), ' ');
-        received = 0;
-        errors = 0;
-    }
-    */
-}
-
-
-#endif
-#endif

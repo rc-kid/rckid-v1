@@ -41,20 +41,25 @@ namespace remote {
                 bool operator != (Control const & other) const {
                     return mode != other.mode || speed != other.speed;
                 }
+
+                static Control Coast() { return Control{Mode::Coast, 0}; }
+                static Control Brake() { return Control{Mode::Brake, 0}; }
+                static Control CW(uint8_t speed) { return Control{Mode::CW, speed}; }
+                static Control CCW(uint8_t speed) { return Control{Mode::CCW, speed}; }
+
             };
 
             struct Feedback {
                 bool overcurrent;
                 uint8_t v;
                 uint8_t i;
-            };
+            } __attribute((__packed__));
 
             struct Config {
                 uint8_t overcurrent;
             };
 
             Control control;
-            Feedback feedback;
             Config config;
 
             bool isSpinning() const {
@@ -78,7 +83,7 @@ namespace remote {
 
             struct Feedback {
                 uint8_t value;
-            };
+            } __attribute((__packed__));
 
             /** The custom IO channel is configured by its mode of operation, and the min and max pulse width for servo control, specified in microseconds. By default, this corresponds to a 270 degree standard servo with neutral position at 1500uS. You may wish to experiment with other values for particular servos.  
             */
@@ -90,7 +95,6 @@ namespace remote {
             };
 
             Control control;
-            Feedback feedback;
             Config config;
         }; // channel::CustomIO
 
@@ -109,7 +113,6 @@ namespace remote {
                 Wail,
                 HiLow,
                 Horn, 
-
             }; // Effect
 
             struct Control {
@@ -120,12 +123,14 @@ namespace remote {
 
             struct Feedback {
 
-            };
+            } __attribute((__packed__));
 
             /** Configuration is the channel */
             struct Config {
                 uint8_t outputChannel;
             };
+            Control control;
+            Config config;
         }; // channel::ToneEffect
 
         class RGBStrip {
@@ -135,10 +140,13 @@ namespace remote {
             }; 
             struct Feedback {
 
-            };
+            } __attribute((__packed__));
+
             struct Config {
 
             };
+            Control control;
+            Config config;
         }; // channel::RGBStrip
 
         class RGBColor {
@@ -167,14 +175,26 @@ namespace remote {
         constexpr uint8_t CommandPacket = 0;
 
         enum class Kind : uint8_t {
-            ResponseOK, 
-            ResponseFail,
-            SetChannelConfig,
+            SetChannelConfig = 1,
             GetChannelConfig,
             SetChannelControl,
             GetChannelControl,
             GetChannelFeedback, 
+            Feedback = 0x80,
+            FeedbackConsecutive, 
+
+            Error = 0xff,
         }; // msg::Kind
+
+        /** Type of error returned. 
+         */
+        enum class ErrorKind : uint8_t {
+            InvalidCommand, 
+            InvalidChannel,
+
+            Unimplemented,
+
+        };
 
     } // namespace remote::msg
 
