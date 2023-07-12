@@ -70,10 +70,6 @@ using namespace remote;
 class Remote {
 public:
 
-#ifdef DEBUG_OLED
-    static inline SSD1306 oled_;
-#endif    
-
     static constexpr gpio::Pin NEOPIXEL_PIN = 7; 
 
     static constexpr gpio::Pin ML1_PIN = 0; // TCD, WOA
@@ -98,13 +94,6 @@ public:
         i2c::initializeMaster();
         spi::initialize();
 
-#ifdef DEBUG_OLED
-        oled_.initialize128x32();
-        oled_.normalMode();
-        oled_.clear32();
-        oled_.write(0,0,"START");
-#endif
-
         // set configurable channel pins to input 
         gpio::input(L1_PIN);
         gpio::input(L2_PIN);
@@ -125,6 +114,9 @@ public:
         initializeAnalogInputs();
         initializePWMOutputs();
         initializeAudio();
+#ifdef DEBUG_OLED
+        initializeDebug();
+#endif
 
         // initialize the effects timer of 64Hz (15.6ms) for RGB & tone switches
         RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
@@ -132,9 +124,6 @@ public:
         // TODO also use this to ensure that we have a connection with the controller and turn off motors & stuff if we don't 
 
         
-#ifdef DEBUG_OLED
-        oled_.write(0,1,"INIT DONE");
-#endif
 
         // initialize the NRF radio
         initializeRadio();
@@ -145,14 +134,6 @@ public:
         rgbColors_[0] = Color::Green();
         rgbColors_.update();
 
-        //l1_.config.mode = channel::CustomIO::Mode::Servo;
-        //l1_.control.value = 128;
-        //gpio::output(L1_PIN);
-        //setPWMXL1(32);
-        //setPWMXL2(64);
-        //setPWMXR1(128);
-        //setPWMXR2(192);
-        //tone(ML1_PIN, 440);
     }
 
     static void loop() {
@@ -170,12 +151,104 @@ public:
             toneEffectTick();
             // do rgb effect, if any 
             rgbEffectTick();
+#ifdef DEBUG_OLED
+            if ((++dbgTimeout_ % 64) ==0)
+                debugPrint();
+#endif
         }
-    
+   
     }
+
+#ifdef DEBUG_OLED
+    /** \name Debug I2C display 
+     
+        Displays the messages 
+     */
+    //@{
+    static inline SSD1306 oled_;
+    static inline uint8_t dbgTimeout_ = 0;
+    static inline uint16_t rx_ = 0;
+    static inline uint16_t tx_ = 0;
+    static inline uint16_t errors_ = 0;
+
+    static void initializeDebug() {
+        oled_.initialize128x32();
+        oled_.normalMode();
+        oled_.clear32();
+        oled_.write(0, 0, "RX:");
+        oled_.write(64, 0, "TX:");
+
+        oled_.write(0, 1, "ML:");
+        oled_.write(0, 2, "L1:");
+        oled_.write(0, 3, "L2:");
+        oled_.write(64, 1, "MR:");
+        oled_.write(64, 2, "R1:");
+        oled_.write(64, 3, "R2:");
+    }
+
+    /* */
+    static void debugPrint() {
+        debugMotor(20, 1, ml_);
+        debugMotor(84, 1, mr_);
+        debugCustomIOChannel(20, 2, l1_.config, l1_.control, feedback_.l1);
+        debugCustomIOChannel(20, 3, l2_.config, l2_.control, feedback_.l2);
+        debugCustomIOChannel(84, 2, r1_.config, r1_.control, feedback_.r1);
+        debugCustomIOChannel(84, 3, r2_.config, r2_.control, feedback_.r2);
+        oled_.write(20, 0, rx_);
+        oled_.write(84, 0, tx_);
+    }
+
+    static void debugMotor(uint8_t x, uint8_t y, channel::Motor & m) {
+        switch (m.control.mode) {
+            case channel::Motor::Mode::Coast:
+                oled_.write(x, y, "coast ");
+                break;
+            case channel::Motor::Mode::Brake:
+                oled_.write(x, y, "brake ");
+                break;
+            case channel::Motor::Mode::CW:
+                oled_.write(x, y, "cw     ");
+                oled_.write(x + 20, y, m.control.speed);
+                break;
+            case channel::Motor::Mode::CCW:
+                oled_.write(x, y, "ccw    ");
+                oled_.write(x + 20, y, m.control.speed);
+                break;
+        }
+    }
+
+    static void debugCustomIOChannel(uint8_t x, uint8_t y, channel::CustomIO::Config & config, channel::CustomIO::Control & control, channel::CustomIO::Feedback & feedback) {
+        switch (config.mode) {
+            case channel::CustomIO::Mode::DigitalIn:
+               oled_.write(x, y, "di     ");
+               oled_.write(x + 20, y, feedback.value);
+               break;
+            case channel::CustomIO::Mode::DigitalOut:
+               oled_.write(x, y, "do     ");
+               oled_.write(x + 20, y, control.value);
+               break;
+            case channel::CustomIO::Mode::AnalogIn:
+               oled_.write(x, y, "ai     ");
+               oled_.write(x + 20, y, feedback.value);
+               break;
+            case channel::CustomIO::Mode::PWM:
+               oled_.write(x, y, "pwm     ");
+               oled_.write(x + 20, y, control.value);
+               break;
+            case channel::CustomIO::Mode::Servo:
+               oled_.write(x, y, "pwm     ");
+               oled_.write(x + 20, y, control.value);
+               break;
+        }
+    }
+
+    //@}
+#endif
 
 
     /** \name Radio comms
+     
+        
      */
     //@{
     static inline NRF24L01 radio_{NRF_CS_PIN, NRF_RXTX_PIN};
@@ -188,13 +261,8 @@ public:
     /** Initializes the radio and enters the receiver mode.
      */
     static void initializeRadio() {
-        if (radio_.initialize("AAAAA", "BBBBB")) {
-#if (defined DEBUG_OLED)
-            oled_.write(0,2, "RADIO OK");
-        } else {
-            oled_.write(0,2, "RADIO FAIL");
-#endif
-        }
+        // TODO if radio init fails, do stuff
+        radio_.initialize("AAAAA", "BBBBB");
         radio_.standby();
         radio_.enableReceiver();
         errorBuffer_[0] = static_cast<uint8_t>(msg::Kind::Error);
@@ -234,6 +302,9 @@ public:
         }
         // try processing the message, if any
         if  (radio_.receive(rxBuffer_, 32)) {
+#if (defined DEBUG_OLED)
+            ++rx_;
+#endif
             // reset the connection timeout
             connTimeout_ = CONNECTION_TIMEOUT;
             // reset the error size so that we know whether to send it or not
@@ -254,6 +325,8 @@ public:
                 uint8_t i = 0;
                 while (i < 32) {
                     uint8_t channelIndex = rxBuffer_[i];
+                    if (channelIndex == 0)
+                        break;
                     ++i;
                     i += setChannelControl(channelIndex, rxBuffer_ + i);
                 }
@@ -265,6 +338,9 @@ public:
             radio_.transmit(reinterpret_cast<uint8_t const *>(&feedback_), 32);
             transmitting_ = true;
             radio_.enableTransmitter();
+#if (defined DEBUG_OLED)
+            tx_ += (errorIndex_ > 1) ? 2 : 1;
+#endif
         }
     }
 
@@ -328,8 +404,9 @@ public:
     /** Loss of connection event. 
      */
     static void connectionLost() {
-        setMotorL(channel::Motor::Control::Coast());
-        setMotorR(channel::Motor::Control::Coast());
+        // TODO actually do useful stuff
+        //setMotorL(channel::Motor::Control::Coast());
+        //setMotorR(channel::Motor::Control::Coast());
         // TODO turn off the rest
     }
 

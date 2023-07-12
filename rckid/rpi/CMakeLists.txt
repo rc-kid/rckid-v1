@@ -38,6 +38,7 @@ find_library(RT_LIBRARY librt.so)
 
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/..)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../..)
 include_directories(${CMAKE_SOURCE_DIR}/../rckid-raylib/src)
 
 if(CMAKE_VERSION VERSION_LESS "3.7.0")

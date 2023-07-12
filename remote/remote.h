@@ -23,7 +23,7 @@ namespace remote {
 
         class Motor {
         public:
-            enum class Mode {
+            enum class Mode : uint8_t {
                 Coast, 
                 Brake, 
                 CW, 
@@ -47,7 +47,7 @@ namespace remote {
                 static Control CW(uint8_t speed) { return Control{Mode::CW, speed}; }
                 static Control CCW(uint8_t speed) { return Control{Mode::CCW, speed}; }
 
-            };
+            } __attribute__((packed));
 
             struct Feedback {
                 bool overcurrent;
@@ -57,7 +57,7 @@ namespace remote {
 
             struct Config {
                 uint8_t overcurrent;
-            };
+            } __attribute__((packed));
 
             Control control;
             Config config;
@@ -69,7 +69,7 @@ namespace remote {
 
         class CustomIO {
         public:
-            enum class Mode {
+            enum class Mode : uint8_t {
                 DigitalIn = 0, 
                 DigitalOut = 1, 
                 AnalogIn = 2, // ADC
@@ -79,7 +79,7 @@ namespace remote {
 
             struct Control {
                 uint16_t value;
-            }; 
+            } __attribute__((packed)); 
 
             struct Feedback {
                 uint8_t value;
@@ -92,7 +92,7 @@ namespace remote {
                 uint16_t servoStart = 500; // 0.5ms
                 uint16_t servoEnd = 2500; // 2.5ms
                 bool pullup = false;
-            };
+            } __attribute__((packed));
 
             Control control;
             Config config;
@@ -119,7 +119,7 @@ namespace remote {
                 Effect effect;
                 uint16_t freq;
                 uint16_t duration;
-            }; 
+            } __attribute__((packed)); 
 
             struct Feedback {
 
@@ -128,7 +128,7 @@ namespace remote {
             /** Configuration is the channel */
             struct Config {
                 uint8_t outputChannel;
-            };
+            } __attribute__((packed));
             Control control;
             Config config;
         }; // channel::ToneEffect
@@ -137,14 +137,14 @@ namespace remote {
         public:
             struct Control {
 
-            }; 
+            } __attribute__((packed)); 
             struct Feedback {
 
             } __attribute((__packed__));
 
             struct Config {
 
-            };
+            } __attribute__((packed));
             Control control;
             Config config;
         }; // channel::RGBStrip
@@ -153,13 +153,13 @@ namespace remote {
         public:
             struct Control {
 
-            }; 
+            } __attribute__((packed)); 
             struct Feedback {
 
-            };
+            } __attribute__((packed));
             struct Config {
 
-            };
+            } __attribute__((packed));
         }; // channel::RGBColor
 
 
