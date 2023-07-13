@@ -17,6 +17,11 @@
 using namespace platform;
 using namespace remote;
 
+template<typename CHANNEL> struct Channel {
+    typename CHANNEL::Config config;
+    typename CHANNEL::Control control;
+}; // Channel
+
 /** LEGO Remote
  
     A remote controller to be used mainly with lego. Supports DC motors at 5 or 9V, servo motors, PWM channels, digital and analog inputs, neopixels and tones. 
@@ -210,7 +215,7 @@ public:
         oled_.write(84, 0, tx_);
     }
 
-    static void debugMotor(uint8_t x, uint8_t y, channel::Motor & m) {
+    static void debugMotor(uint8_t x, uint8_t y, Channel<channel::Motor> & m) {
         switch (m.control.mode) {
             case channel::Motor::Mode::Coast:
                 oled_.write(x, y, "coast ");
@@ -257,7 +262,6 @@ public:
     //@}
 #endif
 
-
     /** \name Power Management 
      */
     //@{
@@ -301,7 +305,7 @@ public:
         radio_.initialize("AAAAA", "BBBBB");
         radio_.standby();
         radio_.enableReceiver();
-        errorBuffer_[0] = static_cast<uint8_t>(msg::Kind::Error);
+        errorBuffer_[0] = msg::Error::ID;
     }
 
     static void error(msg::ErrorKind err, char const * einfo = nullptr) {
@@ -347,8 +351,8 @@ public:
             errorIndex_ = 1;
             // process the message as either a command or control packet
             if (rxBuffer_[0] == msg::CommandPacket) {
-                switch (static_cast<msg::Kind>(rxBuffer_[1])) {
-                    case msg::Kind::SetChannelConfig: 
+                switch (rxBuffer_[1]) {
+                    case msg::SetChannelConfig::ID: 
                         setChannelConfig(rxBuffer_[1], rxBuffer_ + 2);
                         break;
                     default:    
@@ -460,34 +464,20 @@ public:
     //@{
 
 
-    static inline channel::Motor ml_; // 1
-    static inline channel::Motor mr_; // 2
-    static inline channel::CustomIO l1_; // 3
-    static inline channel::CustomIO r1_; // 4
-    static inline channel::CustomIO l2_; // 5
-    static inline channel::CustomIO r2_; // 6
-    static inline channel::ToneEffect tone_; // 7
-    static inline channel::RGBStrip rgb_; // 8
+    static inline Channel<channel::Motor> ml_;
+    static inline Channel<channel::Motor> mr_;
+    static inline Channel<channel::CustomIO> l1_;
+    static inline Channel<channel::CustomIO> r1_;
+    static inline Channel<channel::CustomIO> l2_;
+    static inline Channel<channel::CustomIO> r2_;
+    static inline Channel<channel::ToneEffect> tone_;
+    static inline Channel<channel::RGBStrip> rgb_;
 
     /** Feedback for all channels. 
      */
     static inline LegoRemote::Feedback feedback_;
 
-    /** Bit vector of channel updates.
-     */
-    static inline uint8_t feedbackChanged_ = 0;
-
-    // channels 8 .. 15 are colors actually, the first LED in the strip is the control led on the device
-
-    static void setFeedbackChanged(uint8_t channel) {
-        feedbackChanged_ |= (1 << (channel - 1));
-    }
-
-    static bool isFeedbackChanged(uint8_t channel) {
-        return feedbackChanged_ & ( 1 << (channel - 1));
-    }
-
-    static void setCustomIOConfig(channel::CustomIO & channel, gpio::Pin pin, channel::CustomIO::Config const * config) {
+    static void setCustomIOConfig(Channel<channel::CustomIO> & channel, gpio::Pin pin, channel::CustomIO::Config const * config) {
         disablePWM(pin);
         gpio::input(pin);
         channel.config = *config;
@@ -516,7 +506,7 @@ public:
         }
     }
 
-    static void setCustomIOControl(channel::CustomIO & channel, gpio::Pin pin, channel::CustomIO::Control const * control) {
+    static void setCustomIOControl(Channel<channel::CustomIO> & channel, gpio::Pin pin, channel::CustomIO::Control const * control) {
         channel.control = *control;
         switch (channel.config.mode) {
             case channel::CustomIO::Mode::DigitalOut:
@@ -572,11 +562,15 @@ public:
         TCD0.CMPBCLR = 127;        
     }
 
+    static bool isSpinning(Channel<channel::Motor> & c) {
+        return (c.control.mode == channel::Motor::Mode::CW) || (c.control.mode == channel::Motor::Mode::CCW);
+    }
+
     static void setMotorL(channel::Motor::Control const & ctrl) {
         if (ctrl != ml_.control) {
             switch (ctrl.mode) {
                 case channel::Motor::Mode::Brake:
-                    if (ml_.isSpinning()) {
+                    if (isSpinning(ml_)) {
                         while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                         TCD0.CTRLA &= ~TCD_ENABLE_bm;
                         CPU_CCP = CCP_IOREG_gc;
@@ -588,7 +582,7 @@ public:
                     gpio::high(ML2_PIN);
                     break;
                 case channel::Motor::Mode::Coast:
-                    if (ml_.isSpinning()) {
+                    if (isSpinning(ml_)) {
                         while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                         TCD0.CTRLA &= ~TCD_ENABLE_bm;
                         CPU_CCP = CCP_IOREG_gc;
@@ -636,7 +630,7 @@ public:
         if (ctrl != mr_.control) {
             switch (ctrl.mode) {
                 case channel::Motor::Mode::Brake:
-                    if (mr_.isSpinning()) {
+                    if (isSpinning(mr_)) {
                         while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                         TCD0.CTRLA &= ~TCD_ENABLE_bm;
                         CPU_CCP = CCP_IOREG_gc;
@@ -648,7 +642,7 @@ public:
                     gpio::high(MR2_PIN);
                     break;
                 case channel::Motor::Mode::Coast:
-                    if (mr_.isSpinning()) {
+                    if (isSpinning(mr_)) {
                         while (TCD0.STATUS & TCD_ENRDY_bm == 0) {};
                         TCD0.CTRLA &= ~TCD_ENABLE_bm;
                         CPU_CCP = CCP_IOREG_gc;
@@ -744,7 +738,7 @@ public:
         }
     }
 
-    static void startControlPulse(channel::CustomIO const & ch, gpio::Pin pin) {
+    static void startControlPulse(Channel<channel::CustomIO> const & ch, gpio::Pin pin) {
         if (ch.config.mode != channel::CustomIO::Mode::Servo)
             return;
         activeServoPin_= pin;

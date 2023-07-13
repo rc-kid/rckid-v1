@@ -13,7 +13,8 @@ namespace remote {
 
         /** Channel types supported by the remote protocol. 
          */
-        enum class Kind {
+        enum class Kind : uint8_t {
+            None = 0,
             Motor = 1, 
             CustomIO = 2, 
             ToneEffect = 3, 
@@ -58,13 +59,6 @@ namespace remote {
             struct Config {
                 uint8_t overcurrent;
             } __attribute__((packed));
-
-            Control control;
-            Config config;
-
-            bool isSpinning() const {
-                return control.mode == Mode::CW || control.mode == Mode::CCW;
-            }
         }; // channel::Motor
 
         class CustomIO {
@@ -98,9 +92,6 @@ namespace remote {
                 static Config output() { Config c; c.mode = Mode::DigitalOut; return c; }
 
             } __attribute__((packed));
-
-            Control control;
-            Config config;
         }; // channel::CustomIO
 
 
@@ -157,8 +148,6 @@ namespace remote {
             struct Config {
                 uint8_t outputChannel;
             } __attribute__((packed));
-            Control control;
-            Config config;
         }; // channel::ToneEffect
 
         class RGBStrip {
@@ -196,23 +185,104 @@ namespace remote {
     /** 
 
     */
+
+    #define MESSAGE(NAME, ...) \
+        class NAME : public msg::MessageHelper<NAME> { \
+        public: \
+            static uint8_t constexpr ID = __COUNTER__ - COUNTER_OFFSET; \
+            static NAME const & fromBuffer(uint8_t const * buffer) { \
+                return * reinterpret_cast<NAME const *>(buffer); \
+            } \
+            __VA_ARGS__ \
+        } __attribute__((packed))
+
     namespace msg {
 
         /** When incoming packet starts with 0, the packet is a command packet, in which the second byte is the command itself, followed by up to 30 bytes of data depending on the command itself. If the first byte is non-zero, it is interpreted as a channel control packet message. 
          */
         constexpr uint8_t CommandPacket = 0;
 
-        enum class Kind : uint8_t {
-            SetChannelConfig = 1,
-            GetChannelConfig,
-            SetChannelControl,
-            GetChannelControl,
-            GetChannelFeedback, 
-            Feedback = 0x80,
-            FeedbackConsecutive, 
+        /** Default channel on which remote devices start listening. This is identical for all devices so that automatic discovery is possible. 
+         */
+        constexpr uint8_t DefaultChannel = 86;
 
-            Error = 0xff,
-        }; // msg::Kind
+        /** Default address that all devices start listening to so that automatic discovery is possible. 
+         */
+        constexpr char const * DefaultAddress = "RCKID";
+
+        class Message {
+        public:
+            uint8_t const cmdId = CommandPacket;
+            uint8_t const id;
+        protected:
+            Message(uint8_t id): id{id} {}
+            static int constexpr COUNTER_OFFSET = __COUNTER__ + 1;
+        } __attribute__((packed)); 
+
+        template<typename T> class MessageHelper : public Message {
+        public:
+            MessageHelper():Message{T::ID} {}
+        } __attribute__((packed));
+
+
+        /** Requests a remote device to identify itself to the controller. Upon receiving the request, the device is required to send the DeviceInfo message to the specified controller.
+         */
+        MESSAGE(RequestDeviceInfo, 
+            uint8_t controllerAddress[5];
+        );
+
+        /** Device information. Contains the number of channels and a null terminated string containing the device name (up to 28 chars). 
+         */
+        MESSAGE(DeviceInfo, 
+            uint8_t numChannels;
+            char name[];
+        );
+
+        /** Resets the pairing status ofthe device. The device will reset to default channel and default name and be ready to accept requests from other controllers. 
+         */
+        MESSAGE(Reset);
+
+        /** Requests the device to pair with the provided controller. As part of the process also sets the device name the controller will use from now on and provides the channel to tune to. After the pairing is complete the device will not respond to any RequestDeviceInfo messages from different controllers. When paired, the device will also process messages with greater ID than Pair. 
+         */
+        MESSAGE(Pair, 
+            uint8_t controllerAddress[5];
+            uint8_t deviceAddress[5];
+            uint8_t channel;
+        );
+
+        /** Requests the device to send information about the channels it contains, returning the ChannelInfo message. Channel information will be returned for at most 29 consecutive channels starting from the specified one (inclusive).
+         */
+        MESSAGE(GetChannelInfo, 
+            uint8_t fromChannel = 0;
+        );
+
+        /** Returns the information about channel types in the device. Returns up to 29 channels starting from the channel specified. If there is fewer channels available on the device, the list is terminated by 0 (None)
+         */
+        MESSAGE(ChannelInfo, 
+            uint8_t channel;
+            channel::Kind info[];
+        );
+
+        /** Requests channel configuration for the given channel.  
+         */
+        MESSAGE(GetCHannelConfig,
+            uint8_t channel;
+        );
+
+        /** Channel configuration for the specified channel. The actual configuration type depends on the channel kind, which is also returned by the message.  
+         */
+        MESSAGE(SetChannelConfig,
+            uint8_t channel;
+            channel::Kind kind;
+            uint8_t config[];
+        );
+        
+        MESSAGE(SetChannelControl);
+        MESSAGE(GetChannelControl);
+        MESSAGE(GetChannelFeedback);
+        MESSAGE(Feedback);
+        MESSAGE(FeedbackConsecutive);
+        MESSAGE(Error);
 
         /** Type of error returned. 
          */
@@ -223,6 +293,7 @@ namespace remote {
             Unimplemented,
 
         };
+
 
     } // namespace remote::msg
 

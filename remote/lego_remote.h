@@ -17,8 +17,9 @@ namespace remote {
         /** Since the entire feedback of the Lego remote fits in 32 bytes, we can simply send all */
         class Feedback {
         private:
-            msg::Kind const msg = msg::Kind::FeedbackConsecutive;
+            uint8_t const msg = msg::FeedbackConsecutive::ID;
             uint8_t const startChannel = 1;
+            uint8_t const numChannels = 8;
         public:
             channel::Motor::Feedback ml;
             channel::Motor::Feedback mr;
