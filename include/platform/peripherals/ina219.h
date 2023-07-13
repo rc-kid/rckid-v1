@@ -15,9 +15,6 @@ namespace platform {
         VCC | GND | 0x44
         VCC | VCC | 0x45
 
-
-        
-
      */
     class INA219 : I2CDevice {
     public:

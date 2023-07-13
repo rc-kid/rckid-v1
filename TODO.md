@@ -30,9 +30,7 @@
 ## RCKid PCB & Case
 
 - make more room for the battery (verify)
-- check that the battery / usb switch works fine (add cap?)
 - add mounting holes and fixes for supports
-- make RGB face top (?)
 - verify joycon solder pad placement before ordering
 - check charging detection works, can perhaps ignore the pullup/downs? into middle and use just one pullup/down? Needs external pull-up. Only works when USB is present - need better USB checking
 
