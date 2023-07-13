@@ -1,5 +1,92 @@
 #pragma once
 
+#include "platform/platform.h"
+
+namespace platform {
+
+    /** INA219 
+     
+        Senses voltage, current and calculates power using a shunt resistor. Up to 26V is supported on the power rail is supported. The I2C address is determined by the A0 and A1 pins. Out of the many options (see datasheet), the following are the simplest ones:
+
+        A0  | A1  | Address
+        ----|-----|--------
+        GND | GND | 0x40
+        GND | VCC | 0x41
+        VCC | GND | 0x44
+        VCC | VCC | 0x45
+
+
+        
+
+     */
+    class INA219 : I2CDevice {
+    public:
+
+        enum class Gain : uint16_t {
+            mv_40 = 0, 
+            mv_80 = 0x800, 
+            mv_160 = 0x1000,
+            mv_320 = 0x1800,
+        }; // INA219::Gain
+
+        INA219(uint8_t address): I2CDevice{address} {}
+
+        void reset() {
+            writeRegister(CONFIG, 0x83ff);
+        }
+
+        /** Sets the config & calibration registers for the given gain and shunt resistor value in mOhms. 
+         
+            The default configuration assumes 1mA current sensing resolution, which gives us huge range of +/- 32A. Per the datasheet, the configuration register is calculated as:
+
+            CAL = trunc(0.04096 / (Current_LSB * RShunt))
+                = trunc(0.04096 / (0.001 * rShunt / 1000)) --- rShunt to mOhm
+                = 40960 / rShunt --- integer arithmetics only
+
+            For config we use the larger 32V range for the bus voltage, giving us 4mV resolution. Continuous mode is enabled with 12bit accuracy and no accumulation. 
+         */
+        void initialize(Gain gain, uint16_t rShunt) {
+            writeRegister<uint16_t>(CONFIG, 0x219f | static_cast<uint16_t>(gain));
+            writeRegister<uint16_t>(CALIBRATION, 40960 / rShunt);
+        }
+
+        /** Returns the voltage in mV. 
+         */
+        uint16_t voltage() {
+            return (readRegister<uint16_t>(BUS_VOLTAGE) >> 3) * 4;
+        }
+        
+        /** Returns the current in mA. 
+         */
+        uint16_t current() {
+            return readRegister<uint16_t>(CURRENT) / 5;
+        }
+
+        uint16_t shuntVoltage() {
+            return (readRegister<uint16_t>(SHUNT_VOLTAGE));
+        }
+        
+        uint16_t power() {
+            return readRegister<uint16_t>(POWER);
+        }
+
+
+    private:
+        static constexpr uint8_t CONFIG = 0x0;
+        static constexpr uint8_t SHUNT_VOLTAGE = 0x01;
+        static constexpr uint8_t BUS_VOLTAGE = 0x02;
+        static constexpr uint8_t POWER = 0x03;
+        static constexpr uint8_t CURRENT = 0x04;
+        static constexpr uint8_t CALIBRATION = 0x05;
+
+    }; // INA219
+
+} // namespace platform
+
+
+
+#ifdef FOOBAR
+
 namespace platform { 
 
 template<uint8_t ADDRESS>
@@ -197,3 +284,4 @@ private:
 } // namespace platform		
 
 
+#endif // FOOBAR

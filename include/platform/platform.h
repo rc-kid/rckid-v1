@@ -107,14 +107,14 @@ namespace platform {
     template<>
     inline void I2CDevice::writeRegister<uint8_t>(uint8_t reg, uint8_t value) {
         uint8_t buf[] = { reg, value };
-        i2c::transmit(address, buf, 2, nullptr, 0);
+        i2c::transmit(address, buf, sizeof(buf), nullptr, 0);
     }
 
-    /*
     template<>
     void I2CDevice::writeRegister<uint16_t>(uint8_t reg, uint16_t value) {
+        uint8_t buf[] = { reg, (value >> 8) & 0xff, (value & 0xff)};
+        i2c::transmit(address, buf, sizeof(buf), nullptr, 0);
     }
-    */
 
     template<>
     inline uint8_t I2CDevice::readRegister<uint8_t>(uint8_t reg) {

@@ -4,6 +4,7 @@
 #include "platform/platform.h"
 #include "platform/peripherals/nrf24l01.h"
 #include "platform/peripherals/neopixel.h"
+#include "platform/peripherals/ina219.h"
 #ifdef DEBUG_OLED
 #include "platform/peripherals/ssd1306.h"
 #endif
@@ -114,6 +115,7 @@ public:
         initializeAnalogInputs();
         initializePWMOutputs();
         initializeAudio();
+        initializePowerManagement();
 #ifdef DEBUG_OLED
         initializeDebug();
 #endif
@@ -130,9 +132,12 @@ public:
 
 
         // clear all RGB colors, set the control LED to green & update
+        gpio::output(NEOPIXEL_PIN);
         rgbColors_.clear();
-        rgbColors_[0] = Color::Green();
         rgbColors_.update();
+
+        colors_.clear();
+        colors_[0] = Color::Green();
 
         setChannelConfig(LegoRemote::CHANNEL_L1, (uint8_t*) & channel::CustomIO::Config::output());
         setChannelConfig(LegoRemote::CHANNEL_L2, (uint8_t*) & channel::CustomIO::Config::inputPullup());
@@ -148,6 +153,8 @@ public:
             radioIrq();
         if (RTC.PITINTFLAGS == RTC_PI_bm) {
             RTC.PITINTFLAGS = RTC_PI_bm;
+            // check the power settings 
+            checkPower();
             // if we have connection timeout, signal connection loss
             if (connTimeout_ > 0 && --connTimeout_ == 0)
                 connectionLost();
@@ -155,6 +162,7 @@ public:
             toneEffectTick();
             // do rgb effect, if any 
             rgbEffectTick();
+            
 #ifdef DEBUG_OLED
             if ((++dbgTimeout_ % 64) ==0)
                 debugPrint();
@@ -249,6 +257,30 @@ public:
     //@}
 #endif
 
+
+    /** \name Power Management 
+     */
+    //@{
+
+    static inline INA219 iSenseTotal_{0x40};
+    static inline INA219 iSenseML_{0x44};
+    static inline INA219 iSenseMR_{0x45};
+
+    static void initializePowerManagement() {
+        // 8mOhm for 10Amps max resolution in mA
+        iSenseTotal_.initialize(INA219::Gain::mv_80, 8);
+        // for the motors, we take 4mOhms for 5Amps max resolution
+        iSenseML_.initialize(INA219::Gain::mv_80, 4);
+        iSenseMR_.initialize(INA219::Gain::mv_80, 4);
+    }
+
+    static void checkPower() {
+        uint16_t iTotal = iSenseTotal_.current();
+        uint16_t iML = iSenseML_.current();
+        uint16_t iMR = iSenseMR_.current();
+    }
+
+    //@}
 
     /** \name Radio comms
      
@@ -446,7 +478,6 @@ public:
     static inline uint8_t feedbackChanged_ = 0;
 
     // channels 8 .. 15 are colors actually, the first LED in the strip is the control led on the device
-    static inline NeopixelStrip<9> rgbColors_{NEOPIXEL_PIN};
 
     static void setFeedbackChanged(uint8_t channel) {
         feedbackChanged_ |= (1 << (channel - 1));
@@ -966,8 +997,12 @@ public:
     static void startToneEffect(channel::ToneEffect::Control const * ctrl) {
         tone_.control = *ctrl;
         toneTickDuration_ = tone_.control.transition / 10 * 64 / 100; 
+        if (toneTickDuration_ == 0)
+            toneTickDuration_ = 1;
         switch (tone_.control.effect) {
-            case channel::ToneEffect::Effect::None:
+            case channel::ToneEffect::Effect::Tone:
+                tone(tone_.control.freq);
+                toneEffect_ = tone_.control.transition == 0 ? 0 : toneTickDuration_;
                 break;
             case channel::ToneEffect::Effect::Wail:
                 tone(tone_.control.freq);
@@ -980,6 +1015,10 @@ public:
                 tone(tone_.control.freq);
                 toneEffect_ = toneTickDuration_;
                 break;
+            case channel::ToneEffect::Effect::Pulse:
+                tone(tone_.control.freq);
+                toneEffect_ = toneTickDuration_;
+                break;
         }
     }
 
@@ -987,7 +1026,9 @@ public:
         if (tone_.config.outputChannel == 0)
             return;
         switch (tone_.control.effect) {
-            case channel::ToneEffect::Effect::None:
+            case channel::ToneEffect::Effect::Tone:
+                if (toneEffect_ > 0 && --toneEffect_ == 0)
+                    noTone();
                 break;
             case channel::ToneEffect::Effect::Wail:
                 if (toneEffect_) {
@@ -1010,6 +1051,17 @@ public:
                 if (--toneEffect_ == 0) {
                     tone(freq_ == tone_.control.freq ? tone_.control.freq2 : tone_.control.freq);
                     toneEffect_ = toneTickDuration_;
+                }
+                break;
+            case channel::ToneEffect::Effect::Pulse:
+                if (--toneEffect_ == 0) {
+                    if (freq_ == 0) {
+                        tone(tone_.control.freq);
+                        toneEffect_ = tone_.control.freq2 / 10 * 64 / 100;
+                    } else {
+                        noTone();
+                        toneEffect_ = toneTickDuration_;                    
+                    }
                 }
                 break;
         }
@@ -1036,10 +1088,19 @@ public:
     //@}
 
     /** \name RGB Strip Control & Effects 
+     
+        The first LED is the comms led on the remote brick and is controlled independently. The rest of the LEDs are user specific. 
      */
     //@{
-    static void rgbEffectTick() {
 
+    static inline NeopixelStrip<9> rgbColors_{NEOPIXEL_PIN};
+    static inline ColorStrip<9> colors_;
+
+
+    static void rgbEffectTick() {
+        if (rgbColors_.moveTowards(colors_)) {
+            rgbColors_.update();
+        }
     }
     //@}
 

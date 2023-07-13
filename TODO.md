@@ -74,7 +74,6 @@
 - check motor control
 - check analog input
 - PWM motor control frequency - 20kHz should be enough
-- add RTC PIT for effects
 - add INA219
 
 > Non-critical things that would be nice to have, but don't jeopardize the xmas delivery. 

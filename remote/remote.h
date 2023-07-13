@@ -114,10 +114,11 @@ namespace remote {
         class ToneEffect {
         public:
             enum class Effect : uint8_t {
-                None, 
+                Tone, 
                 Wail, // freq -> freq2 -> freq
                 Yelp, // freq -> freq2
                 HiLow, // freq | freq2 | freq
+                Pulse, // freq | pause ...
             }; // Effect
 
             struct Control {
@@ -125,6 +126,10 @@ namespace remote {
                 uint16_t freq;
                 uint16_t freq2;
                 uint16_t transition;
+
+                static Control tone(uint16_t freq, uint16_t duration = 0) {
+                    return Control{Effect::Tone, freq, 0, duration};
+                }
 
                 static Control wail(uint16_t fStart, uint16_t fEnd, uint16_t duration) {
                     return Control{Effect::Wail, fStart, fEnd, duration};
@@ -136,6 +141,10 @@ namespace remote {
 
                 static Control hiLow(uint16_t fStart, uint16_t fEnd, uint16_t duration) {
                     return Control{Effect::HiLow, fStart, fEnd, duration};
+                }
+
+                static Control pulse(uint16_t f, uint16_t dTone, uint16_t dNoTone) {
+                    return Control{Effect::Pulse, f, dTone, dNoTone};
                 }
 
             } __attribute__((packed)); 
