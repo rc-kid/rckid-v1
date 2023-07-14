@@ -294,18 +294,32 @@ public:
     static inline NRF24L01 radio_{NRF_CS_PIN, NRF_RXTX_PIN};
     static inline bool transmitting_ = false;
     static inline uint8_t rxBuffer_[32];
+    static inline uint8_t txBuffer_[32];
     static inline uint8_t errorBuffer_[32];
     static inline uint8_t errorIndex_; 
     static inline uint16_t connTimeout_ = CONNECTION_TIMEOUT;
+    static inline uint8_t controller_[] = { 0, 0, 0, 0, 0};
 
     /** Initializes the radio and enters the receiver mode.
      */
     static void initializeRadio() {
         // TODO if radio init fails, do stuff
-        radio_.initialize("AAAAA", "BBBBB");
+        //radio_.initialize("AAAAA", "BBBBB");
+        radio_.initialize(msg::DefaultAddress, msg::DefaultAddress, msg::DefaultChannel);
         radio_.standby();
         radio_.enableReceiver();
         errorBuffer_[0] = msg::Error::ID;
+    }
+
+    static bool paired() { return controller_[0] != 0; }
+
+    static bool isPairedController(uint8_t const * name) {
+        if (controller_[0] == 0)
+            return false;
+        for (uint8_t i = 0; i < 5; ++i)
+            if (controller_[i] != name[i])
+                return false;
+        return true;
     }
 
     static void error(msg::ErrorKind err, char const * einfo = nullptr) {
@@ -345,42 +359,196 @@ public:
 #if (defined DEBUG_OLED)
             ++rx_;
 #endif
+            // set the response to txBuffer and load with NOP message (which we won't transmit if not changed)
+            txBuffer_[0] = msg::CommandPacket;
+            uint8_t const * response = msg::Nop::ID;
             // reset the connection timeout
             connTimeout_ = CONNECTION_TIMEOUT;
             // reset the error size so that we know whether to send it or not
             errorIndex_ = 1;
             // process the message as either a command or control packet
             if (rxBuffer_[0] == msg::CommandPacket) {
-                switch (rxBuffer_[1]) {
-                    case msg::SetChannelConfig::ID: 
-                        setChannelConfig(rxBuffer_[1], rxBuffer_ + 2);
-                        break;
-                    default:    
-                        error(msg::ErrorKind::InvalidCommand, rxBuffer_ + 1, 1);
-                        break;
+                if (!paired() && rxBuffer_[1] > msg::Pair::ID) {
+                    error(msg::ErrorKind::DeviceNotPaired);
+                } else {
+                    switch (rxBuffer_[1]) {
+                        // set the tx address to the one provided in the request and then send the information 
+                        case msg::RequestDeviceInfo::ID: {
+                            uint8_t * name = reinterpret_cast<msg::RequestDeviceInfo const *>(rxBuffer_)->controllerAddress;
+                            if (isPairedController(name)) {
+                                radio_.setTxAddress(name);
+                                new (txBuffer_) msg::DeviceInfo{LegoRemote::NUM_CHANNELS, "LegoRemote"};
+                            } 
+                            break;
+                        }
+                        // reset the rx and tx addresses to default and clear the pairing flag
+                        case msg::Reset::ID: {
+                            uint8_t * name = reinterpret_cast<msg::Reset const *>(rxBuffer_)->controllerAddress;
+                            if (isPairedController(name)) {
+                                radio_.initialize(msg::DefaultAddress, msg::DefaultAddress, msg::DefaultChannel);
+                                radio_.standby();
+                                radio_.enableReceiver();
+                                controller_[0] = 0; // clear pairing info
+                            }
+                            break;
+                        }
+                        // pairs the device with the controller, sets the rx and tx addresses accordingly and updates the channel as requested 
+                        case msg::Pair::ID: {
+                            msg::Pair const * msg = reinterpret_cast<msg::Pair const *>(rxBuffer_);
+                            if (!paired() || isPairedController(msg->controllerAddress)) {
+                                radio_.initialize(msg->deviceAddress, msg->controllerAddress, msg->channel);
+                                radio_.standby();
+                                radio_.enableReceiver();
+                                // and enter the paired mode
+                                for (uint8_t i = 0; i < 5; ++i)
+                                    controller_[i] = msg->controllerAddress[i];
+                            }
+                            break;
+                        }
+                        // returns the channel information. This is a bit silly as we do not store the whole 32 bytes in the channel info, but we don't care if we send garbage after the final 0
+                        case msg::GetChannelInfo::ID:
+                            response = LegoRemote::CHANNEL_INFO;
+                            break;
+                        // returns the channel configuration for the provided channel number
+                        case msg::GetChannelConfig::ID:
+                            getChannelConfig(reinterpret_cast<msg::GetChannelConfig const *>(rxBuffer_)->channel);
+                            break;
+                        // sets the channel config for given channel    
+                        case msg::SetChannelConfig::ID: {
+                            msg::SetChannelConfig const * msg = reinterpret_cast<msg::SetChannelConfig const *>(rxBuffer_);
+                            setChannelConfig(msg->channel, msg->config);
+                            response = reinterpret_cast<uint8_t const *>(&feedback_);
+                            break;
+                        }
+                        // returns the channel control for the provided channel number
+                        case msg::GetChannelControl::ID:
+                            getChannelControl(reinterpret_cast<msg::GetChannelControl const *>(rxBuffer_)->channel);
+                            break;
+                        // sets channel control for single channel
+                        case msg::SetChannelControl::ID: {
+                            msg::SetChannelControl const * msg = reinterpret_cast<msg::SetChannelControl const *>(rxBuffer_);
+                            setChannelControl(msg->channel, msg->control);
+                            break;
+                        }
+                        // returns feedback for the given channel
+                        case msg::GetChannelFeedback::ID: 
+                            getChannelFeedback(reinterpret_cast<msg::GetChannelFeedback const *>(rxBuffer_)->channel);
+                            break;
+                        default:    
+                            error(msg::ErrorKind::InvalidCommand, rxBuffer_ + 1, 1);
+                            break;
+                    }
                 }
            
             // we are dealing with a control packet message, parse it into channels and process them one by one 
             } else {
-                uint8_t i = 0;
-                while (i < 32) {
-                    uint8_t channelIndex = rxBuffer_[i];
-                    if (channelIndex == 0)
-                        break;
-                    ++i;
-                    i += setChannelControl(channelIndex, rxBuffer_ + i);
+                if (!paired()) {
+                    error(msg::ErrorKind::DeviceNotPaired);
+                } else {
+                    uint8_t i = 0;
+                    while (i < 32) {
+                        uint8_t channelIndex = rxBuffer_[i];
+                        if (channelIndex == 0)
+                            break;
+                        ++i;
+                        i += setChannelControl(channelIndex, rxBuffer_ + i);
+                    }
+                    response = reinterpret_cast<uint8_t const *>(&feedback_);
                 }
             }
             // send the optional error and feedback back to keep the comms
-            radio_.standby();
-            if (errorIndex_ > 1)
-                radio_.transmit(errorBuffer_, 32);
-            radio_.transmit(reinterpret_cast<uint8_t const *>(&feedback_), 32);
-            transmitting_ = true;
-            radio_.enableTransmitter();
-#if (defined DEBUG_OLED)
-            tx_ += (errorIndex_ > 1) ? 2 : 1;
-#endif
+            if (errorIndex_ > 1 || response[0] != msg::Nop::ID) {
+                radio_.standby();
+                if (errorIndex_ > 1) {
+                    radio_.transmit(errorBuffer_, 32);
+    #if (defined DEBUG_OLED)
+                    ++tx_;
+    #endif
+                }
+                if (response[0] != msg::Nop::ID) {
+                    radio_.transmit(response, 32);
+    #if (defined DEBUG_OLED)
+                    ++tx_;
+    #endif
+                }
+                transmitting_ = true;
+                radio_.enableTransmitter();
+            }
+        }
+    }
+
+    /** Loss of connection event. 
+     */
+    static void connectionLost() {
+        // TODO actually do useful stuff
+        //setMotorL(channel::Motor::Control::Coast());
+        //setMotorR(channel::Motor::Control::Coast());
+        // TODO turn off the rest
+    }
+
+    //@}
+
+    /** \name Channels
+     
+     */
+    //@{
+
+
+    static inline Channel<channel::Motor> ml_;
+    static inline Channel<channel::Motor> mr_;
+    static inline Channel<channel::CustomIO> l1_;
+    static inline Channel<channel::CustomIO> r1_;
+    static inline Channel<channel::CustomIO> l2_;
+    static inline Channel<channel::CustomIO> r2_;
+    static inline Channel<channel::ToneEffect> tone_;
+    static inline Channel<channel::RGBStrip> rgb_;
+
+    /** Feedback for all channels. 
+     */
+    static inline LegoRemote::Feedback feedback_;
+
+    template<typename T>
+    static void getChannelDataFrom(channel::Kind kind, T const & config) {
+        txBuffer_[1] = static_cast<uint8_t>(kind);
+        memcpy(txBuffer_ + 2, & config, sizeof(T));
+    }
+
+    /** Gets configuration for given channel */
+    static void getChannelConfig(uint8_t channel) {
+        if (channel < 1 || channel > LegoRemote::NUM_CHANNELS) {
+            error(msg::ErrorKind::InvalidChannel);
+        } else {
+            txBuffer_[0] = msg::ChannelConfig::ID;
+            switch (channel) {
+                case LegoRemote::CHANNEL_ML:
+                    getChannelDataFrom(channel::Kind::Motor, ml_.config);
+                    break;
+                case LegoRemote::CHANNEL_MR:
+                    getChannelDataFrom(channel::Kind::Motor, mr_.config);
+                    break;
+                case LegoRemote::CHANNEL_L1:
+                    getChannelDataFrom(channel::Kind::CustomIO, l1_.config);
+                    break;
+                case LegoRemote::CHANNEL_R1:
+                    getChannelDataFrom(channel::Kind::CustomIO, r1_.config);
+                    break;
+                case LegoRemote::CHANNEL_L2:
+                    getChannelDataFrom(channel::Kind::CustomIO, l2_.config);
+                    break;
+                case LegoRemote::CHANNEL_R2:
+                    getChannelDataFrom(channel::Kind::CustomIO, r2_.config);
+                    break;
+                case LegoRemote::CHANNEL_TONE_EFFECT:
+                    getChannelDataFrom(channel::Kind::ToneEffect, tone_.config);
+                    break;
+                case LegoRemote::CHANNEL_RGB_STRIP:
+                    getChannelDataFrom(channel::Kind::RGBStrip, rgb_.config);
+                    break;
+                default:
+                    txBuffer_[1] = static_cast<uint8_t>(channel::Kind::RGBColor);
+                    // no config (?)
+                    break;
+            }
         }
     }
 
@@ -412,6 +580,44 @@ public:
             default:
                 error(msg::ErrorKind::InvalidChannel, & channel, 1);
                 break;
+        }
+    }
+
+    /** Gets configuration for given channel */
+    static void getChannelControl(uint8_t channel) {
+        if (channel < 1 || channel > LegoRemote::NUM_CHANNELS) {
+            error(msg::ErrorKind::InvalidChannel);
+        } else {
+            txBuffer_[0] = msg::ChannelControl::ID;
+            switch (channel) {
+                case LegoRemote::CHANNEL_ML:
+                    getChannelDataFrom(channel::Kind::Motor, ml_.control);
+                    break;
+                case LegoRemote::CHANNEL_MR:
+                    getChannelDataFrom(channel::Kind::Motor, mr_.control);
+                    break;
+                case LegoRemote::CHANNEL_L1:
+                    getChannelDataFrom(channel::Kind::CustomIO, l1_.control);
+                    break;
+                case LegoRemote::CHANNEL_R1:
+                    getChannelDataFrom(channel::Kind::CustomIO, r1_.control);
+                    break;
+                case LegoRemote::CHANNEL_L2:
+                    getChannelDataFrom(channel::Kind::CustomIO, l2_.control);
+                    break;
+                case LegoRemote::CHANNEL_R2:
+                    getChannelDataFrom(channel::Kind::CustomIO, r2_.control);
+                    break;
+                case LegoRemote::CHANNEL_TONE_EFFECT:
+                    getChannelDataFrom(channel::Kind::ToneEffect, tone_.control);
+                    break;
+                case LegoRemote::CHANNEL_RGB_STRIP:
+                    getChannelDataFrom(channel::Kind::RGBStrip, rgb_.control);
+                    break;
+                default:
+                    // TODO
+                    break;
+            }
         }
     }
 
@@ -447,35 +653,44 @@ public:
         }
     }
 
-    /** Loss of connection event. 
-     */
-    static void connectionLost() {
-        // TODO actually do useful stuff
-        //setMotorL(channel::Motor::Control::Coast());
-        //setMotorR(channel::Motor::Control::Coast());
-        // TODO turn off the rest
+    /** Gets configuration for given channel */
+    static void getChannelFeedback(uint8_t channel) {
+        if (channel < 1 || channel > LegoRemote::NUM_CHANNELS) {
+            error(msg::ErrorKind::InvalidChannel);
+        } else {
+            txBuffer_[0] = msg::ChannelFeedback::ID;
+            switch (channel) {
+                case LegoRemote::CHANNEL_ML:
+                    getChannelDataFrom(channel::Kind::Motor, feedback_.ml);
+                    break;
+                case LegoRemote::CHANNEL_MR:
+                    getChannelDataFrom(channel::Kind::Motor, feedback_.mr);
+                    break;
+                case LegoRemote::CHANNEL_L1:
+                    getChannelDataFrom(channel::Kind::CustomIO, feedback_.l1);
+                    break;
+                case LegoRemote::CHANNEL_R1:
+                    getChannelDataFrom(channel::Kind::CustomIO, feedback_.r1);
+                    break;
+                case LegoRemote::CHANNEL_L2:
+                    getChannelDataFrom(channel::Kind::CustomIO, feedback_.l2);
+                    break;
+                case LegoRemote::CHANNEL_R2:
+                    getChannelDataFrom(channel::Kind::CustomIO, feedback_.r2);
+                    break;
+                case LegoRemote::CHANNEL_TONE_EFFECT:
+                    getChannelDataFrom(channel::Kind::ToneEffect, feedback_.tone);
+                    break;
+                case LegoRemote::CHANNEL_RGB_STRIP:
+                    getChannelDataFrom(channel::Kind::RGBStrip, feedback_.rgb);
+                    break;
+                default:
+                    txBuffer_[1] = static_cast<uint8_t>(channel::Kind::RGBColor);
+                    // no feedback
+                    break;
+            }
+        }
     }
-
-    //@}
-
-    /** \name Channels
-     
-     */
-    //@{
-
-
-    static inline Channel<channel::Motor> ml_;
-    static inline Channel<channel::Motor> mr_;
-    static inline Channel<channel::CustomIO> l1_;
-    static inline Channel<channel::CustomIO> r1_;
-    static inline Channel<channel::CustomIO> l2_;
-    static inline Channel<channel::CustomIO> r2_;
-    static inline Channel<channel::ToneEffect> tone_;
-    static inline Channel<channel::RGBStrip> rgb_;
-
-    /** Feedback for all channels. 
-     */
-    static inline LegoRemote::Feedback feedback_;
 
     static void setCustomIOConfig(Channel<channel::CustomIO> & channel, gpio::Pin pin, channel::CustomIO::Config const * config) {
         disablePWM(pin);

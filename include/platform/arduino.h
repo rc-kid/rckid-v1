@@ -38,6 +38,8 @@ T pow(T base, uint8_t exp) {
     return result;
 }
 
+void * operator new(size_t size, uint8_t * addr) { return (void*) addr; }
+
 namespace platform {
 
     class cpu {

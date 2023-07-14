@@ -4,6 +4,7 @@ namespace remote {
 
     class LegoRemote {
     public:
+        static constexpr uint8_t NUM_CHANNELS = 16;
 
         static constexpr uint8_t CHANNEL_ML = 1;
         static constexpr uint8_t CHANNEL_MR = 2;
@@ -13,6 +14,29 @@ namespace remote {
         static constexpr uint8_t CHANNEL_R2 = 6;
         static constexpr uint8_t CHANNEL_TONE_EFFECT = 7;
         static constexpr uint8_t CHANNEL_RGB_STRIP = 8;
+
+        /** The channel info response as it is always the same. 
+         */
+        static constexpr uint8_t CHANNEL_INFO[] = {
+            msg::ChannelInfo::ID,
+            static_cast<uint8_t>(channel::Kind::Motor),
+            static_cast<uint8_t>(channel::Kind::Motor),
+            static_cast<uint8_t>(channel::Kind::CustomIO),
+            static_cast<uint8_t>(channel::Kind::CustomIO),
+            static_cast<uint8_t>(channel::Kind::CustomIO),
+            static_cast<uint8_t>(channel::Kind::CustomIO),
+            static_cast<uint8_t>(channel::Kind::ToneEffect),
+            static_cast<uint8_t>(channel::Kind::RGBStrip),
+            static_cast<uint8_t>(channel::Kind::RGBColor),
+            static_cast<uint8_t>(channel::Kind::RGBColor),
+            static_cast<uint8_t>(channel::Kind::RGBColor),
+            static_cast<uint8_t>(channel::Kind::RGBColor),
+            static_cast<uint8_t>(channel::Kind::RGBColor),
+            static_cast<uint8_t>(channel::Kind::RGBColor),
+            static_cast<uint8_t>(channel::Kind::RGBColor),
+            static_cast<uint8_t>(channel::Kind::RGBColor),
+            0 // end of channels to send 
+        }; 
 
         /** Since the entire feedback of the Lego remote fits in 32 bytes, we can simply send all */
         class Feedback {

@@ -224,6 +224,9 @@ namespace remote {
             MessageHelper():Message{T::ID} {}
         } __attribute__((packed));
 
+        /** Empty message. 
+         */
+        MESSAGE(Nop);
 
         /** Requests a remote device to identify itself to the controller. Upon receiving the request, the device is required to send the DeviceInfo message to the specified controller.
          */
@@ -236,11 +239,20 @@ namespace remote {
         MESSAGE(DeviceInfo, 
             uint8_t numChannels;
             char name[];
+            DeviceInfo(uint8_t numChannels): numChannels{numChannels} {}
+            DeviceInfo(uint8_t numChannels, char const * name):
+                numChannels{numChannels} {
+                uint8_t l = strnlen(name, 28);
+                memcpy(this->name, name, l);
+                this->name[l] = 0;
+            }
         );
 
         /** Resets the pairing status ofthe device. The device will reset to default channel and default name and be ready to accept requests from other controllers. 
          */
-        MESSAGE(Reset);
+        MESSAGE(Reset, 
+            uint8_t controllerAddress[5];
+        );
 
         /** Requests the device to pair with the provided controller. As part of the process also sets the device name the controller will use from now on and provides the channel to tune to. After the pairing is complete the device will not respond to any RequestDeviceInfo messages from different controllers. When paired, the device will also process messages with greater ID than Pair. 
          */
@@ -250,7 +262,7 @@ namespace remote {
             uint8_t channel;
         );
 
-        /** Requests the device to send information about the channels it contains, returning the ChannelInfo message. Channel information will be returned for at most 29 consecutive channels starting from the specified one (inclusive).
+        /** Requests the device to send information about the channels it contains, returning the ChannelInfo message. Channel information will be returned for at most 29 consecutive channels starting from the specified one (inclusive). If the device does not have more than 29 channels, it may choose to ingore the argument and always return information for all channels. 
          */
         MESSAGE(GetChannelInfo, 
             uint8_t fromChannel = 0;
@@ -261,25 +273,58 @@ namespace remote {
         MESSAGE(ChannelInfo, 
             uint8_t channel;
             channel::Kind info[];
+
+            ChannelInfo(uint8_t fromChannel = 1): channel{fromChannel} {}
         );
 
         /** Requests channel configuration for the given channel.  
          */
-        MESSAGE(GetCHannelConfig,
+        MESSAGE(GetChannelConfig,
             uint8_t channel;
+        );
+
+        /** Returns configuration of the given channel. The actual configuration depends on the channel type
+         */
+        MESSAGE(ChannelConfig, 
+            uint8_t channel;
+            channel::Kind kind;
+            uint8_t config[];
         );
 
         /** Channel configuration for the specified channel. The actual configuration type depends on the channel kind, which is also returned by the message.  
          */
         MESSAGE(SetChannelConfig,
             uint8_t channel;
-            channel::Kind kind;
             uint8_t config[];
         );
+
+        /** Requests channel control information for given channel. 
+         */
+        MESSAGE(GetChannelControl,
+            uint8_t channel;
+        );
+
+        MESSAGE(ChannelControl, 
+            uint8_t channel;
+            channel::Kind kind;
+            uint8_t control[];
+        );
         
-        MESSAGE(SetChannelControl);
-        MESSAGE(GetChannelControl);
-        MESSAGE(GetChannelFeedback);
+        MESSAGE(SetChannelControl,
+            uint8_t channel;
+            uint8_t control[];
+        );
+
+        MESSAGE(GetChannelFeedback,
+            uint8_t channel;
+        );
+
+        MESSAGE(ChannelFeedback, 
+             uint8_t channel;
+             channel::Kind kind;
+             uint8_t feedback[];
+        );
+
         MESSAGE(Feedback);
         MESSAGE(FeedbackConsecutive);
         MESSAGE(Error);
@@ -287,6 +332,7 @@ namespace remote {
         /** Type of error returned. 
          */
         enum class ErrorKind : uint8_t {
+            DeviceNotPaired,
             InvalidCommand, 
             InvalidChannel,
 

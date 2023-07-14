@@ -69,6 +69,8 @@
 
 ## LEGO Remote AVR
 
+- if there is error, should the response be returned as well? I am leaning towards *no*
+- when remote returns info there is no need for command prefix, so we can have extra byte in responses
 - check motor control
 - check analog input
 - PWM motor control frequency - 20kHz should be enough
