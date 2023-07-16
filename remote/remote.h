@@ -15,12 +15,54 @@ namespace remote {
          */
         enum class Kind : uint8_t {
             None = 0,
-            Motor = 1, 
-            CustomIO = 2, 
-            ToneEffect = 3, 
-            RGBStrip = 4, 
-            RGBColor = 5,
+            Device,
+            Motor, 
+            CustomIO, 
+            ToneEffect, 
+            RGBStrip, 
+            RGBColor,
         }; // channel::Kind
+
+
+        class Device {
+        public:
+            struct Control {
+                bool active;
+            }; // Device::Control
+
+            struct Feedback {
+                bool active() const { return status_ & ACTIVE; }
+                bool connectionLost() const { return status_ & CONN_LOST; }
+                bool overcurrent() const { return status_ & OVERCURRENT; }
+                bool undervoltage() const { return status_ & UNDERVOLTAGE; }
+
+                void setActive(bool value = true) {
+                    value ? status_ |= ACTIVE : status_ &= ~ACTIVE;
+                }
+
+                void setConnectionLost(bool value = true) {
+                    value ? status_ |= CONN_LOST : status_ &= ~CONN_LOST;
+                }
+
+                void setOvercurrent(bool value = true) {
+                    value ? status_ |= OVERCURRENT : status_ &= ~OVERCURRENT;
+                }
+
+                void setUndervoltage(bool value = true) {
+                    value ? status_ |= UNDERVOLTAGE : status_ &= ~UNDERVOLTAGE;
+                }
+
+            private:
+                static constexpr uint8_t ACTIVE = (1 << 0);
+                static constexpr uint8_t CONN_LOST = (1 << 1);
+                static constexpr uint8_t OVERCURRENT = (1 << 2);
+                static constexpr uint8_t UNDERVOLTAGE = (1 << 3);
+                uint8_t status_ = 0;
+            }; // Device::Feedback
+
+            struct Config {};
+
+        }; // channel::Device
 
         class Motor {
         public:
@@ -72,7 +114,7 @@ namespace remote {
             }; 
 
             struct Control {
-                uint16_t value;
+                uint8_t value;
             } __attribute__((packed)); 
 
             struct Feedback {
@@ -186,6 +228,8 @@ namespace remote {
 
     */
 
+    /** Defines new message. 
+     */
     #define MESSAGE(NAME, ...) \
         class NAME : public msg::MessageHelper<NAME> { \
         public: \
@@ -198,10 +242,6 @@ namespace remote {
 
     namespace msg {
 
-        /** When incoming packet starts with 0, the packet is a command packet, in which the second byte is the command itself, followed by up to 30 bytes of data depending on the command itself. If the first byte is non-zero, it is interpreted as a channel control packet message. 
-         */
-        constexpr uint8_t CommandPacket = 0;
-
         /** Default channel on which remote devices start listening. This is identical for all devices so that automatic discovery is possible. 
          */
         constexpr uint8_t DefaultChannel = 86;
@@ -212,16 +252,13 @@ namespace remote {
 
         class Message {
         public:
-            uint8_t const cmdId = CommandPacket;
-            uint8_t const id;
         protected:
-            Message(uint8_t id): id{id} {}
             static int constexpr COUNTER_OFFSET = __COUNTER__ + 1;
         } __attribute__((packed)); 
 
         template<typename T> class MessageHelper : public Message {
         public:
-            MessageHelper():Message{T::ID} {}
+            uint8_t const id = T::ID;
         } __attribute__((packed));
 
         /** Empty message. 
@@ -234,7 +271,7 @@ namespace remote {
             uint8_t controllerAddress[5];
         );
 
-        /** Device information. Contains the number of channels and a null terminated string containing the device name (up to 28 chars). 
+        /** Device information. Contains the number of channels and a null terminated string containing the device name (up to 29 chars). 
          */
         MESSAGE(DeviceInfo, 
             uint8_t numChannels;
@@ -242,7 +279,7 @@ namespace remote {
             DeviceInfo(uint8_t numChannels): numChannels{numChannels} {}
             DeviceInfo(uint8_t numChannels, char const * name):
                 numChannels{numChannels} {
-                uint8_t l = strnlen(name, 28);
+                uint8_t l = strnlen(name, 29);
                 memcpy(this->name, name, l);
                 this->name[l] = 0;
             }
@@ -262,13 +299,13 @@ namespace remote {
             uint8_t channel;
         );
 
-        /** Requests the device to send information about the channels it contains, returning the ChannelInfo message. Channel information will be returned for at most 29 consecutive channels starting from the specified one (inclusive). If the device does not have more than 29 channels, it may choose to ingore the argument and always return information for all channels. 
+        /** Requests the device to send information about the channels it contains, returning the ChannelInfo message. Channel information will be returned for at most 30 consecutive channels starting from the specified one (inclusive). If the device does not have more than 30 channels, it may choose to ingore the argument and always return information for all channels. 
          */
         MESSAGE(GetChannelInfo, 
             uint8_t fromChannel = 0;
         );
 
-        /** Returns the information about channel types in the device. Returns up to 29 channels starting from the channel specified. If there is fewer channels available on the device, the list is terminated by 0 (None)
+        /** Returns the information about channel types in the device. Returns up to 30 channels starting from the channel specified. If there is fewer channels available on the device, the list is terminated by 0 (None)
          */
         MESSAGE(ChannelInfo, 
             uint8_t channel;
@@ -304,45 +341,74 @@ namespace remote {
             uint8_t channel;
         );
 
+        /** Returns the channel control value. Returns the channel number, its kind and the control itself, whose value depends on the channel kind. 
+         */
         MESSAGE(ChannelControl, 
             uint8_t channel;
             channel::Kind kind;
             uint8_t control[];
         );
-        
+
+        /** Explicitly sets control for the given channel(s). The data part consists of tuples (channel id, control) where control depends on the channel type. 
+         */       
         MESSAGE(SetChannelControl,
-            uint8_t channel;
-            uint8_t control[];
+            uint8_t data[];
         );
 
+        MESSAGE(SetControlConsecutive, 
+            uint8_t fromChannel;
+            uint8_t numChannels;
+            uint8_t data[];
+        );
+
+        /** Requests feedback value for the given channel. 
+         */
         MESSAGE(GetChannelFeedback,
             uint8_t channel;
         );
 
+        /** Returns the feedback value for the required channel together with its name and channel kind. The actual feedback depends on the channel kind. 
+         */
         MESSAGE(ChannelFeedback, 
              uint8_t channel;
              channel::Kind kind;
              uint8_t feedback[];
         );
 
-        MESSAGE(Feedback);
-        MESSAGE(FeedbackConsecutive);
-        MESSAGE(Error);
+        /** Returns feedback information for selected channels. The data part consists of channel number followed by the feedback information for it, which can be repeated multiple times. Terminated by either 0 in the channel id position, or the end of the message (31 data bytes). 
+         */
+        MESSAGE(Feedback,
+            uint8_t data[];
+        );
+
+        /** Returns feedback for N consecutive channels. 
+         */
+        MESSAGE(FeedbackConsecutive,
+            uint8_t fromChannel;
+            uint8_t numChannels;
+            uint8_t data[];
+        );
+
+        /** Error Response. 
+         
+            TODO cause & stuff
+         */
+        MESSAGE(Error,
+            uint8_t info;
+        );
 
         /** Type of error returned. 
          */
         enum class ErrorKind : uint8_t {
+            None = 0,
             DeviceNotPaired,
             InvalidCommand, 
             InvalidChannel,
-
             Unimplemented,
-
         };
-
-
     } // namespace remote::msg
 
-
+#undef REQUEST
+#undef RESPONSE
 
 } // namespace remote

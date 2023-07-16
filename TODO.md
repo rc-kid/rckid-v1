@@ -3,6 +3,11 @@
 - battery on: 9:30
 - charging: 9:45 - 11:22
 
+- (1) check the thumbstick fits
+- (2) order the pcbs
+- (3) order spare displays
+
+
 - charging light does not seem to work that well
 - make the charging light work even when RPi off / sleeping (check)
 - add sin based interleaving (? - would it be enough)
@@ -69,12 +74,11 @@
 
 ## LEGO Remote AVR
 
-- if there is error, should the response be returned as well? I am leaning towards *no*
-- when remote returns info there is no need for command prefix, so we can have extra byte in responses
 - check motor control
 - check analog input
 - PWM motor control frequency - 20kHz should be enough
-- add INA219
+- add INA219 - how will INA be connected to the stuff? - DeviceInfoChannel? 
+- remember last pairing information? how to remove it? 
 
 > Non-critical things that would be nice to have, but don't jeopardize the xmas delivery. 
 

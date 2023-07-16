@@ -5,13 +5,14 @@
 
 #include "remote/lego_remote.h"
 
+/** Remote controller widget. 
+ */
 class Remote : public Widget {
 public:
     Remote(Window * window): Widget{window} {}
 protected:
     void draw() override {
     }
-
 
     void onFocus() override {
         window()->rckid()->nrfInitialize("BBBBB", "AAAAA", 86);
