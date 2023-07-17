@@ -3,8 +3,6 @@
 - battery on: 9:30
 - charging: 9:45 - 11:22
 
-- (1) check the thumbstick fits
-- (2) order the pcbs
 - (3) order spare displays
 
 
