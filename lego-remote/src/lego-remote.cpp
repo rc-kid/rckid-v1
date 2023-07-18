@@ -97,6 +97,14 @@ public:
         CCP = CCP_IOREG_gc;
         CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm; 
         gpio::initialize();
+
+        // clear all RGB colors, set the control LED to green & update
+        gpio::output(NEOPIXEL_PIN);
+        rgbColors_.clear();
+        rgbColors_[0] = Color::White();
+        rgbColors_.update();
+
+
         i2c::initializeMaster();
         spi::initialize();
 
@@ -135,15 +143,11 @@ public:
         // initialize the NRF radio
         initializeRadio();
 
-
-        // clear all RGB colors, set the control LED to green & update
-        gpio::output(NEOPIXEL_PIN);
+        // turn the white color off to signify we are done with startup
         rgbColors_.clear();
         rgbColors_.update();
 
-        colors_.clear();
-        colors_[0] = Color::Green();
-
+        // TODO delete this when ready
         setChannelConfig(LegoRemote::CHANNEL_L1, (uint8_t*) & channel::CustomIO::Config::output());
         setChannelConfig(LegoRemote::CHANNEL_L2, (uint8_t*) & channel::CustomIO::Config::inputPullup());
         setChannelConfig(LegoRemote::CHANNEL_TONE_EFFECT, (uint8_t*) & channel::ToneEffect::Config{LegoRemote::CHANNEL_L1});
@@ -161,7 +165,7 @@ public:
             // check the power settings 
             checkPower();
             // if we have connection timeout, signal connection loss
-            if (connTimeout_ > 0 && --connTimeout_ == 0)
+            if (paired() && connTimeout_ > 0 && --connTimeout_ == 0)
                 connectionLost();
             // do tone effect if any
             toneEffectTick();
@@ -273,15 +277,19 @@ public:
     static void initializePowerManagement() {
         // 8mOhm for 10Amps max resolution in mA
         iSenseTotal_.initialize(INA219::Gain::mv_80, 8);
+        /*
         // for the motors, we take 4mOhms for 5Amps max resolution
         iSenseML_.initialize(INA219::Gain::mv_80, 4);
         iSenseMR_.initialize(INA219::Gain::mv_80, 4);
+        */
     }
 
     static void checkPower() {
         uint16_t iTotal = iSenseTotal_.current();
+        /*
         uint16_t iML = iSenseML_.current();
         uint16_t iMR = iSenseMR_.current();
+        */
     }
 
     static void activate() {
@@ -289,7 +297,7 @@ public:
     }
 
     static void deactivate() {
-        feedback_.setActive(false);
+        //feedback_.device.setActive(false);
         // TODO do stuff fere
         //setMotorL(channel::Motor::Control::Coast());
         //setMotorR(channel::Motor::Control::Coast());
@@ -1328,9 +1336,15 @@ public:
 
 
     static void rgbEffectTick() {
-        if (rgbColors_.moveTowards(colors_)) {
-            rgbColors_.update();
+        if (! rgbColors_[0].moveTowards(colors_[0])) {
+            if (rgbColors_[0] == Color::Black()) {
+                if (!paired())
+                    colors_[0] = Color::Blue();
+            } else {
+                colors_[0] = Color::Black();
+            }
         }
+        rgbColors_.update();
     }
     //@}
 

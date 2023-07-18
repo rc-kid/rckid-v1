@@ -28,7 +28,7 @@ namespace remote {
         public:
             struct Control {
                 bool active;
-            }; // Device::Control
+            } __attribute__((packed)); // Device::Control
 
             struct Feedback {
                 bool active() const { return status_ & ACTIVE; }
@@ -58,9 +58,9 @@ namespace remote {
                 static constexpr uint8_t OVERCURRENT = (1 << 2);
                 static constexpr uint8_t UNDERVOLTAGE = (1 << 3);
                 uint8_t status_ = 0;
-            }; // Device::Feedback
+            } __attribute__((packed)); // Device::Feedback
 
-            struct Config {};
+            struct Config {} __attribute__((packed));
 
         }; // channel::Device
 

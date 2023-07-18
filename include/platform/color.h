@@ -136,7 +136,7 @@ namespace platform {
             return g != other.g || r != other.r || b != other.b;
         }
 
-        bool moveTowards(Color const & target, uint8_t step = 16) {
+        bool moveTowards(Color const & target, uint8_t step = 1) {
             bool result = MoveChannelTowards(g, target.g, step);
             result = MoveChannelTowards(r, target.r, step) || result;
             result = MoveChannelTowards(b, target.b, step) || result;

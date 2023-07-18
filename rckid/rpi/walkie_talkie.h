@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_map>
 
 #include "widget.h"
 #include "window.h"
@@ -44,11 +45,7 @@ protected:
             tHeartbeat_.startRandom(WALKIE_TALKIE_HEARTBEAT_INTERVAL_MIN, WALKIE_TALKIE_HEARTBEAT_INTERVAL_MAX);
             if (!recording_ && !receiving_) {
                 uint8_t packet[32];
-                packet[0] = MSG_HEARTBEAT;
-                packet[1] = heartbeatIndex_++;
-                uint8_t len = name_.size() > 15 ? 15 : name_.size();
-                packet[2] = len;
-                memcpy(packet + 3, name_.c_str(), len);
+                new (packet) Heartbeat{heartbeatIndex_++, name_};
                 window()->rckid()->nrfTransmit(packet);
             }
         }
@@ -126,7 +123,7 @@ protected:
         ++packetsReceived_; 
         switch (e.packet[0]) {
             case MSG_HEARTBEAT:
-                // TODO
+                processIncomingHeartbeat(*reinterpret_cast<Heartbeat*>(e.packet));
                 break;
             case MSG_BEEP:
                 // TODO
@@ -139,12 +136,12 @@ protected:
 
 
     void nrfTxCallback(bool ok) override {
+        // should be always ok
         if (ok) 
             ++packetsSent_;
         else 
             ++packetErrors_;
     }
-
 
 private:
 
@@ -152,10 +149,40 @@ private:
     static constexpr uint8_t MSG_HEARTBEAT = 0x80;
     static constexpr uint8_t MSG_BEEP = 0xff; 
 
-    std::string name_{"RCKid"};
-    uint8_t heartbeatIndex_ = 0;
+    struct Heartbeat {
+        uint8_t const id = MSG_HEARTBEAT;
+        uint8_t index;
+        char name[];
 
+        Heartbeat(uint8_t index, std::string const & name):
+            index{index} {
+            memcpy(this->name, name.c_str(), std::min(name.size(), (size_t)30));
+            this->name[30] = 0; // ensure null termination of the heartbeat string
+        }
+
+    } __attribute__((packed)); 
+
+    /** For each device in range we keep the number of heartbeats we have received */
+    struct ConnectionInfo {
+        std::vector<bool> seen_;
+
+    }; 
+
+    void processIncomingHeartbeat(Heartbeat const & msg) {
+
+    }
+
+
+    std::string name_{"RCKid"};
+
+    // heartbeat timer so that we send our heartbeats in semi-regular intervals
     Timer tHeartbeat_;
+    // heartbeat index so that we know how many we have out of how much
+    uint8_t heartbeatIndex_ = 0;
+    // list of devices we have received heartbeat from
+    std::unordered_map<std::string, ConnectionInfo> conns_;
+
+
 
     bool recording_ = false;
     bool receiving_ = false;
