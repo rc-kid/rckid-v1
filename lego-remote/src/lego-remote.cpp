@@ -104,7 +104,6 @@ public:
         rgbColors_[0] = Color::White();
         rgbColors_.update();
 
-
         i2c::initializeMaster();
         spi::initialize();
 
@@ -141,7 +140,11 @@ public:
         
 
         // initialize the NRF radio
-        initializeRadio();
+        if (!initializeRadio()) {
+            rgbColors_[0] = Color::Red();
+            rgbColors_.update();
+            while (true) {}
+        }
 
         // turn the white color off to signify we are done with startup
         rgbColors_.clear();
@@ -320,16 +323,20 @@ public:
     static inline uint8_t errorIndex_; 
     static inline uint16_t connTimeout_ = CONNECTION_TIMEOUT;
     static inline uint8_t controller_[] = { 0, 0, 0, 0, 0};
+    static inline uint16_t deviceId_;
+    static inline char deviceName_[16];
 
     /** Initializes the radio and enters the receiver mode.
      */
-    static void initializeRadio() {
-        // TODO if radio init fails, do stuff
-        //radio_.initialize("AAAAA", "BBBBB");
-        radio_.initialize(msg::DefaultAddress, msg::DefaultAddress, msg::DefaultChannel);
+    static bool initializeRadio() {
+        if (!radio_.initialize(msg::DefaultAddress, msg::DefaultAddress, msg::DefaultChannel))
+            return false;
         radio_.standby();
         radio_.enableReceiver();
         errorBuffer_[0] = msg::Error::ID;
+        deviceId_ = 12345;
+        memcpy(deviceName_, "LegoRemote", 11);
+        return true;
     }
 
     static bool paired() { return controller_[0] != 0; }
@@ -389,10 +396,11 @@ public:
                 switch (rxBuffer_[0]) {
                     // set the tx address to the one provided in the request and then send the information 
                     case msg::RequestDeviceInfo::ID: {
+                        // TODO add a random delay(?)
                         uint8_t * name = reinterpret_cast<msg::RequestDeviceInfo const *>(rxBuffer_)->controllerAddress;
                         if (isPairedController(name)) {
                             radio_.setTxAddress(name);
-                            new (txBuffer_) msg::DeviceInfo{LegoRemote::NUM_CHANNELS, "LegoRemote"};
+                            new (txBuffer_) msg::DeviceInfo{LegoRemote::NUM_CHANNELS, deviceId_, deviceName_};
                         } 
                         break;
                     }
@@ -410,14 +418,17 @@ public:
                     // pairs the device with the controller, sets the rx and tx addresses accordingly and updates the channel as requested 
                     case msg::Pair::ID: {
                         msg::Pair const * msg = reinterpret_cast<msg::Pair const *>(rxBuffer_);
-                        if (!paired() || isPairedController(msg->controllerAddress)) {
-                            radio_.initialize(msg->deviceAddress, msg->controllerAddress, msg->channel);
-                            radio_.standby();
-                            radio_.enableReceiver();
-                            // and enter the paired mode
-                            for (uint8_t i = 0; i < 5; ++i)
-                                controller_[i] = msg->controllerAddress[i];
+                        if (msg->deviceId == deviceId_ && strncmp(msg->deviceName, deviceName_, 15) == 0) {
+                            if (!paired() || isPairedController(msg->controllerAddress)) {
+                                radio_.initialize(msg->deviceAddress, msg->controllerAddress, msg->channel);
+                                radio_.standby();
+                                radio_.enableReceiver();
+                                // and enter the paired mode
+                                for (uint8_t i = 0; i < 5; ++i)
+                                    controller_[i] = msg->controllerAddress[i];
+                            }
                         }
+                        // leave response at NOP
                         break;
                     }
                     // returns the channel information. This is a bit silly as we do not store the whole 32 bytes in the channel info, but we don't care if we send garbage after the final 0
@@ -1340,6 +1351,10 @@ public:
             if (rgbColors_[0] == Color::Black()) {
                 if (!paired())
                     colors_[0] = Color::Blue();
+                else if (feedback_.device.connectionLost())
+                    colors_[0] = Color::Red();
+                else 
+                    colors_[0] = Color::Green();
             } else {
                 colors_[0] = Color::Black();
             }

@@ -271,17 +271,25 @@ namespace remote {
             uint8_t controllerAddress[5];
         );
 
-        /** Device information. Contains the number of channels and a null terminated string containing the device name (up to 29 chars). 
+        /** Device information. Contains the number of channels and a null terminated string containing the device name (up to 15 chars). 
          */
         MESSAGE(DeviceInfo, 
+            uint16_t deviceId;
             uint8_t numChannels;
             char name[];
-            DeviceInfo(uint8_t numChannels): numChannels{numChannels} {}
-            DeviceInfo(uint8_t numChannels, char const * name):
+            
+            DeviceInfo(uint8_t numChannels, uint16_t deviceId): 
+                deviceId{deviceId}, 
                 numChannels{numChannels} {
-                uint8_t l = strnlen(name, 29);
+                name[0] = 0; // null terminate the name
+            }
+
+            DeviceInfo(uint8_t numChannels, uint16_t deviceId, char const * name):
+                deviceId{deviceId},
+                numChannels{numChannels} {
+                uint8_t l = strnlen(name, 15);
                 memcpy(this->name, name, l);
-                this->name[l] = 0;
+                this->name[15] = 0;
             }
         );
 
@@ -292,11 +300,15 @@ namespace remote {
         );
 
         /** Requests the device to pair with the provided controller. As part of the process also sets the device name the controller will use from now on and provides the channel to tune to. After the pairing is complete the device will not respond to any RequestDeviceInfo messages from different controllers. When paired, the device will also process messages with greater ID than Pair. 
+         
+            To distinguish which device the pair command is send to as all unpaired devices operate on the same channel, the pair command contains also the device id and device name identifiers, which must match those returned by the DeviceInfo command. 
          */
         MESSAGE(Pair, 
             uint8_t controllerAddress[5];
             uint8_t deviceAddress[5];
             uint8_t channel;
+            uint16_t deviceId; 
+            char deviceName[];
         );
 
         /** Requests the device to send information about the channels it contains, returning the ChannelInfo message. Channel information will be returned for at most 30 consecutive channels starting from the specified one (inclusive). If the device does not have more than 30 channels, it may choose to ingore the argument and always return information for all channels. 

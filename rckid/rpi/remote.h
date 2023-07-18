@@ -6,11 +6,21 @@
 #include "remote/lego_remote.h"
 
 /** Remote controller widget. 
+ 
+    Contains basic connection stuff, but is really intended to be specialized for a more tailored remote experience. Likely. 
  */
 class Remote : public Widget {
 public:
     Remote(Window * window): Widget{window} {}
 protected:
+
+    /** Resets the NRF to default remote addresses and channel and starts searching for devices.
+     */
+    void searchForDevices() {
+        using namespace remote;
+        window()->rckid()->nrfInitialize(msg::DefaultAddress, msg::DefaultAddress, msg::DefaultChannel);
+    }
+
     void draw() override {
     }
 
@@ -43,6 +53,15 @@ protected:
     }
 
 private:
+
+    enum class Mode {
+        None, 
+        Searching, 
+        Paired,
+    };
+
+    Mode mode_ = Mode::None;
+
     //LegoRemote::Feedback feedback_;
     uint8_t speed_ = 0;
 
