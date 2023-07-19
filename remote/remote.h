@@ -269,6 +269,10 @@ namespace remote {
          */
         MESSAGE(RequestDeviceInfo, 
             uint8_t controllerAddress[5];
+
+            RequestDeviceInfo(char const * addr) {
+                memcpy(controllerAddress, addr, 5); 
+            }
         );
 
         /** Device information. Contains the number of channels and a null terminated string containing the device name (up to 15 chars). 
@@ -289,7 +293,7 @@ namespace remote {
                 numChannels{numChannels} {
                 uint8_t l = strnlen(name, 15);
                 memcpy(this->name, name, l);
-                this->name[15] = 0;
+                this->name[l] = 0;
             }
         );
 
@@ -309,6 +313,16 @@ namespace remote {
             uint8_t channel;
             uint16_t deviceId; 
             char deviceName[];
+
+            Pair(char const * controllerAddress, char const * deviceAddress, uint8_t channel, uint16_t deviceId, char const * deviceName):
+                channel{channel}, 
+                deviceId{deviceId} {
+                memcpy(this->controllerAddress, controllerAddress, 5);
+                memcpy(this->deviceAddress, deviceAddress, 5);
+                uint8_t l = strnlen(deviceName, 15);
+                memcpy(this->deviceName, deviceName, l);
+                this->deviceName[l] = 0;
+            }
         );
 
         /** Requests the device to send information about the channels it contains, returning the ChannelInfo message. Channel information will be returned for at most 30 consecutive channels starting from the specified one (inclusive). If the device does not have more than 30 channels, it may choose to ingore the argument and always return information for all channels. 

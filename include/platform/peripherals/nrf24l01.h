@@ -184,6 +184,8 @@ namespace platform {
             gpio::low(RXTX);
             // make sure we are on and select the receiver mode
             config_ |= (CONFIG_PWR_UP | CONFIG_PRIM_RX);
+            // enable interrupts (ok to enable all of them)
+            config_ &= ~(CONFIG_MASK_MAX_RT | CONFIG_MASK_RX_DR | CONFIG_MASK_TX_DS);
             writeRegister(CONFIG, config_);
             // enable the radio
             gpio::high(RXTX);
@@ -197,6 +199,16 @@ namespace platform {
             gpio::low(RXTX);
             config_ |= CONFIG_PWR_UP;
             config_ &= ~ CONFIG_PRIM_RX;
+            writeRegister(CONFIG, config_);
+            gpio::high(RXTX);
+        }
+
+        void enablePolledTransmitter() {
+            gpio::low(RXTX);
+            config_ |= CONFIG_PWR_UP;
+            config_ &= ~ CONFIG_PRIM_RX;
+            config_ |= CONFIG_MASK_MAX_RT | CONFIG_MASK_RX_DR | CONFIG_MASK_TX_DS;
+            // disable interrupts
             writeRegister(CONFIG, config_);
             gpio::high(RXTX);
         }
@@ -271,11 +283,14 @@ namespace platform {
 
         /** Clears the TX irqs (failure or sent). 
          */
-        void clearTxIrqs() {
+        Status clearTxIrqs() {
             begin();
             Status status = spi::transfer(WRITEREGISTER | STATUS);
-            spi::transfer(STATUS_TX_DS | STATUS_MAX_RT); // clear the IRQs
+            uint8_t response = status & (STATUS_TX_DS | STATUS_MAX_RT);
+            if (response != 0)
+                spi::transfer(response);
             end();
+            return status;
         }
 
         /** Checks the last transmission and returns its status.

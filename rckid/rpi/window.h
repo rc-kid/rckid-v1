@@ -97,10 +97,10 @@ public:
 
     void back(size_t numWidgets = 1);
 
-    /** Returns current active widget. This is nullptr if we are currently transitioning between widgets. 
-    */
+    /** Returns current active widget.  
+     */
     Widget * activeWidget() const { 
-        return aswap_.running() ? nullptr : widget_;
+        return widget_;
     }
 
     /** Returns the time increase since drawing of the last frame begun in milliseconds. Useful for advancing animations and generally keeping pace. 

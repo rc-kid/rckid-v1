@@ -4,15 +4,15 @@
 - charging: 9:45 - 11:22
 
 - (3) order spare displays
+- (4) order extra buttons & stuff so that I can build all three devices
 
+- repairing after connection lost does not work (channel & name is different) Add a pairing timeout on the device and wait for pairing indefinitely on the rckid side
 
 - charging light does not seem to work that well
 - make the charging light work even when RPi off / sleeping (check)
 - add sin based interleaving (? - would it be enough)
 - maybe do just 1sec quick bursts (easier in sleep)
 - switch charging control single pullup 
-
-- change recording visualization to something easier to draw. Maybe just less granularity
 
 > Things to buy / test. 
 
@@ -113,7 +113,7 @@ OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD 
 
 # Questions
 
-- AVR chips keep getting bricked... No clue why:(
+- AVR chips keep getting bricked... No clue why:( -- but I guess not anymore
 
 
 ## PCB & Case

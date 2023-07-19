@@ -350,7 +350,15 @@ void RCKid::hwLoop() {
                 driverStatus_.nrfState = e.state;
             },
             [this](NRFTransmit e) {
-                if (driverStatus_.nrfState != NRFState::Transmitting) {
+                if (e.immediateReturn && driverStatus_.nrfState == NRFState::Receiver) {
+                    nrf_.transmit(e.packet, 32);
+                    nrf_.enablePolledTransmitter();
+                    NRF24L01::Status status = nrf_.clearTxIrqs();
+                    while (!status.txDataSentIrq() && !status.txDataFailIrq())
+                        status = nrf_.clearTxIrqs();
+                    nrf_.enableReceiver();
+                    events_.send(NRFTxIrq{status, driverStatus_.nrfState, driverStatus_.nrfTxQueue.size()});
+                } else if (driverStatus_.nrfState != NRFState::Transmitting) {
                     driverStatus_.nrfReceiveAfterTransmit = driverStatus_.nrfState == NRFState::Receiver;
                     nrf_.standby();
                     driverStatus_.nrfState = NRFState::Transmitting;

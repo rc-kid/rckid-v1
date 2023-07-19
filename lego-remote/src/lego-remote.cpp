@@ -92,6 +92,8 @@ public:
     static constexpr gpio::Pin NRF_RXTX_PIN = 3;
     static constexpr gpio::Pin NRF_IRQ_PIN = 6;
 
+    static inline uint8_t rtcTicks_ = 0;
+
     static void initialize() {
         // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
         CCP = CCP_IOREG_gc;
@@ -134,7 +136,7 @@ public:
 
         // initialize the effects timer of 64Hz (15.6ms) for RGB & tone switches
         RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
-        RTC.PITCTRLA = RTC_PERIOD_CYC512_gc | RTC_PITEN_bm;
+        RTC.PITCTRLA = RTC_PERIOD_CYC32_gc | RTC_PITEN_bm;
         // TODO also use this to ensure that we have a connection with the controller and turn off motors & stuff if we don't 
 
         
@@ -165,18 +167,24 @@ public:
             radioIrq();
         if (RTC.PITINTFLAGS == RTC_PI_bm) {
             RTC.PITINTFLAGS = RTC_PI_bm;
-            // check the power settings 
-            checkPower();
-            // if we have connection timeout, signal connection loss
-            if (paired() && connTimeout_ > 0 && --connTimeout_ == 0)
-                connectionLost();
-            // do tone effect if any
-            toneEffectTick();
-            // do rgb effect, if any 
-            rgbEffectTick();
+            ++rtcTicks_;
+            // send the delayed response
+            if (responseTimeout_ > 0 && --responseTimeout_ == 0) 
+                radioResponse();
+            if (rtcTicks_ % 16 == 0) { // 64Hz fo effects, power and connection timeouts
+                // check the power settings 
+                checkPower();
+                // if we have connection timeout, signal connection loss
+                if (paired() && connTimeout_ > 0 && --connTimeout_ == 0)
+                    connectionLost();
+                // do tone effect if any
+                toneEffectTick();
+                // do rgb effect, if any 
+                rgbEffectTick();
+            }
             
 #ifdef DEBUG_OLED
-            if ((++dbgTimeout_ % 64) ==0)
+            if (rtcTicks_ == 0 && (++dbgTimeout_ % 4) ==0) // 1Hz
                 debugPrint();
 #endif
         }
@@ -212,14 +220,24 @@ public:
 
     /* */
     static void debugPrint() {
-        debugMotor(20, 1, ml_);
-        debugMotor(84, 1, mr_);
-        debugCustomIOChannel(20, 2, l1_.config, l1_.control, feedback_.l1);
-        debugCustomIOChannel(20, 3, l2_.config, l2_.control, feedback_.l2);
-        debugCustomIOChannel(84, 2, r1_.config, r1_.control, feedback_.r1);
-        debugCustomIOChannel(84, 3, r2_.config, r2_.control, feedback_.r2);
-        oled_.write(20, 0, rx_);
-        oled_.write(84, 0, tx_);
+        if (paired()) {
+            debugMotor(20, 1, ml_);
+            debugMotor(84, 1, mr_);
+            debugCustomIOChannel(20, 2, l1_.config, l1_.control, feedback_.l1);
+            debugCustomIOChannel(20, 3, l2_.config, l2_.control, feedback_.l2);
+            debugCustomIOChannel(84, 2, r1_.config, r1_.control, feedback_.r1);
+            debugCustomIOChannel(84, 3, r2_.config, r2_.control, feedback_.r2);
+            oled_.write(20, 0, rx_);
+            oled_.write(84, 0, tx_);
+        } else {
+            char x[6] = { 0,0,0,0,0,0};
+            radio_.txAddress(x);
+            oled_.write(0, 1, x);
+            radio_.rxAddress(x);
+            oled_.write(0, 2, x);
+            oled_.write(20, 0, rx_);
+            oled_.write(84, 0, tx_);
+        }
     }
 
     static void debugMotor(uint8_t x, uint8_t y, Channel<channel::Motor> & m) {
@@ -321,6 +339,8 @@ public:
     static inline uint8_t txBuffer_[32];
     static inline uint8_t errorBuffer_[32];
     static inline uint8_t errorIndex_; 
+    static inline uint8_t * response_;
+    static inline uint8_t responseTimeout_ = 0;
     static inline uint16_t connTimeout_ = CONNECTION_TIMEOUT;
     static inline uint8_t controller_[] = { 0, 0, 0, 0, 0};
     static inline uint16_t deviceId_;
@@ -340,6 +360,8 @@ public:
     }
 
     static bool paired() { return controller_[0] != 0; }
+
+    static bool connected() { return controller_[0] != 0 && ! feedback_.device.connectionLost(); }
 
     static bool isPairedController(uint8_t const * name) {
         if (controller_[0] == 0)
@@ -385,7 +407,7 @@ public:
 #endif
             // set the response to txBuffer and load with NOP message (which we won't transmit if not changed)
             txBuffer_[0] = msg::Nop::ID;
-            uint8_t const * response = txBuffer_;
+            response_ = txBuffer_;
             // reset the connection timeout
             connTimeout_ = CONNECTION_TIMEOUT;
             // reset the error size so that we know whether to send it or not
@@ -397,8 +419,9 @@ public:
                     // set the tx address to the one provided in the request and then send the information 
                     case msg::RequestDeviceInfo::ID: {
                         // TODO add a random delay(?)
+                        cpu::delayMs(100);
                         uint8_t * name = reinterpret_cast<msg::RequestDeviceInfo const *>(rxBuffer_)->controllerAddress;
-                        if (isPairedController(name)) {
+                        if (!connected() || isPairedController(name)) {
                             radio_.setTxAddress(name);
                             new (txBuffer_) msg::DeviceInfo{LegoRemote::NUM_CHANNELS, deviceId_, deviceName_};
                         } 
@@ -407,7 +430,7 @@ public:
                     // reset the rx and tx addresses to default and clear the pairing flag
                     case msg::Reset::ID: {
                         uint8_t * name = reinterpret_cast<msg::Reset const *>(rxBuffer_)->controllerAddress;
-                        if (isPairedController(name)) {
+                        if (!paired() || isPairedController(name)) {
                             radio_.initialize(msg::DefaultAddress, msg::DefaultAddress, msg::DefaultChannel);
                             radio_.standby();
                             radio_.enableReceiver();
@@ -418,8 +441,8 @@ public:
                     // pairs the device with the controller, sets the rx and tx addresses accordingly and updates the channel as requested 
                     case msg::Pair::ID: {
                         msg::Pair const * msg = reinterpret_cast<msg::Pair const *>(rxBuffer_);
-                        if (msg->deviceId == deviceId_ && strncmp(msg->deviceName, deviceName_, 15) == 0) {
-                            if (!paired() || isPairedController(msg->controllerAddress)) {
+                        if (msg->deviceId == deviceId_ && (strncmp(msg->deviceName, deviceName_, 15) == 0)) {
+                            if (!connected() || isPairedController(msg->controllerAddress)) {
                                 radio_.initialize(msg->deviceAddress, msg->controllerAddress, msg->channel);
                                 radio_.standby();
                                 radio_.enableReceiver();
@@ -427,13 +450,13 @@ public:
                                 for (uint8_t i = 0; i < 5; ++i)
                                     controller_[i] = msg->controllerAddress[i];
                             }
-                        }
+                        } 
                         // leave response at NOP
                         break;
                     }
                     // returns the channel information. This is a bit silly as we do not store the whole 32 bytes in the channel info, but we don't care if we send garbage after the final 0
                     case msg::GetChannelInfo::ID:
-                        response = LegoRemote::CHANNEL_INFO;
+                        response_ = LegoRemote::CHANNEL_INFO;
                         break;
                     // returns the channel configuration for the provided channel number
                     case msg::GetChannelConfig::ID:
@@ -443,7 +466,7 @@ public:
                     case msg::SetChannelConfig::ID: {
                         msg::SetChannelConfig const * msg = reinterpret_cast<msg::SetChannelConfig const *>(rxBuffer_);
                         setChannelConfig(msg->channel, msg->config);
-                        response = reinterpret_cast<uint8_t const *>(&feedback_);
+                        response_ = reinterpret_cast<uint8_t const *>(&feedback_);
                         break;
                     }
                     // returns the channel control for the provided channel number
@@ -476,25 +499,30 @@ public:
                         error(msg::ErrorKind::InvalidCommand, rxBuffer_[0]);
                         break;
                 }
+                if (errorIndex_ > 1 || response_[0] != msg::Nop::ID)
+                    responseTimeout_ = 7;
             }
-            // send the optional error and feedback back to keep the comms
-            if (errorIndex_ > 1 || response[0] != msg::Nop::ID) {
-                radio_.standby();
-                if (errorIndex_ > 1) {
-                    radio_.transmit(errorBuffer_, 32);
-    #if (defined DEBUG_OLED)
-                    ++tx_;
-    #endif
-                }
-                if (response[0] != msg::Nop::ID) {
-                    radio_.transmit(response, 32);
-    #if (defined DEBUG_OLED)
-                    ++tx_;
-    #endif
-                }
-                transmitting_ = true;
-                radio_.enableTransmitter();
+        }
+    }
+
+    static void radioResponse() {
+        // send the optional error and feedback back to keep the comms
+        if (errorIndex_ > 1 || response_[0] != msg::Nop::ID) {
+            radio_.standby();
+            if (errorIndex_ > 1) {
+                radio_.transmit(errorBuffer_, 32);
+#if (defined DEBUG_OLED)
+                ++tx_;
+#endif
             }
+            if (response_[0] != msg::Nop::ID) {
+                radio_.transmit(response_, 32);
+#if (defined DEBUG_OLED)
+                ++tx_;
+#endif
+            }
+            transmitting_ = true;
+            radio_.enableTransmitter();
         }
     }
 

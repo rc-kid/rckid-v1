@@ -215,7 +215,15 @@ public:
     bool nrfTransmit(uint8_t const * packet, uint8_t length = 32) {
         if (nrfState_ == NRFState::Error)
             return false;
-        hwEvents_.send(NRFTransmit{packet, length});
+        hwEvents_.send(NRFTransmit{packet, length, false});
+        nrfState_ = NRFState::Transmitting;
+        return true;
+    }
+
+    bool nrfTransmitWithImmediateReturn(uint8_t const * packet, uint8_t length = 32) {
+        if (nrfState_ == NRFState::Error)
+            return false;
+        hwEvents_.send(NRFTransmit{packet, length, true});
         nrfState_ = NRFState::Transmitting;
         return true;
     }
@@ -301,11 +309,15 @@ private:
     struct NRFStateChange{ NRFState state; };
     struct NRFTransmit{
         uint8_t packet[32]; 
-        NRFTransmit(uint8_t const * packet, uint8_t length = 32) {
+        bool immediateReturn;
+
+        NRFTransmit(uint8_t const * packet, uint8_t length, bool immediateReturn):
+            immediateReturn{immediateReturn} {
             memcpy(this->packet, packet, length);
         }
     };
-    
+
+
     /** Event for the driver's main loop to react to. Events with specified numbers are changes on the specified pins.
     */
     using HWEvent = std::variant<
