@@ -61,6 +61,12 @@ namespace platform {
 #endif
         }
 
+        static void reset() {
+#if (defined ARCH_AVR_MEGATINY)
+            _PROTECTED_WRITE(RSTCTRL.SWRR, RSTCTRL_SWRE_bm);
+#endif
+        }
+
     }; // cpu
 
     class wdt {

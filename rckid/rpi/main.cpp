@@ -27,6 +27,7 @@ struct DispmanXBackgroundLayer {
 #include "recorder.h"
 #include "walkie_talkie.h"
 #include "remote.h"
+#include "nrf_sniffer.h"
 
 void printLogLevel(int logLevel, std::ostream & s) {
     switch (logLevel) {
@@ -177,6 +178,7 @@ int main(int argc, char * argv[]) {
                 new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{&window}},
                 new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
                 new WidgetItem{"Recording", "assets/images/027-magic-wand.png", new Recorder{&window}},
+                new WidgetItem{"NRF Sniffer", "assets/images/027-magix-wand.png", new NRFSniffer{&window}},
             }},
         }};
         //Keyboard kb{&window};

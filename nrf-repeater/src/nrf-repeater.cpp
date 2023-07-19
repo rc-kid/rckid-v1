@@ -34,6 +34,8 @@ public:
     static inline uint16_t errors_ = 0;
 
 
+
+
     static void initialize() {
         // set CLK_PER prescaler to 2, i.e. 10Mhz, which is the maximum the chip supports at voltages as low as 3.3V
         CCP = CCP_IOREG_gc;
@@ -47,7 +49,7 @@ public:
         // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
         RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
         //RTC.PITCTRLA = RTC_PERIOD_CYC32768_gc | RTC_PITEN_bm;
-        RTC.PITCTRLA = RTC_PERIOD_CYC512_gc | RTC_PITEN_bm;
+        //RTC.PITCTRLA = RTC_PERIOD_CYC512_gc | RTC_PITEN_bm;
 
         // initialize the OLED display
         oled_.initialize128x32();
@@ -89,17 +91,6 @@ public:
     static inline bool xx ;
 
     static void loop() {
-        if (gpio::read(5)) {
-            if (freq != 0) {
-                freq = 0;
-                myNoTone();
-            }
-        } else {
-            if (freq == 0) {
-                freq = 600;
-                myTone(freq);
-            }
-        }
         if (gpio::read(NRF_IRQ_PIN) == 0) {
             NRF24L01::Status status = nrf_.getStatus();
             if (transmitting_) {
@@ -126,7 +117,7 @@ public:
             oled_.write(35, 3, heartbeatIndex_);
             oled_.write(80,2, errors_);
             // send the heartbeat
-            //walkieTalkieHeartbeat();
+            walkieTalkieHeartbeat();
             if (freq != 0) {
                 if (siren_) {
                     freq += 3;

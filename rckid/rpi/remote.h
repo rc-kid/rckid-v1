@@ -79,7 +79,7 @@ protected:
                         mode_ = Mode::Select;
                         for (auto const & i : devices_) {
                             std::cout << i.first.name << " (" << i.first.id << "):" << i.second << std::endl;
-                            pairWith(i.first.name.c_str(), i.first.id, "LEGOR");
+                            //pairWith(i.first.name.c_str(), i.first.id, "LEGOR");
                         }
                     } else {
                         new (msg_) RequestDeviceInfo{"RCKID"};

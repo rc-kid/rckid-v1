@@ -14,6 +14,10 @@
  */
 #define CONNECTION_TIMEOUT 32  
 
+/** In 1/4 of second. 
+ */
+#define CONNECTION_RESET 120
+
 using namespace platform;
 using namespace remote;
 
@@ -174,9 +178,15 @@ public:
             if (rtcTicks_ % 16 == 0) { // 64Hz fo effects, power and connection timeouts
                 // check the power settings 
                 checkPower();
-                // if we have connection timeout, signal connection loss
-                if (paired() && connTimeout_ > 0 && --connTimeout_ == 0)
-                    connectionLost();
+                if (connTimeout_ > 0) {
+                    if (connected()) {
+                        if (rtcTicks_ % 10 == 0 && --connTimeout_ == 0)
+                            connectionLost();
+                    } else {
+                        if (rtcTicks_ == 0 && --connTimeout_ == 0)
+                            cpu::reset();
+                    }
+                }
                 // do tone effect if any
                 toneEffectTick();
                 // do rgb effect, if any 
@@ -341,7 +351,7 @@ public:
     static inline uint8_t errorIndex_; 
     static inline uint8_t * response_;
     static inline uint8_t responseTimeout_ = 0;
-    static inline uint16_t connTimeout_ = CONNECTION_TIMEOUT;
+    static inline uint16_t connTimeout_ = 0;
     static inline uint8_t controller_[] = { 0, 0, 0, 0, 0};
     static inline uint16_t deviceId_;
     static inline char deviceName_[16];
@@ -408,8 +418,6 @@ public:
             // set the response to txBuffer and load with NOP message (which we won't transmit if not changed)
             txBuffer_[0] = msg::Nop::ID;
             response_ = txBuffer_;
-            // reset the connection timeout
-            connTimeout_ = CONNECTION_TIMEOUT;
             // reset the error size so that we know whether to send it or not
             errorIndex_ = 1;
             if (!paired() && rxBuffer_[0] > msg::Pair::ID) {
@@ -502,6 +510,9 @@ public:
                 if (errorIndex_ > 1 || response_[0] != msg::Nop::ID)
                     responseTimeout_ = 7;
             }
+            // reset the connection timeout
+            if (connected())
+                connTimeout_ = CONNECTION_TIMEOUT;
         }
     }
 
@@ -531,6 +542,7 @@ public:
     static void connectionLost() {
         deactivate();
         feedback_.device.setConnectionLost();
+        connTimeout_ = CONNECTION_RESET;
     }
 
     //@}
