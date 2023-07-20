@@ -56,6 +56,8 @@ protected:
 
     void btnR(bool state) { dpadRight(state); }
 
+    void btnX(bool state) { if (state) window()->showDialog(); }
+
     void btnA(bool state) override {
         if (state && transition_ == Transition::None && items_ != nullptr) {
             items_->onSelectItem(window(), i_);

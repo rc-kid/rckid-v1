@@ -95,11 +95,25 @@ public:
     void setMenu(Menu * menu, size_t index = 0);
     void setHomeMenu() { setMenu(homeMenu_, 0); }
 
+    void showModal(ModalWidget * widget) {
+        if (modal_ != nullptr)
+            modal_->hide();
+        modal_ = widget;
+        transition_ = Transition::ModalIn;
+        aswap_.start();
+    }
+
+    void showDialog() {
+        showModal(dialog_);
+    }
+
     void back(size_t numWidgets = 1);
 
     /** Returns current active widget.  
      */
     Widget * activeWidget() const { 
+        if (modal_ && transition_ == Transition::None)
+            return modal_;
         return widget_;
     }
 
@@ -161,10 +175,56 @@ public:
 
     int backgroundSeam() const { return backgroundSeam_; }
 
+    void drawFrame(int x, int y, int width, int height, std::string const & title, ::Color color) {
+
+        BeginBlendMode(BLEND_ALPHA);
+        drawShapedFrame(x, y, width, height, 10, color);
+        drawShapedFrame(x + 2, y + 2, width - 4, height - 4, 10, BLACK);
+        static auto t = LoadTexture("assets/images/014-info.png");
+        if (t.mipmaps == 0) {
+            SetTextureFilter(t, TEXTURE_FILTER_BILINEAR);
+            GenTextureMipmaps(&t);
+        }
+        DrawTextureEx(t, Vector2{x + 4.f, y + 4.f}, 0, 0.16, WHITE);
+        DrawTextEx(headerFont_, "Information", x + 36, y+4, 20,1, WHITE);
+
+
+
+
+/*
+        DrawCircleSector(Vector2{125,40}, 20, 90, 180, 8, DARKGRAY);
+        DrawCircleSector(Vector2{105, 195}, 40, 0, 90, 16, DARKGRAY);
+
+
+        DrawRectangleLines(x, y, width, height, color);
+        int theight = MeasureText(helpFont_, title.c_str(), 16, 1.0).x;
+        DrawRectangle(x, y - 17, theight + 6, 18, color);
+        BeginScissorMode(x + 3, y - 17, theight, 18);
+        //DrawTextEx(helpFont_, title.c_str(), x + 3, y-18, 16,1, BLACK);
+        DrawTextEx(helpFont_, "Hello all how are things", x + 3, y-16, 16,1, BLACK);
+        EndScissorMode();
+        DrawRectangleRounded(Rectangle{x - 32.f, y - 32.f, 64.f, 64.f}, 0.5, 8, color);
+//        static auto t = LoadTexture("assets/images/014-info.png");
+//        DrawTextureEx(t, Vector2{x - 32.f, y - 32.f}, 0, 0.5, WHITE);
+*/
+    }
+
+    void drawShapedFrame(float x, float y, float w, float h, float r, ::Color color) {
+        DrawCircleSector(Vector2{x + r, y + r}, r, 180, 270, 8, color);
+        DrawCircleSector(Vector2{x + r, y + h - r}, r, 270, 360, 8, color);
+        DrawCircleSector(Vector2{x + w - r, y + r}, r, 90, 180, 8, color);
+        DrawCircleSector(Vector2{x + w - 2 * r, y + h - 2 * r}, 2 * r, 0, 90, 8, color);
+        DrawRectangle(x, y + r, r, h - 2 *r, color);
+        DrawRectangle(x + r, y, w - 3 * r, h, color);
+        DrawRectangle(x + w - 2 * r, y, r, r, color);
+        DrawRectangle(x + w - 2 * r, y + r, 2 * r, h - 3 * r, color);
+    }
+
 private:
 
     friend class WindowElement;
     friend class Widget;
+    friend class ModalWidget;
     friend class RCKid;
 
     class NavigationItem {
@@ -254,10 +314,14 @@ private:
 
     /// The currently visible widget
     Widget * widget_ = nullptr;
+    // The modal widget, displayed over any existing widget
+    ModalWidget * modal_ = nullptr;
     /// the carousel used for the menus 
     Carousel * carousel_; 
     /// the keyboard widget for modal string input 
     Keyboard * keyboard_ = nullptr;
+
+    Dialog * dialog_ = nullptr;
 
     /// The home menu -- TODO should this be in window or outside of it? 
     Menu * homeMenu_;
@@ -269,6 +333,8 @@ private:
         FadeIn, 
         FadeOut, 
         None, 
+        ModalIn,
+        ModalOut,
     }; 
 
     Animation aswap_{250};
@@ -284,6 +350,7 @@ private:
     RenderTexture2D widgetCanvas_;
     RenderTexture2D headerCanvas_;
     RenderTexture2D footerCanvas_;
+    RenderTexture2D modalCanvas_;
 
     bool redrawBackground_ = true;
     bool redrawHeader_ = true;

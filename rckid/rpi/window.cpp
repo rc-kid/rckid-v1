@@ -46,6 +46,7 @@ Window::Window() {
     widgetCanvas_ = LoadRenderTexture(320, 240);
     headerCanvas_ = LoadRenderTexture(320, 240);
     footerCanvas_ = LoadRenderTexture(320, 240);
+    modalCanvas_ = LoadRenderTexture(320, 240);
     BeginTextureMode(backgroundCanvas_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
     DrawRectangle(0,0,640,240, BLACK);
@@ -57,6 +58,7 @@ Window::Window() {
 
     rckid_ = new RCKid{this};
     carousel_ = new Carousel{this};
+    dialog_ = new Dialog{this};
     homeMenu_ = new Menu{{
         new ActionItem{"Exit", "assets/images/011-power-off.png",[](){
             ::exit(0);
@@ -107,6 +109,8 @@ void Window::prompt(std::string const & prompt, std::string value, std::function
 }
 
 void Window::setWidget(Widget * widget) {
+    if (modal_ != nullptr)
+        modal_->hide();
     next_ = NavigationItem{widget};
     transition_ = Transition::FadeOut;
     if (widget_ == nullptr) {
@@ -125,6 +129,8 @@ void Window::setWidget(Widget * widget) {
 }
 
 void Window::setMenu(Menu * menu, size_t index) {
+    if (modal_ != nullptr)
+        modal_->hide();
     if (menu == homeMenu_) {
         if (inHomeMenu_)
             return;
@@ -143,6 +149,8 @@ void Window::setMenu(Menu * menu, size_t index) {
 }
 
 void Window::back(size_t numWidgets) {
+    if (modal_ != nullptr)
+        modal_->hide();
     if (nav_.empty() || numWidgets == 0)
         return;
     next_ = nav_.back();
@@ -170,6 +178,7 @@ void Window::back(size_t numWidgets) {
 }
 
 void Window::swapWidget() {
+    modal_  = nullptr;
     if (widget_!= nullptr) {
         widget_->onBlur();
         if (widget_ == carousel_) {
@@ -225,6 +234,7 @@ void Window::loop() {
 
 struct RenderingStats {
     unsigned widget;
+    unsigned modal;
     unsigned background;
     unsigned header;
     unsigned footer;
@@ -286,6 +296,28 @@ void Window::draw() {
     frames_[fti_].widget = asMillis(now() - tt);
 #endif
 
+    // Render the modal widget (if any) 
+    //
+#if (defined RENDERING_STATS)
+    tt = now();
+#endif
+    if (modal_ != nullptr) {
+        modal_->tick();
+        if (modal_->redraw_) {
+            redraw = true;
+            BeginTextureMode(modalCanvas_);
+            ClearBackground(ColorAlpha(BLACK, 0.0));
+            BeginBlendMode(BLEND_ADD_COLORS);
+            modal_->draw();
+            EndBlendMode();
+            EndTextureMode();
+        }
+    }
+#if (defined RENDERING_STATS)
+    frames_[fti_].modal = asMillis(now() - tt);
+#endif
+
+
     // Render the header
     //
 #if (defined RENDERING_STATS)
@@ -330,36 +362,51 @@ void Window::draw() {
         tt = now();
 #endif
         ::Color widgetAlpha = WHITE;
+        ::Color modalAlpha = WHITE;
         float footerOffset = 0;
         switch (transition_) {
-            case Transition::FadeOut:
-                footerOffset = aswap_.interpolate(0, 20);
-                widgetAlpha = ColorAlpha(widgetAlpha, aswap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
-                if (aswap_.done())
-                    swapWidget();
-                break;
             case Transition::FadeIn:
                 footerOffset = aswap_.interpolate(20, 0);
                 widgetAlpha = ColorAlpha(widgetAlpha, aswap_.interpolate(0.0f, 1.0f, Interpolation::Linear));
+                modalAlpha = widgetAlpha;
                 if (aswap_.done()) 
                     transition_ = Transition::None;
+                break;
+            case Transition::FadeOut:
+                footerOffset = aswap_.interpolate(0, 20);
+                widgetAlpha = ColorAlpha(widgetAlpha, aswap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
+                modalAlpha = widgetAlpha;
+                if (aswap_.done())
+                    swapWidget();
+                break;
+            case Transition::ModalIn:
+                modalAlpha = ColorAlpha(modalAlpha, aswap_.interpolate(0.0f, 1.0f, Interpolation::Linear));
+                if (aswap_.done()) 
+                    transition_ = Transition::None;
+                break;
+            case Transition::ModalOut:
+                modalAlpha = ColorAlpha(modalAlpha, aswap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
+                if (aswap_.done()) {
+                    transition_ = Transition::None;
+                    modal_ = nullptr;
+                }
                 break;
             default:
                 break;
         }
         float headerOffset = 0;
         switch (header_) {
+            case Transition::FadeIn:
+                headerOffset = aheader_.interpolate(20, 0);
+                if (aheader_.done())
+                    header_ = Transition::None;
+                break;
             case Transition::FadeOut:
                 headerOffset = aheader_.interpolate(0, 20);
                 if (aheader_.done()) {
                     header_ = Transition::None;
                     headerVisible_ = false;
                 }
-                break;
-            case Transition::FadeIn:
-                headerOffset = aheader_.interpolate(20, 0);
-                if (aheader_.done())
-                    header_ = Transition::None;
                 break;
         }
 
@@ -377,6 +424,8 @@ void Window::draw() {
             DrawTextureRec(headerCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0, -headerOffset}, WHITE);
         if (widget_ == nullptr || ! widget_->fullscreen())
             DrawTextureRec(footerCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0, footerOffset}, WHITE);
+        if (modal_ != nullptr)
+            DrawTextureRec(modalCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, modalAlpha);
 #if (defined RENDERING_STATS)
         auto astats = now();
         int i = 0;

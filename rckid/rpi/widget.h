@@ -1,5 +1,7 @@
 #pragma once
 
+#include "raylib_cpp.h"
+
 class Window;
 class RCKid;
 
@@ -72,19 +74,14 @@ protected:
      */
     virtual void nrfTxCallback(bool ok) {}
 
-
-
-
-
     Window * window() { return window_; }
 
-    Window * window_;
-
-
-protected:
 
     void requestRedraw() { redraw_ = true; }
     void cancelRedraw() { redraw_ = false; }
+
+
+
 private: 
 
     friend class Window;
@@ -93,6 +90,35 @@ private:
      */
     bool onNavStack_ = false;
     bool redraw_ = true;
-
+    Window * window_ = nullptr;
 
 }; // Widget
+
+/** Modal widget
+ */
+class ModalWidget : public Widget {
+public:
+    /** Called when the modal window is to be cancelled. 
+     */
+    virtual void hide();
+
+protected:
+
+    ModalWidget(Window * window): Widget{window} {}
+
+    void btnB(bool state) override {
+        if (state)
+            hide();
+    }
+
+}; // ModalWidget
+
+class Dialog : public ModalWidget {
+public:
+    Dialog(Window * window): ModalWidget{window} {}
+
+protected:
+    
+    void draw() override;
+}; 
+
