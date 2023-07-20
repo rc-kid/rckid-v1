@@ -94,31 +94,3 @@ private:
 
 }; // Widget
 
-/** Modal widget
- */
-class ModalWidget : public Widget {
-public:
-    /** Called when the modal window is to be cancelled. 
-     */
-    virtual void hide();
-
-protected:
-
-    ModalWidget(Window * window): Widget{window} {}
-
-    void btnB(bool state) override {
-        if (state)
-            hide();
-    }
-
-}; // ModalWidget
-
-class Dialog : public ModalWidget {
-public:
-    Dialog(Window * window): ModalWidget{window} {}
-
-protected:
-    
-    void draw() override;
-}; 
-

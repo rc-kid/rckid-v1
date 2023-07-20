@@ -95,27 +95,12 @@ public:
     void setMenu(Menu * menu, size_t index = 0);
     void setHomeMenu() { setMenu(homeMenu_, 0); }
 
-    void showModal(ModalWidget * widget) {
-        if (modal_ != nullptr)
-            modal_->hide();
-        modal_ = widget;
-        transition_ = Transition::ModalIn;
-        aswap_.start();
-    }
-
-    void showDialog() {
-        showModal(dialog_);
-    }
 
     void back(size_t numWidgets = 1);
 
     /** Returns current active widget.  
      */
-    Widget * activeWidget() const { 
-        if (modal_ && transition_ == Transition::None)
-            return modal_;
-        return widget_;
-    }
+    Widget * activeWidget() const { return widget_; }
 
     /** Returns the time increase since drawing of the last frame begun in milliseconds. Useful for advancing animations and generally keeping pace. 
      */    
@@ -314,14 +299,10 @@ private:
 
     /// The currently visible widget
     Widget * widget_ = nullptr;
-    // The modal widget, displayed over any existing widget
-    ModalWidget * modal_ = nullptr;
     /// the carousel used for the menus 
     Carousel * carousel_; 
     /// the keyboard widget for modal string input 
     Keyboard * keyboard_ = nullptr;
-
-    Dialog * dialog_ = nullptr;
 
     /// The home menu -- TODO should this be in window or outside of it? 
     Menu * homeMenu_;
@@ -333,8 +314,6 @@ private:
         FadeIn, 
         FadeOut, 
         None, 
-        ModalIn,
-        ModalOut,
     }; 
 
     Animation aswap_{250};
@@ -350,7 +329,6 @@ private:
     RenderTexture2D widgetCanvas_;
     RenderTexture2D headerCanvas_;
     RenderTexture2D footerCanvas_;
-    RenderTexture2D modalCanvas_;
 
     bool redrawBackground_ = true;
     bool redrawHeader_ = true;
