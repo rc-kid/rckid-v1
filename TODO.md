@@ -107,36 +107,6 @@
 - check if using VCDispmanX, or SDL can improve things. 
 - check that we are find detecting first boot with it
 
+# New UI
 
-OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD OLD 
-
-
-# Questions
-
-- AVR chips keep getting bricked... No clue why:( -- but I guess not anymore
-
-
-## PCB & Case
-
-
-- might also use [this](http://k-silver.com/html_products/JP19%EF%BC%88%E6%AD%A3%E6%8F%92%E8%93%9D%E8%89%B2%E6%91%87%E6%9D%86%EF%BC%89-833.html) thunbstick, that can be bought from [Adafruit](https://www.adafruit.com/product/5628) - will be much easier to solder, might require special pcb board or some such
-
-
-## RPI - RayLib
-
-
-
-- die if in bootloader mode 
-- read and reset the error in debug at the beginning of the app
-
-- handle errors in player configs
-- actually do the audio, video menu
-- on pop for menu so that we can clear it, should we want to
-- modal errors & stuff
-- add a way for the menu / submenu to detect it's been detached
-- add rumbler / sound for ui actions
-- if there are errors during startup a way to show them
-
-
-
-
+Have all resources managed by the canvas, which makes the cost of extra widgets non-existent. Then have special widgets. 

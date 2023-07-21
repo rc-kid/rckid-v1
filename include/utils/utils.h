@@ -98,6 +98,17 @@ namespace str {
 
 } // namespace str
 
+/** A simple hasher template that delegates the hashing to the object being hashed. It's simpler and just saves the need to reimplement the std::hash for the object. 
+
+ */
+template<typename T>
+struct Hasher {
+    size_t operator() (T const & x) const {
+        return x.hash();
+    }
+}; 
+
+
 template<typename T>
 bool setIfDiffers(T & variable, T const & value) {
     if (variable == value)

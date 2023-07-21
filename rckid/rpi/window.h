@@ -20,6 +20,9 @@
 #include "rckid.h"
 
 
+#include "canvas.h"
+
+
 static constexpr int Window_WIDTH = 320;
 static constexpr int Window_HEIGHT = 240;
 static constexpr int MENU_FONT_SIZE = 64;
