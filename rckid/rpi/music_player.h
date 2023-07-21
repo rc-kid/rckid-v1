@@ -10,6 +10,8 @@
     The mp3 files are stored in the `/rckid/music` folder. In there, the `folder.json` describes the current folder which can be either   
 
     to get the mp3 cover album
+
+    Add the repeat forever/ repeat album menu
  */
 class MusicPlayer : public Widget {
 public:

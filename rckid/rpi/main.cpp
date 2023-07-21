@@ -175,10 +175,10 @@ int main(int argc, char * argv[]) {
             new WidgetItem{"Walkie-Talkie", "assets/images/007-baby-monitor.png", new WalkieTalkie{&window}},
             new Submenu{"Apps", "assets/images/022-presents.png", {
                 new WidgetItem{"Torchlight", "assets/images/004-flashlight.png", new Torchlight{&window}},
-                new WidgetItem{"Paint", "assets/images/021-poo.png", new PixelEditor{&window}},
+                new WidgetItem{"Paint", "assets/images/053-paint-palette.png", new PixelEditor{&window}},
                 new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
-                new WidgetItem{"Recording", "assets/images/027-magic-wand.png", new Recorder{&window}},
-                new WidgetItem{"NRF Sniffer", "assets/images/027-magix-wand.png", new NRFSniffer{&window}},
+                new WidgetItem{"Recording", "assets/images/026-magic-wand.png", new Recorder{&window}},
+                new WidgetItem{"NRF Sniffer", "assets/images/084-spy.png", new NRFSniffer{&window}},
             }},
         }};
         //Keyboard kb{&window};
