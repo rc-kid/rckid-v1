@@ -99,6 +99,10 @@ public:
         libevdev_free(gamepadDev_);
     }
 
+    /** Returns next RCKid event, or none if there are no events to be processed. This has to be called frequently, otherwise the RCKid's synchronization between the HW and UI threads will be broken. 
+     */
+    std::optional<Event> nextEvent() UI_THREAD; 
+
     /** Enables or disables automatic sending of button & analog events to the virtual gamepad. 
      */
     void enableGamepad(bool enable) {
@@ -363,11 +367,6 @@ private:
     /** Private constructor for the singleton object. 
      */
     RCKid(); 
-
-    /** The UI loop, should be called by the window's loop function. Processes the events from the driver to the main thread and calls the specific event handlers in the window. */
-    void loop() UI_THREAD;
-
-    void processEvent(Event & e) UI_THREAD; 
 
     /** The HW loop, proceses events from the hw event queue. This method is executed in a separate thread, which isthe only thread that accesses the GPIOs and i2c/spi connections. 
      */

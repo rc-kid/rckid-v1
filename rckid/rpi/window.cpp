@@ -222,7 +222,84 @@ void Window::loop() {
         if (WindowShouldClose())
             break;
 #endif
-        rckid().loop();
+        // process any RCkid's evenys
+        while (true) {
+            auto event = rckid().nextEvent();
+            if (!event.has_value())
+                break;
+            Widget * w = activeWidget();
+            if (w) {
+                std::visit(overloaded{
+                    [this, w](ButtonEvent eb) {
+                        TraceLog(LOG_DEBUG, STR("Button state change. Button: " << (int)eb.btn << ", state: " << eb.state));
+                        switch (eb.btn) {
+                            case Button::A:
+                                w->btnA(eb.state);
+                                break;
+                            case Button::B:
+                                w->btnB(eb.state);
+                                break;
+                            case Button::X:
+                                w->btnX(eb.state);
+                                break;
+                            case Button::Y:
+                                w->btnY(eb.state);
+                                break;
+                            case Button::L:
+                                w->btnL(eb.state);
+                                break;
+                            case Button::R:
+                                w->btnR(eb.state);
+                                break;
+                            case Button::Left:
+                                w->dpadLeft(eb.state);
+                                break;
+                            case Button::Right:
+                                w->dpadRight(eb.state);
+                                break;
+                            case Button::Up:
+                                w->dpadUp(eb.state);
+                                break;
+                            case Button::Down:
+                                w->dpadDown(eb.state);
+                                break;
+                            case Button::Select:
+                                w->btnSelect(eb.state);
+                                break;
+                            case Button::Start:
+                                w->btnStart(eb.state);
+                                break;
+                            case Button::Home:
+                                w->btnHome(eb.state);
+                                break;
+                            case Button::Joy:
+                                w->btnJoy(eb.state);
+                                break;
+                        }
+                    }, 
+                    [this, w](ThumbEvent et) {
+                        w->joy(et.x, et.y);
+                    },
+                    [this, w](AccelEvent ea) {
+                        w->accel(ea.x, ea.y);
+                    }, 
+                    // simply process the recorded data - we know the function must exist since it must be supplied very time we start recording
+                    [this, w](RecordingEvent e) {
+                        w->audioRecorded(e);
+                    },
+                    [this, w](NRFPacketEvent e) {
+                        w->nrfPacketReceived(e);
+                    },
+                    [this, w](NRFTxIrq e) {
+                        w->nrfTxCallback(! e.nrfStatus.txDataFailIrq());
+                    },
+                    // don't do anything for other events
+                    [this](auto e) { }
+
+                }, event.value());
+            }    
+        }
+        // when all rckid's events are processed, try drawing
         draw();
     }
 }

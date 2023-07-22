@@ -141,130 +141,52 @@ RCKid::RCKid() {
 #endif
 }
 
-void RCKid::loop() {
-        while (true) {
-            auto event = events_.receive();
-            if (!event.has_value())
-                break;
-            processEvent(event.value());
-        }
-}
-
-void RCKid::processEvent(Event & e) UI_THREAD {
-    std::visit(overloaded{
-        [this](ButtonEvent eb) {
-            TraceLog(LOG_DEBUG, STR("Button state change. Button: " << (int)eb.btn << ", state: " << eb.state));
-            Widget * w = window().activeWidget();
-            switch (eb.btn) {
-                case Button::A:
-                    if (w) w->btnA(eb.state);
-                    break;
-                case Button::B:
-                    if (w) w->btnB(eb.state);
-                    break;
-                case Button::X:
-                    if (w) w->btnX(eb.state);
-                    break;
-                case Button::Y:
-                    if (w) w->btnY(eb.state);
-                    break;
-                case Button::L:
-                    if (w) w->btnL(eb.state);
-                    break;
-                case Button::R:
-                    if (w) w->btnR(eb.state);
-                    break;
-                case Button::Left:
-                    if (w) w->dpadLeft(eb.state);
-                    break;
-                case Button::Right:
-                    if (w) w->dpadRight(eb.state);
-                    break;
-                case Button::Up:
-                    if (w) w->dpadUp(eb.state);
-                    break;
-                case Button::Down:
-                    if (w) w->dpadDown(eb.state);
-                    break;
-                case Button::Select:
-                    if (w) w->btnSelect(eb.state);
-                    break;
-                case Button::Start:
-                    if (w) w->btnStart(eb.state);
-                    break;
-                case Button::Home:
-                    if (w) w->btnHome(eb.state);
-                    break;
-                case Button::VolumeUp:
-                    window().btnVolUp(eb.state);
-                    break;
-                case Button::VolumeDown:
-                    window().btnVolDown(eb.state);
-                    break;
-                case Button::Joy:
-                    if (w) w->btnJoy(eb.state);
-                    break;
-            }
-        }, 
-        [this](ThumbEvent et) {
-            Widget * w = window().activeWidget();
-            if (w) w->joy(et.x, et.y);
-        },
-        [this](AccelEvent ea) {
-            Widget * w = window().activeWidget();
-            if (w) w->accel(ea.x, ea.y);
-            if (setIfDiffers(status_.accelTemp, ea.temp))
-                {} // TODO
-        }, 
-        [this](ModeEvent e) {
-            status_.changed = true;
-            status_.mode = e.mode;
-        },
-        [this](ChargingEvent e) {
-            status_.changed = true;
-            status_.usb = e.usb;
-            status_.charging = e.charging;
-        },
-        [this](VoltageEvent e) {
-            status_.changed = true;
-            status_.vBatt = e.vBatt;
-            status_.vcc = e.vcc;
-        },
-        [this](TempEvent e) {
-            status_.changed = true;
-            status_.avrTemp = e.temp;
-        },
-        [this](BrightnessEvent e) {
-            status_.changed = true;
-            status_.brightness = e.brightness;
-        },
-        [this](HeadphonesEvent e) {
-            status_.changed = true;
-            status_.headphones = e.connected;
-        },
-        [this](UptimeEvent e) {
-            status_.avrUptime = e.uptime;
-        },
-        // simply process the recorded data - we know the function must exist since it must be supplied very time we start recording
-        [this](RecordingEvent e) {
-            if (status_.recording) {
-                Widget * w = window().activeWidget();
-                w->audioRecorded(e);
-            }
-        },
-        [this](NRFPacketEvent e) {
-            Widget * w = window().activeWidget();
-            if (w)
-                w->nrfPacketReceived(e);
-        },
-        [this](NRFTxIrq e) {
-            nrfState_ = e.newState;
-            nrfTxQueueSize_ = e.txQueueSize;
-            Widget * w = window().activeWidget();
-            if (w) 
-                w->nrfTxCallback(! e.nrfStatus.txDataFailIrq());
-        }
-    }, e);
+std::optional<Event> RCKid::nextEvent() {
+    auto e = events_.receive();
+    if (e.has_value()) {
+        std::visit(overloaded{
+            [this](AccelEvent ea) {
+                if (setIfDiffers(status_.accelTemp, ea.temp))
+                    {} // TODO
+            }, 
+            [this](ModeEvent & e) {
+                status_.changed = true;
+                status_.mode = e.mode;
+            },
+            [this](ChargingEvent & e) {
+                status_.changed = true;
+                status_.usb = e.usb;
+                status_.charging = e.charging;
+            },
+            [this](VoltageEvent & e) {
+                status_.changed = true;
+                status_.vBatt = e.vBatt;
+                status_.vcc = e.vcc;
+            },
+            [this](TempEvent & e) {
+                status_.changed = true;
+                status_.avrTemp = e.temp;
+            },
+            [this](BrightnessEvent & e) {
+                status_.changed = true;
+                status_.brightness = e.brightness;
+            },
+            [this](HeadphonesEvent & e) {
+                status_.changed = true;
+                status_.headphones = e.connected;
+            },
+            [this](UptimeEvent & e) {
+                status_.avrUptime = e.uptime;
+            },
+            [this](NRFTxIrq & e) {
+                nrfState_ = e.newState;
+                nrfTxQueueSize_ = e.txQueueSize;
+            },
+            // don't do anything for the others
+            [this](auto & e) {}
+        }, e.value());
+    }
+    return e;
 }
 
 void RCKid::hwLoop() {
