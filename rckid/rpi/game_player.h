@@ -90,25 +90,25 @@ protected:
     void onFocus() {
         window().enableBackground(false);
         if (! emulator_.done()) {
-            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
-            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
+            rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
+            rckid().keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
             platform::cpu::delayMs(50);
-            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
-            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
+            rckid().keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
+            rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
         }
-        window().rckid()->enableGamepad(true);
+        rckid().enableGamepad(true);
     }
 
     void onBlur() {
         window().enableBackgroundDark(GAME_PLAYER_BACKGROUND_OPACITY);
         if (! emulator_.done()) {
-            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
-            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
+            rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
+            rckid().keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
             platform::cpu::delayMs(50);
-            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
-            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
+            rckid().keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
+            rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
         }
-        window().rckid()->enableGamepad(false);
+        rckid().enableGamepad(false);
     }
 
     // don't do anything here, prevents the back behavior

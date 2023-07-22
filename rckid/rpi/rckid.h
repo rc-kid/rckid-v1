@@ -63,6 +63,9 @@
 #define ISR_THREAD
 
 class Window; 
+class RCKid;
+
+RCKid & rckid(); 
 
 /** RCKid Driver
 
@@ -88,7 +91,7 @@ public:
 
         The initializer starts the hw loop and initializes the libevdev gamepad layer. 
      */
-    RCKid();
+    static RCKid & create();
 
     ~RCKid() {
         libevdev_uinput_destroy(gamepad_);
@@ -246,6 +249,10 @@ private:
 
     friend class Window;
 
+    friend RCKid & rckid() {
+        return * RCKid::singleton_;
+    }
+
     /** A digital button. 
      
         We keep the current state of the button as set by the ISR and the reported state of the button, which is the last state that has been reported to the driver and ui thread. 
@@ -351,6 +358,10 @@ private:
         static RCKid * i;
         return i;
     }
+
+    /** Private constructor for the singleton object. 
+     */
+    RCKid(); 
 
     /** The UI loop, should be called by the window's loop function. Processes the events from the driver to the main thread and calls the specific event handlers in the window. */
     void loop() UI_THREAD;
@@ -625,5 +636,7 @@ private:
     struct libevdev * gamepadDev_{nullptr};
     struct libevdev_uinput * gamepad_{nullptr};
     struct libevdev_uinput * activeDevice_{nullptr};
+
+    static inline RCKid * singleton_ = nullptr;
 
 }; // RCKid

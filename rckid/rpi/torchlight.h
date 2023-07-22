@@ -48,16 +48,16 @@ protected:
     }
 
     void onNavigationPop() override {
-        window().rckid()->rgbOff();
+        rckid().rgbOff();
     }
 
     void onNavigationPush() override {
-        window().rckid()->rgbOn();
+        rckid().rgbOn();
     }
 
     void updateColor() {
         requestRedraw();
-        window().rckid()->rgbColor(platform::Color::RGB(r_, g_, b_));
+        rckid().rgbColor(platform::Color::RGB(r_, g_, b_));
     }
 
     uint8_t r_ = 16;

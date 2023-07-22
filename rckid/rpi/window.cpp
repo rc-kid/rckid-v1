@@ -34,8 +34,8 @@ int FooterItem::draw(Window * window, int x, int y) const {
 }
 
 Window & Window::create() {
-    Window::singleton_ = new Window{};
-    return *Window::singleton_;
+    singleton_ = new Window{};
+    return *singleton_;
 }
 
 Window::Window() {
@@ -60,30 +60,29 @@ Window::Window() {
 
     InitAudioDevice();
 
-    rckid_ = new RCKid{};
     carousel_ = new Carousel{};
     homeMenu_ = new Menu{{
         new ActionItem{"Exit", "assets/images/011-power-off.png",[](){
             ::exit(0);
         }},
         new ActionItem{"Power Off", "assets/images/011-power-off.png",[&](){
-            rckid_->powerOff();
+            rckid().powerOff();
         }},
         new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
         new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{"assets/images/009-brightness.png", 0, 255, 16, 
             [this](int value) { 
-                rckid_->setBrightness(value); 
+                rckid().setBrightness(value); 
             },
             [this](Gauge * g) {
-                g->setValue(rckid_->brightness());
+                g->setValue(rckid().brightness());
             }
         }},
         new WidgetItem{"Volume", "assets/images/010-high-volume.png", new Gauge{"assets/images/010-high-volume.png", 0, 100, 10,
             [this](int value){
-                rckid_->setVolume(value);
+                rckid().setVolume(value);
             },
             [this](Gauge * g) {
-                g->setValue(rckid_->volume());
+                g->setValue(rckid().volume());
             }
         }},
         new Menu::Item{"WiFi", "assets/images/016-wifi.png"},
@@ -223,7 +222,7 @@ void Window::loop() {
         if (WindowShouldClose())
             break;
 #endif
-        rckid_->loop();
+        rckid().loop();
         draw();
     }
 }
@@ -296,7 +295,7 @@ void Window::draw() {
 #if (defined RENDERING_STATS)
     tt = now();
 #endif
-    if (rckid_->statusChanged()) 
+    if (rckid().statusChanged()) 
         redrawHeader_ = true;
     if (redrawHeader_) {
         redraw = true;
@@ -437,63 +436,63 @@ void Window::drawHeader() {
     BeginBlendMode(BLEND_ADD_COLORS);
     int x = 320;
     // charging and usb power indicator 
-    if (rckid_->usb()) {
+    if (rckid().usb()) {
         x -= 10;
-        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, rckid_->charging() ? WHITE : GRAY);
+        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, rckid().charging() ? WHITE : GRAY);
     }
     // the battery level and percentage
     if (inHomeMenu_) {
-        std::string pct = STR((rckid_->vBatt() - 330) << "%");
+        std::string pct = STR((rckid().vBatt() - 330) << "%");
         x -= MeasureText(helpFont_, pct.c_str(), 16, 1.0).x + 5;
         DrawTextEx(helpFont_, pct.c_str(), x, 2, 16, 1, GRAY);
     }
     x -= 20;
-    if (rckid_->vBatt() > 415)
+    if (rckid().vBatt() > 415)
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, GREEN);
-    else if (rckid_->vBatt() > 390)
+    else if (rckid().vBatt() > 390)
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, DARKGREEN);
-    else if (rckid_->vBatt() > 375)
+    else if (rckid().vBatt() > 375)
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, ORANGE);
-    else if (rckid_->vBatt() > 340)    
+    else if (rckid().vBatt() > 340)    
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
     else 
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
     // volume & headphones
-    if (rckid_->headphones()) {
+    if (rckid().headphones()) {
         x -= 20;
         DrawTextEx(headerFont_, "󰋋", x, 0, 20, 1.0, WHITE);    
     }
     if (inHomeMenu_) {
-        std::string vol = STR(rckid_->volume());
+        std::string vol = STR(rckid().volume());
         x -= MeasureText(helpFont_, vol.c_str(), 16, 1.0).x + 5;
         DrawTextEx(helpFont_, vol.c_str(), x - 3, 2, 16, 1, GRAY);
     }
     x -= 20;
-    if (rckid_->volume() == 0)
+    if (rckid().volume() == 0)
         DrawTextEx(headerFont_, "󰸈", x, 0, 20, 1.0, RED);
-    else if (rckid_->volume() < 6)
+    else if (rckid().volume() < 6)
         DrawTextEx(headerFont_, "󰕿", x, 0, 20, 1.0, BLUE);
-    else if (rckid_->volume() < 12)
+    else if (rckid().volume() < 12)
         DrawTextEx(headerFont_, "󰖀", x, 0, 20, 1.0, BLUE);
     else
         DrawTextEx(headerFont_, "󰕾", x, 0, 20, 1.0, ORANGE);
     // WiFi
-    if (! rckid_->wifi() ) {
+    if (! rckid().wifi() ) {
         x -= 20;
         DrawTextEx(headerFont_, "󰖪", x, 0, 20, 1.0, GRAY);
     } else {
         if (inHomeMenu_) {
-            x -= MeasureText(helpFont_, rckid_->ssid().c_str(), 16, 1.0).x + 5;
-            DrawTextEx(helpFont_, rckid_->ssid().c_str(), x - 3, 2, 16, 1, GRAY);
+            x -= MeasureText(helpFont_, rckid().ssid().c_str(), 16, 1.0).x + 5;
+            DrawTextEx(helpFont_, rckid().ssid().c_str(), x - 3, 2, 16, 1, GRAY);
         }
         x -= 20;
-        if (rckid_->wifiHotspot()) 
+        if (rckid().wifiHotspot()) 
             DrawTextEx(headerFont_, "󱛁", x, 0, 20, 1.0, Color{0, 255, 255, 255});
         else
             DrawTextEx(headerFont_, "󰖩", x, 0, 20, 1.0, BLUE);
     }
     // NRF Radio
-    switch (rckid_->nrfState()) {
+    switch (rckid().nrfState()) {
         case NRFState::Error:
             x -= 20;
             DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, RED);

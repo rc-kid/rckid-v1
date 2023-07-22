@@ -44,7 +44,7 @@ protected:
             if (!recording_ && !receiving_) {
                 uint8_t packet[32];
                 new (packet) Heartbeat{heartbeatIndex_++, name_};
-                window().rckid()->nrfTransmit(packet);
+                rckid().nrfTransmit(packet);
             }
         }
     }
@@ -58,23 +58,23 @@ protected:
         DrawText(STR(compressedLength_).c_str(), 0, 50, 20, WHITE);
         DrawText(STR(packetsSent_).c_str(), 0, 70, 20, WHITE);
         DrawText(STR(packetErrors_).c_str(), 0, 90, 20, RED);
-        DrawText(STR(window().rckid()->nrfTxQueueSize()).c_str(), 0, 110, 20, BLUE);
+        DrawText(STR(rckid().nrfTxQueueSize()).c_str(), 0, 110, 20, BLUE);
         DrawText(STR(packetsReceived_).c_str(), 0, 130, 20, GREEN);
     }
 
 
     void onFocus() override {
-        window().rckid()->nrfInitialize("AAAAA", "AAAAA", 86);
-        window().rckid()->nrfEnableReceiver();
+        rckid().nrfInitialize("AAAAA", "AAAAA", 86);
+        rckid().nrfEnableReceiver();
         recording_ = false;
         tHeartbeat_.startRandom(WALKIE_TALKIE_HEARTBEAT_INTERVAL_MIN, WALKIE_TALKIE_HEARTBEAT_INTERVAL_MAX);
     }
 
     void onBlur() override {
         tHeartbeat_.stop();
-        window().rckid()->stopRecording();
+        rckid().stopRecording();
         recording_ = false;
-        window().rckid()->nrfStandby();
+        rckid().nrfStandby();
     }
 
     /** Starts / stops the PTT Transmission. 
@@ -89,12 +89,12 @@ protected:
                 packetsSent_ = 0;
                 packetErrors_ = 0;
                 // tell everyone we will begin PTT
-                window().rckid()->startRecording();
+                rckid().startRecording();
             }
         } else {
             if (recording_) {
                 recording_ = false;
-                window().rckid()->stopRecording();
+                rckid().stopRecording();
             }
         }
 
@@ -104,7 +104,7 @@ protected:
      */
     void btnX(bool state) override {
         if (state) {
-            //window().rckid()->nrfTransmit(msg_, true);
+            //rckid().nrfTransmit(msg_, true);
         }
     }
 
@@ -114,7 +114,7 @@ protected:
         if (enc_.encode(e.data, 32))
             compressedLength_ += enc_.currentFrameSize();
         if (enc_.currentFrameValid())
-            window().rckid()->nrfTransmit(enc_.currentFrame(), 32);
+            rckid().nrfTransmit(enc_.currentFrame(), 32);
     }
 
     void nrfPacketReceived(NRFPacketEvent & e) override {

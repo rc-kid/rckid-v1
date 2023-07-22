@@ -15,30 +15,30 @@ public:
 protected:
 
     void onFocus() override {
-        window().rckid()->enableGamepad(true);
+        rckid().enableGamepad(true);
     }
 
     void onBlur() override {
-        window().rckid()->enableGamepad(false);
+        rckid().enableGamepad(false);
     }
 
     void draw() override{
         BeginBlendMode(BLEND_ADD_COLORS);
         // now draw the displayed information
         DrawTextEx(window().helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), STR(window().rckid()->vcc()).c_str(), 210, 20, 16, 1.0, WHITE);
+        DrawTextEx(window().helpFont(), STR(rckid().vcc()).c_str(), 210, 20, 16, 1.0, WHITE);
         DrawTextEx(window().helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), STR(window().rckid()->vBatt()).c_str(), 290, 20, 16, 1.0, WHITE);
+        DrawTextEx(window().helpFont(), STR(rckid().vBatt()).c_str(), 290, 20, 16, 1.0, WHITE);
         DrawTextEx(window().helpFont(), "TEMP:", 160, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), STR(window().rckid()->avrTemp()).c_str(), 210, 40, 16, 1.0, WHITE);
+        DrawTextEx(window().helpFont(), STR(rckid().avrTemp()).c_str(), 210, 40, 16, 1.0, WHITE);
         DrawTextEx(window().helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), STR(window().rckid()->accelTemp()).c_str(), 290, 40, 16, 1.0, WHITE);
+        DrawTextEx(window().helpFont(), STR(rckid().accelTemp()).c_str(), 290, 40, 16, 1.0, WHITE);
 
         DrawTextEx(window().helpFont(), "CHRG:", 160, 60, 16, 1, DARKGRAY);
-        DrawTextEx(window().helpFont(), window().rckid()->charging() ? "1" : "0", 210, 60, 16, 1.0, WHITE);
+        DrawTextEx(window().helpFont(), rckid().charging() ? "1" : "0", 210, 60, 16, 1.0, WHITE);
 
         DrawTextEx(window().helpFont(), "UP:", 160, 80, 16, 1, DARKGRAY);
-        DrawTextEx(window().helpFont(), STR(window().rckid()->avrUptime()).c_str(), 210, 80, 16, 1.0, WHITE);
+        DrawTextEx(window().helpFont(), STR(rckid().avrUptime()).c_str(), 210, 80, 16, 1.0, WHITE);
         EndBlendMode();
 
         BeginBlendMode(BLEND_ALPHA);

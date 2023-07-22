@@ -73,6 +73,12 @@
 
 using namespace platform;
 
+RCKid & RCKid::create() {
+    singleton_ = new RCKid{};
+    return *singleton_;
+}
+
+
 RCKid::RCKid() {
     gpio::initialize();
     if (!spi::initialize()) 

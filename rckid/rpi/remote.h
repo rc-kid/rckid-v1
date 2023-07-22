@@ -42,12 +42,12 @@ protected:
      */
     void searchForDevices() {
         using namespace remote::msg;
-        window().rckid()->nrfInitialize("RCKID", DefaultAddress, DefaultChannel);
-        window().rckid()->nrfEnableReceiver();
+        rckid().nrfInitialize("RCKID", DefaultAddress, DefaultChannel);
+        rckid().nrfEnableReceiver();
         mode_ = Mode::Searching;
         // get device information
         new (msg_) RequestDeviceInfo{"RCKID"};
-        window().rckid()->nrfTransmitWithImmediateReturn(msg_);
+        rckid().nrfTransmitWithImmediateReturn(msg_);
         std::cout << "Searching for devices" << std::endl;
         devices_.clear();
         t_.start(100);
@@ -59,9 +59,9 @@ protected:
         std::cout << "Pairing" << std::endl;
         new (msg_) Pair{"RCKid", deviceAddress, 80, deviceId, deviceName};
         for (size_t i = 0; i < 10; ++i)
-            window().rckid()->nrfTransmitWithImmediateReturn(msg_);
-        window().rckid()->nrfInitialize("RCKid", deviceAddress, 80);
-        window().rckid()->nrfEnableReceiver();
+            rckid().nrfTransmitWithImmediateReturn(msg_);
+        rckid().nrfInitialize("RCKid", deviceAddress, 80);
+        rckid().nrfEnableReceiver();
         t_.startContinuous(50);
         mode_ = Mode::Pairing;
         //
@@ -82,14 +82,14 @@ protected:
                         }
                     } else {
                         new (msg_) RequestDeviceInfo{"RCKID"};
-                        window().rckid()->nrfTransmitWithImmediateReturn(msg_);
+                        rckid().nrfTransmitWithImmediateReturn(msg_);
                         t_.start(100);
                     }
                     break;
                 case Mode::Pairing:
                 case Mode::Connected:
                     new (msg_) Nop{};
-                    window().rckid()->nrfTransmitWithImmediateReturn(msg_);
+                    rckid().nrfTransmitWithImmediateReturn(msg_);
                     break;
                 default:
                     // nothing to do
@@ -111,7 +111,7 @@ protected:
     }
 
     void onBlur() override {
-        window().rckid()->nrfStandby();
+        rckid().nrfStandby();
     }
 
     void btnA(bool state) override {
@@ -120,7 +120,7 @@ protected:
         if (state) {
             msg_.ctrl.mode = channel::Motor::Mode::Brake;
             msg_.ctrl.speed = 0;
-            window().rckid()->nrfTransmit(reinterpret_cast<uint8_t*>(&msg_), sizeof(msg_));
+            rckid().nrfTransmit(reinterpret_cast<uint8_t*>(&msg_), sizeof(msg_));
         } 
         */
     }
@@ -132,7 +132,7 @@ protected:
             msg_.ctrl.mode = channel::Motor::Mode::CW;
             msg_.ctrl.speed = speed_;
             speed_ += 1;
-            window().rckid()->nrfTransmit(reinterpret_cast<uint8_t*>(&msg_), sizeof(msg_));
+            rckid().nrfTransmit(reinterpret_cast<uint8_t*>(&msg_), sizeof(msg_));
         } 
         */
     }

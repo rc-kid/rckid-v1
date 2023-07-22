@@ -86,8 +86,6 @@ public:
 
     static Window & create(); 
 
-    RCKid * rckid() { return rckid_; }
-
     Font loadFont(std::string const & filename, int size);
 
     void loop(); 
@@ -217,9 +215,7 @@ private:
     friend class ModalWidget;
     friend class RCKid;
 
-    friend inline Window & window() { return * Window::singleton_; }
-
-
+    friend Window & window() { return * Window::singleton_; }
 
     class NavigationItem {
     public:
@@ -274,13 +270,13 @@ private:
 
     void btnVolUp(bool state) { 
         if (state) { 
-            rckid_->setVolume(rckid_->volume() + AUDIO_VOLUME_STEP);  
+            rckid().setVolume(rckid().volume() + AUDIO_VOLUME_STEP);  
         }
     }
 
     void btnVolDown(bool state) {
         if (state) {
-            rckid_->setVolume(rckid_->volume() - AUDIO_VOLUME_STEP);  
+            rckid().setVolume(rckid().volume() - AUDIO_VOLUME_STEP);  
         }
     }
 
@@ -290,12 +286,8 @@ private:
     void drawHeader();
     void drawFooter();
     
-    // the rckid driver
-    RCKid * rckid_; 
-
     // true if the current event should be cancelled
     bool cancelEvent_ = false;
-
 
     std::vector<FooterItem> footer_;
 

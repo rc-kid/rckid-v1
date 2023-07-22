@@ -127,11 +127,12 @@ int main(int argc, char * argv[]) {
     }
 #endif
     try {
-        Window & window = Window::create();
+        Window::create();
+        RCKid::create();
         GamePlayer gamePlayer{};
         VideoPlayer videoPlayer{};
         MusicPlayer musicPlayer{};
-        window.rckid()->setVolume(AUDIO_DEFAULT_VOLUME);
+        rckid().setVolume(AUDIO_DEFAULT_VOLUME);
         Menu menu{{
             new LazySubmenu{
                 "Games",
@@ -185,8 +186,8 @@ int main(int argc, char * argv[]) {
         //window.setWidget(&kb);
         //DebugView db{&window};
         //window.setWidget(&db);
-        window.setMenu(& menu, 0);
-        window.loop();
+        window().setMenu(& menu, 0);
+        window().loop();
     } catch (std::exception const & e) {
         TraceLog(LOG_FATAL, e.what());
     } catch (...) {

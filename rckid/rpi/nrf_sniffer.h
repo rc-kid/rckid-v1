@@ -32,8 +32,8 @@ protected:
 
     void onNavigationPush() override {
 
-        window().rckid()->nrfInitialize(rxAddr_.c_str(), txAddr_.c_str(), channel_);
-        window().rckid()->nrfEnableReceiver();
+        rckid().nrfInitialize(rxAddr_.c_str(), txAddr_.c_str(), channel_);
+        rckid().nrfEnableReceiver();
         /*
         if (msgs_.empty()) {
             msgs_.push_back(Message{"0123456789", 10});
@@ -42,18 +42,18 @@ protected:
     }
 
     void onNavigationPop() override {
-        window().rckid()->nrfStandby();
+        rckid().nrfStandby();
     }
 
     void btnA(bool state) override {
         if (state) {
             if (running_) {
                 running_ = false;
-                window().rckid()->nrfStandby();
+                rckid().nrfStandby();
             } else {
                 running_ = true;
-                window().rckid()->nrfInitialize(rxAddr_.c_str(), txAddr_.c_str(), channel_);
-                window().rckid()->nrfEnableReceiver();
+                rckid().nrfInitialize(rxAddr_.c_str(), txAddr_.c_str(), channel_);
+                rckid().nrfEnableReceiver();
             }
         }
     }
