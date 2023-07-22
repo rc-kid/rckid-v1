@@ -4,6 +4,7 @@
 #include <mutex>
 #include <variant>
 #include <functional>
+#include <memory>
 
 #include "libevdev/libevdev.h"
 #include "libevdev/libevdev-uinput.h"
@@ -637,6 +638,6 @@ private:
     struct libevdev_uinput * gamepad_{nullptr};
     struct libevdev_uinput * activeDevice_{nullptr};
 
-    static inline RCKid * singleton_ = nullptr;
+    static inline std::unique_ptr<RCKid> singleton_;
 
 }; // RCKid

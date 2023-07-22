@@ -74,7 +74,7 @@
 using namespace platform;
 
 RCKid & RCKid::create() {
-    singleton_ = new RCKid{};
+    singleton_ = std::unique_ptr<RCKid>{new RCKid{}};
     return *singleton_;
 }
 

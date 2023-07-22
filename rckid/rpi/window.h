@@ -9,6 +9,7 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <memory>
 
 #include "utils/time.h"
 
@@ -362,6 +363,6 @@ private:
         0xf0e08, 0xf057f, 0xf0580, 0xf057e, // 󰸈 󰕿 󰖀 󰕾
     };
 
-    static inline Window * singleton_;
+    static inline std::unique_ptr<Window> singleton_;
 
 }; // Window

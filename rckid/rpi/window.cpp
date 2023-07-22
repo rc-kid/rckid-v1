@@ -34,7 +34,7 @@ int FooterItem::draw(Window * window, int x, int y) const {
 }
 
 Window & Window::create() {
-    singleton_ = new Window{};
+    singleton_ = std::unique_ptr<Window>{new Window{}};
     return *singleton_;
 }
 
