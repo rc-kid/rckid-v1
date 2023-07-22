@@ -73,8 +73,7 @@
 
 using namespace platform;
 
-RCKid::RCKid(Window * window): 
-    window_{window} {
+RCKid::RCKid() {
     gpio::initialize();
     if (!spi::initialize()) 
         TraceLog(LOG_ERROR, STR("Unable to initialize spi (errno " << errno << ")"));
@@ -149,7 +148,7 @@ void RCKid::processEvent(Event & e) UI_THREAD {
     std::visit(overloaded{
         [this](ButtonEvent eb) {
             TraceLog(LOG_DEBUG, STR("Button state change. Button: " << (int)eb.btn << ", state: " << eb.state));
-            Widget * w = window_->activeWidget();
+            Widget * w = window().activeWidget();
             switch (eb.btn) {
                 case Button::A:
                     if (w) w->btnA(eb.state);
@@ -191,10 +190,10 @@ void RCKid::processEvent(Event & e) UI_THREAD {
                     if (w) w->btnHome(eb.state);
                     break;
                 case Button::VolumeUp:
-                    window_->btnVolUp(eb.state);
+                    window().btnVolUp(eb.state);
                     break;
                 case Button::VolumeDown:
-                    window_->btnVolDown(eb.state);
+                    window().btnVolDown(eb.state);
                     break;
                 case Button::Joy:
                     if (w) w->btnJoy(eb.state);
@@ -202,11 +201,11 @@ void RCKid::processEvent(Event & e) UI_THREAD {
             }
         }, 
         [this](ThumbEvent et) {
-            Widget * w = window_->activeWidget();
+            Widget * w = window().activeWidget();
             if (w) w->joy(et.x, et.y);
         },
         [this](AccelEvent ea) {
-            Widget * w = window_->activeWidget();
+            Widget * w = window().activeWidget();
             if (w) w->accel(ea.x, ea.y);
             if (setIfDiffers(status_.accelTemp, ea.temp))
                 {} // TODO
@@ -243,19 +242,19 @@ void RCKid::processEvent(Event & e) UI_THREAD {
         // simply process the recorded data - we know the function must exist since it must be supplied very time we start recording
         [this](RecordingEvent e) {
             if (status_.recording) {
-                Widget * w = window_->activeWidget();
+                Widget * w = window().activeWidget();
                 w->audioRecorded(e);
             }
         },
         [this](NRFPacketEvent e) {
-            Widget * w = window_->activeWidget();
+            Widget * w = window().activeWidget();
             if (w)
                 w->nrfPacketReceived(e);
         },
         [this](NRFTxIrq e) {
             nrfState_ = e.newState;
             nrfTxQueueSize_ = e.txQueueSize;
-            Widget * w = window_->activeWidget();
+            Widget * w = window().activeWidget();
             if (w) 
                 w->nrfTxCallback(! e.nrfStatus.txDataFailIrq());
         }

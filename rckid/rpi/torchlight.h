@@ -13,7 +13,6 @@
 */
 class Torchlight : public Widget {
 public:    
-    Torchlight(Window * window): Widget{window} {}
 
 protected:
 
@@ -49,16 +48,16 @@ protected:
     }
 
     void onNavigationPop() override {
-        window()->rckid()->rgbOff();
+        window().rckid()->rgbOff();
     }
 
     void onNavigationPush() override {
-        window()->rckid()->rgbOn();
+        window().rckid()->rgbOn();
     }
 
     void updateColor() {
         requestRedraw();
-        window()->rckid()->rgbColor(platform::Color::RGB(r_, g_, b_));
+        window().rckid()->rgbColor(platform::Color::RGB(r_, g_, b_));
     }
 
     uint8_t r_ = 16;

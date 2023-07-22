@@ -43,7 +43,7 @@ protected:
      
         Overriding this methods allows the menu to intercept their items being selected. 
      */
-    virtual void onSelectItem(Window * window, size_t index);
+    virtual void onSelectItem(size_t index);
     
 private:
     std::vector<Item*> items_;    
@@ -65,11 +65,11 @@ public:
 
     bool initialized() const { return titleWidth_ != UNINITIALIZED; }
 
-    void initialize(Window * window);
+    void initialize();
 
     /** Called by the carousel when the item is selected.
      */
-    virtual void onSelect(Window * window) { }
+    virtual void onSelect() { }
 
 protected:
     static constexpr int UNINITIALIZED = -1;
@@ -94,7 +94,7 @@ public:
         action_{action} {
     }
 
-    void onSelect(Window * window) override {
+    void onSelect() override {
         if (action_)
             action_();
     }
@@ -116,7 +116,7 @@ public:
         widget_{widget} {
     }
 
-    void onSelect(Window * window) override; 
+    void onSelect() override; 
 
 private:
 
@@ -146,7 +146,7 @@ public:
         submenu_ = value;
     }
 
-    void onSelect(Window * window) override;
+    void onSelect() override;
 
     Menu * submenu_ = nullptr;
 }; // Submenu
@@ -158,19 +158,19 @@ public:
 */
 class LazySubmenu : public Submenu {
 public:
-    LazySubmenu(std::string const & title, std::string const & imgFile, std::function<Menu *(Window *)> updater):
+    LazySubmenu(std::string const & title, std::string const & imgFile, std::function<Menu *()> updater):
         Submenu{title, imgFile, nullptr},
         updater_{updater} {
     }
 
-    void onSelect(Window * window) override {
+    void onSelect() override {
         if (submenu() == nullptr)
-            setSubmenu(updater_(window));
-        Submenu::onSelect(window);
+            setSubmenu(updater_());
+        Submenu::onSelect();
     }
 
 private:
-    std::function<Menu*(Window *)> updater_;
+    std::function<Menu*()> updater_;
 }; // LazySubmenu
 
 /** Menu backed by a json file. 
@@ -183,7 +183,7 @@ private:
  */
 class JSONMenu : public Menu {
 public:
-    JSONMenu(std::string const & jsonFile, std::function<void(Window *, json::Value &)> onSelect):
+    JSONMenu(std::string const & jsonFile, std::function<void(json::Value &)> onSelect):
         onSelect_{onSelect},
         jsonFile_{jsonFile}, 
         json_{json::parseFile(jsonFile)} {
@@ -193,7 +193,7 @@ public:
                 add(new LazySubmenu{
                     item["title"].value<std::string>(), 
                     item["image"].value<std::string>(), 
-                    [jsonPath, onSelect](Window *){ 
+                    [jsonPath, onSelect](){ 
                         return new JSONMenu{jsonPath, onSelect}; 
                     }
                 });
@@ -205,17 +205,17 @@ public:
 
 protected:
 
-    void onSelectItem(Window * window, size_t index) {
+    void onSelectItem(size_t index) {
         json::Value & v = json_[index];
         if (v.containsKey("json"))
-            (*this)[index]->onSelect(window);
+            (*this)[index]->onSelect();
         else
-            onSelect_(window, v);   
+            onSelect_(v);   
     }
 
 private:
 
-    std::function<void(Window *, json::Value &)> onSelect_;
+    std::function<void(json::Value &)> onSelect_;
 
     std::string jsonFile_;
     json::Value json_;
@@ -267,7 +267,7 @@ protected:
 
     }; 
 
-    void onSelect(Window * window) override;
+    void onSelect() override;
 
 private:
 

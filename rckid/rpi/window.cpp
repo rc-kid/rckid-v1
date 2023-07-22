@@ -33,6 +33,11 @@ int FooterItem::draw(Window * window, int x, int y) const {
     return x;
 }
 
+Window & Window::create() {
+    Window::singleton_ = new Window{};
+    return *Window::singleton_;
+}
+
 Window::Window() {
     InitWindow(320, 240, "RCKid");
     SetTargetFPS(60);
@@ -55,8 +60,8 @@ Window::Window() {
 
     InitAudioDevice();
 
-    rckid_ = new RCKid{this};
-    carousel_ = new Carousel{this};
+    rckid_ = new RCKid{};
+    carousel_ = new Carousel{};
     homeMenu_ = new Menu{{
         new ActionItem{"Exit", "assets/images/011-power-off.png",[](){
             ::exit(0);
@@ -65,7 +70,7 @@ Window::Window() {
             rckid_->powerOff();
         }},
         new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
-        new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{this, "assets/images/009-brightness.png", 0, 255, 16, 
+        new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{"assets/images/009-brightness.png", 0, 255, 16, 
             [this](int value) { 
                 rckid_->setBrightness(value); 
             },
@@ -73,7 +78,7 @@ Window::Window() {
                 g->setValue(rckid_->brightness());
             }
         }},
-        new WidgetItem{"Volume", "assets/images/010-high-volume.png", new Gauge{this, "assets/images/010-high-volume.png", 0, 100, 10,
+        new WidgetItem{"Volume", "assets/images/010-high-volume.png", new Gauge{"assets/images/010-high-volume.png", 0, 100, 10,
             [this](int value){
                 rckid_->setVolume(value);
             },
@@ -82,7 +87,7 @@ Window::Window() {
             }
         }},
         new Menu::Item{"WiFi", "assets/images/016-wifi.png"},
-        new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{this}},
+        new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{}},
     }};
     lastFrameTime_ = now();    
 }
@@ -99,7 +104,7 @@ Font Window::loadFont(std::string const & filename, int size) {
 
 void Window::prompt(std::string const & prompt, std::string value, std::function<void(std::string)> callback) {
     if (keyboard_ == nullptr)
-        keyboard_ = new Keyboard{this};
+        keyboard_ = new Keyboard{};
     keyboard_->prompt = prompt;
     keyboard_->value = value;
     keyboard_->onDone = callback;
@@ -243,8 +248,8 @@ void Window::draw() {
     Timepoint t = now();
     redrawDelta_ = asMillis(t - lastFrameTime_);
     lastFrameTime_ = t;
-    aswap_.update(this);
-    aheader_.update(this);
+    aswap_.update();
+    aheader_.update();
 
     bool redraw = false;
 

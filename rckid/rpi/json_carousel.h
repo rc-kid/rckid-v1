@@ -28,10 +28,8 @@ protected:
         size_t current;
     }; 
 
-    BaseCarousel(Window * window): Widget{window} {}
-
     void draw() override {
-        if (a_.update(window())) 
+        if (a_.update()) 
             t_ = Transition::None;
         switch (t_) {
             case Transition::None:
@@ -41,7 +39,7 @@ protected:
             // when the transition is to the left item, the current item is on the left and we are moving right, i.e. current item's offset moves from -320 to 0 and the rightOf (previously current) moves from 0 to 320. The animation moves to the *right*
             case Transition::Left: {
                 int offset = a_.interpolate(0, Window_WIDTH);
-                window()->setBackgroundSeam(seamStart_ + offset / 4);
+                window().setBackgroundSeam(seamStart_ + offset / 4);
                 drawItem(item(rightOf()), offset, 255);
                 drawItem(item(i_), offset - Window_WIDTH, 255);                
                 break;
@@ -49,7 +47,7 @@ protected:
             // for right transition, the current item is on the right and we move to the left, i.e. the leftOf item starts at 0 and goes to -320, while the current item starts at 320 and goes to 0
             case Transition::Right: {
                 int offset = a_.interpolate(0, Window_WIDTH);
-                window()->setBackgroundSeam(seamStart_ - offset / 4);
+                window().setBackgroundSeam(seamStart_ - offset / 4);
                 drawItem(item(leftOf()), - offset, 255);
                 drawItem(item(i_), Window_WIDTH - offset, 255);                
                 break;

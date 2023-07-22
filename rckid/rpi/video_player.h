@@ -14,8 +14,6 @@
 class VideoPlayer : public Widget {
 public:
 
-    VideoPlayer(Window * window): Widget{window} {}
-
     bool fullscreen() const { return true; }
 
     void play(json::Value const & video) {
@@ -24,7 +22,7 @@ public:
         std::string path = video["path"].value<std::string>();
         player_ = utils::Process::capture(utils::Command{"cvlc", { "-I", "rc", path}});
         playing_ = true;
-        window()->setWidget(this);
+        window().setWidget(this);
     }
 
 protected:
@@ -32,7 +30,7 @@ protected:
     void draw() override {
         //DrawRectangle(0,0,320,240, ColorAlpha(BLACK, 0));
         if (player_.done())
-            window()->back();
+            window().back();
         cancelRedraw();
     }
 
@@ -42,11 +40,11 @@ protected:
     void onNavigationPop() override {
         if (!player_.done())
             player_.kill();
-        window()->enableBackground(true);
+        window().enableBackground(true);
     }
 
     void onFocus() {
-        window()->enableBackground(false);
+        window().enableBackground(false);
         if (!playing_) {
             playing_ = true;
             player_.tx("play\n");
@@ -54,7 +52,7 @@ protected:
     }
 
     void onBlur() {
-        window()->enableBackgroundDark(VIDEO_PLAYER_BACKGROUND_OPACITY);
+        window().enableBackgroundDark(VIDEO_PLAYER_BACKGROUND_OPACITY);
         if (playing_) {
             playing_ = false;
             player_.tx("pause\n");

@@ -9,28 +9,28 @@ void Menu::clear() {
     items_.clear();
 }
 
-void Menu::onSelectItem(Window * window, size_t index) { 
-    items_[index]->onSelect(window); 
+void Menu::onSelectItem(size_t index) { 
+    items_[index]->onSelect(); 
 }
 
-void Menu::Item::initialize(Window * window) {
+void Menu::Item::initialize() {
     img_ = LoadTexture(imgFile_.c_str());
-    Vector2 fs = MeasureText(window->menuFont(), title_.c_str(), MENU_FONT_SIZE);
+    Vector2 fs = MeasureText(window().menuFont(), title_.c_str(), MENU_FONT_SIZE);
     titleWidth_ = fs.x;
 }
 
-void WidgetItem::onSelect(Window * window) {
-    window->setWidget(widget_);
+void WidgetItem::onSelect() {
+    window().setWidget(widget_);
 }
 
-void Submenu::onSelect(Window * window) {
-    window->setMenu(submenu_);
+void Submenu::onSelect() {
+    window().setMenu(submenu_);
 }
 
 
 
 /*
-void JSONItem::onSelect(Window * window) {
+void JSONItem::onSelect() {
     try {
         json::Value v{json::parseFile(submenu_.jsonFile_)};
         for (json::Value const & v : v.arrayElements()) {

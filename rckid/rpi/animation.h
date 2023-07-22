@@ -24,7 +24,7 @@ public:
 
     void setDuration(float ms) { duration_ = ms; }
 
-    void update(Window * window);
+    void update();
 
     bool running() const { return running_; }
     
@@ -105,7 +105,7 @@ private:
 */
 class Timer {
 public:
-    bool update(Window * window);
+    bool update();
 
     bool running() const { return running_; }
 

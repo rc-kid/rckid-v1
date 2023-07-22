@@ -2,7 +2,7 @@
 
 #include "audio.h"
 
-void AudioVisualizer::draw(Window * window, int left, int top, int width, int height) {
+void AudioVisualizer::draw(int left, int top, int width, int height) {
     size_t p = pos_;
     int barWidth = width / numBars_;
     left += (width - barWidth * numBars_) / 2; // center

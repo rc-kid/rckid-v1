@@ -13,9 +13,9 @@ public:
 
     using OnDoneEvent = std::function<void(std::string)>;
 
-    Keyboard(Window * window): Widget{window}, cursor_{500} {
-        f_ = window->loadFont(MENU_FONT, KEY_HEIGHT);
-        vf_ = window->loadFont(MENU_FONT, 40);
+    Keyboard(): cursor_{500} {
+        f_ = window().loadFont(MENU_FONT, KEY_HEIGHT);
+        vf_ = window().loadFont(MENU_FONT, 40);
         cursor_.startContinuous();
     }
 
@@ -33,7 +33,7 @@ protected:
 
     void draw() override {
 
-        cursor_.update(window());
+        cursor_.update();
 
         DrawTextEx(f_, prompt.c_str(), getButtonTopLeft(0,0).first, 30, 28, 1.0, GRAY);
         DrawRectangle(0, 65, 320, 40, ::Color{16, 16, 16, 255});
@@ -52,14 +52,14 @@ protected:
         //x = 10 + x * 30;
         //y = 120 + y * 30;
         DrawRectangle(p.first, p.second, KEY_WIDTH,KEY_HEIGHT, RGB(30,30,30));
-        Vector2 size = MeasureText(window()->menuFont(), text, KEY_HEIGHT);
+        Vector2 size = MeasureText(window().menuFont(), text, KEY_HEIGHT);
         DrawTextEx(f_, text, p.first + (KEY_WIDTH - size.x) / 2, p.second, KEY_HEIGHT, 1.0, WHITE);
     }
 
     void onFocus() override {
-        window()->addFooterItem(FooterItem::A("Enter"));
-        window()->addFooterItem(FooterItem::X("Aa1"));
-        window()->addFooterItem(FooterItem::Y("<-"));
+        window().addFooterItem(FooterItem::A("Enter"));
+        window().addFooterItem(FooterItem::X("Aa1"));
+        window().addFooterItem(FooterItem::Y("<-"));
     }
 
 
@@ -101,7 +101,7 @@ protected:
     void btnStart(bool state) {
         if (onDone)
             onDone(value);
-        window()->back();
+        window().back();
     }
 
 private:

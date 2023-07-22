@@ -27,17 +27,16 @@
 class GamePlayer : public Widget {
 public:
 
-    GamePlayer(Window * window): 
-        Widget{window},
+    GamePlayer(): 
         gameMenu_{{
-            new ActionItem{"Resume", "assets/images/066-play.png", [window](){
-                window->back();
+            new ActionItem{"Resume", "assets/images/066-play.png", [](){
+                window().back();
             }},
             new Menu::Item{"Save", "assets/images/072-diskette.png"},
             new Menu::Item{"Load", "assets/images/070-open.png"},
             new Menu::Item{"Screenshot", "assets/images/064-screenshot.png"},
-            new ActionItem{"Exit", "assets/images/065-stop.png", [window](){
-                window->back(2);
+            new ActionItem{"Exit", "assets/images/065-stop.png", [](){
+                window().back(2);
             }},
         }}  {}
 
@@ -66,13 +65,13 @@ public:
 #else
         emulator_ = utils::Process::start(utils::Command{"glxgears"});
 #endif
-        window()->setWidget(this);
+        window().setWidget(this);
     }
 
 protected:
     void tick() override {
         if (emulator_.done())
-            window()->back();
+            window().back();
     }
 
     void draw() override {
@@ -85,31 +84,31 @@ protected:
     void onNavigationPop() override {
         if (!emulator_.done())
             emulator_.kill();
-        window()->enableBackground(true);
+        window().enableBackground(true);
     }
 
     void onFocus() {
-        window()->enableBackground(false);
+        window().enableBackground(false);
         if (! emulator_.done()) {
-            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
-            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
+            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
+            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
             platform::cpu::delayMs(50);
-            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
-            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
+            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
+            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
         }
-        window()->rckid()->enableGamepad(true);
+        window().rckid()->enableGamepad(true);
     }
 
     void onBlur() {
-        window()->enableBackgroundDark(GAME_PLAYER_BACKGROUND_OPACITY);
+        window().enableBackgroundDark(GAME_PLAYER_BACKGROUND_OPACITY);
         if (! emulator_.done()) {
-            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
-            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
+            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
+            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
             platform::cpu::delayMs(50);
-            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
-            window()->rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
+            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
+            window().rckid()->keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
         }
-        window()->rckid()->enableGamepad(false);
+        window().rckid()->enableGamepad(false);
     }
 
     // don't do anything here, prevents the back behavior
@@ -118,7 +117,7 @@ protected:
 
     void btnHome(bool state) {
         if (state)
-            window()->setMenu(& gameMenu_, 0);
+            window().setMenu(& gameMenu_, 0);
     }
 
     std::string libretroCoreForPath(std::string const & path) {

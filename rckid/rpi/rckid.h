@@ -88,7 +88,7 @@ public:
 
         The initializer starts the hw loop and initializes the libevdev gamepad layer. 
      */
-    RCKid(Window * window);
+    RCKid();
 
     ~RCKid() {
         libevdev_uinput_destroy(gamepad_);
@@ -529,8 +529,6 @@ private:
             return false;
         }
     }
-
-    Window * window_;
 
     /** Hardware events sent to the driver's main loop. 
      */

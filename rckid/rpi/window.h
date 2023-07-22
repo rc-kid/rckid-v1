@@ -36,6 +36,8 @@ class Carousel;
 class Keyboard;
 class Window;
 
+Window & window();
+
 class FooterItem {
 public:
     enum class Control {
@@ -82,7 +84,7 @@ private:
 class Window {
 public:
 
-    Window();
+    static Window & create(); 
 
     RCKid * rckid() { return rckid_; }
 
@@ -215,6 +217,10 @@ private:
     friend class ModalWidget;
     friend class RCKid;
 
+    friend inline Window & window() { return * Window::singleton_; }
+
+
+
     class NavigationItem {
     public:
         enum class Kind {
@@ -259,6 +265,10 @@ private:
 
         size_t menuIndex_ = 0;
     }; 
+
+    /** Private constructor for the singleton. 
+     */
+    Window();
 
     void draw();
 
@@ -359,5 +369,7 @@ private:
         0xf1119, // 󱄙
         0xf0e08, 0xf057f, 0xf0580, 0xf057e, // 󰸈 󰕿 󰖀 󰕾
     };
+
+    static inline Window * singleton_;
 
 }; // Window

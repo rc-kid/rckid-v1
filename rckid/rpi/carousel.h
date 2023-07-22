@@ -12,8 +12,7 @@
 class Carousel : public Widget {
 public:
 
-    Carousel(Window * window):
-        Widget{window},
+    Carousel():
         animation_{500} {
     }
 
@@ -31,7 +30,7 @@ public:
 protected:
 
     void onFocus() override {
-        window()->addFooterItem(FooterItem::A("Select"));
+        window().addFooterItem(FooterItem::A("Select"));
     }
 
     void dpadLeft(bool state) override {
@@ -39,7 +38,7 @@ protected:
             transition_ = Transition::Left;
             moveLeft();
             animation_.start();
-            seamStart_ = window()->backgroundSeam();
+            seamStart_ = window().backgroundSeam();
         }
     }
 
@@ -50,7 +49,7 @@ protected:
             transition_ = Transition::Right;
             moveRight();
             animation_.start();
-            seamStart_ = window()->backgroundSeam();
+            seamStart_ = window().backgroundSeam();
         }
     }
 
@@ -58,23 +57,23 @@ protected:
 
     void btnA(bool state) override {
         if (state && transition_ == Transition::None && items_ != nullptr) {
-            items_->onSelectItem(window(), i_);
+            items_->onSelectItem(i_);
             cancelRedraw();
         }
     }
 
     void drawItem(Menu::Item * item, int ximg, int xtext, uint8_t alpha = 255) {
         if (!item->initialized())
-            item->initialize(window());
+            item->initialize();
         Color tint = ColorAlpha(WHITE, (float)alpha / 255);
         DrawTexture(item->img(), (Window_WIDTH - item->img().width) / 2 + ximg, (Window_HEIGHT - item->img().height - MENU_FONT_SIZE) / 2 + 10, tint);
-        DrawTextEx(window()->menuFont(), item->title().c_str(), (Window_WIDTH - item->titleWidth()) / 2 + xtext, Window_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, tint);
+        DrawTextEx(window().menuFont(), item->title().c_str(), (Window_WIDTH - item->titleWidth()) / 2 + xtext, Window_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE, MENU_FONT_SIZE, 1.0, tint);
     }
 
     void draw() override {
         if (items_ == nullptr)
             return;
-        animation_.update(window());
+        animation_.update();
         if (animation_.done())
             transition_ = Transition::None;
         switch (transition_) {
@@ -88,11 +87,11 @@ protected:
                 int imgi = animation_.interpolate(0, Window_WIDTH);
                 int texti = animation_.interpolate(0, Window_WIDTH * 2);
                 if (transition_ == Transition::Left) {
-                    window()->setBackgroundSeam(seamStart_ + imgi / 4);
+                    window().setBackgroundSeam(seamStart_ + imgi / 4);
                     drawItem(next(), imgi, texti);
                     drawItem(current(),  - Window_WIDTH + imgi, - Window_WIDTH * 2 + texti);
                 } else {
-                    window()->setBackgroundSeam(seamStart_ - imgi / 4);
+                    window().setBackgroundSeam(seamStart_ - imgi / 4);
                     drawItem(prev(), - imgi, - texti);
                     drawItem(current(), Window_WIDTH - imgi, Window_WIDTH * 2 - texti);
                 }

@@ -13,8 +13,6 @@ protected:
 
     friend class RCKid;
 
-    Widget(Window * window): window_{window} { };
-
     /** Returns true if the widget is fullscreen. Fullscreen widgets will not have the footer drawn in the bottom of the screen, which saves some space. 
      */
     virtual bool fullscreen() const { return false; }
@@ -74,13 +72,8 @@ protected:
      */
     virtual void nrfTxCallback(bool ok) {}
 
-    Window * window() { return window_; }
-
-
     void requestRedraw() { redraw_ = true; }
     void cancelRedraw() { redraw_ = false; }
-
-
 
 private: 
 
@@ -90,7 +83,6 @@ private:
      */
     bool onNavStack_ = false;
     bool redraw_ = true;
-    Window * window_ = nullptr;
 
 }; // Widget
 

@@ -13,8 +13,7 @@ public:
     static constexpr unsigned ICON_WIDTH = 64;
     static constexpr unsigned ICON_HEIGHT = 64;
 
-    PixelEditor(Window * window):
-        Widget{window}, 
+    PixelEditor():
         cursor_{500} {
         cursor_.startContinuous();
         memset(icon_, 0, sizeof(::Color) * ICON_WIDTH * ICON_HEIGHT);
@@ -25,7 +24,7 @@ public:
 protected:
 
     void draw() override {
-        cursor_.update(window());
+        cursor_.update();
         int pixelSize = std::min(Window_WIDTH / ICON_WIDTH, Window_HEIGHT / ICON_HEIGHT);
         int startx = (Window_WIDTH - (ICON_WIDTH * pixelSize)) / 2 ;
         int starty = (Window_HEIGHT - (ICON_HEIGHT * pixelSize)) / 2;

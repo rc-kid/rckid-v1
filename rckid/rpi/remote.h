@@ -36,19 +36,18 @@ class Remote : public Widget {
 public:
 
 
-    Remote(Window * window): Widget{window} {}
 protected:
 
     /** Resets the NRF to default remote addresses and channel and starts searching for devices.
      */
     void searchForDevices() {
         using namespace remote::msg;
-        window()->rckid()->nrfInitialize("RCKID", DefaultAddress, DefaultChannel);
-        window()->rckid()->nrfEnableReceiver();
+        window().rckid()->nrfInitialize("RCKID", DefaultAddress, DefaultChannel);
+        window().rckid()->nrfEnableReceiver();
         mode_ = Mode::Searching;
         // get device information
         new (msg_) RequestDeviceInfo{"RCKID"};
-        window()->rckid()->nrfTransmitWithImmediateReturn(msg_);
+        window().rckid()->nrfTransmitWithImmediateReturn(msg_);
         std::cout << "Searching for devices" << std::endl;
         devices_.clear();
         t_.start(100);
@@ -60,9 +59,9 @@ protected:
         std::cout << "Pairing" << std::endl;
         new (msg_) Pair{"RCKid", deviceAddress, 80, deviceId, deviceName};
         for (size_t i = 0; i < 10; ++i)
-            window()->rckid()->nrfTransmitWithImmediateReturn(msg_);
-        window()->rckid()->nrfInitialize("RCKid", deviceAddress, 80);
-        window()->rckid()->nrfEnableReceiver();
+            window().rckid()->nrfTransmitWithImmediateReturn(msg_);
+        window().rckid()->nrfInitialize("RCKid", deviceAddress, 80);
+        window().rckid()->nrfEnableReceiver();
         t_.startContinuous(50);
         mode_ = Mode::Pairing;
         //
@@ -72,7 +71,7 @@ protected:
 
     void tick() override {
         using namespace remote::msg;
-        if (t_.update(window())) {
+        if (t_.update()) {
             switch (mode_) {
                 case Mode::Searching:
                     if (--counter_ == 0) {
@@ -83,14 +82,14 @@ protected:
                         }
                     } else {
                         new (msg_) RequestDeviceInfo{"RCKID"};
-                        window()->rckid()->nrfTransmitWithImmediateReturn(msg_);
+                        window().rckid()->nrfTransmitWithImmediateReturn(msg_);
                         t_.start(100);
                     }
                     break;
                 case Mode::Pairing:
                 case Mode::Connected:
                     new (msg_) Nop{};
-                    window()->rckid()->nrfTransmitWithImmediateReturn(msg_);
+                    window().rckid()->nrfTransmitWithImmediateReturn(msg_);
                     break;
                 default:
                     // nothing to do
@@ -112,7 +111,7 @@ protected:
     }
 
     void onBlur() override {
-        window()->rckid()->nrfStandby();
+        window().rckid()->nrfStandby();
     }
 
     void btnA(bool state) override {
@@ -121,7 +120,7 @@ protected:
         if (state) {
             msg_.ctrl.mode = channel::Motor::Mode::Brake;
             msg_.ctrl.speed = 0;
-            window()->rckid()->nrfTransmit(reinterpret_cast<uint8_t*>(&msg_), sizeof(msg_));
+            window().rckid()->nrfTransmit(reinterpret_cast<uint8_t*>(&msg_), sizeof(msg_));
         } 
         */
     }
@@ -133,7 +132,7 @@ protected:
             msg_.ctrl.mode = channel::Motor::Mode::CW;
             msg_.ctrl.speed = speed_;
             speed_ += 1;
-            window()->rckid()->nrfTransmit(reinterpret_cast<uint8_t*>(&msg_), sizeof(msg_));
+            window().rckid()->nrfTransmit(reinterpret_cast<uint8_t*>(&msg_), sizeof(msg_));
         } 
         */
     }

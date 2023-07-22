@@ -16,8 +16,6 @@
 class MusicPlayer : public Widget {
 public:
 
-    MusicPlayer(Window * window): Widget{window} {}
-
     void play(json::Value const & music) {
 
     }

@@ -63,7 +63,7 @@ public:
 
     /** Draws the visualized audio using current draw settings. 
      */
-    void draw(Window * window, int left, int top, int width, int height);
+    void draw(int left, int top, int width, int height);
 
 private:
 

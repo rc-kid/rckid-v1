@@ -8,8 +8,7 @@
 class Gauge : public Widget {
 public:
 
-    Gauge(Window * window, Texture2D icon, int min, int max, int step, std::function<void(int)> onChange, std::function<void(Gauge*)> onRefresh):
-        Widget{window}, 
+    Gauge(Texture2D icon, int min, int max, int step, std::function<void(int)> onChange, std::function<void(Gauge*)> onRefresh):
         onChange_{onChange},
         onRefresh_{onRefresh},
         icon_{icon},
@@ -20,14 +19,14 @@ public:
         gauge_ = LoadTexture("assets/gauge.png");
     }
 
-    Gauge(Window * window, Texture2D icon, int min, int max, int step, std::function<void(int)> onChange, int value):
-        Gauge{window, icon, min, max, step, onChange, [](Gauge *g){ }} { value_ = value; }
+    Gauge(Texture2D icon, int min, int max, int step, std::function<void(int)> onChange, int value):
+        Gauge{icon, min, max, step, onChange, [](Gauge *g){ }} { value_ = value; }
 
-    Gauge(Window * window, std::string const & icon, int min, int max, int step, std::function<void(int)> onChange, std::function<void(Gauge*)> onRefresh):
-        Gauge{window, LoadTexture(icon.c_str()), min, max, step, onChange, onRefresh} {}
+    Gauge(std::string const & icon, int min, int max, int step, std::function<void(int)> onChange, std::function<void(Gauge*)> onRefresh):
+        Gauge{LoadTexture(icon.c_str()), min, max, step, onChange, onRefresh} {}
 
-    Gauge(Window * window, std::string const & icon, int min, int max, int step, std::function<void(int)> onChange, int value):
-        Gauge{window, LoadTexture(icon.c_str()), min, max, step, onChange, [](Gauge *g){}} { value_ = value; }
+    Gauge(std::string const & icon, int min, int max, int step, std::function<void(int)> onChange, int value):
+        Gauge{LoadTexture(icon.c_str()), min, max, step, onChange, [](Gauge *g){}} { value_ = value; }
 
     void setValue(int value) {
         if (value < min_)

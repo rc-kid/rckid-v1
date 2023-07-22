@@ -127,19 +127,19 @@ int main(int argc, char * argv[]) {
     }
 #endif
     try {
-        Window window;
-        GamePlayer gamePlayer{&window};
-        VideoPlayer videoPlayer{&window};
-        MusicPlayer musicPlayer{&window};
+        Window & window = Window::create();
+        GamePlayer gamePlayer{};
+        VideoPlayer videoPlayer{};
+        MusicPlayer musicPlayer{};
         window.rckid()->setVolume(AUDIO_DEFAULT_VOLUME);
         Menu menu{{
             new LazySubmenu{
                 "Games",
                 "assets/images/001-game-controller.png", 
-                [&](Window*) {
+                [&]() {
                     return new JSONMenu{
                         "/rckid/games/folder.json",
-                        [&](Window*, json::Value & item) {
+                        [&](json::Value & item) {
                             gamePlayer.play(item);
                         }
                     };
@@ -148,10 +148,10 @@ int main(int argc, char * argv[]) {
             new LazySubmenu{
                 "Video", 
                 "assets/images/005-film-slate.png",
-                [&](Window*) {
+                [&]() {
                     return new JSONMenu{
                         "/rckid/videos/folder.json",
-                        [&](Window*, json::Value & item) {
+                        [&](json::Value & item) {
                             videoPlayer.play(item);
                         }
                     };
@@ -160,10 +160,10 @@ int main(int argc, char * argv[]) {
             new LazySubmenu{
                 "Music", 
                 "assets/images/003-music.png",
-                [&](Window*) {
+                [&]() {
                     return new JSONMenu{
                         "/rckid/music/folder.json",
-                        [&](Window*, json::Value & item) {
+                        [&](json::Value & item) {
                             musicPlayer.play(item);
                         }
                     };
@@ -171,14 +171,14 @@ int main(int argc, char * argv[]) {
             },
             //new JSON{"Music", "assets/images/003-music.png", "/rckid/music/folder.json", &window},
             //new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
-            new WidgetItem{"Remote", "assets/images/002-rc-car.png", new Remote{&window}},
-            new WidgetItem{"Walkie-Talkie", "assets/images/007-baby-monitor.png", new WalkieTalkie{&window}},
+            new WidgetItem{"Remote", "assets/images/002-rc-car.png", new Remote{}},
+            new WidgetItem{"Walkie-Talkie", "assets/images/007-baby-monitor.png", new WalkieTalkie{}},
             new Submenu{"Apps", "assets/images/022-presents.png", {
-                new WidgetItem{"Torchlight", "assets/images/004-flashlight.png", new Torchlight{&window}},
-                new WidgetItem{"Paint", "assets/images/053-paint-palette.png", new PixelEditor{&window}},
+                new WidgetItem{"Torchlight", "assets/images/004-flashlight.png", new Torchlight{}},
+                new WidgetItem{"Paint", "assets/images/053-paint-palette.png", new PixelEditor{}},
                 new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
-                new WidgetItem{"Recording", "assets/images/026-magic-wand.png", new Recorder{&window}},
-                new WidgetItem{"NRF Sniffer", "assets/images/084-spy.png", new NRFSniffer{&window}},
+                new WidgetItem{"Recording", "assets/images/026-magic-wand.png", new Recorder{}},
+                new WidgetItem{"NRF Sniffer", "assets/images/084-spy.png", new NRFSniffer{}},
             }},
         }};
         //Keyboard kb{&window};

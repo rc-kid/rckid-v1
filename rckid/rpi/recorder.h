@@ -6,12 +6,11 @@
 
 class Recorder : public Widget {
 public:
-    Recorder(Window * window): Widget{window} {}
 
 protected:
 
     void onBlur() override {
-        window()->rckid()->stopRecording();
+        window().rckid()->stopRecording();
         recording_ = false;
     }
 
@@ -27,10 +26,10 @@ protected:
             ++i;
         } */
 
-        avis_.draw(window(), 0, 50, 320, 140);
+        avis_.draw(0, 50, 320, 140);
 
         if (recording_)
-            DrawTextEx(window()->helpFont(), "Recording...", 0, 25, 16, 1.0, WHITE);
+            DrawTextEx(window().helpFont(), "Recording...", 0, 25, 16, 1.0, WHITE);
     }
 
     void btnA(bool state) override {
@@ -43,11 +42,11 @@ protected:
                 memset(max_, 128, 320);
                 memset(min_, 128, 320);
                 avis_.reset();
-                window()->rckid()->startRecording();
+                window().rckid()->startRecording();
             }
         } else {
             recording_ = false;
-            window()->rckid()->stopRecording();
+            window().rckid()->stopRecording();
             f_.close();
         }
     }

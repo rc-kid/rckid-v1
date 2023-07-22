@@ -3,11 +3,11 @@
 #include "animation.h"
 
 
-void Animation::update(Window * window) {
+void Animation::update() {
     done_ = false;
     if (!running_)
         return;
-    value_ += window->redrawDelta();
+    value_ += window().redrawDelta();
     if (value_ > duration_) {
         if (! continuous_) {
             running_ = false;
@@ -19,10 +19,10 @@ void Animation::update(Window * window) {
     }
 }
 
-bool Timer::update(Window * window) {
+bool Timer::update() {
     if (!running_)
         return false;
-    value_ += window->redrawDelta();
+    value_ += window().redrawDelta();
     if (value_ >= duration_) {
         if (singleShot_)
             running_ = false;
