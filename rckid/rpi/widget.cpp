@@ -1,7 +1,10 @@
 #include "window.h"
 #include "widget.h"
 
-bool Widget::focused() const { return window().activeWidget() == this; }
+bool Widget::focused() const { 
+    Window * w = & window();
+    return (w != nullptr && w->activeWidget() == this);
+}
 
 void Widget::btnB(bool state) {
     if (state && ! window().aswap_.running())
@@ -10,7 +13,7 @@ void Widget::btnB(bool state) {
 
 void Widget::btnHome(bool state) {
     if (state && ! window().aswap_.running())
-        window().setHomeMenu(); 
+        window().showHomeMenu(); 
 }
 
 void Widget::setFooterHints() {

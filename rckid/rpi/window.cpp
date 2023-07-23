@@ -2,6 +2,7 @@
 #include "platform/platform.h"
 
 #include "carousel.h"
+#include "json_carousel.h"
 #include "keyboard.h"
 #include "debug_view.h"
 #include "gauge.h"
@@ -61,6 +62,48 @@ Window::Window() {
     InitAudioDevice();
 
     carousel_ = new Carousel{};
+    homeMenu_ = new CCarousel{new CCarousel::Menu{"", "", {
+        new CCarousel::Item{"Exit", "assets/images/011-power-off.png", [](){
+            ::exit(0);
+        }},
+        new CCarousel::Item{"Power Off", "assets/images/011-power-off.png", [](){
+            rckid().powerOff();
+        }},
+        new CCarousel::Item{"Airplane Mode", "assets/images/012-airplane-mode.png", [](){
+            // TODO
+        }},
+        new CCarousel::Item{"Brightness", "assets/images/009-brightness.png", [](){
+            static Gauge gauge{"assets/images/009-brightness.png", 0, 255, 16,
+                [](int value) { 
+                    rckid().setBrightness(value); 
+                },
+                [](Gauge * g) {
+                    g->setValue(rckid().brightness());
+                }
+            };
+            window().setWidget(&gauge);
+        }}, 
+        new CCarousel::Item{"Volume", "assets/images/010-high-volume.png", [](){
+            static Gauge gauge{"assets/images/010-high-volume.png", 0, 100, 10,
+                [](int value){
+                    rckid().setVolume(value);
+                },
+                [](Gauge * g) {
+                    g->setValue(rckid().volume());
+                }
+            };
+            window().setWidget(&gauge);
+        }},
+        new CCarousel::Item{"WiFi", "assets/images/016-wifi.png", [](){
+            // TODO
+        }},
+        new CCarousel::Item{"Debug", "assets/images/021-poo.png", [](){
+            static DebugView dbgView{};
+            window().setWidget(&dbgView);
+        }},
+
+    }}};
+    /*
     homeMenu_ = new Menu{{
         new ActionItem{"Exit", "assets/images/011-power-off.png",[](){
             ::exit(0);
@@ -88,8 +131,10 @@ Window::Window() {
         new Menu::Item{"WiFi", "assets/images/016-wifi.png"},
         new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{}},
     }};
+    */
     lastFrameTime_ = now();    
 }
+
 
 Font Window::loadFont(std::string const & filename, int size) {
     auto fname = STR(filename << "--" << size);
@@ -131,10 +176,11 @@ void Window::setWidget(Widget * widget) {
 }
 
 void Window::setMenu(Menu * menu, size_t index) {
+    /*
     if (menu == homeMenu_) {
         if (inHomeMenu_)
             return;
-    }
+    } */
     next_ = NavigationItem{menu, index};
     if (widget_ == nullptr) {
         swapWidget();
@@ -150,6 +196,11 @@ void Window::setMenu(Menu * menu, size_t index) {
     }
 }
 
+void Window::showHomeMenu() {
+    if (!homeMenu_->onNavStack())
+        setWidget(homeMenu_);
+}
+
 void Window::back(size_t numWidgets) {
     if (nav_.empty() || numWidgets == 0)
         return;
@@ -160,9 +211,9 @@ void Window::back(size_t numWidgets) {
             ASSERT(next_.widget()->onNavStack_ == true);
             next_.widget()->onNavigationPop();
             next_.widget()->onNavStack_ = false;
-        } else if (next_.menu() == homeMenu_) {
+        } /*else if (next_.menu() == homeMenu_) {
             inHomeMenu_ = false;
-        }
+        } */
         next_ = nav_.back();
         nav_.pop_back();
         --numWidgets;
@@ -185,8 +236,10 @@ void Window::swapWidget() {
         widget_->onBlur();
         if (widget_ == carousel_) {
             // if we are leaving home menu indicate
+            /*
             if (carousel_->items() == homeMenu_ && (nav_.empty() || nav_.back().menu() != homeMenu_))
                 inHomeMenu_ = false;
+            */
             carousel_->items()->onBlur();
         } else {
             if (nav_.empty() || nav_.back().widget() != widget_) {
@@ -199,8 +252,10 @@ void Window::swapWidget() {
     if (next_.kind == NavigationItem::Kind::Menu) {
         widget_ = carousel_;
         carousel_->setItems(next_.menu(), next_.menuIndex());
+        /*
         if (next_.menu() == homeMenu_)
             inHomeMenu_ = true;
+        */
     } else {
         widget_ = next_.widget();
         if (! widget_->onNavStack_) {

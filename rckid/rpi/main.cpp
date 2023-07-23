@@ -249,48 +249,7 @@ int main(int argc, char * argv[]) {
                 }
             }
         };
-        CCarousel homeMenu{new CCarousel::Menu{"", "", {
-            new CCarousel::Item{"Exit", "assets/images/011-power-off.png", [](){
-                ::exit(0);
-            }},
-            new CCarousel::Item{"Power Off", "assets/images/011-power-off.png", [](){
-                rckid().powerOff();
-            }},
-            new CCarousel::Item{"Airplane Mode", "assets/images/012-airplane-mode.png", [](){
-                // TODO
-            }},
-            new CCarousel::Item{"Brightness", "assets/images/009-brightness.png", [](){
-                static Gauge gauge{"assets/images/009-brightness.png", 0, 255, 16,
-                    [](int value) { 
-                        rckid().setBrightness(value); 
-                    },
-                    [](Gauge * g) {
-                        g->setValue(rckid().brightness());
-                    }
-                };
-                window().setWidget(&gauge);
-            }}, 
-            new CCarousel::Item{"Volume", "assets/images/010-high-volume.png", [](){
-                static Gauge gauge{"assets/images/010-high-volume.png", 0, 100, 10,
-                    [](int value){
-                        rckid().setVolume(value);
-                    },
-                    [](Gauge * g) {
-                        g->setValue(rckid().volume());
-                    }
-                };
-                window().setWidget(&gauge);
-            }},
-            new CCarousel::Item{"WiFi", "assets/images/016-wifi.png", [](){
-                // TODO
-            }},
-            new CCarousel::Item{"Debug", "assets/images/021-poo.png", [](){
-                static DebugView dbgView{};
-                window().setWidget(&dbgView);
-            }},
-
-        }}};
-        window().setWidget(&homeMenu);
+        window().setWidget(&jc);
         //window().setMenu(& menu, 0);
         window().loop();
     } catch (std::exception const & e) {

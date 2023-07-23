@@ -37,6 +37,8 @@ class Carousel;
 class Keyboard;
 class Window;
 
+class CCarousel;
+
 Window & window();
 
 class FooterItem {
@@ -97,8 +99,7 @@ public:
 
     void setWidget(Widget * widget);
     void setMenu(Menu * menu, size_t index = 0);
-    void setHomeMenu() { setMenu(homeMenu_, 0); }
-
+    void showHomeMenu();
 
     void back(size_t numWidgets = 1);
 
@@ -328,7 +329,7 @@ private:
     Keyboard * keyboard_ = nullptr;
 
     /// The home menu -- TODO should this be in window or outside of it? 
-    Menu * homeMenu_;
+    CCarousel * homeMenu_;
 
     std::vector<NavigationItem> nav_;
     bool inHomeMenu_ = false;

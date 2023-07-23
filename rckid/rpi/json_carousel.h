@@ -278,26 +278,28 @@ private:
     }
 
     void startTransition(Transition t) {
-        requestRedraw();
-        seamStart_ = window().backgroundSeam();
-        t_ = t;
-        switch (t) {
-            case Transition::Prev:
-            case Transition::Next:
-                a_.start(500);
-                return;
-            case Transition::FadeIn:
-                if (focused()) {
-                    setFooterHints();
-                    window().showFooter();
-                }
-                break;
-            case Transition::EnterFadeOut:
-            case Transition::LeaveFadeOut:
-                window().hideFooter();
-                break;
+        if (focused()) {
+            requestRedraw();
+            t_ = t;
+            switch (t) {
+                case Transition::Prev:
+                case Transition::Next:
+                    seamStart_ = window().backgroundSeam();
+                    a_.start(500);
+                    return;
+                case Transition::FadeIn:
+                    if (focused()) {
+                        setFooterHints();
+                        window().showFooter();
+                    }
+                    break;
+                case Transition::EnterFadeOut:
+                case Transition::LeaveFadeOut:
+                    window().hideFooter();
+                    break;
+            }
+            a_.start(250);
         }
-        a_.start(250);
     }
 
     /** Draws the previously created item
