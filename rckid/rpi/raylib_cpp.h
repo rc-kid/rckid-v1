@@ -26,5 +26,8 @@ inline constexpr Color RGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     return Color{r, g, b, a};
 }
 
+inline constexpr Vector2 V2(float x, float y) { return Vector2{x, y}; }
+inline constexpr Vector2 V2(int x, int y) { return Vector2{static_cast<float>(x), static_cast<float>(y)}; }
+
 
 

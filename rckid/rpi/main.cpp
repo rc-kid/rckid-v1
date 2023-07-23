@@ -28,6 +28,7 @@ struct DispmanXBackgroundLayer {
 #include "walkie_talkie.h"
 #include "remote.h"
 #include "nrf_sniffer.h"
+#include "json_carousel.h"
 
 void printLogLevel(int logLevel, std::ostream & s) {
     switch (logLevel) {
@@ -186,7 +187,9 @@ int main(int argc, char * argv[]) {
         //window.setWidget(&kb);
         //DebugView db{&window};
         //window.setWidget(&db);
-        window().setMenu(& menu, 0);
+        DirCarousel dc{"assets"};
+        //window().setMenu(& menu, 0);
+        window().setWidget(&dc);
         window().loop();
     } catch (std::exception const & e) {
         TraceLog(LOG_FATAL, e.what());

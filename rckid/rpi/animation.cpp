@@ -3,10 +3,10 @@
 #include "animation.h"
 
 
-void Animation::update() {
+bool Animation::update() {
     done_ = false;
     if (!running_)
-        return;
+        return false;
     value_ += window().redrawDelta();
     if (value_ > duration_) {
         if (! continuous_) {
@@ -17,6 +17,7 @@ void Animation::update() {
         }
         done_ = true;
     }
+    return done_;
 }
 
 bool Timer::update() {

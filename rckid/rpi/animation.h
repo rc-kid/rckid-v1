@@ -24,7 +24,9 @@ public:
 
     void setDuration(float ms) { duration_ = ms; }
 
-    void update();
+    /** Updates the aniatimation. Returns true if the animation's tick has elapsed since last call, false otherwise. If the animation is in a single shot mode, stops the amination if tick has passed. If the animation is not running, returns always false. 
+     */
+    bool update();
 
     bool running() const { return running_; }
     
