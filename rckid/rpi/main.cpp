@@ -9,6 +9,7 @@ struct DispmanXBackgroundLayer {
 
 #endif
 
+#include <unordered_map>
 
 #include "raylib_cpp.h"
 
@@ -29,6 +30,7 @@ struct DispmanXBackgroundLayer {
 #include "remote.h"
 #include "nrf_sniffer.h"
 #include "json_carousel.h"
+#include "gauge.h"
 
 void printLogLevel(int logLevel, std::ostream & s) {
     switch (logLevel) {
@@ -78,6 +80,42 @@ void logCallback(int logLevel, const char * text, va_list args) {
         logFile.flush();
     }
 }
+
+class Widgets {
+public:
+    Widgets() {
+        w_["games"] = nullptr;
+        w_["video"] = nullptr;
+        w_["music"] = nullptr;
+        w_["remote"] = new Remote{};
+        w_["walkie-talkie"] = new WalkieTalkie{};
+        w_["torchlight"] = new Torchlight{};
+        w_["paint"] = new PixelEditor{};
+        w_["baby-monitor"] = nullptr;
+        w_["recorder"] = new Recorder{};
+        w_["nrf-sniffer"] = new NRFSniffer{};
+    }
+
+    ~Widgets() {
+        for (auto i : w_)
+            delete i.second;
+    }
+
+    void start(std::string const & widgetName) {
+        auto i = w_.find(widgetName);
+        if (i != w_.end() && i->second != nullptr) {
+            window().setWidget(i->second);
+        } else {
+            // TODO unknown or unimplemented widget
+        }
+    }
+private:
+
+    std::unordered_map<std::string, Widget *> w_;
+
+
+}; // Widgets
+
 
 /** Main RCKid app. 
  
@@ -130,6 +168,8 @@ int main(int argc, char * argv[]) {
     try {
         Window::create();
         RCKid::create();
+        Widgets widgets{};
+        /*
         GamePlayer gamePlayer{};
         VideoPlayer videoPlayer{};
         MusicPlayer musicPlayer{};
@@ -182,25 +222,75 @@ int main(int argc, char * argv[]) {
                 new WidgetItem{"Recording", "assets/images/026-magic-wand.png", new Recorder{}},
                 new WidgetItem{"NRF Sniffer", "assets/images/084-spy.png", new NRFSniffer{}},
             }},
-        }};
+        }}; */
         
         //DirCarousel dc{"assets"};
         //window().setWidget(&dc);
-        JSONCarousel jc{JSONCarousel::menu("", "", {
-            JSONCarousel::item("Games", "assets/images/001-game-controller.png","{}"),
-            JSONCarousel::item("Video", "assets/images/005-film-slate.png", "{}"),
-            JSONCarousel::item("Music", "assets/images/003-music.png", "{}"),
-            JSONCarousel::item("Remote", "assets/images/002-rc-car.png", "{}"),
-            JSONCarousel::item("Walkie-Talkie", "assets/images/007-baby-monitor.png", "{}"),
-            JSONCarousel::menu("Apps", "assets/images/022-presents.png", {
-                JSONCarousel::item("Torchlight", "assets/images/004-flashlight.png", "{}"),
-                JSONCarousel::item("Paint", "assets/images/053-paint-palette.png", "{}"),
-                JSONCarousel::item("Baby Monitor", "assets/images/006-baby-crib.png", "{}"),
-                JSONCarousel::item("Recording", "assets/images/026-magic-wand.png", "{}"),
-                JSONCarousel::item("NRF Sniffer", "assets/images/084-spy.png", "{}"),
-            })
-        })};
-        window().setWidget(&jc);
+        CustomJSONCarousel jc{
+            JSONCarousel::menu("", "", {
+                JSONCarousel::item("Games", "assets/images/001-game-controller.png","{widget : games}"),
+                JSONCarousel::item("Video", "assets/images/005-film-slate.png", "{widget : video}"),
+                JSONCarousel::item("Music", "assets/images/003-music.png", "{widget : music}"),
+                JSONCarousel::item("Remote", "assets/images/002-rc-car.png", "{widget : remote}"),
+                JSONCarousel::item("Walkie-Talkie", "assets/images/007-baby-monitor.png", "{widget : \"walkie-talkkie\"}"),
+                JSONCarousel::menu("Apps", "assets/images/022-presents.png", {
+                    JSONCarousel::item("Torchlight", "assets/images/004-flashlight.png", "{widget : torchlight}"),
+                    JSONCarousel::item("Paint", "assets/images/053-paint-palette.png", "{widget : paint}"),
+                    JSONCarousel::item("Baby Monitor", "assets/images/006-baby-crib.png", "{widget : \"baby-monitor\"}"),
+                    JSONCarousel::item("Recording", "assets/images/026-magic-wand.png", "{widget : recorder}"),
+                    JSONCarousel::item("NRF Sniffer", "assets/images/084-spy.png", "{widget : \"nrf-sniffer\"}"),
+                })
+            }), 
+            [&](json::Value const & item) {
+                if (item.containsKey("widget") && item["widget"].isString()) {
+                    widgets.start(item["widget"].value<std::string>());
+                } else {
+                    // TODO error
+                }
+            }
+        };
+        CCarousel homeMenu{new CCarousel::Menu{"", "", {
+            new CCarousel::Item{"Exit", "assets/images/011-power-off.png", [](){
+                ::exit(0);
+            }},
+            new CCarousel::Item{"Power Off", "assets/images/011-power-off.png", [](){
+                rckid().powerOff();
+            }},
+            new CCarousel::Item{"Airplane Mode", "assets/images/012-airplane-mode.png", [](){
+                // TODO
+            }},
+            new CCarousel::Item{"Brightness", "assets/images/009-brightness.png", [](){
+                static Gauge gauge{"assets/images/009-brightness.png", 0, 255, 16,
+                    [](int value) { 
+                        rckid().setBrightness(value); 
+                    },
+                    [](Gauge * g) {
+                        g->setValue(rckid().brightness());
+                    }
+                };
+                window().setWidget(&gauge);
+            }}, 
+            new CCarousel::Item{"Volume", "assets/images/010-high-volume.png", [](){
+                static Gauge gauge{"assets/images/010-high-volume.png", 0, 100, 10,
+                    [](int value){
+                        rckid().setVolume(value);
+                    },
+                    [](Gauge * g) {
+                        g->setValue(rckid().volume());
+                    }
+                };
+                window().setWidget(&gauge);
+            }},
+            new CCarousel::Item{"WiFi", "assets/images/016-wifi.png", [](){
+                // TODO
+            }},
+            new CCarousel::Item{"Debug", "assets/images/021-poo.png", [](){
+                static DebugView dbgView{};
+                window().setWidget(&dbgView);
+            }},
+
+        }}};
+        window().setWidget(&homeMenu);
         //window().setMenu(& menu, 0);
         window().loop();
     } catch (std::exception const & e) {

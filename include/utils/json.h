@@ -239,6 +239,12 @@ namespace json {
 
         bool isUndefined() const { return kind_ == Kind::Undefined; }
 
+        bool isString() const { return kind_ == Kind::String; }
+
+        bool isArray() const { return kind_ == Kind::Array; }
+
+        bool isStruct() const { return kind_ == Kind::Struct; }
+
         bool operator == (Value const & other) const {
             if (kind_ != other.kind_)
                 return false;
@@ -768,6 +774,7 @@ namespace json {
                 case Token::Kind::Double:
                     return Value{t.valueDouble};
                 case Token::Kind::String:
+                case Token::Kind::Identifier:
                     return Value{std::move(t.valueStr)};
                 case Token::Kind::SquareOpen:
                     return ARRAY();

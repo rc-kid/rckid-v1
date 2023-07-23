@@ -2,6 +2,8 @@
 
 #include <filesystem>
 #include <vector>
+#include <functional>
+#include <memory>
 
 #include "utils/json.h"
 
@@ -25,11 +27,11 @@ protected:
      */
     class Item {
     public:
-        Item(Texture icon, std::string const & text):
+        Item(std::string const & text, Texture icon):
             icon{icon}, text{text} {
         }
 
-        Item(std::string const & iconFile, std::string const & text):
+        Item(std::string const & text, std::string const & iconFile):
             icon{LoadTexture(iconFile.c_str())},
             text{text} {
         }
@@ -322,71 +324,86 @@ private:
 
     Texture defaultIcon_;
 
-
 }; // BaseCarousel
 
-/** Carousel backed by a filesystem directory. 
+/** Custom carousel that can be initialized with a hierarchical menu with closured for item selections. 
  */
-class DirCarousel : public BaseCarousel {
+class CCarousel : public BaseCarousel {
 public:
+    class BaseMenu {
+    public:
+        virtual ~BaseMenu() = default;
+    protected:
+        friend class CCarousel;
 
-    DirCarousel(std::string const & root):
-        root_{root} {
-        enter(root);
-    }
+        std::string title;
+        std::string icon;
 
-protected:
+        BaseMenu(std::string title, std::string icon):
+            title{title}, icon{icon} {}
+    }; 
 
-    using DirEntry = std::filesystem::directory_entry;
-    using DirIterator = std::filesystem::directory_iterator;
-    using Path = std::filesystem::path;
-
-    struct DirInfo {
-        Path dir;
-        std::vector<DirEntry> entries;
-
-        DirInfo(Path dir):
-            dir{dir} {
-            for (auto const & entry : DirIterator{dir})
-                entries.push_back(entry);
+    class Item : public BaseMenu {
+    public:
+        Item(std::string title, std::string icon, std::function<void()> onSelect):
+            BaseMenu{title, icon},
+            onSelect{onSelect} {
         }
-
-        DirInfo(DirInfo const &) = delete;
-        DirInfo(DirInfo &&) = default;
+    protected:
+        friend class CCarousel;
+        std::function<void()> onSelect;
     };
 
-    void itemSelected(size_t index) override {
-        DirEntry & e = dirs_.back().entries[index];
-        if (e.is_directory()) {
-            enter(e.path());
+    class Menu : public BaseMenu {
+    public:
+        Menu(std::string title, std::string icon, std::initializer_list<BaseMenu *> subitems):
+            BaseMenu{title, icon} {
+            for (BaseMenu * bm : subitems)
+            items.push_back(std::unique_ptr<BaseMenu>{bm});
         }
+    protected:
+        friend class CCarousel;
+        std::vector<std::unique_ptr<BaseMenu>> items;
+    }; 
+
+    CCarousel(Menu * root):
+        root_{root} {
+        enter(root_.get());
     }
 
-    Item getItemFor(size_t index) override {
-        DirEntry & e = dirs_.back().entries[index];
-        if (e.is_directory())
-            return Item{"assets/images/014-info.png", e.path().stem()};
-        else if (e.path().extension() == ".png") 
-            return Item{e.path(), e.path().stem()};
-        else
-            return Item{dirs_.back().entries[index].path().stem()};
+    void itemSelected(size_t index) override {
+        BaseMenu * item = menu_.back()->items[index].get();
+        Item * i = dynamic_cast<Item*>(item);
+        if (i)
+            i->onSelect();
+        else 
+            enter(dynamic_cast<Menu*>(item));
     }
 
-    void enter(Path path) {
-        dirs_.emplace_back(path);
-        BaseCarousel::enter(dirs_.back().entries.size());
+    BaseCarousel::Item getItemFor(size_t index) override {
+        BaseMenu * item = menu_.back()->items[index].get();
+        if (item->icon.empty())
+            return BaseCarousel::Item{item->title};
+        else 
+            return BaseCarousel::Item{item->title, item->icon};
+    }
+
+    void enter(Menu * menu) {
+        menu_.push_back(menu);
+        BaseCarousel::enter(menu->items.size());
     }
 
     void leave() override {
-        dirs_.pop_back();
+        menu_.pop_back();
         BaseCarousel::leave();
     }
 
-    Path root_;
+private:
 
-    std::vector<DirInfo> dirs_;
+    std::vector<Menu*> menu_;
+    std::unique_ptr<Menu> root_;
+}; 
 
-}; // FolderCarousel
 
 /** Carousel-style menu backed by a JSON object. 
  
@@ -449,9 +466,9 @@ protected:
     Item getItemFor(size_t index) override {
         auto const & item = (*json_.back())[MENU_SUBITEMS][index];
         json::Value const & jsonTitle = item[MENU_TITLE];
-        std::string title{jsonTitle.kind() == json::Value::Kind::String ? jsonTitle.value<std::string>() : defaultTitle_};    
+        std::string title{jsonTitle.isString() ? jsonTitle.value<std::string>() : defaultTitle_};    
         if (item.containsKey(MENU_ICON))
-            return Item{item[MENU_ICON].value<std::string>(), title};
+            return Item{title, item[MENU_ICON].value<std::string>()};
         else
             return Item{title};
     }
@@ -469,4 +486,87 @@ protected:
     std::string defaultTitle_{"???"};
     json::Value root_;
     std::vector<json::Value *> json_; 
-}; 
+}; // JSONCarousel
+
+/** JSON backed carousel with a closure being called every time a leaf item is selected. 
+ 
+    Useful for creating ad hoc json-backed menus. 
+*/
+class CustomJSONCarousel : public JSONCarousel {
+public:
+    CustomJSONCarousel(json::Value json, std::function<void(json::Value const &)> onSelect):
+        JSONCarousel{json},
+        onSelect_{onSelect} {
+    }
+
+private:
+
+    void itemSelected(size_t index, json::Value const & json) override { onSelect_(json); }
+
+    std::function<void(json::Value const &)> onSelect_;
+}; // CustomJSONCarousel
+
+/** Carousel backed by a filesystem directory. 
+ 
+    Show folders and files within. Useful for browsing the disk, can be used as a basic building block for file explorer. 
+ */
+class DirCarousel : public BaseCarousel {
+public:
+
+    DirCarousel(std::string const & root):
+        root_{root} {
+        enter(root);
+    }
+
+protected:
+
+    using DirEntry = std::filesystem::directory_entry;
+    using DirIterator = std::filesystem::directory_iterator;
+    using Path = std::filesystem::path;
+
+    struct DirInfo {
+        Path dir;
+        std::vector<DirEntry> entries;
+
+        DirInfo(Path dir):
+            dir{dir} {
+            for (auto const & entry : DirIterator{dir})
+                entries.push_back(entry);
+        }
+
+        DirInfo(DirInfo const &) = delete;
+        DirInfo(DirInfo &&) = default;
+    };
+
+    void itemSelected(size_t index) override {
+        DirEntry & e = dirs_.back().entries[index];
+        if (e.is_directory()) {
+            enter(e.path());
+        }
+    }
+
+    Item getItemFor(size_t index) override {
+        DirEntry & e = dirs_.back().entries[index];
+        if (e.is_directory())
+            return Item{"assets/images/014-info.png", e.path().stem()};
+        else if (e.path().extension() == ".png") 
+            return Item{e.path().stem(), e.path()};
+        else
+            return Item{e.path().stem()};
+    }
+
+    void enter(Path path) {
+        dirs_.emplace_back(path);
+        BaseCarousel::enter(dirs_.back().entries.size());
+    }
+
+    void leave() override {
+        dirs_.pop_back();
+        BaseCarousel::leave();
+    }
+
+    Path root_;
+
+    std::vector<DirInfo> dirs_;
+
+}; // DirCarousel
