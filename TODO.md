@@ -110,3 +110,5 @@
 # New UI
 
 Have all resources managed by the canvas, which makes the cost of extra widgets non-existent. Then have special widgets. 
+
+- make the transition effect of the same length as window's transition

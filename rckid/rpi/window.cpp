@@ -122,6 +122,8 @@ void Window::setWidget(Widget * widget) {
             nav_.push_back(NavigationItem(widget_));
         transition_ = Transition::FadeOut;
         aswap_.start();
+        tFooter_ = Transition::FadeOut;
+        aFooter_.start();
         // if we are swapping for a fullscreen widget, hide header in sync with footer
         if (widget->fullscreen())
             hideHeader();
@@ -143,6 +145,8 @@ void Window::setMenu(Menu * menu, size_t index) {
             nav_.push_back(NavigationItem(widget_));
         transition_ = Transition::FadeOut;
         aswap_.start();
+        tFooter_ = Transition::FadeOut;
+        aFooter_.start();
     }
 }
 
@@ -170,6 +174,9 @@ void Window::back(size_t numWidgets) {
     } else {
         transition_ = Transition::FadeOut;
         aswap_.start();
+        tFooter_ = Transition::FadeOut;
+        aFooter_.start();
+
     }
 }
 
@@ -201,14 +208,16 @@ void Window::swapWidget() {
             widget_->onNavStack_ = true;
         }
     }
-    resetFooter();
     widget_->onFocus();
+    widget_->setFooterHints();
     if (widget_ == carousel_)
         carousel_->items()->onFocus();
     transition_ = Transition::FadeIn;
     if (!widget_->fullscreen())
         showHeader();
     aswap_.start();
+    tFooter_ = Transition::FadeIn;
+    aFooter_.start();
     // always redraw header when swapping a widget, just to be sure
     redrawHeader_ = true;
     // and require redraw
@@ -326,6 +335,7 @@ void Window::draw() {
     lastFrameTime_ = t;
     aswap_.update();
     aheader_.update();
+    aFooter_.update();
 
     bool redraw = false;
 
@@ -412,18 +422,16 @@ void Window::draw() {
 #endif
         ::Color widgetAlpha = WHITE;
         float footerOffset = 0;
-        switch (transition_) {
+        switch (tFooter_) {
             case Transition::FadeIn:
-                footerOffset = aswap_.interpolate(20, 0);
-                widgetAlpha = ColorAlpha(widgetAlpha, aswap_.interpolate(0.0f, 1.0f, Interpolation::Linear));
-                if (aswap_.done()) 
-                    transition_ = Transition::None;
+                footerOffset = aFooter_.interpolate(20, 0);
+                if (aFooter_.done()) 
+                    tFooter_ = Transition::None;
                 break;
             case Transition::FadeOut:
-                footerOffset = aswap_.interpolate(0, 20);
-                widgetAlpha = ColorAlpha(widgetAlpha, aswap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
-                if (aswap_.done())
-                    swapWidget();
+                footerOffset = aFooter_.interpolate(0, 20);
+                if (aFooter_.done())
+                    tFooter_ = Transition::None;
                 break;
             default:
                 break;
@@ -443,7 +451,18 @@ void Window::draw() {
                 }
                 break;
         }
-
+        switch (transition_) {
+            case Transition::FadeIn:
+                widgetAlpha = ColorAlpha(widgetAlpha, aswap_.interpolate(0.0f, 1.0f, Interpolation::Linear));
+                if (aswap_.done())
+                    transition_ = Transition::None;
+                break;
+            case Transition::FadeOut:
+                widgetAlpha = ColorAlpha(widgetAlpha, aswap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
+                if (aswap_.done())
+                    swapWidget();
+                break;
+        }
         BeginDrawing();
         ClearBackground(ColorAlpha(BLACK, 0.0));
         if (backgroundOpacity_ == 255) {
@@ -456,7 +475,7 @@ void Window::draw() {
         DrawTextureRec(widgetCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, widgetAlpha);
         if (headerVisible_)
             DrawTextureRec(headerCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0, -headerOffset}, WHITE);
-        if (widget_ == nullptr || ! widget_->fullscreen())
+        if ((footerVisible_ || aFooter_.running()) && (widget_ == nullptr || ! widget_->fullscreen()))
             DrawTextureRec(footerCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0, footerOffset}, WHITE);
 #if (defined RENDERING_STATS)
         auto astats = now();

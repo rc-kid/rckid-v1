@@ -56,7 +56,8 @@ protected:
         DrawTextEx(f_, text, p.first + (KEY_WIDTH - size.x) / 2, p.second, KEY_HEIGHT, 1.0, WHITE);
     }
 
-    void onFocus() override {
+    void setFooterHints() override {
+        Widget::setFooterHints();
         window().addFooterItem(FooterItem::A("Enter"));
         window().addFooterItem(FooterItem::X("Aa1"));
         window().addFooterItem(FooterItem::Y("<-"));

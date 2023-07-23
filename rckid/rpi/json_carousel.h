@@ -78,8 +78,7 @@ protected:
 
     virtual void enter(size_t numItems) {
         pos_.emplace_back(numItems);
-        if (pos_.size() > 1)
-            startTransition(Transition::EnterFadeOut);
+        startTransition(pos_.size() == 1 ? Transition::FadeIn : Transition::EnterFadeOut);
     }
 
     virtual void leave() {
@@ -90,7 +89,12 @@ protected:
         }
     }
 
-    
+    void setFooterHints() override {
+        // don't call the Widget's set footer as we do the reset ourselves
+        window().resetFooter(/* forceBack */ pos_.size() > 1);
+        window().addFooterItem(FooterItem::A("Select"));
+    }
+
 
     void draw() override {
         a_.update();
@@ -162,26 +166,7 @@ protected:
             goToNext();
     }
 
-
-
-/*
-    void setPosition(size_t index) {
-        ASSERT(index < pos().numItems);
-        pos().current = index;
-    }
-
-    void resetPosition(size_t numItems) {
-        if (pos_.empty())
-            pos_.emplace_back(numItems);
-        else
-            pos_.back().reset(numItems);
-    }
-*/
-
 private:
-
-
-
 
     /** Currently animated transition. 
      */
@@ -204,6 +189,7 @@ private:
         int textWidth;
         int tX;
         int tY;
+        bool alphaBlend = false;
 
         CachedItem(Item && item):
             Item{std::move(item)} {
@@ -214,6 +200,8 @@ private:
                 if (icon.height <= 128) {
                     iY = 88 - icon.height / 2;
                 } else  {
+                    // the text might cover some of the icon, set alpha blending instead of the default additive blending that would be used over transparent background
+                    alphaBlend = true;
                     if (icon.height > 240)
                         iScale = 240.f / icon.height;
                     else
@@ -261,13 +249,6 @@ private:
 
         CachedPosition(CachedPosition const &) = delete;
 
-        /*
-        void reset(size_t numItems) {
-            this->numItems = numItems;
-            current = 0;
-            items.clear();
-            itemr.resize(numItems);
-        } */
         size_t prev() const { return current != 0 ? current - 1 : numItems - 1; }
         size_t next() const { return current != numItems - 1 ? current + 1 : 0; }
     }; 
@@ -297,6 +278,18 @@ private:
         seamStart_ = window().backgroundSeam();
         a_.start();
         t_ = t;
+        switch (t) {
+            case Transition::FadeIn:
+                if (focused()) {
+                    setFooterHints();
+                    window().showFooter();
+                }
+                break;
+            case Transition::EnterFadeOut:
+            case Transition::LeaveFadeOut:
+                window().hideFooter();
+                break;
+        }
     }
 
     /** Draws the previously created item
@@ -307,8 +300,11 @@ private:
         Color c{RGBA(255, 255, 255, alpha)};
         if (item->iScale == 1.0)
             DrawTexture(item->useDefaultIcon() ? defaultIcon_ : item->icon, item->iX + offset, item->iY, c);
-        else 
+        else
             DrawTextureEx(item->icon, V2(item->iX + offset, item->iY), 0, item->iScale, c);
+        // switch to alpha-blending to make the text visible over full screen-ish images
+        if (item->alphaBlend)
+            BeginBlendMode(BLEND_ALPHA);
         DrawTextEx(item->font, item->text.c_str(), item->tX + 2 * offset, item->tY, item->font.baseSize, 1.0, c);
     } 
 

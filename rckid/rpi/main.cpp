@@ -183,13 +183,9 @@ int main(int argc, char * argv[]) {
                 new WidgetItem{"NRF Sniffer", "assets/images/084-spy.png", new NRFSniffer{}},
             }},
         }};
-        //Keyboard kb{&window};
-        //window.setWidget(&kb);
-        //DebugView db{&window};
-        //window.setWidget(&db);
         DirCarousel dc{"assets"};
-        //window().setMenu(& menu, 0);
         window().setWidget(&dc);
+        //window().setMenu(& menu, 0);
         window().loop();
     } catch (std::exception const & e) {
         TraceLog(LOG_FATAL, e.what());

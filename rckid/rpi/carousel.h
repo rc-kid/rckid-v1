@@ -29,7 +29,8 @@ public:
 
 protected:
 
-    void onFocus() override {
+    void setFooterHints() override {
+        Widget::setFooterHints();
         window().addFooterItem(FooterItem::A("Select"));
     }
 

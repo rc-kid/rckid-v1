@@ -9,6 +9,7 @@ class RCKid;
  */
 class Widget {
 public:
+    bool focused() const;
 protected:
 
     friend class RCKid;
@@ -72,8 +73,17 @@ protected:
      */
     virtual void nrfTxCallback(bool ok) {}
 
+
+    /** Updates the widget's footer shortcut information. 
+     
+        Called automatically by the framework when the widget is focused, but can also be called programatically if the information changes. 
+     */
+    virtual void setFooterHints();
+
     void requestRedraw() { redraw_ = true; }
     void cancelRedraw() { redraw_ = false; }
+
+
 
 private: 
 

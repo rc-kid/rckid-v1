@@ -102,6 +102,12 @@ public:
 
     void back(size_t numWidgets = 1);
 
+    /** Number of widgets in the navigation stack. 
+     
+        Number greater than 0 will display the back key icon in the footer automatically. 
+     */
+    size_t navSize() const { return nav_.size(); }
+
     /** Returns current active widget.  
      */
     Widget * activeWidget() const { return widget_; }
@@ -110,9 +116,9 @@ public:
      */    
     float redrawDelta() const { return redrawDelta_; }
 
-    void resetFooter() {
+    void resetFooter(bool forceBack = false) {
         footer_.clear();
-        if (nav_.size() > 0)
+        if (nav_.size() > 0 || forceBack)
             addFooterItem(FooterItem::B("Back"));
         redrawFooter_ = true;
     }
@@ -122,10 +128,21 @@ public:
         footer_.push_back(item);
         redrawFooter_ = true;
     }
+    
+    void showFooter() {
+        if (!footerVisible_) {
+            tFooter_ = Transition::FadeIn;
+            aFooter_.start();
+            footerVisible_ = true;
+        }
+    }
 
-    void clearFooter() {
-        footer_.clear();
-        redrawFooter_ = true;
+    void hideFooter() {
+        if (footerVisible_) {
+            tFooter_ = Transition::FadeOut;
+            aFooter_.start();
+            footerVisible_ = false;
+        }
     }
 
     void showHeader() {
@@ -346,6 +363,9 @@ private:
     Transition header_ = Transition::None;
     bool headerVisible_ = true;
 
+    Animation aFooter_{250};
+    Transition tFooter_ = Transition::None;
+    bool footerVisible_ = true;
 
     static constexpr int GLYPHS[] = {
         32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations
