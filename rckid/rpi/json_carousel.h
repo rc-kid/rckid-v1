@@ -56,6 +56,8 @@ protected:
 
     }; 
 
+    bool busy() const { return a_.running(); }
+
     /** Creates the information about the index-th item. 
      
         The item consists of the icon and the title and must be implemented in the data providing subclasses. 
@@ -147,22 +149,22 @@ protected:
     }
 
     void btnA(bool state) override {
-        if (state)
+        if (state && !busy())
             itemSelected(pos().current);
     }
 
     void btnB(bool state) override {
-        if (state)
+        if (state && !busy())
             leave();
     }
 
     void dpadLeft(bool state) override {
-        if (state)
+        if (state && !busy())
             goToPrev();
     }
 
     void dpadRight(bool state) override {
-        if (state)
+        if (state && !busy())
             goToNext();
     }
 
@@ -276,9 +278,12 @@ private:
     void startTransition(Transition t) {
         requestRedraw();
         seamStart_ = window().backgroundSeam();
-        a_.start();
         t_ = t;
         switch (t) {
+            case Transition::Prev:
+            case Transition::Next:
+                a_.start(500);
+                return;
             case Transition::FadeIn:
                 if (focused()) {
                     setFooterHints();
@@ -290,6 +295,7 @@ private:
                 window().hideFooter();
                 break;
         }
+        a_.start(250);
     }
 
     /** Draws the previously created item
@@ -382,131 +388,85 @@ protected:
 
 }; // FolderCarousel
 
-
-
-#ifdef FOO
-
-    void draw() override {
-        if (a_.update()) 
-            t_ = Transition::None;
-        switch (t_) {
-            case Transition::None:
-                drawItem(cachedItems[i_], 0, 255);
-                cancelRedraw();
-                break;
-            // when the transition is to the left item, the current item is on the left and we are moving right, i.e. current item's offset moves from -320 to 0 and the rightOf (previously current) moves from 0 to 320. The animation moves to the *right*
-            case Transition::Left: {
-                int offset = a_.interpolate(0, Window_WIDTH);
-                window().setBackgroundSeam(seamStart_ + offset / 4);
-                drawItem(item(rightOf()), offset, 255);
-                drawItem(item(i_), offset - Window_WIDTH, 255);                
-                break;
-            }
-            // for right transition, the current item is on the right and we move to the left, i.e. the leftOf item starts at 0 and goes to -320, while the current item starts at 320 and goes to 0
-            case Transition::Right: {
-                int offset = a_.interpolate(0, Window_WIDTH);
-                window().setBackgroundSeam(seamStart_ - offset / 4);
-                drawItem(item(leftOf()), - offset, 255);
-                drawItem(item(i_), Window_WIDTH - offset, 255);                
-                break;
-            }
-            // TODO in & out
-        }
-    }
-
-    /** Gets the index-th item information, guaranteed to be executed only once per item and then cached for as long as the item's location stays in the navigation stack. 
-     */
-    virtual Item getItemFor(size_t index) = 0;
-
-    virtual void back() { }
-
-    virtual Position next() = 0;
-
-private:
-
-    size_t current() { return pos_.back(); }
-    size_t leftOf(size_t i) { return i == 0 ? (numItems_ - 1) : i_ - 1; }
-    size_t rightOf(size_t i) { return i == numItems_ - 1 ? 0 : i_ + 1; }
-    
-    Item * item(size_t i) { 
-        if (cachedItems_[i] == nullptr)
-            cachedItems_[i] = new CachedItem{getItemFor(i)};
-        return cachedItems_[i];
-    }
-
-
-    /** Currently animated transition. 
-     */
-    enum class Transition {
-        Left, 
-        Right,
-        In, 
-        Out,  
-        None, 
-    }; 
-
-
-    /** Cached wraps the user returned item with extra bookkeeping for speedy rendering. 
-     */
-    struct CachedItem: Item {
-        int iX;
-        int iY;
-
-        Font font;
-        int textWidth;
-        int tX;
-        int tY;
-
-        CachedItem(Item && item):
-            Item{std::move(item)} {
-            
-        }
-    }; 
-
-    struct CachedPosition : Position {
-        std::vector<Item *> cachedItems_;
-    }; 
-
-    std::vector<CachedPosition> position_;
-
-    Transition t_ = Transition::None;
-    Animation a_;
-}; // BaseCarousel
-
-
-
-#endif
-
 /** Carousel-style menu backed by a JSON object. 
  
     The JSON object must be an array of items, which are interpreted as items. Each item must be a JSON object that should contain the following:
 
     {
-        "title" : "Title text",
-        "icon" : "icon filename"
+        "menu_title" : "Title text",
+        "menu_icon" : "icon filename",
+        "menu_subitems" : [], 
     }
 
     If the icon, or the title are missing a default value is displayed -- but missing on both is very likely an error. The item is either a leaf item, in which case the custom onItemSelected method of the carousel is called when the item is selected (button A), or can be a menu itself, which happens if 
-
-    
-
  */
-#ifdef FOO
-class JSONCarousel : public Widget {
+class JSONCarousel : public BaseCarousel {
 public:
+    static inline std::string const MENU_TITLE{"menu_title"};
+    static inline std::string const MENU_ICON{"menu_icon"};
+    static inline std::string const MENU_SUBITEMS{"menu_subitems"};
 
+    JSONCarousel(json::Value root): root_{std::move(root)} {
+        enter(& root_);
+    }
 
+    static json::Value item(std::string const & title, std::string const & icon, std::string const & fields) {
+        json::Value result = json::parse(fields);
+        result.insert(MENU_TITLE, json::Value{title});
+        result.insert(MENU_ICON, json::Value{icon});
+        return result;
+    }
+
+    static json::Value item(std::string const & title, std::string const & fields) {
+        json::Value result = json::parse(fields);
+        result.insert(MENU_TITLE, json::Value{title});
+        return result;
+    }
+
+    static json::Value menu(std::string const & title, std::string const & icon, std::initializer_list<json::Value> subitems) {
+        json::Value result = json::Value::newStruct();
+        json::Value items = json::Value::newArray();
+        for (auto i : subitems)
+            items.push(i);
+        result.insert(MENU_TITLE, json::Value{title});
+        result.insert(MENU_ICON, json::Value{icon});
+        result.insert(MENU_SUBITEMS, items);
+        return result;
+    }
 
 protected:
 
-    /** Called when a leaf item (non-array) is selected */
-    virtual void onItemSelected(json::Value & value) {}
+    void itemSelected(size_t index) override {
+        json::Value & item = (*json_.back())[MENU_SUBITEMS][index];
+        if (item.containsKey(MENU_SUBITEMS))
+            enter(& item);
+        else 
+            itemSelected(index, item);
+    }
 
-    json::Value json_;
-    json::Value * current_ = nullptr;
-    std::vector<size_t> position;
+    virtual void itemSelected(size_t index, json::Value const & json) {}
+
+    Item getItemFor(size_t index) override {
+        auto const & item = (*json_.back())[MENU_SUBITEMS][index];
+        json::Value const & jsonTitle = item[MENU_TITLE];
+        std::string title{jsonTitle.kind() == json::Value::Kind::String ? jsonTitle.value<std::string>() : defaultTitle_};    
+        if (item.containsKey(MENU_ICON))
+            return Item{item[MENU_ICON].value<std::string>(), title};
+        else
+            return Item{title};
+    }
+
+    void enter(json::Value * value) {
+        json_.push_back(value);
+        BaseCarousel::enter((*value)[MENU_SUBITEMS].size());
+    }
+
+    void leave() override {
+        json_.pop_back();
+        BaseCarousel::leave();
+    }
+
+    std::string defaultTitle_{"???"};
+    json::Value root_;
+    std::vector<json::Value *> json_; 
 }; 
-
-
-
-#endif

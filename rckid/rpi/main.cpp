@@ -183,8 +183,24 @@ int main(int argc, char * argv[]) {
                 new WidgetItem{"NRF Sniffer", "assets/images/084-spy.png", new NRFSniffer{}},
             }},
         }};
-        DirCarousel dc{"assets"};
-        window().setWidget(&dc);
+        
+        //DirCarousel dc{"assets"};
+        //window().setWidget(&dc);
+        JSONCarousel jc{JSONCarousel::menu("", "", {
+            JSONCarousel::item("Games", "assets/images/001-game-controller.png","{}"),
+            JSONCarousel::item("Video", "assets/images/005-film-slate.png", "{}"),
+            JSONCarousel::item("Music", "assets/images/003-music.png", "{}"),
+            JSONCarousel::item("Remote", "assets/images/002-rc-car.png", "{}"),
+            JSONCarousel::item("Walkie-Talkie", "assets/images/007-baby-monitor.png", "{}"),
+            JSONCarousel::menu("Apps", "assets/images/022-presents.png", {
+                JSONCarousel::item("Torchlight", "assets/images/004-flashlight.png", "{}"),
+                JSONCarousel::item("Paint", "assets/images/053-paint-palette.png", "{}"),
+                JSONCarousel::item("Baby Monitor", "assets/images/006-baby-crib.png", "{}"),
+                JSONCarousel::item("Recording", "assets/images/026-magic-wand.png", "{}"),
+                JSONCarousel::item("NRF Sniffer", "assets/images/084-spy.png", "{}"),
+            })
+        })};
+        window().setWidget(&jc);
         //window().setMenu(& menu, 0);
         window().loop();
     } catch (std::exception const & e) {
