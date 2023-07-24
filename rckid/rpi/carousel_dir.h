@@ -44,7 +44,7 @@ protected:
     Item getItemFor(size_t index) override {
         DirEntry & e = dirs_.back().entries[index];
         if (e.is_directory())
-            return Item{"assets/images/014-info.png", e.path().stem()};
+            return Item{e.path().stem(), "assets/images/014-info.png"};
         else if (e.path().extension() == ".png") 
             return Item{e.path().stem(), e.path()};
         else
@@ -67,3 +67,18 @@ protected:
     std::vector<DirInfo> dirs_;
 
 }; // DirCarousel
+
+/** A very simple file explorer. 
+ */
+class FileExplorer : public DirCarousel {
+public:
+    FileExplorer(std::string const & root):
+        DirCarousel{root} {
+    }
+protected:
+    void setFooterHints() override  {
+        DirCarousel::setFooterHints();
+        window().addFooterItem(FooterItem::Select("Menu"));
+    }
+
+}; 

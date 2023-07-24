@@ -29,7 +29,10 @@ struct DispmanXBackgroundLayer {
 #include "remote.h"
 #include "nrf_sniffer.h"
 #include "carousel_json.h"
+#include "carousel_dir.h"
 #include "gauge.h"
+
+#include "menu.h"
 
 void printLogLevel(int logLevel, std::ostream & s) {
     switch (logLevel) {
@@ -93,6 +96,7 @@ public:
         w_["baby-monitor"] = nullptr;
         w_["recorder"] = new Recorder{};
         w_["nrf-sniffer"] = new NRFSniffer{};
+        w_["file-explorer"] = new FileExplorer{"/rckid"};
     }
 
     ~Widgets() {
@@ -181,6 +185,7 @@ int main(int argc, char * argv[]) {
                     JSONCarousel::item("Baby Monitor", "assets/images/006-baby-crib.png", "{widget : \"baby-monitor\"}"),
                     JSONCarousel::item("Recording", "assets/images/026-magic-wand.png", "{widget : recorder}"),
                     JSONCarousel::item("NRF Sniffer", "assets/images/084-spy.png", "{widget : \"nrf-sniffer\"}"),
+                    JSONCarousel::item("File Explorer", "assets/images/070-pen-drive.png", "{widget : \"file-explorer\" }"),
                 })
             }), 
             [&](json::Value const & item) {
@@ -191,7 +196,9 @@ int main(int argc, char * argv[]) {
                 }
             }
         };
-        window().showWidget(&mainMenu);
+        //window().showWidget(&mainMenu);
+        Menu m{{"hello", "World", "foobar", "This is so good!"}};
+        window().showWidget(&m);
         window().loop();
     } catch (std::exception const & e) {
         TraceLog(LOG_FATAL, e.what());

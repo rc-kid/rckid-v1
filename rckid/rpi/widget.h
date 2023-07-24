@@ -85,8 +85,6 @@ protected:
     void requestRedraw() { redraw_ = true; }
     void cancelRedraw() { redraw_ = false; }
 
-
-
 private: 
 
     friend class Window;
@@ -97,4 +95,3 @@ private:
     bool redraw_ = true;
 
 }; // Widget
-

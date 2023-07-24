@@ -52,10 +52,11 @@ public:
         text_{text} {
     }
 
-    static FooterItem A(std::string const & text) { return FooterItem(Control::A, text); }
-    static FooterItem B(std::string const & text) { return FooterItem(Control::B, text); }
-    static FooterItem X(std::string const & text) { return FooterItem(Control::X, text); }
-    static FooterItem Y(std::string const & text) { return FooterItem(Control::Y, text); }
+    static FooterItem A(std::string const & text) { return FooterItem{Control::A, text}; }
+    static FooterItem B(std::string const & text) { return FooterItem{Control::B, text}; }
+    static FooterItem X(std::string const & text) { return FooterItem{Control::X, text}; }
+    static FooterItem Y(std::string const & text) { return FooterItem{Control::Y, text}; }
+    static FooterItem Select(std::string const & text) { return FooterItem{Control::Select, text}; }
 
 private:
 
@@ -92,7 +93,6 @@ public:
 
     void showWidget(Widget * widget);
     void showHomeMenu();
-
     void back(size_t numWidgets = 1);
 
     /** Number of widgets in the navigation stack. 
@@ -100,6 +100,10 @@ public:
         Number greater than 0 will display the back key icon in the footer automatically. 
      */
     size_t navSize() const { return nav_.size(); }
+
+    /** Displays the widget modally, i.e. over the currently active widget. 
+     */
+    void showModal(Widget * widget);
 
     /** Returns current active widget.  
      */
@@ -161,6 +165,7 @@ public:
 
     Font const & menuFont() const { return menuFont_; }
     Font const & helpFont() const { return helpFont_; }
+    Font const & headerFont() const { return headerFont_; }
 
     void enableBackground(bool value) { backgroundOpacity_ = value ? 255 : 0; }
 
@@ -265,15 +270,24 @@ private:
     Font menuFont_;
     std::unordered_map<std::string, Font> fonts_;
 
+
+    Animation aSwap_{WIDGET_FADE_TIME};
+    Transition tSwap_ = Transition::None;
+
     /** Widget navigation stack. 
      */    
     std::vector<Widget*> nav_;
 
+    Animation aModal_{WIDGET_FADE_TIME};
+    Transition tMOdal_ = Transition::None; 
+
+    /** The stack of modal widgets. 
+     */
+    std::vector<Widget*> modalNav_;
+
     /// The home menu -- TODO should this be in window or outside of it? 
     Carousel * homeMenu_;
 
-    Animation aSwap_{WIDGET_FADE_TIME};
-    Transition tSwap_ = Transition::None;
 
     Texture2D background_;
     int backgroundSeam_ = 160;
@@ -283,6 +297,7 @@ private:
     */
     RenderTexture2D backgroundCanvas_;
     RenderTexture2D widgetCanvas_;
+    RenderTexture2D modalCanvas_;
     RenderTexture2D headerCanvas_;
     RenderTexture2D footerCanvas_;
 

@@ -31,3 +31,13 @@ inline constexpr Vector2 V2(int x, int y) { return Vector2{static_cast<float>(x)
 
 
 
+inline constexpr Rectangle RECT(int x, int y, int width, int height) { 
+    return Rectangle{
+        static_cast<float>(x), 
+        static_cast<float>(y), 
+        static_cast<float>(width), 
+        static_cast<float>(height), 
+    };
+}
+
+

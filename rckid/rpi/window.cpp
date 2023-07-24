@@ -25,6 +25,10 @@ int FooterItem::draw(Window * window, int x, int y) const {
             DrawCircle(x + 10, y + 10, 6, GREEN);
             x += 20;
             break;
+        case Control::Select:
+            DrawRectangleRounded(RECT(x + 7, y + 4, 6, 12), 1, 6, WHITE);
+            x += 20;
+            break;
     }
     DrawTextEx(window->helpFont(), text_.c_str(), x, y + (20 - textSize_.y) / 2 , 16, 1.0, WHITE);
     x += textSize_.x + 5;
@@ -47,6 +51,7 @@ Window::Window() {
     background_ = LoadTexture("assets/backgrounds/unicorns-black.png");
     backgroundCanvas_ = LoadRenderTexture(640, 240);
     widgetCanvas_ = LoadRenderTexture(320, 240);
+    modalCanvas_ = LoadRenderTexture(320, 240);
     headerCanvas_ = LoadRenderTexture(320, 240);
     footerCanvas_ = LoadRenderTexture(320, 240);
     BeginTextureMode(backgroundCanvas_);
@@ -131,6 +136,24 @@ void Window::showHomeMenu() {
         showWidget(homeMenu_);
 }
 
+void Window::back(size_t numWidgets) {
+    // can't go back from the only widget in the navstack
+    if (nav_.size() < 2)
+        return;
+    // if we want to leave multiple widgets, unroll them while we can
+    while (numWidgets > 0) {
+        if (nav_.size() <= 1)
+            break;
+        leave(nav_.back());
+        nav_.pop_back();
+        --numWidgets;
+    }
+}
+
+void Window::showModal(Widget * widget) {
+    modalNav_.push_back(widget); 
+}
+
 void Window::enter(Widget * widget) {
     ASSERT(nav_.back() == widget);
     ASSERT(!widget->onNavStack());
@@ -160,20 +183,6 @@ void Window::leave(Widget * widget) {
     aSwap_.start();
     // hide the footer with the widget as well (enter will show it again)
     hideFooter();
-}
-
-void Window::back(size_t numWidgets) {
-    // can't go back from the only widget in the navstack
-    if (nav_.size() < 2)
-        return;
-    // if we want to leave multiple widgets, unroll them while we can
-    while (numWidgets > 0) {
-        if (nav_.size() <= 1)
-            break;
-        leave(nav_.back());
-        nav_.pop_back();
-        --numWidgets;
-    }
 }
 
 void Window::loop() {
