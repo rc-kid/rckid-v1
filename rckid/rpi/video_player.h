@@ -22,7 +22,7 @@ public:
         std::string path = video["path"].value<std::string>();
         player_ = utils::Process::capture(utils::Command{"cvlc", { "-I", "rc", path}});
         playing_ = true;
-        window().setWidget(this);
+        window().showWidget(this);
     }
 
 protected:

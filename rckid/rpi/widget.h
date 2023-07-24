@@ -1,6 +1,7 @@
 #pragma once
 
 #include "raylib_cpp.h"
+#include "events.h"
 
 class Window;
 class RCKid;

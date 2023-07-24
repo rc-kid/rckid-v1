@@ -2,7 +2,7 @@
 
 #include "widget.h"
 #include "window.h"
-#include "menu.h"
+#include "carousel.h"
 
 #include "platform/platform.h"
 
@@ -28,17 +28,24 @@ class GamePlayer : public Widget {
 public:
 
     GamePlayer(): 
-        gameMenu_{{
-            new ActionItem{"Resume", "assets/images/066-play.png", [](){
+        gameMenu_{new Carousel::Menu{"", "", {
+            new Carousel::Item{"Resume", "assets/images/066-play.png", [](){
                 window().back();
             }},
-            new Menu::Item{"Save", "assets/images/072-diskette.png"},
-            new Menu::Item{"Load", "assets/images/070-open.png"},
-            new Menu::Item{"Screenshot", "assets/images/064-screenshot.png"},
-            new ActionItem{"Exit", "assets/images/065-stop.png", [](){
-                window().back(2);
+            new Carousel::Item{"Save", "assets/images/072-diskette.png", [](){
+                // TODO
             }},
-        }}  {}
+            new Carousel::Item{"Load", "assets/images/070-open.png", [](){
+                // TODO
+            }},
+            new Carousel::Item{"Screenshot", "assets/images/064-screenshot.png", [](){
+                // TODO
+            }},
+            new Carousel::Item{"Exit", "assets/images/065-stop.png", [](){
+                window().back(2);
+            }}
+        }}} {
+        }
 
     bool fullscreen() const { return true; }
 
@@ -65,7 +72,7 @@ public:
 #else
         emulator_ = utils::Process::start(utils::Command{"glxgears"});
 #endif
-        window().setWidget(this);
+        window().showWidget(this);
     }
 
 protected:
@@ -117,7 +124,7 @@ protected:
 
     void btnHome(bool state) {
         if (state)
-            window().setMenu(& gameMenu_, 0);
+            window().showWidget(& gameMenu_);
     }
 
     std::string libretroCoreForPath(std::string const & path) {
@@ -148,7 +155,7 @@ protected:
 
     utils::Process emulator_;
 
-    Menu gameMenu_;
+    Carousel gameMenu_;
     
 
 }; // RetroArch

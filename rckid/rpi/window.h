@@ -15,7 +15,6 @@
 
 #include "raylib_cpp.h"
 #include "events.h"
-#include "menu.h"
 #include "animation.h"
 #include "widget.h"
 #include "rckid.h"
@@ -36,8 +35,6 @@ static constexpr char const * MENU_FONT = "OpenDyslexicNF.otf";
 class Carousel;
 class Keyboard;
 class Window;
-
-class CCarousel;
 
 Window & window();
 
@@ -93,12 +90,7 @@ public:
 
     void loop(); 
 
-    /** Displays a modal text prompt with the keyboard widget. Calls the provided callback when the input value is confirmed.
-     */
-    void prompt(std::string const & prompt, std::string value, std::function<void(std::string)> callback);
-
-    void setWidget(Widget * widget);
-    void setMenu(Menu * menu, size_t index = 0);
+    void showWidget(Widget * widget);
     void showHomeMenu();
 
     void back(size_t numWidgets = 1);
@@ -111,7 +103,11 @@ public:
 
     /** Returns current active widget.  
      */
-    Widget * activeWidget() const { return widget_; }
+    Widget * activeWidget() const {
+        if (nav_.empty())
+            return nullptr;
+        return aSwap_.running() ? nullptr : nav_.back(); 
+    }
 
     /** Returns the time increase since drawing of the last frame begun in milliseconds. Useful for advancing animations and generally keeping pace. 
      */    
@@ -119,7 +115,7 @@ public:
 
     void resetFooter(bool forceBack = false) {
         footer_.clear();
-        if (nav_.size() > 0 || forceBack)
+        if (nav_.size() > 1 || forceBack)
             addFooterItem(FooterItem::B("Back"));
         redrawFooter_ = true;
     }
@@ -147,9 +143,9 @@ public:
     }
 
     void showHeader() {
-        if (headerVisible_ == false) { 
-            header_ = Transition::FadeIn;
-            aheader_.start();
+        if (!headerVisible_) { 
+            tHeader_ = Transition::FadeIn;
+            aHeader_.start();
             redrawHeader_ = true;
             headerVisible_ = true;
         }
@@ -157,8 +153,9 @@ public:
 
     void hideHeader() {
         if (headerVisible_) {
-            header_ = Transition::FadeOut;
-            aheader_.start();
+            tHeader_ = Transition::FadeOut;
+            aHeader_.start();
+            headerVisible_ = false;
         }
     }
 
@@ -236,49 +233,10 @@ private:
 
     friend Window & window() { return * Window::singleton_; }
 
-    class NavigationItem {
-    public:
-        enum class Kind {
-            Menu, 
-            Widget
-        }; 
-
-        Kind kind;
-        
-        Widget * widget() const {
-            return kind == Kind::Widget ? widget_ : nullptr;
-        }
-
-        Menu * menu() const {
-            return kind == Kind::Menu ? menu_ : nullptr;
-        }
-
-        size_t menuIndex() const {
-            ASSERT(kind == Kind::Menu);
-            return menuIndex_;
-        }
-
-        NavigationItem(): kind{Kind::Widget}, widget_{nullptr} {}
-
-        NavigationItem(Widget * widget):
-            kind{Kind::Widget},
-            widget_{widget} {
-        }
-
-        NavigationItem(Menu * menu, size_t index):
-            kind{Kind::Menu},
-            menu_{menu},
-            menuIndex_{index} {
-        }
-
-    private:
-
-        union {
-            Widget * widget_;
-            Menu * menu_;
-        };
-
-        size_t menuIndex_ = 0;
+    enum class Transition {
+        FadeIn, 
+        FadeOut, 
+        None, 
     }; 
 
     /** Private constructor for the singleton. 
@@ -287,24 +245,12 @@ private:
 
     void draw();
 
-    void btnVolUp(bool state) { 
-        if (state) { 
-            rckid().setVolume(rckid().volume() + AUDIO_VOLUME_STEP);  
-        }
-    }
-
-    void btnVolDown(bool state) {
-        if (state) {
-            rckid().setVolume(rckid().volume() - AUDIO_VOLUME_STEP);  
-        }
-    }
-
-
-    void swapWidget();
-
     void drawHeader();
     void drawFooter();
-    
+
+    void enter(Widget * widget);
+    void leave(Widget * widget); 
+
     // true if the current event should be cancelled
     bool cancelEvent_ = false;
 
@@ -318,30 +264,16 @@ private:
     Font headerFont_;
     Font menuFont_;
     std::unordered_map<std::string, Font> fonts_;
-    
-    NavigationItem next_;
 
-    /// The currently visible widget
-    Widget * widget_ = nullptr;
-    /// the carousel used for the menus 
-    Carousel * carousel_; 
-    /// the keyboard widget for modal string input 
-    Keyboard * keyboard_ = nullptr;
+    /** Widget navigation stack. 
+     */    
+    std::vector<Widget*> nav_;
 
     /// The home menu -- TODO should this be in window or outside of it? 
-    CCarousel * homeMenu_;
+    Carousel * homeMenu_;
 
-    std::vector<NavigationItem> nav_;
-    bool inHomeMenu_ = false;
-
-    enum class Transition {
-        FadeIn, 
-        FadeOut, 
-        None, 
-    }; 
-
-    Animation aswap_{250};
-    Transition transition_ = Transition::None;
+    Animation aSwap_{WIDGET_FADE_TIME};
+    Transition tSwap_ = Transition::None;
 
     Texture2D background_;
     int backgroundSeam_ = 160;
@@ -360,11 +292,11 @@ private:
 
     /** Transition we use to determine the header visibility. 
      */
-    Animation aheader_{250};
-    Transition header_ = Transition::None;
+    Animation aHeader_{WIDGET_FADE_TIME};
+    Transition tHeader_ = Transition::None;
     bool headerVisible_ = true;
 
-    Animation aFooter_{250};
+    Animation aFooter_{WIDGET_FADE_TIME};
     Transition tFooter_ = Transition::None;
     bool footerVisible_ = true;
 

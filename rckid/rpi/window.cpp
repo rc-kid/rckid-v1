@@ -2,13 +2,10 @@
 #include "platform/platform.h"
 
 #include "carousel.h"
-#include "json_carousel.h"
-#include "keyboard.h"
 #include "debug_view.h"
 #include "gauge.h"
 
 #include "window.h"
-
 
 int FooterItem::draw(Window * window, int x, int y) const {
     switch (control_) {
@@ -61,18 +58,17 @@ Window::Window() {
 
     InitAudioDevice();
 
-    carousel_ = new Carousel{};
-    homeMenu_ = new CCarousel{new CCarousel::Menu{"", "", {
-        new CCarousel::Item{"Exit", "assets/images/011-power-off.png", [](){
+    homeMenu_ = new Carousel{new Carousel::Menu{"", "", {
+        new Carousel::Item{"Exit", "assets/images/011-power-off.png", [](){
             ::exit(0);
         }},
-        new CCarousel::Item{"Power Off", "assets/images/011-power-off.png", [](){
+        new Carousel::Item{"Power Off", "assets/images/011-power-off.png", [](){
             rckid().powerOff();
         }},
-        new CCarousel::Item{"Airplane Mode", "assets/images/012-airplane-mode.png", [](){
+        new Carousel::Item{"Airplane Mode", "assets/images/012-airplane-mode.png", [](){
             // TODO
         }},
-        new CCarousel::Item{"Brightness", "assets/images/009-brightness.png", [](){
+        new Carousel::Item{"Brightness", "assets/images/009-brightness.png", [](){
             static Gauge gauge{"assets/images/009-brightness.png", 0, 255, 16,
                 [](int value) { 
                     rckid().setBrightness(value); 
@@ -81,9 +77,9 @@ Window::Window() {
                     g->setValue(rckid().brightness());
                 }
             };
-            window().setWidget(&gauge);
+            window().showWidget(&gauge);
         }}, 
-        new CCarousel::Item{"Volume", "assets/images/010-high-volume.png", [](){
+        new Carousel::Item{"Volume", "assets/images/010-high-volume.png", [](){
             static Gauge gauge{"assets/images/010-high-volume.png", 0, 100, 10,
                 [](int value){
                     rckid().setVolume(value);
@@ -92,46 +88,17 @@ Window::Window() {
                     g->setValue(rckid().volume());
                 }
             };
-            window().setWidget(&gauge);
+            window().showWidget(&gauge);
         }},
-        new CCarousel::Item{"WiFi", "assets/images/016-wifi.png", [](){
+        new Carousel::Item{"WiFi", "assets/images/016-wifi.png", [](){
             // TODO
         }},
-        new CCarousel::Item{"Debug", "assets/images/021-poo.png", [](){
+        new Carousel::Item{"Debug", "assets/images/021-poo.png", [](){
             static DebugView dbgView{};
-            window().setWidget(&dbgView);
+            window().showWidget(&dbgView);
         }},
 
     }}};
-    /*
-    homeMenu_ = new Menu{{
-        new ActionItem{"Exit", "assets/images/011-power-off.png",[](){
-            ::exit(0);
-        }},
-        new ActionItem{"Power Off", "assets/images/011-power-off.png",[&](){
-            rckid().powerOff();
-        }},
-        new Menu::Item{"Airplane Mode", "assets/images/012-airplane-mode.png"},
-        new WidgetItem{"Brightness", "assets/images/009-brightness.png", new Gauge{"assets/images/009-brightness.png", 0, 255, 16, 
-            [this](int value) { 
-                rckid().setBrightness(value); 
-            },
-            [this](Gauge * g) {
-                g->setValue(rckid().brightness());
-            }
-        }},
-        new WidgetItem{"Volume", "assets/images/010-high-volume.png", new Gauge{"assets/images/010-high-volume.png", 0, 100, 10,
-            [this](int value){
-                rckid().setVolume(value);
-            },
-            [this](Gauge * g) {
-                g->setValue(rckid().volume());
-            }
-        }},
-        new Menu::Item{"WiFi", "assets/images/016-wifi.png"},
-        new WidgetItem{"Debug", "assets/images/021-poo.png", new DebugView{}},
-    }};
-    */
     lastFrameTime_ = now();    
 }
 
@@ -146,137 +113,67 @@ Font Window::loadFont(std::string const & filename, int size) {
     return i->second;
 }
 
-void Window::prompt(std::string const & prompt, std::string value, std::function<void(std::string)> callback) {
-    if (keyboard_ == nullptr)
-        keyboard_ = new Keyboard{};
-    keyboard_->prompt = prompt;
-    keyboard_->value = value;
-    keyboard_->onDone = callback;
-    setWidget(keyboard_);
-}
-
-void Window::setWidget(Widget * widget) {
-    next_ = NavigationItem{widget};
-    transition_ = Transition::FadeOut;
-    if (widget_ == nullptr) {
-        swapWidget();
+void Window::showWidget(Widget * widget) {
+    nav_.push_back(widget);
+    // if we are the first widget proceed to enter directly 
+    if (nav_.size() == 1) {
+        enter(widget);
+    // otherwise we must first fade the old widget, then start the new one
     } else {
-        if (widget_ == carousel_)
-            nav_.push_back(NavigationItem(carousel_->items(), carousel_->index()));
-        else
-            nav_.push_back(NavigationItem(widget_));
-        transition_ = Transition::FadeOut;
-        aswap_.start();
-        tFooter_ = Transition::FadeOut;
-        aFooter_.start();
-        // if we are swapping for a fullscreen widget, hide header in sync with footer
+        leave(nav_[nav_.size() - 2]);
         if (widget->fullscreen())
             hideHeader();
     }
 }
 
-void Window::setMenu(Menu * menu, size_t index) {
-    /*
-    if (menu == homeMenu_) {
-        if (inHomeMenu_)
-            return;
-    } */
-    next_ = NavigationItem{menu, index};
-    if (widget_ == nullptr) {
-        swapWidget();
-    } else {
-        if (widget_ == carousel_)
-            nav_.push_back(NavigationItem(carousel_->items(), carousel_->index()));
-        else 
-            nav_.push_back(NavigationItem(widget_));
-        transition_ = Transition::FadeOut;
-        aswap_.start();
-        tFooter_ = Transition::FadeOut;
-        aFooter_.start();
+void Window::showHomeMenu() {
+    if (!homeMenu_->onNavStack())
+        showWidget(homeMenu_);
+}
+
+void Window::enter(Widget * widget) {
+    ASSERT(nav_.back() == widget);
+    ASSERT(!widget->onNavStack());
+    widget->onNavigationPush();
+    widget->onNavStack_ = true;
+    widget->onFocus();
+    widget->setFooterHints();
+    // set the swap transition to fade the widget in and require its redraw
+    tSwap_ = Transition::FadeIn;
+    aSwap_.start();
+    widget->redraw_ = true;
+    // force header redraw when swapping widget, just to be sure
+    redrawHeader_ = true;
+    // if the widget is not full screen, show the header and the footer as well
+    if (!widget->fullscreen()) {
+        showFooter();
+        showHeader();
     }
 }
 
-void Window::showHomeMenu() {
-    if (!homeMenu_->onNavStack())
-        setWidget(homeMenu_);
+void Window::leave(Widget * widget) {
+    widget->onBlur();
+    widget->onNavigationPop();
+    widget->onNavStack_ = false;
+    // set the transition 
+    tSwap_ = Transition::FadeOut;
+    aSwap_.start();
+    // hide the footer with the widget as well (enter will show it again)
+    hideFooter();
 }
 
 void Window::back(size_t numWidgets) {
-    if (nav_.empty() || numWidgets == 0)
+    // can't go back from the only widget in the navstack
+    if (nav_.size() < 2)
         return;
-    next_ = nav_.back();
-    nav_.pop_back();
-    while (numWidgets > 1 && ! nav_.empty()) {
-        if (next_.kind == NavigationItem::Kind::Widget) {
-            ASSERT(next_.widget()->onNavStack_ == true);
-            next_.widget()->onNavigationPop();
-            next_.widget()->onNavStack_ = false;
-        } /*else if (next_.menu() == homeMenu_) {
-            inHomeMenu_ = false;
-        } */
-        next_ = nav_.back();
+    // if we want to leave multiple widgets, unroll them while we can
+    while (numWidgets > 0) {
+        if (nav_.size() <= 1)
+            break;
+        leave(nav_.back());
         nav_.pop_back();
         --numWidgets;
     }
-    if (next_.kind == NavigationItem::Kind::Widget && next_.widget()->fullscreen())
-        hideHeader();
-    if (widget_ == nullptr) {
-        swapWidget();
-    } else {
-        transition_ = Transition::FadeOut;
-        aswap_.start();
-        tFooter_ = Transition::FadeOut;
-        aFooter_.start();
-
-    }
-}
-
-void Window::swapWidget() {
-    if (widget_!= nullptr) {
-        widget_->onBlur();
-        if (widget_ == carousel_) {
-            // if we are leaving home menu indicate
-            /*
-            if (carousel_->items() == homeMenu_ && (nav_.empty() || nav_.back().menu() != homeMenu_))
-                inHomeMenu_ = false;
-            */
-            carousel_->items()->onBlur();
-        } else {
-            if (nav_.empty() || nav_.back().widget() != widget_) {
-                ASSERT(widget_->onNavStack_ == true);
-                widget_->onNavigationPop();
-                widget_->onNavStack_ = false;
-            }
-        }
-    }
-    if (next_.kind == NavigationItem::Kind::Menu) {
-        widget_ = carousel_;
-        carousel_->setItems(next_.menu(), next_.menuIndex());
-        /*
-        if (next_.menu() == homeMenu_)
-            inHomeMenu_ = true;
-        */
-    } else {
-        widget_ = next_.widget();
-        if (! widget_->onNavStack_) {
-            widget_->onNavigationPush();
-            widget_->onNavStack_ = true;
-        }
-    }
-    widget_->onFocus();
-    widget_->setFooterHints();
-    if (widget_ == carousel_)
-        carousel_->items()->onFocus();
-    transition_ = Transition::FadeIn;
-    if (!widget_->fullscreen())
-        showHeader();
-    aswap_.start();
-    tFooter_ = Transition::FadeIn;
-    aFooter_.start();
-    // always redraw header when swapping a widget, just to be sure
-    redrawHeader_ = true;
-    // and require redraw
-    widget_->redraw_ = true;
 }
 
 void Window::loop() {
@@ -388,12 +285,11 @@ void Window::draw() {
     Timepoint t = now();
     redrawDelta_ = asMillis(t - lastFrameTime_);
     lastFrameTime_ = t;
-    aswap_.update();
-    aheader_.update();
+    aSwap_.update();
+    aHeader_.update();
     aFooter_.update();
 
     bool redraw = false;
-
 
     // Start by rendering the background. 
     //
@@ -416,14 +312,17 @@ void Window::draw() {
 #if (defined RENDERING_STATS)
     tt = now();
 #endif
-    if (widget_ != nullptr) {
-        widget_->tick();
-        if (widget_->redraw_) {
+    Widget * w = activeWidget();
+    if (w == nullptr && tSwap_ == Transition::FadeIn)
+        w = nav_.back();
+    if (w != nullptr) {
+        w->tick();
+        if (w->redraw_) {
             redraw = true;
             BeginTextureMode(widgetCanvas_);
             ClearBackground(ColorAlpha(BLACK, 0.0));
             BeginBlendMode(BLEND_ADD_COLORS);
-            widget_->draw();
+            w->draw();
             EndBlendMode();
             EndTextureMode();
         }
@@ -468,13 +367,16 @@ void Window::draw() {
 #endif
 
     // redraw if transition of either the widget or the header is in progress 
-    redraw = redraw || transition_ == Transition::FadeIn || transition_ == Transition::FadeOut || header_ == Transition::FadeIn || header_ == Transition::FadeOut;
+    redraw = redraw || tSwap_ != Transition::None || tHeader_ != Transition::None || tFooter_ != Transition::None;
 
     // finally, piece together the actual frame
     if (redraw) {
 #if (defined RENDERING_STATS)
         tt = now();
 #endif
+        // determine if we are drawing header or footer as those can change in the transition switches below
+        bool drawHeader = headerVisible_ || aHeader_.running();
+        bool drawFooter = footerVisible_ || aFooter_.running();
         ::Color widgetAlpha = WHITE;
         float footerOffset = 0;
         switch (tFooter_) {
@@ -492,30 +394,28 @@ void Window::draw() {
                 break;
         }
         float headerOffset = 0;
-        switch (header_) {
+        switch (tHeader_) {
             case Transition::FadeIn:
-                headerOffset = aheader_.interpolate(20, 0);
-                if (aheader_.done())
-                    header_ = Transition::None;
+                headerOffset = aHeader_.interpolate(20, 0);
+                if (aHeader_.done())
+                    tHeader_ = Transition::None;
                 break;
             case Transition::FadeOut:
-                headerOffset = aheader_.interpolate(0, 20);
-                if (aheader_.done()) {
-                    header_ = Transition::None;
-                    headerVisible_ = false;
-                }
+                headerOffset = aHeader_.interpolate(0, 20);
+                if (aHeader_.done())
+                    tHeader_ = Transition::None;
                 break;
         }
-        switch (transition_) {
+        switch (tSwap_) {
             case Transition::FadeIn:
-                widgetAlpha = ColorAlpha(widgetAlpha, aswap_.interpolate(0.0f, 1.0f, Interpolation::Linear));
-                if (aswap_.done())
-                    transition_ = Transition::None;
+                widgetAlpha = ColorAlpha(widgetAlpha, aSwap_.interpolate(0.0f, 1.0f, Interpolation::Linear));
+                if (aSwap_.done())
+                    tSwap_ = Transition::None;
                 break;
             case Transition::FadeOut:
-                widgetAlpha = ColorAlpha(widgetAlpha, aswap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
-                if (aswap_.done())
-                    swapWidget();
+                widgetAlpha = ColorAlpha(widgetAlpha, aSwap_.interpolate(1.0f, 0.0f, Interpolation::Linear));
+                if (aSwap_.done())
+                    enter(nav_.back());
                 break;
         }
         BeginDrawing();
@@ -528,9 +428,9 @@ void Window::draw() {
             EndBlendMode();
         }
         DrawTextureRec(widgetCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0,0}, widgetAlpha);
-        if (headerVisible_)
+        if (drawHeader)
             DrawTextureRec(headerCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0, -headerOffset}, WHITE);
-        if ((footerVisible_ || aFooter_.running()) && (widget_ == nullptr || ! widget_->fullscreen()))
+        if (drawFooter)
             DrawTextureRec(footerCanvas_.texture, Rectangle{0,0,320,-240}, Vector2{0, footerOffset}, WHITE);
 #if (defined RENDERING_STATS)
         auto astats = now();
@@ -592,7 +492,7 @@ void Window::drawHeader() {
         DrawTextEx(headerFont_, "", x, 0, 20, 1.0, rckid().charging() ? WHITE : GRAY);
     }
     // the battery level and percentage
-    if (inHomeMenu_) {
+    if (homeMenu_->onNavStack()) {
         std::string pct = STR((rckid().vBatt() - 330) << "%");
         x -= MeasureText(helpFont_, pct.c_str(), 16, 1.0).x + 5;
         DrawTextEx(helpFont_, pct.c_str(), x, 2, 16, 1, GRAY);
@@ -613,7 +513,7 @@ void Window::drawHeader() {
         x -= 20;
         DrawTextEx(headerFont_, "󰋋", x, 0, 20, 1.0, WHITE);    
     }
-    if (inHomeMenu_) {
+    if (homeMenu_->onNavStack()) {
         std::string vol = STR(rckid().volume());
         x -= MeasureText(helpFont_, vol.c_str(), 16, 1.0).x + 5;
         DrawTextEx(helpFont_, vol.c_str(), x - 3, 2, 16, 1, GRAY);
@@ -632,7 +532,7 @@ void Window::drawHeader() {
         x -= 20;
         DrawTextEx(headerFont_, "󰖪", x, 0, 20, 1.0, GRAY);
     } else {
-        if (inHomeMenu_) {
+        if (homeMenu_->onNavStack()) {
             x -= MeasureText(helpFont_, rckid().ssid().c_str(), 16, 1.0).x + 5;
             DrawTextEx(helpFont_, rckid().ssid().c_str(), x - 3, 2, 16, 1, GRAY);
         }

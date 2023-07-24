@@ -111,7 +111,4 @@
 
 Have all resources managed by the canvas, which makes the cost of extra widgets non-existent. Then have special widgets. 
 
-- make the transition effect of the same length as window's transition
-- going back when none is available is an error (might be interaction with the old navigation)
 - repeated l/r does not work
-- remove the setMenu logic & stuff from window, remove Menu.h file

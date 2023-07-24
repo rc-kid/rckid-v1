@@ -17,7 +17,6 @@ struct DispmanXBackgroundLayer {
 
 #include "rckid.h"
 #include "window.h"
-#include "menu.h"
 #include "pixel_editor.h"
 #include "debug_view.h"
 #include "keyboard.h"
@@ -29,7 +28,7 @@ struct DispmanXBackgroundLayer {
 #include "walkie_talkie.h"
 #include "remote.h"
 #include "nrf_sniffer.h"
-#include "json_carousel.h"
+#include "carousel_json.h"
 #include "gauge.h"
 
 void printLogLevel(int logLevel, std::ostream & s) {
@@ -104,7 +103,7 @@ public:
     void start(std::string const & widgetName) {
         auto i = w_.find(widgetName);
         if (i != w_.end() && i->second != nullptr) {
-            window().setWidget(i->second);
+            window().showWidget(i->second);
         } else {
             // TODO unknown or unimplemented widget
         }
@@ -169,64 +168,7 @@ int main(int argc, char * argv[]) {
         Window::create();
         RCKid::create();
         Widgets widgets{};
-        /*
-        GamePlayer gamePlayer{};
-        VideoPlayer videoPlayer{};
-        MusicPlayer musicPlayer{};
-        rckid().setVolume(AUDIO_DEFAULT_VOLUME);
-        Menu menu{{
-            new LazySubmenu{
-                "Games",
-                "assets/images/001-game-controller.png", 
-                [&]() {
-                    return new JSONMenu{
-                        "/rckid/games/folder.json",
-                        [&](json::Value & item) {
-                            gamePlayer.play(item);
-                        }
-                    };
-                }
-            },
-            new LazySubmenu{
-                "Video", 
-                "assets/images/005-film-slate.png",
-                [&]() {
-                    return new JSONMenu{
-                        "/rckid/videos/folder.json",
-                        [&](json::Value & item) {
-                            videoPlayer.play(item);
-                        }
-                    };
-                }
-            },
-            new LazySubmenu{
-                "Music", 
-                "assets/images/003-music.png",
-                [&]() {
-                    return new JSONMenu{
-                        "/rckid/music/folder.json",
-                        [&](json::Value & item) {
-                            musicPlayer.play(item);
-                        }
-                    };
-                }
-            },
-            //new JSON{"Music", "assets/images/003-music.png", "/rckid/music/folder.json", &window},
-            //new Menu::Item{"Remote", "assets/images/002-rc-car.png"},
-            new WidgetItem{"Remote", "assets/images/002-rc-car.png", new Remote{}},
-            new WidgetItem{"Walkie-Talkie", "assets/images/007-baby-monitor.png", new WalkieTalkie{}},
-            new Submenu{"Apps", "assets/images/022-presents.png", {
-                new WidgetItem{"Torchlight", "assets/images/004-flashlight.png", new Torchlight{}},
-                new WidgetItem{"Paint", "assets/images/053-paint-palette.png", new PixelEditor{}},
-                new Menu::Item{"Baby Monitor", "assets/images/006-baby-crib.png"},
-                new WidgetItem{"Recording", "assets/images/026-magic-wand.png", new Recorder{}},
-                new WidgetItem{"NRF Sniffer", "assets/images/084-spy.png", new NRFSniffer{}},
-            }},
-        }}; */
-        
-        //DirCarousel dc{"assets"};
-        //window().setWidget(&dc);
-        CustomJSONCarousel jc{
+        JSONCarousel mainMenu{
             JSONCarousel::menu("", "", {
                 JSONCarousel::item("Games", "assets/images/001-game-controller.png","{widget : games}"),
                 JSONCarousel::item("Video", "assets/images/005-film-slate.png", "{widget : video}"),
@@ -249,8 +191,7 @@ int main(int argc, char * argv[]) {
                 }
             }
         };
-        window().setWidget(&jc);
-        //window().setMenu(& menu, 0);
+        window().showWidget(&mainMenu);
         window().loop();
     } catch (std::exception const & e) {
         TraceLog(LOG_FATAL, e.what());

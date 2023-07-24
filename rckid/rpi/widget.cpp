@@ -7,12 +7,12 @@ bool Widget::focused() const {
 }
 
 void Widget::btnB(bool state) {
-    if (state && ! window().aswap_.running())
+    if (state)
         window().back();
 }
 
 void Widget::btnHome(bool state) {
-    if (state && ! window().aswap_.running())
+    if (state)
         window().showHomeMenu(); 
 }
 
