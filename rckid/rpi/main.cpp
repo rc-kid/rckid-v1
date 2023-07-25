@@ -196,9 +196,9 @@ int main(int argc, char * argv[]) {
                 }
             }
         };
-        //window().showWidget(&mainMenu);
-        Menu m{{"hello", "World", "foobar", "This is so good!"}};
-        window().showWidget(&m);
+        window().showWidget(&mainMenu);
+        //Menu m{{"hello", "World", "foobar", "This is so good!"}};
+        //window().showWidget(&m);
         window().loop();
     } catch (std::exception const & e) {
         TraceLog(LOG_FATAL, e.what());

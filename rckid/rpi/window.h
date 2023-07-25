@@ -108,9 +108,9 @@ public:
     /** Returns current active widget.  
      */
     Widget * activeWidget() const {
-        if (nav_.empty())
+        if (nav_.empty() || aSwap_.running())
             return nullptr;
-        return aSwap_.running() ? nullptr : nav_.back(); 
+        return modal_ != nullptr ? modal_ : nav_.back();
     }
 
     /** Returns the time increase since drawing of the last frame begun in milliseconds. Useful for advancing animations and generally keeping pace. 
@@ -281,9 +281,9 @@ private:
     Animation aModal_{WIDGET_FADE_TIME};
     Transition tMOdal_ = Transition::None; 
 
-    /** The stack of modal widgets. 
+    /** Modal widget.
      */
-    std::vector<Widget*> modalNav_;
+    Widget * modal_ = nullptr;
 
     /// The home menu -- TODO should this be in window or outside of it? 
     Carousel * homeMenu_;

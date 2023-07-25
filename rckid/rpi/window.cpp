@@ -137,9 +137,19 @@ void Window::showHomeMenu() {
 }
 
 void Window::back(size_t numWidgets) {
+    ASSERT(numWidgets > 0);
+    if (modal_ != nullptr) {
+        --numWidgets;
+        modal_->onBlur();
+        modal_->onNavigationPop();
+        modal_->onNavStack_ = false;
+        modal_ = nullptr;
+        // force widget repaint 
+        nav_.back()->redraw_ = true;
+    }
     // can't go back from the only widget in the navstack
-    if (nav_.size() < 2)
-        return;
+    //if (nav_.size() < 2)
+    //    return;
     // if we want to leave multiple widgets, unroll them while we can
     while (numWidgets > 0) {
         if (nav_.size() <= 1)
@@ -148,10 +158,25 @@ void Window::back(size_t numWidgets) {
         nav_.pop_back();
         --numWidgets;
     }
+    // force the top widget redraw (if any) 
+    if (!nav_.empty())
+        nav_.back()->redraw_ = true;
 }
 
 void Window::showModal(Widget * widget) {
-    modalNav_.push_back(widget); 
+    ASSERT(modal_ == nullptr);
+    if (modal_ != nullptr) {
+        modal_->onBlur();
+        modal_->onNavigationPop();
+        modal_->onNavStack_ = false;
+    }
+    modal_ = widget;
+    modal_->onNavigationPush();
+    modal_->onNavStack_ = true;
+    modal_->onFocus();
+    modal_->setFooterHints();
+    // force redraw of the modal window
+    modal_->redraw_ = true;
 }
 
 void Window::enter(Widget * widget) {
@@ -321,17 +346,22 @@ void Window::draw() {
 #if (defined RENDERING_STATS)
     tt = now();
 #endif
-    Widget * w = activeWidget();
+    Widget * w = (nav_.empty() || aSwap_.running()) ? nullptr : nav_.back();
     if (w == nullptr && tSwap_ == Transition::FadeIn)
         w = nav_.back();
     if (w != nullptr) {
+        bool wredraw = w->redraw_ || (modal_ != nullptr && modal_->redraw_);
         w->tick();
-        if (w->redraw_) {
+        if (wredraw) {
             redraw = true;
             BeginTextureMode(widgetCanvas_);
             ClearBackground(ColorAlpha(BLACK, 0.0));
             BeginBlendMode(BLEND_ADD_COLORS);
             w->draw();
+            // draw the modal widget, if any
+            if (modal_)
+                modal_->draw();
+            // and we are done
             EndBlendMode();
             EndTextureMode();
         }

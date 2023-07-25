@@ -1,6 +1,7 @@
 #pragma once
 
 #include "carousel.h"
+#include "menu.h"
 
 /** Carousel backed by a filesystem directory. 
  
@@ -73,12 +74,20 @@ protected:
 class FileExplorer : public DirCarousel {
 public:
     FileExplorer(std::string const & root):
-        DirCarousel{root} {
+        DirCarousel{root},
+        menu_{{"hello", "World", "foobar", "This is so good!"}} {
     }
 protected:
     void setFooterHints() override  {
         DirCarousel::setFooterHints();
         window().addFooterItem(FooterItem::Select("Menu"));
     }
+
+    void btnSelect(bool state) {
+        if (state)
+            window().showModal(&menu_);
+    }
+
+    Menu menu_;
 
 }; 
