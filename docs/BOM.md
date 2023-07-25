@@ -16,7 +16,7 @@ Button (soft)   | 10 | 39    | https://cz.mouser.com/ProductDetail/667-EVP-BFAC1
 Button (slim)   | 3  | 0   ! | https://cz.mouser.com/ProductDetail/667-EVQ-Q2P02W
 ATTiny 1616     | 1  | 42    | https://cz.mouser.com/ProductDetail/Microchip-Technology-Atmel/ATTINY1616-SN?qs=T3oQrply3y8xkX%2FD5IZ%252BPQ%3D%3D
 RPi Zero 2W     | 1  | 4     |
-ILI9341         | 1  | 2     | 3.2", SPI interface, https://www.aliexpress.com/item/32861524235.html?spm=a2g0o.order_list.0.0.21ef1802FIsxYt
+ILI9341         | 1  | 2   ! | 3.2", SPI interface, https://www.aliexpress.com/item/32861524235.html?spm=a2g0o.order_list.0.0.21ef1802FIsxYt
 Microphone      | 1  | 5     | https://cz.mouser.com/ProductDetail/490-CMEJ-0415-42-P
 MAX9814         | 1  | 3     |
 SMT Rpi Hdr     | 1  | 3     |
@@ -56,10 +56,18 @@ PAM8302         | 1  | 10    | IC5, D Class Amplifier, SOIC, https://cz.farnell.
 Schott 2A 1206  | 2  | >20   | D1, D3,  https://cz.mouser.com/ProductDetail/581-SD1206S040S2R0
 DF2B7AFUH3F     | 1  | 9     | D2, anti-static protection diode
 
+# LegoRemote
 
-
-
-
+Part            | #  | Stock | Notes & URL
+----------------|----|-------|----------------------------------------------------------------------------
+INA219BIDR      | 3  | 12    |
+2x3 straight    | 9  | 29    |
+2x3 righta      | 10 |     ! |
+2x4 straight    | 1  | 5     |
+8m              | 1  |     ! |  
+4m              | 2  |     ! |
+U3V40F9         | 1  | 2     | 9V Step-Up module (Pololu)
+BD65496MUV      | 2  | 4     | H-Bridge
 
 
 

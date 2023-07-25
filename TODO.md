@@ -77,6 +77,7 @@
 - PWM motor control frequency - 20kHz should be enough
 - add INA219 - how will INA be connected to the stuff? - DeviceInfoChannel? 
 - remember last pairing information? how to remove it? 
+- make batteries into separate brick, makes the design so much simpler I might actually make the xmas deadline
 
 > Non-critical things that would be nice to have, but don't jeopardize the xmas delivery. 
 
