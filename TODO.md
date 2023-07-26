@@ -112,7 +112,6 @@
 
 Have all resources managed by the canvas, which makes the cost of extra widgets non-existent. Then have special widgets. 
 
-- empty carousel segfaults, display error instead...
 - repeated l/r does not work
 
 

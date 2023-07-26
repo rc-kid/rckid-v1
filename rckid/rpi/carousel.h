@@ -1,6 +1,5 @@
 #pragma once
 
-#include <filesystem>
 #include <vector>
 #include <functional>
 #include <memory>
@@ -61,6 +60,10 @@ protected:
 
     bool busy() const { return a_.running(); }
 
+    virtual void reset() {
+        pos_.clear();
+    }
+
     /** Creates the information about the index-th item. 
      
         The item consists of the icon and the title and must be implemented in the data providing subclasses. 
@@ -99,6 +102,10 @@ protected:
 
     void draw() override {
         a_.update();
+        if (pos().numItems == 0) {
+            drawEmpty();
+            return;
+        }
         switch (t_) {
             case Transition::None:
                 drawItem(getItem(pos().current), 0, 255);
@@ -145,6 +152,10 @@ protected:
         }
         if (a_.done())
             t_ = Transition::None;             
+    }
+
+    virtual void drawEmpty() {
+        // TODO do something useful
     }
 
     void btnA(bool state) override {

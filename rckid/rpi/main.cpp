@@ -87,8 +87,8 @@ class Widgets {
 public:
     Widgets() {
         w_["games"] = nullptr;
-        w_["video"] = nullptr;
-        w_["music"] = nullptr;
+        w_["video"] = new DirSyncedCarousel("/rckid/videos");
+        w_["music"] = new DirSyncedCarousel("/rckid/music");
         w_["remote"] = new Remote{};
         w_["walkie-talkie"] = new WalkieTalkie{};
         w_["torchlight"] = new Torchlight{};

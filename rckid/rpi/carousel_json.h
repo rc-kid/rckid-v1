@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 #include "carousel.h"
 
 /** Carousel-style menu backed by a JSON object. 
@@ -21,10 +23,15 @@ public:
     static inline std::string const MENU_SUBITEMS{"menu_subitems"};
 
     BaseJSONCarousel(json::Value root): root_{std::move(root)} {
-        enter(& root_);
     }
 
 protected:
+
+    void reset() override {
+        json_.clear();
+        BaseCarousel::reset();
+        enter(& root_);
+    }
 
     void itemSelected(size_t index) override {
         json::Value & item = (*json_.back())[MENU_SUBITEMS][index];
@@ -46,7 +53,7 @@ protected:
             return Item{title};
     }
 
-    void enter(json::Value * value) {
+    virtual void enter(json::Value * value) {
         json_.push_back(value);
         BaseCarousel::enter((*value)[MENU_SUBITEMS].size());
     }
@@ -55,6 +62,10 @@ protected:
         ASSERT(json_.size() > 1);
         json_.pop_back();
         BaseCarousel::leave();
+    }
+
+    void onNavigationPush() override { 
+        reset(); 
     }
 
     std::string defaultTitle_{"???"};
@@ -97,9 +108,118 @@ public:
         return result;
     }
 
-private:
+protected:
 
     void itemSelected(size_t index, json::Value const & json) override { onSelect_(json); }
 
     std::function<void(json::Value const &)> onSelect_;
-}; // CustomJSONCarousel
+}; // SONCarousel
+
+/**
+ 
+    Commands:
+    - create new folder
+    - rename stuff
+    - move left / right
+    - move up
+    - mode down () ? 
+ */
+
+class DirSyncedCarousel : public BaseJSONCarousel {
+public:
+
+    DirSyncedCarousel(std::string && rootDir):
+        BaseJSONCarousel{getOrCreateItemsJSON(rootDir)}, 
+        rootDir_{std::move(rootDir)} {
+    }
+
+protected:
+    static inline std::string const MENU_FILENAME{"menu_filename"};
+
+    using DirEntry = std::filesystem::directory_entry;
+    using DirIterator = std::filesystem::directory_iterator;
+    using Path = std::filesystem::path;
+
+    void enter(json::Value * value) {
+        if (value == & root_)
+            currentDir_ = rootDir_;
+        else
+            currentDir_ = currentDir_.append((*value)[MENU_FILENAME].value<std::string>());
+        syncWithFolder(*value, currentDir_);
+        BaseJSONCarousel::enter(value);
+    }
+
+    void leave() {
+        BaseJSONCarousel::leave();
+        currentDir_ = currentDir_.parent_path();
+        // TODO should we also sync the folder we arrived to now? 
+    }
+
+    void reset() override {
+        currentDir_.clear();
+        //syncWithFolder(root_, rootDir_);
+        BaseJSONCarousel::reset();
+    }
+
+    virtual std::optional<json::Value> getItemForFile(DirEntry const & entry) {
+        json::Value item{json::Value::newStruct()};
+        item.insert(MENU_FILENAME, entry.path().filename().c_str());
+        item.insert(MENU_TITLE, entry.path().stem().c_str());
+        return item;
+    }
+
+    /** Whenever a folder is opened, the folder's contents is synchronized with the items stored in the JSON. 
+     */
+    void syncWithFolder(json::Value & json, Path const & folder) {
+        // first create a map of items in the JSON for fast access
+        TraceLog(LOG_INFO, STR("Syncing directory " << folder));
+        std::unordered_map<std::string, json::Value *> inJson;
+        for (auto & i : json[MENU_SUBITEMS].arrayElements()) {
+            std::string name = i[MENU_FILENAME].value<std::string>();
+            inJson.insert(std::make_pair(name, & i)); 
+        }
+        TraceLog(LOG_INFO, STR("  in json items found: " << inJson.size()));
+        for (auto const & entry : DirIterator{folder}) {
+            std::string filename = entry.path().filename();
+            auto i = inJson.find(filename);
+            if (i != inJson.end()) {
+                // TODO only do continue if its file/file or dir/dir
+                continue;
+            }
+            // not found, or trying to add anyways: if it's a directory, add an empty submenu that will be filled later with its own sync
+            if (entry.is_directory()) {
+                json::Value d{json::Value::newStruct()};
+                d.insert(MENU_TITLE, entry.path().stem().c_str());
+                d.insert(MENU_ICON, "");
+                d.insert(MENU_FILENAME, entry.path().filename().c_str());
+                d.insert(MENU_SUBITEMS, json::Value::newArray());
+                json[MENU_SUBITEMS].push(d);
+            } else {
+                auto i =  getItemForFile(entry);
+                if (i) {
+                    TraceLog(LOG_INFO, STR("  added file " << entry.path().filename()));
+                    json[MENU_SUBITEMS].push(i.value());
+                }
+            }
+        }
+    }
+
+    static json::Value getOrCreateItemsJSON(std::string const & dir) {
+        std::string itemsFile = dir + "/items.json";
+        try {
+            return json::parseFile(itemsFile);
+        } catch (std::exception const & e) {
+            TraceLog(LOG_ERROR, STR("Error reading JSON file " << itemsFile << ": " << e.what()));
+            // and create an empty JSON
+            json::Value result{json::Value::newStruct()};
+            result.insert(MENU_TITLE, json::Value{""});
+            result.insert(MENU_ICON, json::Value{""});
+            result.insert(MENU_SUBITEMS, json::Value::newArray());
+            return result;
+        }
+    }
+
+    Path rootDir_;
+    Path currentDir_;
+
+}; 

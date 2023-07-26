@@ -346,7 +346,7 @@ void Window::draw() {
 #if (defined RENDERING_STATS)
     tt = now();
 #endif
-    Widget * w = (nav_.empty() || aSwap_.running()) ? nullptr : nav_.back();
+    Widget * w = (nav_.empty() || tSwap_ != Transition::None) ? nullptr : nav_.back();
     if (w == nullptr && tSwap_ == Transition::FadeIn)
         w = nav_.back();
     if (w != nullptr) {
