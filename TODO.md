@@ -1,10 +1,18 @@
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 
+- !!!!!!!! PINS are different, no more volume keys DPAD handled by RPi, L/R not !!!!!!!!
+
 - battery on: 9:30
 - charging: 9:45 - 11:22
 
 - (3) order spare displays
 - (4) order extra buttons & stuff so that I can build all three devices
+
+- repeated l/r does not work
+- change icon can be done by having all images under one root and that way items can be selected from the pics easily
+- rename via keyboard ofc
+- make syncing on leave as well, always sync the current json root
+
 
 - repairing after connection lost does not work (channel & name is different) Add a pairing timeout on the device and wait for pairing indefinitely on the rckid side
 
@@ -107,11 +115,4 @@
 - the GPU performance is well... bad. 
 - check if using VCDispmanX, or SDL can improve things. 
 - check that we are find detecting first boot with it
-
-# New UI
-
-Have all resources managed by the canvas, which makes the cost of extra widgets non-existent. Then have special widgets. 
-
-- repeated l/r does not work
-
 

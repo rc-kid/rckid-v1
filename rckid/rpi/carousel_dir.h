@@ -14,7 +14,6 @@ public:
 
     DirCarousel(std::string const & root):
         root_{root} {
-        enter(root);
     }
 
 protected:
@@ -37,6 +36,12 @@ protected:
         DirInfo(DirInfo &&) = default;
     };
 
+    void reset() override {
+        dirs_.clear();
+        BaseCarousel::reset();
+        enter(root_);
+    }
+
     void itemSelected(size_t index) override {
         DirEntry & e = dirs_.back().entries[index];
         if (e.is_directory()) {
@@ -54,7 +59,7 @@ protected:
             return Item{e.path().stem()};
     }
 
-    void enter(Path path) {
+    virtual void enter(Path path) {
         dirs_.emplace_back(path);
         BaseCarousel::enter(dirs_.back().entries.size());
     }

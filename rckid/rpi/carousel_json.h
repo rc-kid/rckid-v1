@@ -64,10 +64,6 @@ protected:
         BaseCarousel::leave();
     }
 
-    void onNavigationPush() override { 
-        reset(); 
-    }
-
     std::string defaultTitle_{"???"};
     json::Value root_;
     std::vector<json::Value *> json_; 

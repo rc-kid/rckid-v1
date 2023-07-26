@@ -60,6 +60,10 @@ protected:
 
     bool busy() const { return a_.running(); }
 
+    /** Resets the carousel. 
+     
+        The carousel reset should clear all cached information and reset the position to be root of the carousel. 
+     */
     virtual void reset() {
         pos_.clear();
     }
@@ -92,6 +96,12 @@ protected:
     virtual void leave() {
         ASSERT(pos_.size() > 1);
         startTransition(Transition::LeaveFadeOut);
+    }
+
+    /** Reset the carousel when pushed on the navigation stack to ensure we start from valid and consistent state. If the carousel should keep its position between invocations, the reset can be disabled, but a reset call *must* be issued before drawing to ensure the carousel is in valid state (!!)
+     */
+    void onNavigationPush() override { 
+        reset(); 
     }
 
     void setFooterHints() override {
