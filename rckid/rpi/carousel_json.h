@@ -126,9 +126,9 @@ protected:
 class DirSyncedCarousel : public BaseJSONCarousel {
 public:
 
-    DirSyncedCarousel(std::string && rootDir):
+    DirSyncedCarousel(std::string const & rootDir):
         BaseJSONCarousel{getOrCreateItemsJSON(rootDir)}, 
-        rootDir_{std::move(rootDir)} {
+        rootDir_{rootDir} {
     }
 
 protected:

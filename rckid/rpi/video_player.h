@@ -4,6 +4,7 @@
 
 #include "widget.h"
 #include "window.h"
+#include "carousel_json.h"
 
 /** A video player, frontend to cvlc controlled the same way as retroarch is. 
  
@@ -16,10 +17,10 @@ public:
 
     bool fullscreen() const { return true; }
 
-    void play(json::Value const & video) {
+    void play(std::string const & path) {
         if (!player_.done())
             player_.kill();
-        std::string path = video["path"].value<std::string>();
+        //std::string path = video["path"].value<std::string>();
         player_ = utils::Process::capture(utils::Command{"cvlc", { "-I", "rc", path}});
         playing_ = true;
         window().showWidget(this);
@@ -100,3 +101,24 @@ protected:
     bool playing_ = false;
     
 }; // Video
+
+class VideoBrowser : public DirSyncedCarousel {
+public:
+    VideoBrowser(std::string const & rootDir): DirSyncedCarousel{rootDir} { }
+
+protected:
+    
+    std::optional<json::Value> getItemForFile(DirEntry const & entry) override {
+        std::string ext = entry.path().extension();
+        if (ext == ".mkv")
+            return DirSyncedCarousel::getItemForFile(entry);
+        else
+            return std::nullopt;
+    }
+
+    void itemSelected(size_t index, json::Value const & json) override {
+        player_.play(currentDir_ / json[MENU_FILENAME].value<std::string>());
+    }
+
+    VideoPlayer player_;
+}; 
