@@ -11,8 +11,8 @@
 - repeated l/r does not work
 - change icon can be done by having all images under one root and that way items can be selected from the pics easily
 - rename via keyboard ofc
-- make syncing on leave as well, always sync the current json root
 
+- make icons shared ptr resources
 
 - repairing after connection lost does not work (channel & name is different) Add a pairing timeout on the device and wait for pairing indefinitely on the rckid side
 

@@ -34,7 +34,7 @@ protected:
     }
 
     void itemSelected(size_t index) override {
-        json::Value & item = (*json_.back())[MENU_SUBITEMS][index];
+        json::Value & item = currentJson()[MENU_SUBITEMS][index];
         if (item.containsKey(MENU_SUBITEMS))
             enter(& item);
         else 
@@ -44,7 +44,7 @@ protected:
     virtual void itemSelected(size_t index, json::Value const & json) {}
 
     Item getItemFor(size_t index) override {
-        auto const & item = (*json_.back())[MENU_SUBITEMS][index];
+        auto const & item = currentJson()[MENU_SUBITEMS][index];
         json::Value const & jsonTitle = item[MENU_TITLE];
         std::string title{jsonTitle.isString() ? jsonTitle.value<std::string>() : defaultTitle_};    
         if (item.containsKey(MENU_ICON))
@@ -63,6 +63,8 @@ protected:
         json_.pop_back();
         BaseCarousel::leave();
     }
+
+    json::Value & currentJson() { return *json_.back(); }
 
     std::string defaultTitle_{"???"};
     json::Value root_;
@@ -141,6 +143,7 @@ protected:
             currentDir_ = rootDir_;
         else
             currentDir_ = currentDir_.append((*value)[MENU_FILENAME].value<std::string>());
+        // sync before calling the json's enter so that we are entering the correct json
         syncWithFolder(*value, currentDir_);
         BaseJSONCarousel::enter(value);
     }
@@ -148,7 +151,9 @@ protected:
     void leave() {
         BaseJSONCarousel::leave();
         currentDir_ = currentDir_.parent_path();
-        // TODO should we also sync the folder we arrived to now? 
+        // sync on our way back as well if there was move up 
+        // TODO make this conditional on move up flag
+        syncWithFolder(currentJson(), currentDir_);
     }
 
     void reset() override {
