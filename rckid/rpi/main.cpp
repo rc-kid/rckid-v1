@@ -86,7 +86,7 @@ void logCallback(int logLevel, const char * text, va_list args) {
 class Widgets {
 public:
     Widgets() {
-        w_["games"] = nullptr;
+        w_["games"] = new GameBrowser("/rckid/games");
         w_["video"] = new VideoBrowser("/rckid/videos");
         w_["music"] = new DirSyncedCarousel("/rckid/music");
         w_["remote"] = new Remote{};

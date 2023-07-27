@@ -3,6 +3,7 @@
 #include "widget.h"
 #include "window.h"
 #include "carousel.h"
+#include "carousel_json.h"
 
 #include "platform/platform.h"
 
@@ -26,6 +27,12 @@
  */
 class GamePlayer : public Widget {
 public:
+    static inline std::string const GAME_EMULATOR{"emulator"};
+    static inline std::string const GAME_LRCORE{"lrcore"};
+    static inline std::string const GAME_DOSBOX_CONFIG{"dosbox-config"};
+
+    static inline std::string const EMULATOR_RETROARCH{"retroarch"};
+    static inline std::string const EMULATOR_DOSBOX{"dosbox"};
 
     GamePlayer(): 
         gameMenu_{new Carousel::Menu{"", "", {
@@ -49,22 +56,18 @@ public:
 
     bool fullscreen() const { return true; }
 
-    void play(json::Value const & game) {
-        std::string emulator = game.containsKey("emulator") ? game["emulator"].value<std::string>() : "retroarch";
+    void play(std::filesystem::path dir,  json::Value & game) {
+        std::string emulator = game[GAME_EMULATOR].value<std::string>();
         utils::Command cmd;
-        if (emulator == "retroarch") {
-            std::string path = game["path"].value<std::string>();
-            std::string core = (game.containsKey("lrcore")) ? game["lrcore"].value<std::string>() : libretroCoreForPath(path);
+        if (emulator == EMULATOR_RETROARCH) {
+            std::string path = dir / game[DirSyncedCarousel::MENU_FILENAME].value<std::string>();
+            std::string core = game[GAME_LRCORE].value<std::string>();
             cmd = utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "--config", "/home/pi/rckid/retroarch/retroarch.cfg", "-L", core.c_str(), path.c_str()}};
-            //emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch"});
-        } else if (emulator == "dosbox") {
-            std::string config = game["config"].value<std::string>();
+        } else if (emulator == EMULATOR_DOSBOX) {
+            std::string config = game[GAME_DOSBOX_CONFIG].value<std::string>();
             // /opt/retropie/emulators/dosbox/bin/dosbox -v -conf /rckid/games/dos/WackyWhe/dosbox.conf
             cmd = utils::Command{"/opt/retropie/emulators/dosbox/bin/dosbox", { "-conf", config.c_str()}};
-        //emulator_ = utils::Process::start(utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch"});
-
         }
-        // TODO append configs and stuff
         // there is no retropie on my dev machine so playing with glxgears instead
 #if (defined ARCH_RPI)
         emulator_ = utils::Process::start(cmd);
@@ -127,35 +130,71 @@ protected:
             window().showWidget(& gameMenu_);
     }
 
-    std::string libretroCoreForPath(std::string const & path) {
-
-        char const * ext = GetFileExtension(path.c_str());
-        // mgba is used to handle all game boy variants 
-        if (strcmp(ext, ".gbc") == 0)
-            return "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so";
-        if (strcmp(ext, ".gba") == 0)
-            return "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so";
-        if (strcmp(ext, ".gb") == 0)
-            return "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so";
-        // SNES
-        if (strcmp(ext, ".sfc") == 0)
-            return "/opt/retropie/libretrocores/lr-snes9x2005/snes9x2005_libretro.so";
-        // Sega Genesis (MegaDrive)
-        if (strcmp(ext, ".md") == 0)
-            return "/opt/retropie/libretrocores/lr-genesis-plus-gx/genesis_plus_gx_libretro.so";
-        // Nintendo 64
-        if (strcmp(ext, ".n64") == 0)
-            return "/opt/retropie/libretrocores/lr-mupen64plus/mupen64plus_libretro.so";
-        // Dosbox
-        if (strcmp(ext, ".EXE") == 0 || strcmp(ext, ".exe"))
-            return "/opt/retropie/libretrocores/";
-        // TODO change to a decent exception
-        UNIMPLEMENTED;
-    }
-
     utils::Process emulator_;
 
     Carousel gameMenu_;
     
 
-}; // RetroArch
+}; // GamePlayer
+
+class GameBrowser : public DirSyncedCarousel {
+public:
+    GameBrowser(std::string const & rootDir): DirSyncedCarousel{rootDir} {}
+
+protected:
+
+    std::optional<json::Value> getItemForFile(DirEntry const & entry) override {
+        std::string ext = entry.path().extension();
+        if (ext == ".gb")
+            return createGameBoyProfile(DirSyncedCarousel::getItemForFile(entry).value());
+        else if (ext == ".gbc")
+            return createGameBoyColorProfile(DirSyncedCarousel::getItemForFile(entry).value());
+        else if (ext == ".gba")
+            return createGameBoyAdvanceProfile(DirSyncedCarousel::getItemForFile(entry).value());
+        else if (ext == ".md")
+            return createSegaGenesisProfile(DirSyncedCarousel::getItemForFile(entry).value());
+        else if (ext == ".n64")
+            return createNintendo64Profile(DirSyncedCarousel::getItemForFile(entry).value());
+        else if (ext == ".sfc")
+            return createSuperNintendoProfile(DirSyncedCarousel::getItemForFile(entry).value());
+        else
+            return std::nullopt;
+    }
+
+    json::Value && createRetroarchProfile(json::Value && item, std::string core) {
+        item[GamePlayer::GAME_EMULATOR] = GamePlayer::EMULATOR_RETROARCH;
+        item[GamePlayer::GAME_LRCORE] = core;
+        return std::move(item);
+    }
+
+    json::Value && createGameBoyProfile(json::Value && item) {
+        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so");
+    }
+
+    json::Value && createGameBoyColorProfile(json::Value && item) {
+        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so");
+    }
+
+    json::Value && createGameBoyAdvanceProfile(json::Value && item) {
+        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so");
+    }
+
+    json::Value && createSegaGenesisProfile(json::Value && item) {
+        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-genesis-plus-gx/genesis_plus_gx_libretro.so");
+    }
+
+    json::Value && createNintendo64Profile(json::Value && item) {
+        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-mupen64plus/mupen64plus_libretro.so");
+    }
+
+    json::Value && createSuperNintendoProfile(json::Value && item) {
+        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-snes9x2005/snes9x2005_libretro.so");
+    }
+
+    void itemSelected(size_t index, json::Value & json) override {
+        player_.play(currentDir_, json);
+    }
+
+    GamePlayer player_;
+    
+};

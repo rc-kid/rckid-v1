@@ -116,7 +116,7 @@ protected:
             return std::nullopt;
     }
 
-    void itemSelected(size_t index, json::Value const & json) override {
+    void itemSelected(size_t index, json::Value & json) override {
         player_.play(currentDir_ / json[MENU_FILENAME].value<std::string>());
     }
 

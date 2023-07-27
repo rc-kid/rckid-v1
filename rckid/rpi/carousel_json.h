@@ -41,7 +41,7 @@ protected:
             itemSelected(index, item);
     }
 
-    virtual void itemSelected(size_t index, json::Value const & json) {}
+    virtual void itemSelected(size_t index, json::Value & json) {}
 
     Item getItemFor(size_t index) override {
         auto const & item = currentJson()[MENU_SUBITEMS][index];
@@ -108,7 +108,7 @@ public:
 
 protected:
 
-    void itemSelected(size_t index, json::Value const & json) override { onSelect_(json); }
+    void itemSelected(size_t index, json::Value & json) override { onSelect_(json); }
 
     std::function<void(json::Value const &)> onSelect_;
 }; // SONCarousel
@@ -125,6 +125,7 @@ protected:
 
 class DirSyncedCarousel : public BaseJSONCarousel {
 public:
+    static inline std::string const MENU_FILENAME{"menu_filename"};
 
     DirSyncedCarousel(std::string const & rootDir):
         BaseJSONCarousel{getOrCreateItemsJSON(rootDir)}, 
@@ -132,7 +133,6 @@ public:
     }
 
 protected:
-    static inline std::string const MENU_FILENAME{"menu_filename"};
 
     using DirEntry = std::filesystem::directory_entry;
     using DirIterator = std::filesystem::directory_iterator;
