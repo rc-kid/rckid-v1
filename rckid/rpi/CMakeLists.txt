@@ -70,8 +70,8 @@ file(GLOB_RECURSE SRC  *.cpp *.h)
 add_executable(rckid ${SRC})
 target_link_libraries(rckid libi2cprogrammer)
 target_link_libraries(rckid ${EVDEV_LIBRARY} ${OPUS_LIBRARY})
-target_link_libraries(rckid Threads::Threads)
-target_link_libraries(rckid 
+target_link_libraries(rckid Threads::Threads uuid)
+target_link_libraries(rckid
     ${CMAKE_SOURCE_DIR}/../rckid-raylib/src/libraylib.a 
     ${M_LIBRARY} 
     ${DL_LIBRARY} 

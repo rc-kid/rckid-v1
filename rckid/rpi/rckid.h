@@ -5,6 +5,7 @@
 #include <variant>
 #include <functional>
 #include <memory>
+#include <filesystem>
 
 #include "libevdev/libevdev.h"
 #include "libevdev/libevdev-uinput.h"
@@ -74,6 +75,8 @@ RCKid & rckid();
  */
 class RCKid {
 public:
+
+    static inline std::filesystem::path const MUSIC_ARTWORK_DIR{"/rckid/images/music artwork"};
 
     static constexpr unsigned int RETROARCH_HOTKEY_ENABLE = BTN_THUMBR;
     static constexpr unsigned int RETROARCH_HOTKEY_PAUSE = BTN_SOUTH; // B

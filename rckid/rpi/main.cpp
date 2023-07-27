@@ -10,6 +10,7 @@ struct DispmanXBackgroundLayer {
 #endif
 
 #include <unordered_map>
+#include <filesystem>
 
 #include "raylib_cpp.h"
 
@@ -88,7 +89,7 @@ public:
     Widgets() {
         w_["games"] = new GameBrowser("/rckid/games");
         w_["video"] = new VideoBrowser("/rckid/videos");
-        w_["music"] = new DirSyncedCarousel("/rckid/music");
+        w_["music"] = new MusicBrowser("/rckid/music");
         w_["remote"] = new Remote{};
         w_["walkie-talkie"] = new WalkieTalkie{};
         w_["torchlight"] = new Torchlight{};
@@ -124,6 +125,8 @@ private:
  
  */
 int main(int argc, char * argv[]) {
+    // ensure the required paths
+    std::filesystem::create_directories(RCKid::MUSIC_ARTWORK_DIR);
     system("cp /rckid/log.txt /rckid/log.old.txt");
     SetTraceLogLevel(LOG_ALL);
     SetTraceLogCallback(logCallback);
