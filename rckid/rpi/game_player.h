@@ -36,19 +36,19 @@ public:
 
     GamePlayer(): 
         gameMenu_{new Carousel::Menu{"", "", {
-            new Carousel::Item{"Resume", "assets/images/066-play.png", [](){
+            new Carousel::Item{"Resume", "assets/images/065-play.png", [](){
                 window().back();
             }},
-            new Carousel::Item{"Save", "assets/images/072-diskette.png", [](){
+            new Carousel::Item{"Save", "assets/images/071-diskette.png", [](){
                 // TODO
             }},
-            new Carousel::Item{"Load", "assets/images/070-open.png", [](){
+            new Carousel::Item{"Load", "assets/images/069-open.png", [](){
                 // TODO
             }},
-            new Carousel::Item{"Screenshot", "assets/images/064-screenshot.png", [](){
+            new Carousel::Item{"Screenshot", "assets/images/063-screenshot.png", [](){
                 // TODO
             }},
-            new Carousel::Item{"Exit", "assets/images/065-stop.png", [](){
+            new Carousel::Item{"Exit", "assets/images/064-stop.png", [](){
                 window().back(2);
             }}
         }}} {

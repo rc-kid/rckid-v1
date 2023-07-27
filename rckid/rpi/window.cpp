@@ -119,13 +119,14 @@ Font Window::loadFont(std::string const & filename, int size) {
 }
 
 void Window::showWidget(Widget * widget) {
+    ASSERT(!widget->onNavStack());
     nav_.push_back(widget);
     // if we are the first widget proceed to enter directly 
     if (nav_.size() == 1) {
         enter(widget);
     // otherwise we must first fade the old widget, then start the new one
     } else {
-        leave(nav_[nav_.size() - 2]);
+        leave(nav_[nav_.size() - 2], /* navPop */ false);
         if (widget->fullscreen())
             hideHeader();
     }
@@ -154,7 +155,7 @@ void Window::back(size_t numWidgets) {
     while (numWidgets > 0) {
         if (nav_.size() <= 1)
             break;
-        leave(nav_.back());
+        leave(nav_.back(), /* navPop */ true);
         nav_.pop_back();
         --numWidgets;
     }
@@ -165,6 +166,7 @@ void Window::back(size_t numWidgets) {
 
 void Window::showModal(Widget * widget) {
     ASSERT(modal_ == nullptr);
+    ASSERT(!widget->onNavStack());
     if (modal_ != nullptr) {
         modal_->onBlur();
         modal_->onNavigationPop();
@@ -181,9 +183,10 @@ void Window::showModal(Widget * widget) {
 
 void Window::enter(Widget * widget) {
     ASSERT(nav_.back() == widget);
-    ASSERT(!widget->onNavStack());
-    widget->onNavigationPush();
-    widget->onNavStack_ = true;
+    if (!widget->onNavStack_) {
+        widget->onNavigationPush();
+        widget->onNavStack_ = true;
+    }
     widget->onFocus();
     widget->setFooterHints();
     // set the swap transition to fade the widget in and require its redraw
@@ -199,10 +202,12 @@ void Window::enter(Widget * widget) {
     }
 }
 
-void Window::leave(Widget * widget) {
+void Window::leave(Widget * widget, bool navPop) {
     widget->onBlur();
-    widget->onNavigationPop();
-    widget->onNavStack_ = false;
+    if (navPop) {
+        widget->onNavigationPop();
+        widget->onNavStack_ = false;
+    }
     // set the transition 
     tSwap_ = Transition::FadeOut;
     aSwap_.start();

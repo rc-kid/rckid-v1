@@ -390,6 +390,10 @@ public:
 
     Carousel(Menu * root):
         root_{root} {
+    }
+
+    void reset() override {
+        BaseCarousel::reset();
         enter(root_.get());
     }
 

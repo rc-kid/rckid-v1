@@ -254,7 +254,7 @@ private:
     void drawFooter();
 
     void enter(Widget * widget);
-    void leave(Widget * widget); 
+    void leave(Widget * widget, bool navPop); 
 
     // true if the current event should be cancelled
     bool cancelEvent_ = false;
