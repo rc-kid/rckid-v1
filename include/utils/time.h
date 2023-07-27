@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <sstream>
 
 using Timepoint = std::chrono::high_resolution_clock::time_point;
 using Duration = std::chrono::high_resolution_clock::duration;
@@ -15,4 +16,23 @@ inline int64_t asMillis(Duration d) {
 
 inline int64_t asMicros(Duration d) {
     return std::chrono::duration_cast<std::chrono::microseconds>(d).count();
+}
+
+inline std::string toHMS(int seconds) {
+    int h = seconds / 3600;
+    seconds = seconds % 360;
+    int m = seconds / 60;
+    seconds = seconds % 60;
+    std::stringstream s;
+    if (h !=0) 
+        s << h << ":";
+    if ( h != 0 || m != 0) {
+        if (m < 10)
+            s << '0';
+        s << m << ":";
+    }
+    if (seconds < 10)
+        s << '0';
+    s << seconds;
+    return s.str();
 }

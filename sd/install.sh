@@ -6,7 +6,7 @@ sudo apt-get -y update
 sudo apt-get -y upgrade
 # install extra packages required by the tools and rckid itself
 # sudo apt-get -y install xinit x11-xserver-utils pkg-config qt5-default libevdev-dev pigpio i2c-tools
-sudo apt-get -y install pkg-config libevdev-dev i2c-tools htop tmux cmake mc 
+sudo apt-get -y install pkg-config libevdev-dev i2c-tools htop tmux cmake mc ffmpeg imagemagick
 
 # use wiringPi instead of pigpio wich polls all the time
 sudo apt-get install wiringpi libi2c-dev 

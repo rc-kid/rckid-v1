@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <filesystem>
 #include "raylib.h"
 
 /** Allows log function to take std::string as well. 
@@ -38,6 +39,11 @@ inline constexpr Rectangle RECT(int x, int y, int width, int height) {
         static_cast<float>(width), 
         static_cast<float>(height), 
     };
+}
+
+
+inline Music LoadMusicStream(std::filesystem::path const & path) {
+    return LoadMusicStream(path.c_str());
 }
 
 

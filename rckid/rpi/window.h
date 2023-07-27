@@ -229,6 +229,18 @@ public:
         DrawRectangle(x + w - 2 * r, y + r, 2 * r, h - 3 * r, color);
     }
 
+    void drawProgressBar(int x, int y, int width, int height, float progress, ::Color bg, ::Color fg) {
+        float radius = height / 2.0;
+        DrawCircleSector(Vector2{x + radius, y + radius}, radius, 180, 360, 16, bg);
+        DrawRectangle(x + radius, y, width - height, height, bg);
+        DrawCircleSector(Vector2{x + width - radius, y + radius}, radius, 0, 180, 16, bg);
+        BeginScissorMode(x, y, width * progress, height);
+        DrawCircleSector(Vector2{x + radius, y + radius}, radius, 180, 360, 16, fg);
+        DrawRectangle(x + radius, y, width - height, height, fg);
+        DrawCircleSector(Vector2{x + width - radius, y + radius}, radius, 0, 180, 16, fg);
+        EndScissorMode();        
+    }        
+
 private:
 
     friend class WindowElement;

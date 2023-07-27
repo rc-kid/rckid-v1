@@ -12,7 +12,15 @@
 - change icon can be done by having all images under one root and that way items can be selected from the pics easily
 - rename via keyboard ofc
 
+- segfault of double delete when exitting the app while there is stuff in the rckid queue (have a way to exit ?) -- does not happen in reality on the device itself
+
 - make icons shared ptr resources
+
+- make carousel not draw titles on demand, scroll titles when too long
+- in player move the bar below
+- make the player switch song when done in repeat modes
+- add background mode (via start?)
+
 
 - repairing after connection lost does not work (channel & name is different) Add a pairing timeout on the device and wait for pairing indefinitely on the rckid side
 
