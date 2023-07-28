@@ -34,7 +34,7 @@ protected:
     }
 
     void itemSelected(size_t index) override {
-        json::Value & item = currentJson()[MENU_SUBITEMS][index];
+        json::Value & item = json()[MENU_SUBITEMS][index];
         if (item.containsKey(MENU_SUBITEMS))
             enter(& item);
         else 
@@ -44,7 +44,7 @@ protected:
     virtual void itemSelected(size_t index, json::Value & json) {}
 
     Item getItemFor(size_t index) override {
-        auto const & item = currentJson()[MENU_SUBITEMS][index];
+        auto const & item = json()[MENU_SUBITEMS][index];
         json::Value const & jsonTitle = item[MENU_TITLE];
         std::string title{jsonTitle.isString() ? jsonTitle.value<std::string>() : defaultTitle_};    
         if (item.containsKey(MENU_ICON))
@@ -64,7 +64,9 @@ protected:
         BaseCarousel::leave();
     }
 
-    json::Value & currentJson() { return *json_.back(); }
+    json::Value & json() { return (*json_.back()); }
+
+    json::Value & currentJson() { return (*json_.back())[MENU_SUBITEMS][currentIndex()]; }
 
     std::string defaultTitle_{"???"};
     json::Value root_;
@@ -153,7 +155,7 @@ protected:
         currentDir_ = currentDir_.parent_path();
         // sync on our way back as well if there was move up 
         // TODO make this conditional on move up flag
-        syncWithFolder(currentJson(), currentDir_);
+        syncWithFolder(json(), currentDir_);
     }
 
     void reset() override {

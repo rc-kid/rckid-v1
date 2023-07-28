@@ -22,25 +22,22 @@ public:
         });
     }
 
-    bool isPlaying() { std::lock_guard g{m_}; return playing_; }
+    bool paused() { std::lock_guard g{m_}; return paused_; }
 
-    /** Plays the given playlist, starting with the item at given index. 
-     */
-    void setPlaylist(json::Value * playlist, std::filesystem::path const & playlistDir) {
+    bool done() { std::lock_guard g{m_}; return loaded_ == false; }
+
+    void play(std::string const & filename) {
+        // first stop
         stop();
-        playlist_ = playlist;
-        playlistDir_ = playlistDir;
-    }
-
-    void play(size_t index) {
-        json::Value const & item = (*playlist_)[index];
-        std::string f = playlistDir_ / item[DirSyncedCarousel::MENU_FILENAME].value<std::string>();
+        // then set the new track
         std::lock_guard g{m_};
-        track_ = LoadMusicStream(f.c_str());
+        track_ = LoadMusicStream(filename.c_str());
         track_.looping = false;
         PlayMusicStream(track_);
         trackLength_ = GetMusicTimeLength(track_);
-        playing_ = true;
+        // enter pause mode if the audio device is not ready
+        paused_ = ! IsAudioDeviceReady();
+        loaded_ = true;
     }
 
     float elapsed() {
@@ -52,44 +49,38 @@ public:
         return trackLength_;
     }
 
-    void loopSingle(bool value) {
-        std::lock_guard g{m_};
-        track_.looping = value;
-    }
-
     void pause(bool value) {
         std::lock_guard g{m_};
-        playing_ = ! value;
+        paused_ = value;
     }
 
     void togglePause() {
         std::lock_guard g{m_};
-        playing_ = ! playing_;
+        paused_ = ! paused_;
     }
 
     void stop() {
         std::lock_guard g{m_};
-        playing_ = false;
-        if (playlist_ != nullptr)
+        if (loaded_) {
             UnloadMusicStream(track_);
-        playlist_ = nullptr;
+            loaded_ = false;
+        } 
     }
 private:
 
-    void playFile(size_t index) {
-    }
-
     bool tick() {
         std::lock_guard g{m_};
-        if (!playing_)
+        if (paused_)
             return true;
-        if (IsMusicStreamPlaying(track_))
+        if (IsMusicStreamPlaying(track_)) {
             UpdateMusicStream(track_);
-        else 
-            playing_ = false;
+        } else if (loaded_) { 
+            UnloadMusicStream(track_);
+            loaded_ = false;
+            paused_ = true;
+        }
         return true;
     }
-
 
     json::Value * playlist_ = nullptr;
     std::filesystem::path playlistDir_;
@@ -98,7 +89,8 @@ private:
     std::mutex m_;
     std::thread t_;
 
-    bool playing_ = false;
+    bool paused_ = false;
+    bool loaded_ = false;
     Music track_;
 
 
@@ -131,15 +123,44 @@ protected:
 
     void itemSelected(size_t index, json::Value & json) override {
         browsing_ = false;
+        playCurrentTrack();
+        /*
         requestRedraw();
-        player_.setPlaylist(& currentJson()[MENU_SUBITEMS], currentDir_);
-        player_.play(index);
-        player_.loopSingle(repeatSingleTrack_);
+        player_.play(currentDir_ / json[MENU_FILENAME].value<std::string>());
         setShowTitle(false);
+        titleWidth_ = 0;
+        titleScroller_.reset();
+        setFooterHints();
+        */
 
         //track_ = LoadMusicStream(currentDir_ / json[MENU_FILENAME].value<std::string>());
         //PlayMusicStream(track_);
         //trackLength_ = GetMusicTimeLength(track_);
+    }
+
+    bool playCurrentTrack() {
+        json::Value & json = currentJson();
+        if (! json.containsKey(MENU_FILENAME))
+            return false;
+        player_.play(currentDir_ / json[MENU_FILENAME].value<std::string>());
+        setShowTitle(false);
+        Font f = window().headerFont();
+        titleWidth_ = MeasureTextEx(f, currentTitle().c_str(), f.baseSize, 1.0).x;
+        titleScroller_.reset();
+        setFooterHints();
+        requestRedraw();
+        return true;
+    }
+
+    void setFooterHints() override {
+        if (browsing_) {
+            DirSyncedCarousel::setFooterHints();
+        } else {
+            window().clearFooter();
+            window().addFooterItem(FooterItem::B(" "));
+            window().addFooterItem(FooterItem::A("  "));
+            window().addFooterItem(FooterItem::X(" "));
+        }
     }
 
 
@@ -161,17 +182,33 @@ protected:
         DirSyncedCarousel::draw();
         // if we are playing, display the extra 
         if (! browsing_) {
+            // se if we should move to next song / start playing again
+            if (player_.done()) {
+                size_t i = currentNumItems();
+                while (i > 0) {
+                    if (!repeatSingleTrack_)
+                        goToNext();
+                    if (playCurrentTrack())
+                        break;
+                    --i;
+                }
+                if (i == 0) {
+                    player_.stop();
+                    browsing_ = true;
+                }
+            }
+            // display the player's UI
             BeginBlendMode(BLEND_ALPHA);
             int startY = 146; // 83
             DrawRectangle(0, startY, 320, 74, ColorAlpha(BLACK, 0.5));
-            if (player_.isPlaying()) {
+            if (player_.paused()) {
+                DrawTexture(pause_, 5, startY + 5, WHITE);
+            } else {
                 DrawTexture(play_, 5, startY + 5, WHITE);
                 requestRedraw();   
-            } else {
-                DrawTexture(pause_, 5, startY + 5, WHITE);
             }    
             if (repeatSingleTrack_)
-                DrawTexture(repeat_, 45, 45, WHITE);
+                DrawTexture(repeat_, 40, startY + 40, WHITE);
             float elapsed = player_.elapsed();
             float total = player_.trackLength();            
             std::string elapsedStr = toHMS(static_cast<int>(elapsed));
@@ -188,7 +225,9 @@ protected:
             DrawTextEx(f, elapsedStr.c_str(), 75, startY + 25, f.baseSize, 1.0, WHITE);
             DrawTextEx(f, remainingStr.c_str(), 315 - remainingWidth, startY + 25, f.baseSize, 1.0, WHITE);
 
-            DrawTextEx(f, currentTitle().c_str(), 75, startY + 45, f.baseSize, 1.0, WHITE);
+            titleScroller_.update();
+            if (titleScroller_.drawText(f, 75, startY+45, currentTitle(), 240, titleWidth_, WHITE))
+                requestRedraw();
         }
     }
 
@@ -208,6 +247,7 @@ protected:
             browsing_ = true;
             setShowTitle(true);
             requestRedraw();
+            setFooterHints();
         }
     }
 
@@ -216,8 +256,27 @@ protected:
             DirSyncedCarousel::btnX(state);
         } else if (state) {
             repeatSingleTrack_ = ! repeatSingleTrack_;
-            player_.loopSingle(repeatSingleTrack_);
             requestRedraw();
+        }
+    }
+
+    void dpadLeft(bool state) override {
+        DirSyncedCarousel::dpadLeft(state);
+        if (state && !browsing_) {
+            if (!playCurrentTrack()) {
+                player_.stop();
+                browsing_ = true;
+            }
+        }
+    }
+
+    void dpadRight(bool state) override {
+        DirSyncedCarousel::dpadRight(state);
+        if (state && !browsing_) {
+            if (!playCurrentTrack()) {
+                player_.stop();
+                browsing_ = true;
+            }
         }
     }
 
@@ -225,6 +284,8 @@ protected:
     bool repeatSingleTrack_ = false;
 
     MusicPlayer player_;
+    TextScroller titleScroller_;
+    int titleWidth_ = 0;
     
     Texture2D play_;
     Texture2D pause_;

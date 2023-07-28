@@ -15,12 +15,10 @@
 - segfault of double delete when exitting the app while there is stuff in the rckid queue (have a way to exit ?) -- does not happen in reality on the device itself
 
 - make icons shared ptr resources
+- check. move and document the text scroller (maybe move to window/canvas)
+- allow configurable item action for items (not folders)
+- dir / default file icons
 
-- make the text scroller's speed proportional to the text size (?)
-- check. move and document the text scroller
-- add text scrolling to the music player 
-- make the player switch song when done in repeat modes
-- add background mode (via start?)
 
 
 - repairing after connection lost does not work (channel & name is different) Add a pairing timeout on the device and wait for pairing indefinitely on the rckid side

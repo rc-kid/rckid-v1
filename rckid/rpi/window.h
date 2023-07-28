@@ -124,6 +124,11 @@ public:
         redrawFooter_ = true;
     }
 
+    void clearFooter() {
+        footer_.clear();
+        redrawFooter_ = true;
+    }
+
     void addFooterItem(FooterItem item) {
         item.textSize_ = MeasureTextEx(helpFont_, item.text_.c_str(), 16, 1.0);
         footer_.push_back(item);
@@ -341,6 +346,7 @@ private:
         0xf02cb, // 󰋋
         0xf1119, // 󱄙
         0xf0e08, 0xf057f, 0xf0580, 0xf057e, // 󰸈 󰕿 󰖀 󰕾
+        0xf04d, 0xf04c, 0xf04b, 0xf01e //     
     };
 
     static inline std::unique_ptr<Window> singleton_;
