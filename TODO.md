@@ -16,8 +16,9 @@
 
 - make icons shared ptr resources
 
-- make carousel not draw titles on demand, scroll titles when too long
-- in player move the bar below
+- make the text scroller's speed proportional to the text size (?)
+- check. move and document the text scroller
+- add text scrolling to the music player 
 - make the player switch song when done in repeat modes
 - add background mode (via start?)
 

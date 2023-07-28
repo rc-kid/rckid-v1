@@ -135,6 +135,7 @@ protected:
         player_.setPlaylist(& currentJson()[MENU_SUBITEMS], currentDir_);
         player_.play(index);
         player_.loopSingle(repeatSingleTrack_);
+        setShowTitle(false);
 
         //track_ = LoadMusicStream(currentDir_ / json[MENU_FILENAME].value<std::string>());
         //PlayMusicStream(track_);
@@ -161,21 +162,22 @@ protected:
         // if we are playing, display the extra 
         if (! browsing_) {
             BeginBlendMode(BLEND_ALPHA);
-            DrawRectangle(0, 83, 320, 74, ColorAlpha(BLACK, 0.5));
+            int startY = 146; // 83
+            DrawRectangle(0, startY, 320, 74, ColorAlpha(BLACK, 0.5));
             if (player_.isPlaying()) {
-                DrawTexture(play_, 5, 88, WHITE);
+                DrawTexture(play_, 5, startY + 5, WHITE);
                 requestRedraw();   
             } else {
-                DrawTexture(pause_, 5, 88, WHITE);
+                DrawTexture(pause_, 5, startY + 5, WHITE);
             }    
             if (repeatSingleTrack_)
-                DrawTexture(repeat_, 45, 128, WHITE);
+                DrawTexture(repeat_, 45, 45, WHITE);
             float elapsed = player_.elapsed();
             float total = player_.trackLength();            
             std::string elapsedStr = toHMS(static_cast<int>(elapsed));
-            DrawTexture(gauge_, 75, 106, DARKGRAY);
-            BeginScissorMode(75, 106, 240 * elapsed / total, 10);
-            DrawTexture(gauge_, 75, 106, BLUE);
+            DrawTexture(gauge_, 75, startY + 10, DARKGRAY);
+            BeginScissorMode(75, startY + 10, 240 * elapsed / total, 10);
+            DrawTexture(gauge_, 75, startY + 10, BLUE);
             EndScissorMode();
             //window().drawProgressBar(75, 43, 240, 10, elapsed / trackLength_, DARKGRAY, BLUE);
             Font f = window().headerFont();
@@ -183,8 +185,10 @@ protected:
             std::string remainingStr = toHMS(static_cast<int>(total - elapsed));
             int remainingWidth = MeasureTextEx(window().headerFont(), remainingStr.c_str(), window().headerFont().baseSize, 1.0).x;
 
-            DrawTextEx(f, elapsedStr.c_str(), 75, 120, f.baseSize, 1.0, WHITE);
-            DrawTextEx(f, remainingStr.c_str(), 315 - remainingWidth, 120, f.baseSize, 1.0, WHITE);
+            DrawTextEx(f, elapsedStr.c_str(), 75, startY + 25, f.baseSize, 1.0, WHITE);
+            DrawTextEx(f, remainingStr.c_str(), 315 - remainingWidth, startY + 25, f.baseSize, 1.0, WHITE);
+
+            DrawTextEx(f, currentTitle().c_str(), 75, startY + 45, f.baseSize, 1.0, WHITE);
         }
     }
 
@@ -202,6 +206,7 @@ protected:
         } else if (state) {
             player_.stop();
             browsing_ = true;
+            setShowTitle(true);
             requestRedraw();
         }
     }

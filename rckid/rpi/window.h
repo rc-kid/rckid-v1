@@ -345,4 +345,7 @@ private:
 
     static inline std::unique_ptr<Window> singleton_;
 
+
+
 }; // Window
+

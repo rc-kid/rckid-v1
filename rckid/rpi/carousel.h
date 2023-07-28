@@ -10,6 +10,36 @@
 #include "window.h"
 #include "animation.h"
 
+// TODO this goes to canvas or some such
+
+class TextScroller {
+public:
+    void update() { a_.update(); }
+
+    void reset() { a_.startContinuous(); }
+
+    bool drawText(Font const & font, int x, int y, std::string const & text, int displayWidth, int textWidth, ::Color color) {
+        if (displayWidth >= textWidth) {
+            DrawTextEx(font, text.c_str(), x + (displayWidth - textWidth) / 2, y, font.baseSize, 1.0, color);
+            return false;
+        } else {
+            int dist = (textWidth - displayWidth) / 2;
+            int offset = a_.interpolateContinuous(0, dist) * direction_;
+            BeginScissorMode(x, y, displayWidth, font.baseSize);
+            DrawTextEx(font, text.c_str(), x + (displayWidth - textWidth) / 2 +  offset, y, font.baseSize, 1.0, color);
+            EndScissorMode();
+            if (a_.done())
+                direction_ *= -1;
+            return true;
+        }
+    }
+private:
+    Animation a_{5000};
+    int direction_ = 1;
+};
+
+
+
 /** Basic carousel functionality and features common for various carousel types. 
 
     - does the item rendering, and others
@@ -58,8 +88,6 @@ protected:
 
     }; 
 
-    bool busy() const { return a_.running(); }
-
     /** Resets the carousel. 
      
         The carousel reset should clear all cached information and reset the position to be root of the carousel. 
@@ -68,15 +96,11 @@ protected:
         pos_.clear();
     }
 
-    /** Creates the information about the index-th item. 
-     
-        The item consists of the icon and the title and must be implemented in the data providing subclasses. 
-     */
-    virtual Item getItemFor(size_t index) = 0;
+    size_t currentIndex() { return pos().current; }
 
-    /** What to do when an item is selected. 
-     */
-    virtual void itemSelected(size_t index) {}
+    size_t currentNumItems() { return pos().numItems; }
+
+    std::string const & currentTitle() { return getItem(pos().current)->text; }
 
     virtual void goToPrev() {
         pos().current = pos().prev();
@@ -87,6 +111,24 @@ protected:
         pos().current = pos().next();
         startTransition(Transition::Next);
     }
+
+    bool showTitle() const { return showTitle_; }
+
+    void setShowTitle(bool value = true) { showTitle_ = value; requestRedraw(); }
+
+protected:
+
+    bool busy() const { return a_.running(); }
+
+    /** Creates the information about the index-th item. 
+     
+        The item consists of the icon and the title and must be implemented in the data providing subclasses. 
+     */
+    virtual Item getItemFor(size_t index) = 0;
+
+    /** What to do when an item is selected. 
+     */
+    virtual void itemSelected(size_t index) {}
 
     virtual void enter(size_t numItems) {
         pos_.emplace_back(numItems);
@@ -118,8 +160,8 @@ protected:
         }
         switch (t_) {
             case Transition::None:
-                drawItem(getItem(pos().current), 0, 255);
                 cancelRedraw();
+                drawItem(getItem(pos().current), 0, 255);
                 break;
             // when the transition is to the left item, the current item is on the left and we are moving right, i.e. current item's offset moves from -320 to 0 and the rightOf (previously current) moves from 0 to 320. The animation moves to the *right*
             case Transition::Prev: {
@@ -319,6 +361,7 @@ private:
                     break;
             }
             a_.start(WIDGET_FADE_TIME);
+            titleScroller_.reset();
         }
     }
 
@@ -333,9 +376,14 @@ private:
         else
             DrawTextureEx(item->icon, V2(item->iX + offset, item->iY), 0, item->iScale, c);
         // switch to alpha-blending to make the text visible over full screen-ish images
-        if (item->alphaBlend)
-            BeginBlendMode(BLEND_ALPHA);
-        DrawTextEx(item->font, item->text.c_str(), item->tX + 2 * offset, item->tY, item->font.baseSize, 1.0, c);
+        if (showTitle_) {
+            if (item->alphaBlend)
+                BeginBlendMode(BLEND_ALPHA);
+            titleScroller_.update();
+            if (titleScroller_.drawText(item->font, offset, item->tY, item->text, 320, item->textWidth, c))
+                requestRedraw();
+            //DrawTextEx(item->font, item->text.c_str(), item->tX + 2 * offset, item->tY, item->font.baseSize, 1.0, c);
+        }
     } 
 
     std::vector<CachedPosition> pos_;
@@ -344,7 +392,11 @@ private:
     Animation a_{500};
     int seamStart_;
 
+    bool showTitle_ = true;
+
     Texture defaultIcon_;
+
+    TextScroller titleScroller_;
 
 }; // BaseCarousel
 
