@@ -18,6 +18,7 @@
 #include "animation.h"
 #include "widget.h"
 #include "rckid.h"
+#include "canvas.h"
 
 
 #include "canvas.h"
@@ -86,6 +87,8 @@ class Window {
 public:
 
     static Window & create(); 
+
+    Canvas & canvas() { return canvas_; }
 
     Font loadFont(std::string const & filename, int size);
 
@@ -277,6 +280,8 @@ private:
     bool cancelEvent_ = false;
 
     std::vector<FooterItem> footer_;
+
+    Canvas canvas_{320, 240};
 
     Timepoint lastFrameTime_;
     size_t redrawDelta_; 

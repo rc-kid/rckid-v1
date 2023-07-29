@@ -1,4 +1,8 @@
 #pragma once
+
+#include <memory>
+
+
 #include "raylib.h"
 
 #include "utils/utils.h"
@@ -32,6 +36,91 @@ inline constexpr Color RGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
 class Canvas {
 public:
 
+    /** Wrapper over 2D textures. 
+     */
+    class Texture {
+    public:
+        int width() const { return t_->t.width; }
+        int height() const { return t_->t.height; };
+        std::string const & filename() const { return t_->filename; }
+
+        ~Texture() {
+            if (t_.use_count() == 2) {
+                cached_.erase(t_->filename);
+                UnloadTexture(t_->t);
+                TraceLog(LOG_INFO, STR("Unloading texture " << t_->filename));
+            }
+        }
+
+    private:
+
+        friend class Canvas;
+
+        struct TextureInfo {
+            Texture2D t;
+            std::string filename;
+
+            TextureInfo(Texture2D t, std::string const & filename): t{t}, filename{filename} {}
+
+        }; 
+
+        Texture(std::shared_ptr<TextureInfo> t): t_{t} {}
+
+        Texture2D t2d() const { return t_->t; }
+
+        std::shared_ptr<TextureInfo> t_;
+
+        static inline std::unordered_map<std::string, std::shared_ptr<TextureInfo>> cached_; 
+    }; 
+
+    Canvas(int width, int height):
+        width_{width}, 
+        height_{height} {
+    }
+
+    ~Canvas() {
+    }
+
+    /** Loads texture from given filename. 
+     */
+    Texture loadTexture(std::string const & filename) {
+        auto i = Texture::cached_.find(filename);
+        if (i == Texture::cached_.end())
+            i =Texture::cached_.insert(
+                std::make_pair(
+                    filename, 
+                    std::make_shared<Texture::TextureInfo>(
+                        LoadTexture(filename.c_str()), 
+                        filename
+                    )
+                )
+            ).first;
+        return Texture{i->second};
+    }
+
+
+    void drawTexture(int x, int y, Texture const & t) {
+        DrawTexture(t.t2d(), x, y, WHITE);
+    }
+
+    void drawTexture(int x, int y, Texture const & t, int alpha) {
+        DrawTexture(t.t2d(), x, y, ColorAlpha(WHITE, alpha / 255.f));
+    }
+
+    void drawTexture(int x, int y, Texture const & t, Color const & tint) {
+        DrawTexture(t.t2d(), x, y, tint);
+    }
+
+
+
+private:
+
+    int width_;
+    int height_;
+
+
+#ifdef FOO    
+
     /** Wrapper class for fonts. 
      */
     class Font {
@@ -49,37 +138,6 @@ public:
         ::Font font_;
     }; 
 
-    /** Wrapper class for textures. 
-     */
-    class Texture {
-    public:
-        ~Texture() {
-            UnloadTexture(texture_);
-        }
-
-        int width() const { return texture_.width; }
-        int height() const { return texture_.height; }
-    private:
-        friend class Canvas;
-        Texture(Texture2D t): texture_{t} {}
-
-        Texture2D texture_;
-    }; 
-
-    Canvas(int width, int height, std::string const & windowTitle) {
-        InitWindow(width, height, windowTitle.c_str());
-        SetTargetFPS(60);
-        if (! IsWindowReady())
-            TraceLog(LOG_ERROR, "Unable to initialize window");
-    }
-
-    ~Canvas() {
-        CloseWindow();
-        for (auto & f : fonts_)
-            delete f.second;
-        for (auto & t : textures_)
-            delete t.second;
-    }
 
     Font & loadFont(std::string const & filename, int size) {
         FontID id{filename, size};
@@ -91,14 +149,7 @@ public:
         return *(i->second);
     }
 
-    Texture & loadTexture(std::string const & filename) {
-        auto i = textures_.find(filename);
-        if (i == textures_.end()) {
-            Texture2D t = LoadTexture(filename.c_str());
-            i = textures_.insert(std::make_pair(filename, new Texture{t})).first;
-        }
-        return *(i->second);
-    }
+
 
     void setFont(Font & font) { font_ = & font; }
 
@@ -120,18 +171,6 @@ public:
         DrawTextEx(font_->font_, text.c_str(), Vector2{x + 0.f, y + 0.f}, font_->height(), 1.0, fg_);
     }
 
-    void drawTexture(int x, int y, Texture2D const & t) {
-        DrawTexture(t, x, y, WHITE);
-    }
-
-    void drawTexture(int x, int y, Texture2D const & t, int alpha) {
-        DrawTexture(t, x, y, ColorAlpha(WHITE, alpha / 255.f));
-    }
-
-    void drawTexture(int x, int y, Texture2D const & t, Color const & tint) {
-        DrawTexture(t, x, y, tint);
-    }
-
 private:
 
     struct FontID {
@@ -149,7 +188,8 @@ private:
     }; 
 
     std::unordered_map<FontID, Font *, Hasher<FontID>> fonts_;
-    std::unordered_map<std::string, Texture *> textures_;
+
+#endif  
 
     Font * font_ = nullptr;
     Color fg_;

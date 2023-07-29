@@ -18,7 +18,7 @@
 - check. move and document the text scroller (maybe move to window/canvas)
 - allow configurable item action for items (not folders)
 - dir / default file icons
-
+- unresponsive-ish buttons on the device in low FPS? 
 
 
 - repairing after connection lost does not work (channel & name is different) Add a pairing timeout on the device and wait for pairing indefinitely on the rckid side
