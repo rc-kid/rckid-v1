@@ -89,7 +89,7 @@ private:
     std::mutex m_;
     std::thread t_;
 
-    bool paused_ = false;
+    bool paused_ = true;
     bool loaded_ = false;
     Music track_;
 
@@ -101,7 +101,7 @@ class MusicBrowser : public DirSyncedCarousel {
 public:
 
     MusicBrowser(std::string const & rootDir): 
-        DirSyncedCarousel{rootDir},
+        DirSyncedCarousel{rootDir, "assets/icons/musical-note.png", "assets/icons/music.png"},
         play_{LoadTexture("assets/icons/play-64.png")},
         pause_{LoadTexture("assets/icons/pause-64.png")},
         repeat_{LoadTexture("assets/icons/repeat-32.png")},

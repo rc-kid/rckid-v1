@@ -27,6 +27,10 @@ inline constexpr Color RGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     return ::Color{r, g, b, a};
 }
 
+inline constexpr Vector2 V2(float x, float y) { return Vector2{x, y}; }
+inline constexpr Vector2 V2(int x, int y) { return Vector2{static_cast<float>(x), static_cast<float>(y)}; }
+
+
 #endif
 
 /** Wrapper around the GUI interface. 
@@ -44,13 +48,32 @@ public:
         int height() const { return t_->t.height; };
         std::string const & filename() const { return t_->filename; }
 
+        Texture() = default;
+
         ~Texture() {
             if (t_.use_count() == 2) {
                 cached_.erase(t_->filename);
+                TraceLog(LOG_INFO, STR("Unloading texture " << t_->filename << " (id: " << t_->t.id << ")"));
                 UnloadTexture(t_->t);
-                TraceLog(LOG_INFO, STR("Unloading texture " << t_->filename));
             }
         }
+
+        static Texture loadFrom(std::string const & filename) {
+            auto i = cached_.find(filename);
+            if (i == cached_.end())
+                i = cached_.insert(
+                    std::make_pair(
+                        filename, 
+                        std::make_shared<TextureInfo>(
+                            LoadTexture(filename.c_str()), 
+                            filename
+                        )
+                    )
+                ).first;
+            return Texture{i->second};
+        }
+
+        bool valid() const { return t_ != nullptr; }
 
     private:
 
@@ -80,25 +103,7 @@ public:
 
     ~Canvas() {
     }
-
-    /** Loads texture from given filename. 
-     */
-    Texture loadTexture(std::string const & filename) {
-        auto i = Texture::cached_.find(filename);
-        if (i == Texture::cached_.end())
-            i =Texture::cached_.insert(
-                std::make_pair(
-                    filename, 
-                    std::make_shared<Texture::TextureInfo>(
-                        LoadTexture(filename.c_str()), 
-                        filename
-                    )
-                )
-            ).first;
-        return Texture{i->second};
-    }
-
-
+    
     void drawTexture(int x, int y, Texture const & t) {
         DrawTexture(t.t2d(), x, y, WHITE);
     }
@@ -109,6 +114,10 @@ public:
 
     void drawTexture(int x, int y, Texture const & t, Color const & tint) {
         DrawTexture(t.t2d(), x, y, tint);
+    }
+
+    void drawTextureScaled(int x, int y, Texture const & t, float scale, Color const & tint) {
+        DrawTextureEx(t.t2d(), V2(x, y), 0, scale, tint);
     }
 
 

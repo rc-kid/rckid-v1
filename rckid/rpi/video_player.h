@@ -104,7 +104,7 @@ protected:
 
 class VideoBrowser : public DirSyncedCarousel {
 public:
-    VideoBrowser(std::string const & rootDir): DirSyncedCarousel{rootDir} { }
+    VideoBrowser(std::string const & rootDir): DirSyncedCarousel{rootDir, "assets/icons/movie.png", "assets/icons/playlist-1.png"} { }
 
 protected:
     

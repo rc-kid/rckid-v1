@@ -139,7 +139,7 @@ protected:
 
 class GameBrowser : public DirSyncedCarousel {
 public:
-    GameBrowser(std::string const & rootDir): DirSyncedCarousel{rootDir} {}
+    GameBrowser(std::string const & rootDir): DirSyncedCarousel{rootDir, "assets/icons/ghost.png", "assets/icons/arcade.png"} {}
 
 protected:
 

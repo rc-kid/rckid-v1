@@ -50,40 +50,35 @@ class BaseCarousel : public Widget {
 protected:
 
     BaseCarousel():
-        defaultIcon_{LoadTexture("assets/images/008-unicorn.png")} {
+        defaultIcon_{Canvas::Texture::loadFrom("assets/images/008-unicorn.png")} {
+    }
+
+    BaseCarousel(std::string const & defaultIcon):
+        defaultIcon_{Canvas::Texture::loadFrom(defaultIcon)} {
     }
 
     /** Item information consisting of the image and text to display with the item. 
      */
     class Item {
     public:
-        Item(std::string const & text, Texture icon):
+        Item(std::string const & text, Canvas::Texture icon):
             icon{icon}, text{text} {
         }
 
         Item(std::string const & text, std::string const & iconFile):
-            icon{LoadTexture(iconFile.c_str())},
+            icon{Canvas::Texture::loadFrom(iconFile.c_str())},
             text{text} {
         }
 
-        Item(std::string const & text): text{text} {
-            icon.id = 0;
-        }
+        Item(std::string const & text): text{text} {}
 
         Item(Item const &) = delete;
 
-        Item(Item && from): icon{from.icon}, text{std::move(from.text)} {
-            from.icon.id = 0;
-        }
+        Item(Item && from): icon{from.icon}, text{std::move(from.text)} {}
 
-        ~Item() {
-            if (!useDefaultIcon())
-                UnloadTexture(icon);
-        }
+        bool useDefaultIcon() const { return !icon.valid(); }
 
-        bool useDefaultIcon() const { return icon.id == 0; }
-
-        Texture icon;
+        Canvas::Texture icon;
         std::string text;
 
     }; 
@@ -263,26 +258,26 @@ private:
                 iX = 96;
                 iY = 24;
             } else {
-                if (icon.height <= 128) {
-                    iY = 88 - icon.height / 2;
+                if (icon.height() <= 128) {
+                    iY = 88 - icon.height() / 2;
                 } else  {
                     // the text might cover some of the icon, set alpha blending instead of the default additive blending that would be used over transparent background
                     alphaBlend = true;
-                    if (icon.height > 240)
-                        iScale = 240.f / icon.height;
+                    if (icon.height() > 240)
+                        iScale = 240.f / icon.height();
                     else
-                        iY = (240 - icon.height) / 2;
+                        iY = (240 - icon.height()) / 2;
                 }
-                if (icon.width <= 320) {
-                    iX = (320 - icon.width) / 2;
+                if (icon.width() <= 320) {
+                    iX = (320 - icon.width()) / 2;
                 } else {
-                    float s = 320.f / icon.width;
+                    float s = 320.f / icon.width();
                     if (s < iScale)
                         iScale = s;
                 }    
                 if (iScale != 1.0) {
-                    iY = static_cast<int>((240 - icon.height * iScale) / 2);
-                    iX = static_cast<int>((320 - icon.width * iScale) / 2);
+                    iY = static_cast<int>((240 - icon.height() * iScale) / 2);
+                    iX = static_cast<int>((320 - icon.width() * iScale) / 2);
                 }
             }
             font = window().menuFont();
@@ -372,9 +367,11 @@ private:
             return;
         Color c{RGBA(255, 255, 255, alpha)};
         if (item->iScale == 1.0)
-            DrawTexture(item->useDefaultIcon() ? defaultIcon_ : item->icon, item->iX + offset, item->iY, c);
+            window().canvas().drawTexture(item->iX + offset, item->iY, item->useDefaultIcon() ? defaultIcon_ : item->icon,  c);    
+            //DrawTexture(item->useDefaultIcon() ? defaultIcon_ : item->icon, item->iX + offset, item->iY, c);
         else
-            DrawTextureEx(item->icon, V2(item->iX + offset, item->iY), 0, item->iScale, c);
+            window().canvas().drawTextureScaled(item->iX + offset, item->iY, item->icon, item->iScale, c);    
+            //DrawTextureEx(item->icon, V2(item->iX + offset, item->iY), 0, item->iScale, c);
         // switch to alpha-blending to make the text visible over full screen-ish images
         if (showTitle_) {
             if (item->alphaBlend)
@@ -394,7 +391,7 @@ private:
 
     bool showTitle_ = true;
 
-    Texture defaultIcon_;
+    Canvas::Texture defaultIcon_;
 
     TextScroller titleScroller_;
 

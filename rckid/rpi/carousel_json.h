@@ -22,7 +22,13 @@ public:
     static inline std::string const MENU_ICON{"menu_icon"};
     static inline std::string const MENU_SUBITEMS{"menu_subitems"};
 
-    BaseJSONCarousel(json::Value root): root_{std::move(root)} {
+    BaseJSONCarousel(json::Value root, std::string const & defaultIcon): 
+        BaseCarousel{defaultIcon}, 
+        root_{std::move(root)} {
+    }
+
+    BaseJSONCarousel(json::Value root): 
+        root_{std::move(root)} {
     }
 
 protected:
@@ -129,8 +135,9 @@ class DirSyncedCarousel : public BaseJSONCarousel {
 public:
     static inline std::string const MENU_FILENAME{"menu_filename"};
 
-    DirSyncedCarousel(std::string const & rootDir):
-        BaseJSONCarousel{getOrCreateItemsJSON(rootDir)}, 
+    DirSyncedCarousel(std::string const & rootDir, std::string const & defaultIcon, std::string const & dirIcon):
+        BaseJSONCarousel{getOrCreateItemsJSON(rootDir), defaultIcon}, 
+        dirIcon_{dirIcon},
         rootDir_{rootDir} {
     }
 
@@ -193,7 +200,7 @@ protected:
             if (entry.is_directory()) {
                 json::Value d{json::Value::newStruct()};
                 d.insert(MENU_TITLE, entry.path().stem().c_str());
-                d.insert(MENU_ICON, "");
+                d.insert(MENU_ICON, dirIcon_);
                 d.insert(MENU_FILENAME, entry.path().filename().c_str());
                 d.insert(MENU_SUBITEMS, json::Value::newArray());
                 json[MENU_SUBITEMS].push(d);
@@ -224,5 +231,7 @@ protected:
 
     Path rootDir_;
     Path currentDir_;
+
+    std::string dirIcon_;
 
 }; 

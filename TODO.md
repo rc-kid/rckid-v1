@@ -14,10 +14,9 @@
 
 - segfault of double delete when exitting the app while there is stuff in the rckid queue (have a way to exit ?) -- does not happen in reality on the device itself
 
-- make icons shared ptr resources
-- check. move and document the text scroller (maybe move to window/canvas)
+- use canvas' textures for all texture drawing
+- check. move and document the text scroller (maybe move to canvas)
 - allow configurable item action for items (not folders)
-- dir / default file icons
 - unresponsive-ish buttons on the device in low FPS? 
 
 
