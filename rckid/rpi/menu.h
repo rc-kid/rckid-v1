@@ -21,7 +21,7 @@ protected:
     void draw() override {
         int h = 70;
 
-        window().drawFrame(20, 220 - h, maxWidth_ + 10, h, "Menu", WHITE);
+        window().canvas().drawFrame(20, 220 - h, maxWidth_ + 10, h, "Menu", WHITE);
     }
 
     void dpadUp(bool state) override {

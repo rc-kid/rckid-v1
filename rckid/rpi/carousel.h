@@ -50,11 +50,11 @@ class BaseCarousel : public Widget {
 protected:
 
     BaseCarousel():
-        defaultIcon_{Canvas::Texture::loadFrom("assets/images/008-unicorn.png")} {
+        defaultIcon_{"assets/images/008-unicorn.png"} {
     }
 
     BaseCarousel(std::string const & defaultIcon):
-        defaultIcon_{Canvas::Texture::loadFrom(defaultIcon)} {
+        defaultIcon_{defaultIcon} {
     }
 
     /** Item information consisting of the image and text to display with the item. 
@@ -66,7 +66,7 @@ protected:
         }
 
         Item(std::string const & text, std::string const & iconFile):
-            icon{Canvas::Texture::loadFrom(iconFile.c_str())},
+            icon{iconFile},
             text{text} {
         }
 
@@ -256,10 +256,10 @@ private:
             Item{std::move(item)} {
             if (useDefaultIcon()) {
                 iX = 96;
-                iY = 24;
+                iY = 24 + 5;
             } else {
                 if (icon.height() <= 128) {
-                    iY = 88 - icon.height() / 2;
+                    iY = 88 - icon.height() / 2 + 5;
                 } else  {
                     // the text might cover some of the icon, set alpha blending instead of the default additive blending that would be used over transparent background
                     alphaBlend = true;
@@ -282,7 +282,7 @@ private:
             }
             font = window().menuFont();
             textWidth = MeasureTextEx(font, text.c_str(), font.baseSize, 1.0).x;
-            tY = 152;
+            tY = 157;
             tX = 160 - (textWidth / 2);
             // TODO calculate where to draw the text & the icon and other things
         }
@@ -368,10 +368,8 @@ private:
         Color c{RGBA(255, 255, 255, alpha)};
         if (item->iScale == 1.0)
             window().canvas().drawTexture(item->iX + offset, item->iY, item->useDefaultIcon() ? defaultIcon_ : item->icon,  c);    
-            //DrawTexture(item->useDefaultIcon() ? defaultIcon_ : item->icon, item->iX + offset, item->iY, c);
         else
             window().canvas().drawTextureScaled(item->iX + offset, item->iY, item->icon, item->iScale, c);    
-            //DrawTextureEx(item->icon, V2(item->iX + offset, item->iY), 0, item->iScale, c);
         // switch to alpha-blending to make the text visible over full screen-ish images
         if (showTitle_) {
             if (item->alphaBlend)

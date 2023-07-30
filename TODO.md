@@ -12,9 +12,6 @@
 - change icon can be done by having all images under one root and that way items can be selected from the pics easily
 - rename via keyboard ofc
 
-- segfault of double delete when exitting the app while there is stuff in the rckid queue (have a way to exit ?) -- does not happen in reality on the device itself
-
-- use canvas' textures for all texture drawing
 - check. move and document the text scroller (maybe move to canvas)
 - allow configurable item action for items (not folders)
 - unresponsive-ish buttons on the device in low FPS? 

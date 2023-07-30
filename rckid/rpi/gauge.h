@@ -8,25 +8,24 @@
 class Gauge : public Widget {
 public:
 
-    Gauge(Texture2D icon, int min, int max, int step, std::function<void(int)> onChange, std::function<void(Gauge*)> onRefresh):
+    Gauge(Canvas::Texture const & icon, int min, int max, int step, std::function<void(int)> onChange, std::function<void(Gauge*)> onRefresh):
         onChange_{onChange},
         onRefresh_{onRefresh},
         icon_{icon},
         min_{min},
         max_{max},
-        step_{step}
-    {
-        gauge_ = LoadTexture("assets/gauge.png");
+        step_{step},
+        gauge_{"assets/gauge.png"} {
     }
 
-    Gauge(Texture2D icon, int min, int max, int step, std::function<void(int)> onChange, int value):
+    Gauge(Canvas::Texture const & icon, int min, int max, int step, std::function<void(int)> onChange, int value):
         Gauge{icon, min, max, step, onChange, [](Gauge *g){ }} { value_ = value; }
 
     Gauge(std::string const & icon, int min, int max, int step, std::function<void(int)> onChange, std::function<void(Gauge*)> onRefresh):
-        Gauge{LoadTexture(icon.c_str()), min, max, step, onChange, onRefresh} {}
+        Gauge{Canvas::Texture{icon}, min, max, step, onChange, onRefresh} {}
 
     Gauge(std::string const & icon, int min, int max, int step, std::function<void(int)> onChange, int value):
-        Gauge{LoadTexture(icon.c_str()), min, max, step, onChange, [](Gauge *g){}} { value_ = value; }
+        Gauge{Canvas::Texture{icon}, min, max, step, onChange, [](Gauge *g){}} { value_ = value; }
 
     void setValue(int value) {
         if (value < min_)
@@ -46,13 +45,14 @@ protected:
     void onNavigationPush() override { onRefresh_(this); }
 
     void draw() override {
-        DrawTexture(icon_, (Window_WIDTH - icon_.width) / 2, (Window_HEIGHT - icon_.height - MENU_FONT_SIZE) / 2 + 10, WHITE);
+        Canvas & c = window().canvas();
+        c.drawTexture((Window_WIDTH - icon_.width()) / 2, (Window_HEIGHT - icon_.height() - MENU_FONT_SIZE) / 2 + 5, icon_);
 
-        DrawTexture(gauge_, 0, Window_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE + 5, backgroundColor_);
+        c.drawTexture(0, Window_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE + 5, gauge_, backgroundColor_);
         if (max_ != min_) {
             BeginScissorMode(0, 0, 320 * (value_ - min_) / (max_ - min_), 240); 
             BeginBlendMode(BLEND_ALPHA);
-            DrawTexture(gauge_, 0, Window_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE + 5, color_);
+            c.drawTexture(0, Window_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE + 5, gauge_, color_);
             EndBlendMode();
             EndScissorMode();
         }
@@ -75,8 +75,8 @@ protected:
     Color color_ = BLUE;
     Color backgroundColor_ = DARKGRAY;
 
-    Texture2D icon_;
-    Texture2D gauge_;
+    Canvas::Texture icon_;
+    Canvas::Texture gauge_;
 
     std::function<void(int)> onChange_;
     std::function<void(Gauge*)> onRefresh_;

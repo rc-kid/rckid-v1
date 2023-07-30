@@ -95,24 +95,22 @@ RCKid::RCKid() {
     initializeISRs();
 
     // start the hw loop thread
-    std::thread t{[this](){
+    tHwLoop_ = std::thread{[this](){
         this->hwLoop();
     }};
-    t.detach();
-    std::thread tickTimer{[this](){
-        while (true) {
+    //t.detach();
+    tTicks_ = std::thread{[this](){
+        while (!shouldTerminate_.load()) {
             cpu::delayMs(10);
             this->hwEvents_.send(Tick{});
         }
     }};
-    std::thread secondTimer{[this](){
-        while (true) {
+    tSeconds_ = std::thread{[this](){
+        while (!shouldTerminate_.load()) {
             cpu::delayMs(1000);
             this->hwEvents_.send(SecondTick{});
         }
     }};
-    tickTimer.detach();
-    secondTimer.detach();
 
 #if (defined ARCH_MOCK)
     std::thread mockRecording{[this](){
@@ -193,8 +191,12 @@ void RCKid::hwLoop() {
     // query avr status
     avrQueryExtendedState();
     setBrightness(255);
-    while (true) {
+    bool terminate = false;
+    while (! terminate) {
         std::visit(overloaded{
+            [&terminate](Terminate) { 
+                terminate = true; 
+            },
             [this](Tick){
 #if (defined ARCH_MOCK)        
                 checkMockButtons();

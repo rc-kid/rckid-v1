@@ -5,6 +5,7 @@
 #include <variant>
 #include <functional>
 #include <memory>
+#include <atomic>
 #include <filesystem>
 
 #include "libevdev/libevdev.h"
@@ -98,6 +99,11 @@ public:
     static RCKid & create();
 
     ~RCKid() {
+        shouldTerminate_.store(true);
+        hwEvents_.send(Terminate{});
+        tHwLoop_.join();
+        tTicks_.join();
+        tSeconds_.join();
         libevdev_uinput_destroy(gamepad_);
         libevdev_free(gamepadDev_);
     }
@@ -305,6 +311,7 @@ private:
         AxisState(unsigned evdevId):evdevId{evdevId} { }
     }; // RCKid:Axis
 
+    struct Terminate{};
     struct Tick {};
     struct SecondTick {};
     struct Irq { unsigned pin; };
@@ -333,9 +340,11 @@ private:
     };
 
 
+
     /** Event for the driver's main loop to react to. Events with specified numbers are changes on the specified pins.
     */
     using HWEvent = std::variant<
+        Terminate, 
         Tick, 
         SecondTick,
         Irq, 
@@ -639,6 +648,11 @@ private:
     struct libevdev * gamepadDev_{nullptr};
     struct libevdev_uinput * gamepad_{nullptr};
     struct libevdev_uinput * activeDevice_{nullptr};
+
+    std::thread tHwLoop_;
+    std::thread tTicks_;
+    std::thread tSeconds_;
+    std::atomic<bool> shouldTerminate_{false};
 
     static inline std::unique_ptr<RCKid> singleton_;
 

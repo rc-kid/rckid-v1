@@ -102,10 +102,10 @@ public:
 
     MusicBrowser(std::string const & rootDir): 
         DirSyncedCarousel{rootDir, "assets/icons/musical-note.png", "assets/icons/music.png"},
-        play_{LoadTexture("assets/icons/play-64.png")},
-        pause_{LoadTexture("assets/icons/pause-64.png")},
-        repeat_{LoadTexture("assets/icons/repeat-32.png")},
-        gauge_{LoadTexture("assets/gauge.png")} {
+        play_{"assets/icons/play-64.png"},
+        pause_{"assets/icons/pause-64.png"},
+        repeat_{"assets/icons/repeat-32.png"},
+        gauge_{"assets/gauge-music.png"} {
     }
 
 protected:
@@ -182,6 +182,7 @@ protected:
         DirSyncedCarousel::draw();
         // if we are playing, display the extra 
         if (! browsing_) {
+            Canvas & c = window().canvas();
             // se if we should move to next song / start playing again
             if (player_.done()) {
                 size_t i = currentNumItems();
@@ -202,19 +203,19 @@ protected:
             int startY = 146; // 83
             DrawRectangle(0, startY, 320, 74, ColorAlpha(BLACK, 0.5));
             if (player_.paused()) {
-                DrawTexture(pause_, 5, startY + 5, WHITE);
+                c.drawTexture(5, startY + 5, pause_);
             } else {
-                DrawTexture(play_, 5, startY + 5, WHITE);
+                c.drawTexture(5, startY + 5, play_);
                 requestRedraw();   
             }    
             if (repeatSingleTrack_)
-                DrawTexture(repeat_, 40, startY + 40, WHITE);
+                c.drawTexture(40, startY + 40, repeat_);
             float elapsed = player_.elapsed();
             float total = player_.trackLength();            
             std::string elapsedStr = toHMS(static_cast<int>(elapsed));
-            DrawTexture(gauge_, 75, startY + 10, DARKGRAY);
+            c.drawTexture(75, startY + 10, gauge_, DARKGRAY);
             BeginScissorMode(75, startY + 10, 240 * elapsed / total, 10);
-            DrawTexture(gauge_, 75, startY + 10, BLUE);
+            c.drawTexture(75, startY + 10, gauge_, BLUE);
             EndScissorMode();
             //window().drawProgressBar(75, 43, 240, 10, elapsed / trackLength_, DARKGRAY, BLUE);
             Font f = window().headerFont();
@@ -287,9 +288,9 @@ protected:
     TextScroller titleScroller_;
     int titleWidth_ = 0;
     
-    Texture2D play_;
-    Texture2D pause_;
-    Texture2D repeat_;
-    Texture2D gauge_;
+    Canvas::Texture play_;
+    Canvas::Texture pause_;
+    Canvas::Texture repeat_;
+    Canvas::Texture gauge_;
 
 }; 
