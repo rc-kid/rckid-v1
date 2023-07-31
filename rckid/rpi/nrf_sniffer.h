@@ -14,14 +14,16 @@ public:
 protected:
 
     void draw() override {
-        DrawTextEx(window().helpFont(), STR("TX: " << tx_ << " RX: " << rx_).c_str(), 0, 200, 16, 1.0, WHITE);
+        Canvas & c = window().canvas();
+        c.drawText(0, 200, STR("TX: " << tx_ << " RX: " << rx_), WHITE);
         BeginBlendMode(BLEND_ADD_COLORS);
         for (size_t i = 0; i < msgs_.size(); ++i) {
             size_t id = (rx_ - msgs_.size() + i) % 1000;
-            DrawTextEx(window().helpFont(), STR(id << ":").c_str(), 0, 20 + 18 * i, 16, 1.0, DARKGRAY);
-            DrawTextEx(window().helpFont(), msgs_[i].bytesToStr(0, 8).c_str(), 32, 20 + 18 * i, 16, 1.0, WHITE);
-            DrawTextEx(window().helpFont(), ":", 145, 20 + 18 * i, 16, 1.0, DARKGRAY);
-            DrawTextEx(window().helpFont(), msgs_[i].bytesToStr(8, 8).c_str(), 153, 20 + 18 * i, 16, 1.0, WHITE);
+            c.drawText(0, 20 + 18 + i, STR(id << ":"), DARKGRAY);
+            //window().helpFont(), STR(id << ":").c_str(), 0, 20 + 18 * i, 16, 1.0, DARKGRAY);
+            c.drawText(32, 20 + 18 + i, msgs_[i].bytesToStr(0, 8), WHITE);
+            c.drawText(145, 20 + 18 + i, ":", DARKGRAY);
+            c.drawText(153, 20 + 18 * i, msgs_[i].bytesToStr(8, 8), WHITE);
         }
     }
 

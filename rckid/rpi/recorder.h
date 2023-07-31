@@ -15,6 +15,7 @@ protected:
     }
 
     void draw() override {
+        Canvas & c = window().canvas();
         /*
         int i = 0;
         int x = maxIndex_;
@@ -29,7 +30,7 @@ protected:
         avis_.draw(0, 50, 320, 140);
 
         if (recording_)
-            DrawTextEx(window().helpFont(), "Recording...", 0, 25, 16, 1.0, WHITE);
+            c.drawText(0, 25, "Recording...", WHITE);
     }
 
     void btnA(bool state) override {

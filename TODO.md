@@ -8,11 +8,9 @@
 - (3) order spare displays
 - (4) order extra buttons & stuff so that I can build all three devices
 
-- repeated l/r does not work
 - change icon can be done by having all images under one root and that way items can be selected from the pics easily
 - rename via keyboard ofc
 
-- check. move and document the text scroller (maybe move to canvas)
 - allow configurable item action for items (not folders)
 - unresponsive-ish buttons on the device in low FPS? 
 

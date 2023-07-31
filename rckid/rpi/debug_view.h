@@ -23,22 +23,36 @@ protected:
     }
 
     void draw() override{
+        Canvas & c = window().canvas();
         BeginBlendMode(BLEND_ADD_COLORS);
         // now draw the displayed information
-        DrawTextEx(window().helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), STR(rckid().vcc()).c_str(), 210, 20, 16, 1.0, WHITE);
-        DrawTextEx(window().helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), STR(rckid().vBatt()).c_str(), 290, 20, 16, 1.0, WHITE);
-        DrawTextEx(window().helpFont(), "TEMP:", 160, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), STR(rckid().avrTemp()).c_str(), 210, 40, 16, 1.0, WHITE);
-        DrawTextEx(window().helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), STR(rckid().accelTemp()).c_str(), 290, 40, 16, 1.0, WHITE);
+        c.drawText(160, 20, "VCC:", DARKGRAY);
+        c.drawText(210, 20, STR(rckid().vcc()), WHITE);
+        c.drawText(240, 20, "VBATT:", DARKGRAY);
+        c.drawText(290, 20, STR(rckid().vBatt()), WHITE);
+        c.drawText(160, 40, "TEMP:", DARKGRAY);
+        c.drawText(210, 40, STR(rckid().avrTemp()), WHITE);
+        c.drawText(240, 40, "ATEMP:", DARKGRAY);
+        c.drawText(290, 40, STR(rckid().accelTemp()), WHITE);
+        c.drawText(160, 60, "CHRG:", DARKGRAY);
+        c.drawText(210, 60, rckid().charging() ? "1" : "0", WHITE);
+        c.drawText(160, 80, "UP:", DARKGRAY);
+        c.drawText(210, 80, STR(rckid().avrUptime()), WHITE);
 
-        DrawTextEx(window().helpFont(), "CHRG:", 160, 60, 16, 1, DARKGRAY);
-        DrawTextEx(window().helpFont(), rckid().charging() ? "1" : "0", 210, 60, 16, 1.0, WHITE);
+        //DrawTextEx(window().helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
+        //DrawTextEx(window().helpFont(), STR(rckid().vcc()).c_str(), 210, 20, 16, 1.0, WHITE);
+        //DrawTextEx(window().helpFont(), "VBATT:", 240, 20, 16, 1.0, DARKGRAY);
+        //DrawTextEx(window().helpFont(), STR(rckid().vBatt()).c_str(), 290, 20, 16, 1.0, WHITE);
+        //DrawTextEx(window().helpFont(), "TEMP:", 160, 40, 16, 1.0, DARKGRAY);
+        //DrawTextEx(window().helpFont(), STR(rckid().avrTemp()).c_str(), 210, 40, 16, 1.0, WHITE);
+        //DrawTextEx(window().helpFont(), "ATEMP:", 240, 40, 16, 1.0, DARKGRAY);
+        //DrawTextEx(window().helpFont(), STR(rckid().accelTemp()).c_str(), 290, 40, 16, 1.0, WHITE);
 
-        DrawTextEx(window().helpFont(), "UP:", 160, 80, 16, 1, DARKGRAY);
-        DrawTextEx(window().helpFont(), STR(rckid().avrUptime()).c_str(), 210, 80, 16, 1.0, WHITE);
+        //DrawTextEx(window().helpFont(), "CHRG:", 160, 60, 16, 1, DARKGRAY);
+        //DrawTextEx(window().helpFont(), rckid().charging() ? "1" : "0", 210, 60, 16, 1.0, WHITE);
+
+        //DrawTextEx(window().helpFont(), "UP:", 160, 80, 16, 1, DARKGRAY);
+        //DrawTextEx(window().helpFont(), STR(rckid().avrUptime()).c_str(), 210, 80, 16, 1.0, WHITE);
         EndBlendMode();
 
         BeginBlendMode(BLEND_ALPHA);
@@ -81,16 +95,26 @@ protected:
         
         EndBlendMode();
 
+        c.setFg(DARKGRAY);
+        c.drawText(45, 42, "Joy");
+        c.drawText(85, 42, "Acc");
+        c.drawText(30, 60, "X");
+        c.drawText(30, 78, "Y");
+        c.setFg(WHITE);
+        c.drawText(45, 60, STR((int)joyX_));
+        c.drawText(45, 78, STR((int)joyY_));
+        c.drawText(85, 60, STR((int)accelX_));
+        c.drawText(85, 78, STR((int)accelY_));
 
-        DrawTextEx(window().helpFont(), "Joy", 45, 42, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), "Acc", 85, 42, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), "X", 30, 60, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), "Y", 30, 78, 16, 1.0, DARKGRAY);
+        //DrawTextEx(window().helpFont(), "Joy", 45, 42, 16, 1.0, DARKGRAY);
+        //DrawTextEx(window().helpFont(), "Acc", 85, 42, 16, 1.0, DARKGRAY);
+        //DrawTextEx(window().helpFont(), "X", 30, 60, 16, 1.0, DARKGRAY);
+        //DrawTextEx(window().helpFont(), "Y", 30, 78, 16, 1.0, DARKGRAY);
         //DrawTextEx(window->helpFont(), "Z", 30, 96, 16, 1.0, DARKGRAY);
-        DrawTextEx(window().helpFont(), STR((int)joyX_).c_str(), 45, 60, 16, 1.0, WHITE);
-        DrawTextEx(window().helpFont(), STR((int)joyY_).c_str(), 45, 78, 16, 1.0, WHITE);
-        DrawTextEx(window().helpFont(), STR((int)accelX_).c_str(), 85, 60, 16, 1.0, WHITE);
-        DrawTextEx(window().helpFont(), STR((int)accelY_).c_str(), 85, 78, 16, 1.0, WHITE);
+        //DrawTextEx(window().helpFont(), STR((int)joyX_).c_str(), 45, 60, 16, 1.0, WHITE);
+        //DrawTextEx(window().helpFont(), STR((int)joyY_).c_str(), 45, 78, 16, 1.0, WHITE);
+        //DrawTextEx(window().helpFont(), STR((int)accelX_).c_str(), 85, 60, 16, 1.0, WHITE);
+        //DrawTextEx(window().helpFont(), STR((int)accelY_).c_str(), 85, 78, 16, 1.0, WHITE);
 
     }
 

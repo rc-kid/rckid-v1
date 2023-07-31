@@ -4,6 +4,8 @@
 #include "window.h"
 #include "animation.h"
 
+#ifdef FOO
+
 /** On-screen keyboard for simple text input. 
  
     DPad moves between keys. A selects, B back, X Aa1, Y backspace
@@ -128,3 +130,6 @@ private:
     Font vf_;
 
 }; // Keyboard
+
+
+#endif

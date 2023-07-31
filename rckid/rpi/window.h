@@ -67,7 +67,7 @@ private:
 
     Control control_;
     std::string text_;
-    Vector2 textSize_;
+    int textWidth_;
 
 }; // FooterItem
 
@@ -88,9 +88,9 @@ public:
 
     static Window & create(); 
 
-    Canvas & canvas() { return canvas_; }
+    Canvas & canvas() { return *canvas_; }
 
-    Font loadFont(std::string const & filename, int size);
+    //Font loadFont(std::string const & filename, int size);
 
     void loop(); 
 
@@ -133,7 +133,7 @@ public:
     }
 
     void addFooterItem(FooterItem item) {
-        item.textSize_ = MeasureTextEx(helpFont_, item.text_.c_str(), 16, 1.0);
+        item.textWidth_ = canvas_->textWidth(item.text_, canvas_->helpFont());
         footer_.push_back(item);
         redrawFooter_ = true;
     }
@@ -170,10 +170,6 @@ public:
             headerVisible_ = false;
         }
     }
-
-    Font const & menuFont() const { return menuFont_; }
-    Font const & helpFont() const { return helpFont_; }
-    Font const & headerFont() const { return headerFont_; }
 
     void enableBackground(bool value) { backgroundOpacity_ = value ? 255 : 0; }
 
@@ -224,16 +220,10 @@ private:
 
     std::vector<FooterItem> footer_;
 
-    Canvas canvas_{320, 240};
+    std::unique_ptr<Canvas> canvas_;
 
     Timepoint lastFrameTime_;
     size_t redrawDelta_; 
-    //double lastDrawTime_;
-    //float redrawDelta_;
-    Font helpFont_;
-    Font headerFont_;
-    Font menuFont_;
-    std::unordered_map<std::string, Font> fonts_;
 
 
     Animation aSwap_{WIDGET_FADE_TIME};
@@ -280,26 +270,8 @@ private:
     Transition tFooter_ = Transition::None;
     bool footerVisible_ = true;
 
-    static constexpr int GLYPHS[] = {
-        32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations
-        48, 49, 50, 51, 52, 53, 54, 55, 56, 57, // 0..9
-        58, 59, 60, 61, 62, 63, 64, // more punctuations
-        65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, // A-Z
-        91, 92, 93, 94, 95, 96, // more punctuations
-        97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, // a-z
-        123, 124, 125, 126, // more punctiations
-        0xf004, 0xf08a, //  
-        0xf05a9, 0xf05aa, 0xf16c1, // 󰖩 󰖪 󱛁
-        0xf244, 0xf243, 0xf242, 0xf241, 0xf240, 0xf0e7, //      
-        0xf02cb, // 󰋋
-        0xf1119, // 󱄙
-        0xf0e08, 0xf057f, 0xf0580, 0xf057e, // 󰸈 󰕿 󰖀 󰕾
-        0xf04d, 0xf04c, 0xf04b, 0xf01e //     
-    };
 
     static inline std::unique_ptr<Window> singleton_;
-
-
 
 }; // Window
 

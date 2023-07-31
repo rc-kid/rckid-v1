@@ -144,9 +144,8 @@ protected:
             return false;
         player_.play(currentDir_ / json[MENU_FILENAME].value<std::string>());
         setShowTitle(false);
-        Font f = window().headerFont();
-        titleWidth_ = MeasureTextEx(f, currentTitle().c_str(), f.baseSize, 1.0).x;
-        titleScroller_.reset();
+        Canvas & c = window().canvas();
+        titleWidth_ = c.textWidth(currentTitle(), c.defaultFont());
         setFooterHints();
         requestRedraw();
         return true;
@@ -179,10 +178,10 @@ protected:
     }
 
     void draw() override {
+        Canvas & c = window().canvas();
         DirSyncedCarousel::draw();
         // if we are playing, display the extra 
         if (! browsing_) {
-            Canvas & c = window().canvas();
             // se if we should move to next song / start playing again
             if (player_.done()) {
                 size_t i = currentNumItems();
@@ -218,16 +217,17 @@ protected:
             c.drawTexture(75, startY + 10, gauge_, BLUE);
             EndScissorMode();
             //window().drawProgressBar(75, 43, 240, 10, elapsed / trackLength_, DARKGRAY, BLUE);
-            Font f = window().headerFont();
+            c.setDefaultFont();
+            c.setFg(WHITE);
+
 
             std::string remainingStr = toHMS(static_cast<int>(total - elapsed));
-            int remainingWidth = MeasureTextEx(window().headerFont(), remainingStr.c_str(), window().headerFont().baseSize, 1.0).x;
+            int remainingWidth = c.textWidth(remainingStr);
 
-            DrawTextEx(f, elapsedStr.c_str(), 75, startY + 25, f.baseSize, 1.0, WHITE);
-            DrawTextEx(f, remainingStr.c_str(), 315 - remainingWidth, startY + 25, f.baseSize, 1.0, WHITE);
+            c.drawText(75, startY + 25, elapsedStr, WHITE);
+            c.drawText(315 - remainingWidth, startY + 25, remainingStr, WHITE);
 
-            titleScroller_.update();
-            if (titleScroller_.drawText(f, 75, startY+45, currentTitle(), 240, titleWidth_, WHITE))
+            if (c.drawScrolledText(75, startY+45, 240, currentTitle(), titleWidth_, WHITE))
                 requestRedraw();
         }
     }
@@ -285,7 +285,6 @@ protected:
     bool repeatSingleTrack_ = false;
 
     MusicPlayer player_;
-    TextScroller titleScroller_;
     int titleWidth_ = 0;
     
     Canvas::Texture play_;

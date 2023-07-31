@@ -30,8 +30,8 @@ int FooterItem::draw(Window * window, int x, int y) const {
             x += 20;
             break;
     }
-    DrawTextEx(window->helpFont(), text_.c_str(), x, y + (20 - textSize_.y) / 2 , 16, 1.0, WHITE);
-    x += textSize_.x + 5;
+    window->canvas().drawText(x, y + 2, text_, WHITE, window->canvas().helpFont());
+    x += textWidth_ + 5;
     return x;
 }
 
@@ -43,11 +43,9 @@ Window & Window::create() {
 Window::Window() {
     InitWindow(320, 240, "RCKid");
     SetTargetFPS(60);
+    canvas_ = std::make_unique<Canvas>(320, 240);
     if (! IsWindowReady())
         TraceLog(LOG_ERROR, "Unable to initialize window");
-    helpFont_ = loadFont(HELP_FONT, 16);
-    headerFont_ = loadFont(HELP_FONT, 20);
-    menuFont_ = loadFont(MENU_FONT, MENU_FONT_SIZE);
     background_ = LoadTexture("assets/backgrounds/unicorns-black.png");
     backgroundCanvas_ = LoadRenderTexture(640, 240);
     widgetCanvas_ = LoadRenderTexture(320, 240);
@@ -105,17 +103,6 @@ Window::Window() {
 
     }}};
     lastFrameTime_ = now();    
-}
-
-
-Font Window::loadFont(std::string const & filename, int size) {
-    auto fname = STR(filename << "--" << size);
-    auto i = fonts_.find(fname);
-    if (i == fonts_.end()) {
-        Font f = LoadFontEx(STR("assets/fonts/" << filename).c_str(), size, const_cast<int*>(GLYPHS), sizeof(GLYPHS) / sizeof(int));
-        i = fonts_.insert(std::make_pair(fname, f)).first;
-    }
-    return i->second;
 }
 
 void Window::showWidget(Widget * widget) {
@@ -327,6 +314,7 @@ void Window::draw() {
     aSwap_.update();
     aHeader_.update();
     aFooter_.update();
+    canvas_->update();
 
     bool redraw = false;
 
@@ -362,10 +350,13 @@ void Window::draw() {
             BeginTextureMode(widgetCanvas_);
             ClearBackground(ColorAlpha(BLACK, 0.0));
             BeginBlendMode(BLEND_ADD_COLORS);
+            canvas_->resetDefaults();
             w->draw();
             // draw the modal widget, if any
-            if (modal_)
+            if (modal_) {
+                canvas_->resetDefaults();
                 modal_->draw();
+            }
             // and we are done
             EndBlendMode();
             EndTextureMode();
@@ -522,10 +513,11 @@ void Window::drawHeader() {
     //BeginTextureMode(buffer_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
 
+    canvas_->setDefaultFont();
     // The heart, or time left
-    DrawTextEx(headerFont_, "", 0, 0, 20, 1.0, DARKGRAY);
+    canvas_->drawText(0, 0, "", DARKGRAY);
     BeginScissorMode(0, 10, 20, 20);
-    DrawTextEx(headerFont_, "", 0, 0, 20, 1.0, PINK);
+    canvas_->drawText(0, 0, "", PINK);
     EndScissorMode();
 
     BeginBlendMode(BLEND_ADD_COLORS);
@@ -533,72 +525,72 @@ void Window::drawHeader() {
     // charging and usb power indicator 
     if (rckid().usb()) {
         x -= 10;
-        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, rckid().charging() ? WHITE : GRAY);
+        canvas_->drawText(x, 0, "", rckid().charging() ? WHITE : GRAY);
     }
     // the battery level and percentage
     if (homeMenu_->onNavStack()) {
         std::string pct = STR((rckid().vBatt() - 330) << "%");
-        x -= MeasureText(helpFont_, pct.c_str(), 16, 1.0).x + 5;
-        DrawTextEx(helpFont_, pct.c_str(), x, 2, 16, 1, GRAY);
+        x -= canvas_->textWidth(pct, canvas_->helpFont()) + 5;
+        canvas_->drawText(x, 2, pct, GRAY, canvas_->helpFont());
     }
     x -= 20;
     if (rckid().vBatt() > 415)
-        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, GREEN);
+        canvas_->drawText(x, 0, "", GREEN);
     else if (rckid().vBatt() > 390)
-        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, DARKGREEN);
+        canvas_->drawText(x, 0, "", DARKGREEN);
     else if (rckid().vBatt() > 375)
-        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, ORANGE);
+        canvas_->drawText(x, 0, "", ORANGE);
     else if (rckid().vBatt() > 340)    
-        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
+        canvas_->drawText(x, 0, "", RED);
     else 
-        DrawTextEx(headerFont_, "", x, 0, 20, 1.0, RED);
+        canvas_->drawText(x, 0, "", RED);
     // volume & headphones
     if (rckid().headphones()) {
         x -= 20;
-        DrawTextEx(headerFont_, "󰋋", x, 0, 20, 1.0, WHITE);    
+        canvas_->drawText(x, 0, "󰋋", WHITE);    
     }
     if (homeMenu_->onNavStack()) {
         std::string vol = STR(rckid().volume());
-        x -= MeasureText(helpFont_, vol.c_str(), 16, 1.0).x + 5;
-        DrawTextEx(helpFont_, vol.c_str(), x - 3, 2, 16, 1, GRAY);
+        x -= canvas_->textWidth(vol, canvas_->helpFont()) + 5;
+        canvas_->drawText(x - 3, 2, vol, GRAY, canvas_->helpFont());
     }
     x -= 20;
     if (rckid().volume() == 0)
-        DrawTextEx(headerFont_, "󰸈", x, 0, 20, 1.0, RED);
+        canvas_->drawText(x, 0, "󰸈", RED);
     else if (rckid().volume() < 6)
-        DrawTextEx(headerFont_, "󰕿", x, 0, 20, 1.0, BLUE);
+        canvas_->drawText(x, 0, "󰕿", BLUE);
     else if (rckid().volume() < 12)
-        DrawTextEx(headerFont_, "󰖀", x, 0, 20, 1.0, BLUE);
+        canvas_->drawText(x, 0, "󰖀", BLUE);
     else
-        DrawTextEx(headerFont_, "󰕾", x, 0, 20, 1.0, ORANGE);
+        canvas_->drawText(x, 0, "󰕾", ORANGE);
     // WiFi
     if (! rckid().wifi() ) {
         x -= 20;
-        DrawTextEx(headerFont_, "󰖪", x, 0, 20, 1.0, GRAY);
+        canvas_->drawText(x, 0, "󰖪", GRAY);
     } else {
         if (homeMenu_->onNavStack()) {
-            x -= MeasureText(helpFont_, rckid().ssid().c_str(), 16, 1.0).x + 5;
-            DrawTextEx(helpFont_, rckid().ssid().c_str(), x - 3, 2, 16, 1, GRAY);
+            x -= canvas_->textWidth(rckid().ssid(), canvas_->helpFont()) + 5;
+            canvas_->drawText(x -3, 2, rckid().ssid(), GRAY, canvas_->helpFont());
         }
         x -= 20;
         if (rckid().wifiHotspot()) 
-            DrawTextEx(headerFont_, "󱛁", x, 0, 20, 1.0, Color{0, 255, 255, 255});
+            canvas_->drawText(x, 0, "󱛁", Color{0, 255, 255, 255});
         else
-            DrawTextEx(headerFont_, "󰖩", x, 0, 20, 1.0, BLUE);
+            canvas_->drawText(x, 0, "󰖩", BLUE);
     }
     // NRF Radio
     switch (rckid().nrfState()) {
         case NRFState::Error:
             x -= 20;
-            DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, RED);
+            canvas_->drawText(x, 0, "󱄙", RED);
             break;
         case NRFState::Receiver:
             x -= 20;
-            DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, GREEN);
+            canvas_->drawText(x, 0, "󱄙", GREEN);
             break;
         case NRFState::Transmitting:
             x -= 20;
-            DrawTextEx(headerFont_, "󱄙", x, 0, 20, 1.0, BLUE);
+            canvas_->drawText(x, 0, "󱄙", BLUE);
             break;
     }
     EndBlendMode();

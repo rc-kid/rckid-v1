@@ -10,36 +10,6 @@
 #include "window.h"
 #include "animation.h"
 
-// TODO this goes to canvas or some such
-
-class TextScroller {
-public:
-    void update() { a_.update(); }
-
-    void reset() { a_.startContinuous(); }
-
-    bool drawText(Font const & font, int x, int y, std::string const & text, int displayWidth, int textWidth, ::Color color) {
-        if (displayWidth >= textWidth) {
-            DrawTextEx(font, text.c_str(), x + (displayWidth - textWidth) / 2, y, font.baseSize, 1.0, color);
-            return false;
-        } else {
-            int dist = (textWidth - displayWidth) / 2;
-            int offset = a_.interpolateContinuous(0, dist) * direction_;
-            BeginScissorMode(x, y, displayWidth, font.baseSize);
-            DrawTextEx(font, text.c_str(), x + (displayWidth - textWidth) / 2 +  offset, y, font.baseSize, 1.0, color);
-            EndScissorMode();
-            if (a_.done())
-                direction_ *= -1;
-            return true;
-        }
-    }
-private:
-    Animation a_{5000};
-    int direction_ = 1;
-};
-
-
-
 /** Basic carousel functionality and features common for various carousel types. 
 
     - does the item rendering, and others
@@ -107,9 +77,19 @@ protected:
         startTransition(Transition::Next);
     }
 
+    /** Determines whether the carousel will also show the item's title, or only the item's icon. 
+    */
+    //@{
     bool showTitle() const { return showTitle_; }
-
     void setShowTitle(bool value = true) { showTitle_ = value; requestRedraw(); }
+    //@}
+
+    /** Determines whether the carousel will keep moving left/right when the respective action button will be pressed while the transition ends. 
+     */
+    //@{
+    bool autorepeat() const { return autorepeat_; }
+    void setAutorepeat(bool value = true) { autorepeat_ = true; }
+    //@}
 
 protected:
 
@@ -148,6 +128,7 @@ protected:
     }
 
     void draw() override {
+        Canvas & canvas = window().canvas();
         a_.update();
         if (pos().numItems == 0) {
             drawEmpty();
@@ -156,34 +137,34 @@ protected:
         switch (t_) {
             case Transition::None:
                 cancelRedraw();
-                drawItem(getItem(pos().current), 0, 255);
+                drawItem(canvas, getItem(pos().current), 0, 255);
                 break;
             // when the transition is to the left item, the current item is on the left and we are moving right, i.e. current item's offset moves from -320 to 0 and the rightOf (previously current) moves from 0 to 320. The animation moves to the *right*
             case Transition::Prev: {
                 int offset = a_.interpolate(0, Window_WIDTH);
                 window().setBackgroundSeam(seamStart_ + offset / 4);
-                drawItem(getItem(pos().next()), offset, 255);
-                drawItem(getItem(pos().current), offset - Window_WIDTH, 255);   
+                drawItem(canvas, getItem(pos().next()), offset, 255);
+                drawItem(canvas, getItem(pos().current), offset - Window_WIDTH, 255);   
                 break;
             }
             // for right transition, the current item is on the right and we move to the left, i.e. the leftOf item starts at 0 and goes to -320, while the current item starts at 320 and goes to 0
             case Transition::Next: {
                 int offset = a_.interpolate(0, Window_WIDTH);
                 window().setBackgroundSeam(seamStart_ - offset / 4);
-                drawItem(getItem(pos().prev()), - offset, 255);
-                drawItem(getItem(pos().current), Window_WIDTH - offset, 255);                
+                drawItem(canvas, getItem(pos().prev()), - offset, 255);
+                drawItem(canvas, getItem(pos().current), Window_WIDTH - offset, 255);                
                 break;
             }
             case Transition::EnterFadeOut: {
                 int alpha = a_.interpolate(255, 0);
-                drawItem(posPrev().items[posPrev().current].get(), 0, alpha);
+                drawItem(canvas, posPrev().items[posPrev().current].get(), 0, alpha);
                 if (a_.done())
                     startTransition(Transition::FadeIn);
                 break;
             }
             case Transition::LeaveFadeOut: {
                 int alpha = a_.interpolate(255, 0);
-                drawItem(pos().items[pos().current].get(), 0, alpha);
+                drawItem(canvas, pos().items[pos().current].get(), 0, alpha);
                 if (a_.done()) {
                     pos_.pop_back();
                     startTransition(Transition::FadeIn);
@@ -192,13 +173,19 @@ protected:
             }
             case Transition::FadeIn: {
                 int alpha = a_.interpolate(0, 255);
-                drawItem(getItem(pos().current), 0, alpha);
+                drawItem(canvas, getItem(pos().current), 0, alpha);
                 break;
             }
-            // TODO in & out
         }
-        if (a_.done())
-            t_ = Transition::None;             
+        if (a_.done()) {
+            t_ = Transition::None;
+            if (autorepeat_) { 
+                if (tRepeat_ == Transition::Prev)
+                    goToPrev();
+                else if (tRepeat_ == Transition::Next)
+                    goToNext();
+            }             
+        }
     }
 
     virtual void drawEmpty() {
@@ -218,13 +205,25 @@ protected:
     }
 
     void dpadLeft(bool state) override {
-        if (state && !busy())
-            goToPrev();
+        if (state) {
+            if (!busy()) {
+                goToPrev();
+                tRepeat_ = Transition::Prev;
+            }
+        } else {
+            tRepeat_ = Transition::None;
+        }
     }
 
     void dpadRight(bool state) override {
-        if (state && !busy())
-            goToNext();
+        if (state) {
+            if (!busy()) {
+                goToNext();
+                tRepeat_ = Transition::Next;
+            }
+        } else {
+            tRepeat_ = Transition::None;
+        }
     }
 
 private:
@@ -280,8 +279,7 @@ private:
                     iX = static_cast<int>((320 - icon.width() * iScale) / 2);
                 }
             }
-            font = window().menuFont();
-            textWidth = MeasureTextEx(font, text.c_str(), font.baseSize, 1.0).x;
+            textWidth = window().canvas().textWidth(text, window().canvas().titleFont());;
             tY = 157;
             tX = 160 - (textWidth / 2);
             // TODO calculate where to draw the text & the icon and other things
@@ -356,28 +354,25 @@ private:
                     break;
             }
             a_.start(WIDGET_FADE_TIME);
-            titleScroller_.reset();
         }
     }
 
     /** Draws the previously created item
      */
-    void drawItem(CachedItem * item, int offset, uint8_t alpha) {
+    void drawItem(Canvas & c, CachedItem * item, int offset, uint8_t alpha) {
         if (item == nullptr)
             return;
-        Color c{RGBA(255, 255, 255, alpha)};
+        Color color{RGBA(255, 255, 255, alpha)};
         if (item->iScale == 1.0)
-            window().canvas().drawTexture(item->iX + offset, item->iY, item->useDefaultIcon() ? defaultIcon_ : item->icon,  c);    
+            window().canvas().drawTexture(item->iX + offset, item->iY, item->useDefaultIcon() ? defaultIcon_ : item->icon, color);    
         else
-            window().canvas().drawTextureScaled(item->iX + offset, item->iY, item->icon, item->iScale, c);    
+            window().canvas().drawTextureScaled(item->iX + offset, item->iY, item->icon, item->iScale, color);    
         // switch to alpha-blending to make the text visible over full screen-ish images
         if (showTitle_) {
             if (item->alphaBlend)
                 BeginBlendMode(BLEND_ALPHA);
-            titleScroller_.update();
-            if (titleScroller_.drawText(item->font, offset, item->tY, item->text, 320, item->textWidth, c))
+            if (c.drawScrolledText(offset, item->tY, 320, item->text, item->textWidth, color, c.titleFont()))
                 requestRedraw();
-            //DrawTextEx(item->font, item->text.c_str(), item->tX + 2 * offset, item->tY, item->font.baseSize, 1.0, c);
         }
     } 
 
@@ -388,10 +383,10 @@ private:
     int seamStart_;
 
     bool showTitle_ = true;
+    bool autorepeat_ = true;
+    Transition tRepeat_ = Transition::None;
 
     Canvas::Texture defaultIcon_;
-
-    TextScroller titleScroller_;
 
 }; // BaseCarousel
 

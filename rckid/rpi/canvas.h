@@ -7,6 +7,8 @@
 
 #include "utils/utils.h"
 
+#include "animation.h"
+
 #ifdef FOO
 
 /** Allows log function to take std::string as well. 
@@ -39,6 +41,82 @@ inline constexpr Vector2 V2(int x, int y) { return Vector2{static_cast<float>(x)
 */
 class Canvas {
 public:
+
+    /** Wrapper around a font. 
+     */
+    class Font {
+    public:
+        int size() const { return f_->font.baseSize; }
+        std::string const & filename() const { return f_->filename; };
+
+        bool valid() const { return f_ != nullptr; }
+
+        Font() = default;
+
+        Font(std::string const & filename, int size) {
+            std::string id{STR(filename << "."  << size)};
+            auto i = cached_.find(id);
+            if (i == cached_.end()) {
+                i = cached_.insert(
+                    std::make_pair(
+                        id, 
+                        std::make_shared<FontInfo>(
+                            LoadFontEx(
+                                filename.c_str(), 
+                                size, 
+                                const_cast<int*>(GLYPHS), 
+                                sizeof(GLYPHS) / sizeof(int)
+                            ), 
+                            filename
+                        )
+                    )
+                ).first;
+            }
+            f_ = i->second;
+        }
+
+        ~Font() {
+            if (f_.use_count() == 2) {
+                std::string id{STR(filename() << "."  << size())};
+                cached_.erase(id);
+                TraceLog(LOG_INFO, STR("Unloading font " << f_->filename << " (size: " << f_->font.baseSize << ")"));
+                UnloadFont(f_->font);
+            }
+        }
+
+    protected:
+
+        friend class Canvas;
+        
+        struct FontInfo {
+            ::Font font;
+            std::string filename;
+
+            FontInfo(::Font f, std::string const & filename): font{f}, filename{filename} {}
+        }; 
+
+        std::shared_ptr<FontInfo> f_;
+
+        static inline std::unordered_map<std::string, std::shared_ptr<FontInfo>> cached_; 
+
+        static constexpr int GLYPHS[] = {
+            32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations
+            48, 49, 50, 51, 52, 53, 54, 55, 56, 57, // 0..9
+            58, 59, 60, 61, 62, 63, 64, // more punctuations
+            65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, // A-Z
+            91, 92, 93, 94, 95, 96, // more punctuations
+            97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, // a-z
+            123, 124, 125, 126, // more punctiations
+            0xf004, 0xf08a, //  
+            0xf05a9, 0xf05aa, 0xf16c1, // 󰖩 󰖪 󱛁
+            0xf244, 0xf243, 0xf242, 0xf241, 0xf240, 0xf0e7, //      
+            0xf02cb, // 󰋋
+            0xf1119, // 󱄙
+            0xf0e08, 0xf057f, 0xf0580, 0xf057e, // 󰸈 󰕿 󰖀 󰕾
+            0xf04d, 0xf04c, 0xf04b, 0xf01e //     
+        };
+
+    }; 
 
     /** Wrapper over 2D textures. 
      */
@@ -99,11 +177,46 @@ public:
     Canvas(int width, int height):
         width_{width}, 
         height_{height} {
+        aScrolledText_.startContinuous();
     }
 
     ~Canvas() {
     }
-    
+
+    int width() const { return width_; }
+    int height() const { return height_; }
+
+    Font const & defaultFont() const { return defaultFont_; }
+    Font const & titleFont() const { return titleFont_; }
+    Font const & helpFont() const { return helpFont_; }
+
+    void resetDefaults() {
+        font_ = defaultFont_;
+        fg_ = WHITE;
+        bg_ = BLACK;
+    }
+
+    /** \name State setters and getters. 
+     */
+    //@{
+    void setFg(Color color) { fg_ = color; }
+
+    Color const & fg() const { return fg_; }
+
+    void setBg(Color color) { bg_ = color; }
+
+    Color const & bg() const { return bg_; }
+
+    void setFont(Font const & font) { font_ = font; }
+
+    void setDefaultFont() { font_ = defaultFont_; }
+
+    Font const & font() const { return font_; }
+    //@}
+
+
+    /** \name Texture drawing support. 
+     */
     void drawTexture(int x, int y, Texture const & t) {
         DrawTexture(t.t2d(), x, y, WHITE);
     }
@@ -119,8 +232,53 @@ public:
     void drawTextureScaled(int x, int y, Texture const & t, float scale, Color const & tint) {
         DrawTextureEx(t.t2d(), V2(x, y), 0, scale, tint);
     }
+    //@}
+
+    /** \name Font drawing support. 
+     */
+    //@{
+
+    int textWidth(std::string const & text) {
+        return static_cast<int>(MeasureTextEx(font_.f_->font, text.c_str(), font_.size(), 1.0).x);
+    }
+
+    int textWidth(std::string const & text, Font const & font) {
+        return static_cast<int>(MeasureTextEx(font.f_->font, text.c_str(), font.size(), 1.0).x);
+
+    }
+
+    void drawText(int x, int y, std::string const & text) {
+        DrawTextEx(font_.f_->font, text.c_str(), V2(x, y), font_.size(), 1.0, fg_);
+    }
+
+    void drawText(int x, int y, std::string const & text, Color c) {
+        DrawTextEx(font_.f_->font, text.c_str(), V2(x, y), font_.size(), 1.0, c);
+    }
+
+    void drawText(int x, int y, std::string const & text, Color c, Font const & font) {
+        DrawTextEx(font.f_->font, text.c_str(), V2(x, y), font.size(), 1.0, c);
+    }
+
+    bool drawScrolledText(int x, int y, int displayWidth, std::string const & text, int textWidth, Color c) {
+        return drawScrolledText(x, y, displayWidth, text, textWidth, c, defaultFont_);
+    }   
 
 
+    bool drawScrolledText(int x, int y, int displayWidth, std::string const & text, int textWidth, Color c, Font const & f) {
+        if (displayWidth >= textWidth) {
+            drawText(x + (displayWidth - textWidth) / 2, y, text, c, f);
+            return false;
+        } else {
+            int dist = (textWidth - displayWidth) / 2;
+            int offset = aScrolledText_.interpolateContinuous(0, dist) * scrolledTextDir_;
+            BeginScissorMode(x, y, displayWidth, f.size());
+            drawText(x + (displayWidth - textWidth) / 2 +  offset, y, text, c, f);
+            EndScissorMode();
+            return true;
+        }
+    }
+
+    //@}
 
     // YE OLDE STUFF THAT MIGHT BE USEFUL ONE DAY
 
@@ -185,100 +343,25 @@ public:
 
 private:
 
+    friend class Window;
+
+    void update() {
+        if (aScrolledText_.update())
+            scrolledTextDir_ *= -1;
+
+    }
+
     int width_;
     int height_;
 
-
-#ifdef FOO    
-
-    /** Wrapper class for fonts. 
-     */
-    class Font {
-    public:
-        ~Font() {
-            UnloadFont(font_);
-        }
-
-        int height() const { return font_.baseSize; }
-
-    private:
-        friend class Canvas;
-        Font(::Font f): font_{f} {}
-
-        ::Font font_;
-    }; 
-
-
-    Font & loadFont(std::string const & filename, int size) {
-        FontID id{filename, size};
-        auto i = fonts_.find(id);
-        if (i == fonts_.end()) {
-            ::Font f = LoadFontEx(filename.c_str(), size, const_cast<int*>(GLYPHS), sizeof(GLYPHS) / sizeof(int));
-            i = fonts_.insert(std::make_pair(id, new Font{f})).first;
-        }
-        return *(i->second);
-    }
-
-
-
-    void setFont(Font & font) { font_ = & font; }
-
-    Font const & font() const { return *font_; }
-
-    void setFg(Color color) { fg_ = color; }
-
-    Color const & fg() const { return fg_; }
-
-    void setBg(Color color) { bg_ = color; }
-
-    Color const & bg() const { return bg_; }
-
-    int textHeight(std::string const & text) {
-        return static_cast<int>(MeasureTextEx(font_->font_, text.c_str(), font_->height(), 1.0).x);
-    }
-
-    void textOut(int x, int y, std::string const & text) {
-        DrawTextEx(font_->font_, text.c_str(), Vector2{x + 0.f, y + 0.f}, font_->height(), 1.0, fg_);
-    }
-
-private:
-
-    struct FontID {
-        std::string file;
-        int size;
-
-        bool operator == (FontID const & other) const { return file == other.file && size == other.size; }
-
-        size_t hash() const {
-            size_t h1 = std::hash<std::string>{}(file);
-            size_t h2 = std::hash<uint16_t>{}(size);
-            return h1 ^ (h2 << 1);
-        }
-
-    }; 
-
-    std::unordered_map<FontID, Font *, Hasher<FontID>> fonts_;
-
-#endif  
-
-    Font * font_ = nullptr;
+    Font font_;
     Color fg_;
     Color bg_;
 
-    static constexpr int GLYPHS[] = {
-        32, 33, 34, 35, 36,37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, // space & various punctuations
-        48, 49, 50, 51, 52, 53, 54, 55, 56, 57, // 0..9
-        58, 59, 60, 61, 62, 63, 64, // more punctuations
-        65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, // A-Z
-        91, 92, 93, 94, 95, 96, // more punctuations
-        97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, // a-z
-        123, 124, 125, 126, // more punctiations
-        0xf004, 0xf08a, //  
-        0xf05a9, 0xf05aa, 0xf16c1, // 󰖩 󰖪 󱛁
-        0xf244, 0xf243, 0xf242, 0xf241, 0xf240, 0xf0e7, //      
-        0xf02cb, // 󰋋
-        0xf1119, // 󱄙
-        0xf0e08, 0xf057f, 0xf0580, 0xf057e, // 󰸈 󰕿 󰖀 󰕾
-    };
+    Font defaultFont_{"assets/fonts/IosevkaNF.ttf", 20};
+    Font titleFont_{"assets/fonts/OpenDyslexicNF.otf", 64};
+    Font helpFont_{"assets/fonts/IosevkaNF.ttf", 16};
 
+    Animation aScrolledText_{5000};
+    int scrolledTextDir_ = 1;
 }; // Canvas

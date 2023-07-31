@@ -6,10 +6,10 @@ class Menu : public Widget {
 public:
 
     Menu(std::initializer_list<std::string> menu):
-        font_{window().headerFont()} {
+        font_{window().canvas().defaultFont()} {
         for (auto m : menu) {
             menu_.push_back(m);
-            int width = MeasureTextEx(font_, m.c_str(), font_.baseSize, 1.0).x;
+            int width = window().canvas().textWidth(m, font_);
             if (width > maxWidth_)
                 maxWidth_ = width;
         }
@@ -41,7 +41,7 @@ protected:
         Widget::btnB(state);
     }
 
-    Font font_;
+    Canvas::Font font_;
     std::vector<std::string> menu_;
     int maxWidth_ = 0;
     size_t index_ = 0;
