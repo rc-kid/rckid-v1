@@ -2,6 +2,10 @@
 
 #include "widget.h"
 
+/** A simple single level menu. 
+
+    Supports scrolling & stuff.  
+ */
 class Menu : public Widget {
 public:
 

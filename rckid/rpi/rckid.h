@@ -604,7 +604,6 @@ private:
     volatile uint8_t mockRecBatch_ = 0;
 #endif
 
-
     /** The button state objects, managed by the ISR thread 
      */
     ButtonState btnVolDown_{Button::VolumeDown, KEY_RESERVED};
