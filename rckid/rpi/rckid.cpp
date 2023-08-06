@@ -73,6 +73,516 @@
 
 using namespace platform;
 
+RCKidLocked & RCKidLocked::create() {
+    auto & i = instance();
+    ASSERT(i.get() == nullptr && "RCKid must be a singleton");
+    i = std::unique_ptr<RCKidLocked>(new RCKidLocked{});
+    return *i.get();
+}
+
+RCKidLocked::RCKidLocked() {
+    gpio::initialize();
+    if (!spi::initialize()) 
+        TraceLog(LOG_ERROR, STR("Unable to initialize spi (errno " << errno << ")"));
+    if (!i2c::initializeMaster())
+        TraceLog(LOG_ERROR, STR("Unable to initialize i2c (errno " << errno << "), make sure /dev/i2c1 exists"));
+    initializeLibevdev();
+    initializeAvr();
+    initializeAccel();
+    initializeNrf();
+    initializeISRs();
+
+    // start the hw loop thread
+    tHwLoop_ = std::thread{[this](){
+        // get the extended state first and initialize 
+        // TODO the below is wrong
+        {
+            comms::ExtendedState state;
+            i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
+            processAvrExtendedState(state);
+        }
+        setBrightness(255);
+        while (!shouldTerminate_.load()) {
+            DriverEvent e = driverEvents_.waitReceive();
+            processDriverEvent(e);
+        }
+    }};
+    tTicks_ = std::thread{[this](){
+        while (!shouldTerminate_.load()) {
+            cpu::delayMs(10);
+            this->driverEvents_.send(Tick{});
+        }
+    }};
+    tSeconds_ = std::thread{[this](){
+        while (!shouldTerminate_.load()) {
+            cpu::delayMs(1000);
+            this->driverEvents_.send(SecondTick{});
+        }
+    }};
+
+#if (defined ARCH_MOCK)
+    std::thread mockRecording{[this](){
+        std::vector<uint8_t> rec;
+        std::ifstream f{"assets/recording/test.dat"};
+        while (!f.eof())
+            rec.push_back(f.get());
+        TraceLog(LOG_DEBUG, STR("Loaded mock recording with size " << rec.size()).c_str());
+        size_t i = 0;
+        while (true) {
+            cpu::delayMs(4);
+            if (mockRecording_) {
+                RecordingEvent e;
+                e.status.setRecording(true);
+                e.status.setBatchIndex(mockRecBatch_);
+                mockRecBatch_ = (mockRecBatch_ + 1) % 8;
+                for (size_t x = 0; x < 32; ++x) {
+                    e.data[x] = rec[i];
+                    i = (i + 1) % rec.size();
+                }
+                uiEvents_.send(e);
+            }
+        }
+    }};
+    mockRecording.detach();
+#endif
+}
+
+void RCKidLocked::processDriverEvent(DriverEvent e) {
+    std::visit(overloaded{
+        // do nothing for termination, it's sent just to ensure the thread will wake up and can react to shouldTerminate flag
+        [this](Terminate) {},
+        [this](Tick){
+#if (defined ARCH_MOCK)        
+            checkMockButtons();
+#endif
+            buttonTick(btnA_);
+            buttonTick(btnB_);
+            buttonTick(btnX_);
+            buttonTick(btnY_);
+            buttonTick(btnL_);
+            buttonTick(btnR_);
+            buttonTick(btnSelect_);
+            buttonTick(btnStart_);
+            buttonTick(btnDpadLeft_);
+            buttonTick(btnDpadRight_);
+            buttonTick(btnDpadUp_);
+            buttonTick(btnDpadDown_);
+            buttonTick(btnJoy_);
+            buttonTick(btnHome_);
+            // only query the accell and photores status when we are not recording to keep the I2C fully for the audio recorder
+            if (!state_.status.recording()) {
+                queryAccelStatus();
+                // TODO query photores
+            }
+        },
+        [this](SecondTick) {
+            // only query extended state if we are not recording audio at the same time
+            if (!state_.status.recording())
+                queryAvrExtendedState();
+        },
+        // this could be either input interrupt, or recording interrupt. If we are not aware in the status that recording has started yet, try the input reading, which also updates the status, and if this update switches to recording, abort the input and go to recording instead. 
+        [this](AvrIrq) {
+            if (!state_.status.recording()) {
+                comms::State state{queryAvrState()};
+                {
+                    std::lock_guard<std::mutex> g{mState_};
+                    processAvrStatus(state.status, true);
+                    if (!state_.status.recording()) {
+                        processAvrControls(state.controls, true);
+                        return;
+                    }
+                }
+            }
+            getAvrRecording();
+        }, 
+        [this](HeadphonesIrq e) {
+            { 
+                std::lock_guard<std::mutex> g{mState_};
+                headphones_ = platform::gpio::read(PIN_HEADPHONES);
+            }
+            uiEvents_.send(HeadphonesEvent{headphones_});
+        },
+        [this](ButtonIrq e) {
+            if (e.btn.update(e.state))
+                buttonAction(e.btn);
+        },
+        // keyboard presses
+        [this](KeyPress e) {
+            if (gamepad_ != nullptr) {
+                libevdev_uinput_write_event(gamepad_, EV_KEY, e.key, e.state);
+                libevdev_uinput_write_event(gamepad_, EV_SYN, SYN_REPORT, 0);
+            } else {
+                TraceLog(LOG_WARNING, "Cannot emit key - keyboard not available");
+            }
+        },
+        [this](NRFIrq) {
+            // if not in transmit mode, the IRQ must be received packet, read any received packets and send them to the UI 
+            if (!nrfTx_) {
+                NRFPacketEvent e;
+                nrf_.clearDataReadyIrq();
+                while (nrf_.receive(e.packet, 32))
+                    uiEvents_.send(e);
+            // otherwise the irq was a tx irq, which means a message has been transmitted "successfully" - since we don't use ACKs due to NRF modules incompatibility we actually don't know this for sure and any message send will always succeed. 
+            } else {
+                nrf_.clearIrq();
+                uiEvents_.send(NRFTxEvent{});
+                // we are now in standby 1 mode (assuming we transmit one message per invocation). Check if there is more messages, and if yes, trasnmit them immediately w/o going to real standby
+                mRadio_.lock();
+                if (! nrfTxQueue_.empty()) {
+                    NRFPacket p{nrfTxQueue_.front()};
+                    nrfTxQueue_.pop_front();
+                    mRadio_.unlock();
+                    nrf_.transmit(p.packet, 32); // since in standby-1, will be transmitted immediately
+                // if no more messages, go to either standby (if Tx) or enable receiver if this was a tx burst from rx mode
+                } else {
+                    mRadio_.unlock();
+                    if (nrfState_ == NRFState::Rx)
+                        nrf_.enableReceiver();
+                    else
+                        nrf_.standby();
+                    nrfTx_ = false;
+                }
+            }
+        }, 
+        [this](NRFInitialize e) {
+            // TODO process error
+            nrf_.initialize(e.rxAddr, e.txAddr, e.channel);
+            nrf_.standby();
+            std::lock_guard<std::mutex> g{mRadio_};
+            nrfState_ = NRFState::Standby;
+        },
+        [this](NRFState e) {
+            switch (e) {
+                case NRFState::Standby:
+                    nrf_.standby();
+                    break;
+                case NRFState::PowerDown:
+                    nrf_.powerDown();
+                    break;
+                case NRFState::Rx:
+                    nrf_.enableReceiver();
+                    break;
+                case NRFState::Tx:
+                    nrf_.standby();
+                    break;
+            }
+            nrfTx_ = false;
+            std::lock_guard<std::mutex> g{mRadio_};
+            nrfState_ = e;
+        }, 
+        [this](NRFTransmit e) {
+            nrfTx_ = true;
+            mRadio_.lock();
+            NRFPacket p{nrfTxQueue_.front()};
+            nrfTxQueue_.pop_front();
+            mRadio_.unlock();
+            nrf_.transmit(p.packet, 32);
+            nrf_.enableTransmitter();
+        },
+        [this](NRFPacket e) {
+            nrf_.transmit(e.packet, 32);
+            nrf_.enablePolledTransmitter();
+            NRF24L01::Status status = nrf_.clearTxIrqs();
+            while (!status.txDataSentIrq() && !status.txDataFailIrq())
+                status = nrf_.clearTxIrqs();
+            nrf_.enableReceiver();
+            // send UI confirmation
+            uiEvents_.send(NRFTxEvent{});
+            // if there is tx irq, process it (means we have received a message while transmitting and enabling the receiver
+            if (status.rxDataReady()) {
+                NRFPacketEvent e;
+                nrf_.clearDataReadyIrq();
+                while (nrf_.receive(e.packet, 32))
+                    uiEvents_.send(e);
+            }
+        },
+        [this](auto msg) {
+            sendAvrCommand(msg);
+        }
+    }, e);
+}
+
+
+void RCKidLocked::initializeAvr() {
+    // check if the AVR is present at all
+    if (!i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, nullptr, 0))
+        TraceLog(LOG_ERROR, STR("AVR not found:" << errno));
+    // check if the AVR is in bootloader mode
+    try {
+        Programmer pgm{AVR_I2C_ADDRESS, RPI_PIN_AVR_IRQ};
+        pgm.setLogLevel(Programmer::LOG_TRACE);
+        while (true) {
+            ChipInfo ci{pgm.getChipInfo()};
+            if (ci.state.status != bootloader::BOOTLOADER_MODE)
+                break;
+            TraceLog(LOG_WARNING, "AVR in bootloader mode");
+            pgm.resetToApp();
+            cpu::delayMs(500);
+        }
+    } catch (std::exception const & e) {
+        TraceLog(LOG_ERROR, STR("Cannot talk to AVR: " << e.what()));
+    }
+    // we are now in non-bootloader mode, check all is good
+    comms::Status status = queryAvrStatus();
+    TraceLog(LOG_INFO, STR("Power-on AVR status: " << status).c_str());
+    // if we are to terminate immediately because the current status is power down, shutdown and terminate itself immediately
+    if (status.mode() == comms::Mode::PowerDown) {
+        TraceLog(LOG_INFO, "Spurious power-up. Powering down immediately");
+        system("sudo poweroff");
+        exit(EXIT_SUCCESS);
+    }
+    // attach the interrupt
+    gpio::inputPullup(PIN_AVR_IRQ);
+    gpio::attachInterrupt(PIN_AVR_IRQ, gpio::Edge::Falling, & isrAvrIrq);
+}
+
+void RCKidLocked::processAvrStatus(comms::Status status, bool alreadyLocked) {
+    utils::cond_lock_guard g{mState_, alreadyLocked};
+    if (state_.status.mode() != status.mode()) {
+        switch (state_.status.mode()) {
+            case comms::Mode::PowerDown: 
+                TraceLog(LOG_INFO, "Power down requested");
+                system("sudo poweroff");
+                break;
+            case comms::Mode::WakeUp:
+                TraceLog(LOG_WARNING, "WakeUp mode detected when powering on");
+                // fallthrough
+            case comms::Mode::PowerUp:
+                TraceLog(LOG_INFO, "PowerUp mode, switching to ON");
+                // enter the power-on mode to disable any timeouts
+                sendAvrCommand(msg::PowerOn{});
+        }
+        state_.status.setMode(status.mode());
+        uiEvents_.send(status.mode());
+    }
+    if (state_.status.recording() != status.recording()) {
+        state_.status.setRecording(status.recording());
+    }
+    if (state_.status.alarm() != status.alarm()) {
+        state_.status.setAlarm(status.alarm());
+        uiEvents_.send(AlarmEvent{});
+    }
+    if (state_.status.lowBattery() != status.lowBattery()) {
+        state_.status.setLowBattery(status.lowBattery());
+        uiEvents_.send(LowBatteryEvent{});
+    }
+}
+
+void RCKidLocked::processAvrControls(comms::Controls controls, bool alreadyLocked) {
+    utils::cond_lock_guard g{mState_, alreadyLocked};
+    /*
+    if (state_.controls.select() != controls.select()) {
+        state_.controls.setSelect(controls.select());
+        uiEvents_.send(ButtonEvent{Button::Select, controls.select()});
+    }
+    if (state_.controls.start() != controls.start()) {
+        state_.controls.setStart(controls.start());
+        uiEvents_.send(ButtonEvent{Button::Start, controls.start()});
+
+    } */
+    if (state_.controls.home() != controls.home()) {
+        state_.controls.setButtonHome(controls.home());
+        uiEvents_.send(ButtonEvent{Button::Home, controls.home()});
+    }
+   
+    // TODO Left & Right buttons in the new pinout
+    // joystick reading
+    bool report = false;
+    if (joyX_.update(controls.joyH())) {
+        state_.controls.setJoyH(controls.joyH());
+        axisAction(joyX_, true);
+        report = true;
+    }
+    if (joyY_.update(controls.joyV())) {
+        state_.controls.setJoyV(controls.joyV());
+        axisAction(joyY_, true);
+        report = true;
+    }
+    if (report)
+        uiEvents_.send(JoyEvent{joyX_.reportedValue, joyY_.reportedValue});
+}
+
+void RCKidLocked::processAvrExtendedState(comms::ExtendedState & state) {
+    std::lock_guard g{mState_};
+    processAvrStatus(state.status, true);
+    processAvrControls(state.controls, true);
+    if (state_.einfo.vcc() != state.einfo.vcc()) {
+
+    }
+    if (state_.einfo.vBatt() != state.einfo.vBatt()) {
+
+    }
+    if (state_.einfo.temp() != state.einfo.temp()) {
+
+    }
+    if (state_.einfo.brightness() != state.einfo.brightness()) {
+        
+    } 
+    // TODO process the rest 
+}
+
+
+
+void RCKidLocked::initializeAccel() {
+    if (accel_.deviceIdentification() == 104) {
+        accel_.reset();
+    } else {
+        TraceLog(LOG_ERROR, "Accel not found");
+    }
+}
+
+uint8_t accelTo1GUnsigned(int16_t v) {
+    if (v < -16384)
+        v = -16384;
+    if (v >= 16384)
+        v = 16383;
+    v += 16384;
+    return (v >> 7);    
+}
+
+void RCKidLocked::queryAccelStatus() {
+    MPU6050::AccelData d = accel_.readAccel();
+    int16_t t = accel_.readTemp();
+    uint8_t x = accelTo1GUnsigned(-d.x);
+    uint8_t y = accelTo1GUnsigned(-d.y);
+    bool report = false;
+    if (accelX_.update(x)) {
+        report = true;
+        axisAction(accelX_);
+    }
+    if (accelY_.update(y)) {
+        report = true;
+        axisAction(accelY_);
+    }
+    if (accelTemperature_ != t) {
+        std::lock_guard<std::mutex> g{mState_};
+        accelTemperature_ = t;
+    }
+    if (report)
+        uiEvents_.send(AccelEvent{accelX_.reportedValue, accelY_.reportedValue});
+}
+
+void RCKidLocked::initializeNrf() {
+    if (nrf_.initialize("RCKID", "RCKID")) {
+        nrf_.standby();
+        nrfState_ = NRFState::Standby;
+    } else {
+        TraceLog(LOG_ERROR, "Radio not found");
+        nrfState_ = NRFState::Error;
+    }
+    // attach the interrupt handler
+    gpio::input(PIN_NRF_IRQ);
+    gpio::attachInterrupt(PIN_NRF_IRQ, gpio::Edge::Falling, & isrNrfIrq);
+}
+
+void RCKidLocked::initializeISRs() {
+    gpio::input(PIN_HEADPHONES);
+    gpio::attachInterrupt(PIN_HEADPHONES, gpio::Edge::Both, & isrHeadphones);
+
+    gpio::inputPullup(PIN_BTN_A);
+    gpio::inputPullup(PIN_BTN_B);
+    gpio::inputPullup(PIN_BTN_X);
+    gpio::inputPullup(PIN_BTN_Y);
+    gpio::inputPullup(PIN_BTN_DPAD_UP);
+    gpio::inputPullup(PIN_BTN_DPAD_DOWN);
+    gpio::inputPullup(PIN_BTN_DPAD_LEFT);
+    gpio::inputPullup(PIN_BTN_DPAD_RIGHT);
+    gpio::inputPullup(PIN_BTN_JOY);
+    gpio::attachInterrupt(PIN_BTN_A, gpio::Edge::Both, & isrButtonA);
+    gpio::attachInterrupt(PIN_BTN_B, gpio::Edge::Both, & isrButtonB);
+    gpio::attachInterrupt(PIN_BTN_X, gpio::Edge::Both, & isrButtonX);
+    gpio::attachInterrupt(PIN_BTN_Y, gpio::Edge::Both, & isrButtonY);
+    gpio::attachInterrupt(PIN_BTN_DPAD_UP, gpio::Edge::Both, & isrButtonDpadUp);
+    gpio::attachInterrupt(PIN_BTN_DPAD_DOWN, gpio::Edge::Both, & isrButtonDpadDown);
+    gpio::attachInterrupt(PIN_BTN_DPAD_LEFT, gpio::Edge::Both, & isrButtonDpadLeft);
+    gpio::attachInterrupt(PIN_BTN_DPAD_RIGHT, gpio::Edge::Both, & isrButtonDpadRight);
+    gpio::attachInterrupt(PIN_BTN_JOY, gpio::Edge::Both, & isrButtonJoy);
+}
+
+void RCKidLocked::initializeLibevdev() {
+    gamepadDev_ = libevdev_new();
+    libevdev_set_name(gamepadDev_, LIBEVDEV_GAMEPAD_NAME);
+    libevdev_set_id_bustype(gamepadDev_, BUS_USB);
+    libevdev_set_id_vendor(gamepadDev_, 0x0ada);
+    libevdev_set_id_product(gamepadDev_, 0xbabe);
+    // enable keys for the buttons and the axes (dpad, thumb, accel)
+    libevdev_enable_event_type(gamepadDev_, EV_KEY);
+    libevdev_enable_event_type(gamepadDev_, EV_ABS);
+
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, RETROARCH_HOTKEY_ENABLE, nullptr);
+
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnA_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnB_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnX_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnY_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnL_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnR_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnSelect_.evdevId, nullptr);
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnStart_.evdevId, nullptr);
+    // dpad
+    input_absinfo thumb{
+        .value = 0,
+        .minimum = -1,
+        .maximum = 1,
+        .fuzz = 0,
+        .flat = 0,
+        .resolution = 1
+    };
+
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, btnDpadUp_.evdevId, &thumb);
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, btnDpadLeft_.evdevId, &thumb);
+    // thumbstick button
+    libevdev_enable_event_code(gamepadDev_, EV_KEY, btnJoy_.evdevId, nullptr);
+    // enable the thumbstick and accelerometer
+    input_absinfo info {
+        .value = 128,
+        .minimum = 0,
+        .maximum = 255,
+        .fuzz = 0,
+        .flat = 0,
+        .resolution = 1,
+    };
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, joyX_.evdevId, & info);
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, joyY_.evdevId, & info);
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, accelX_.evdevId, & info);
+    libevdev_enable_event_code(gamepadDev_, EV_ABS, accelY_.evdevId, & info);
+
+
+    int err = libevdev_uinput_create_from_device(gamepadDev_,
+                                            LIBEVDEV_UINPUT_OPEN_MANAGED,
+                                            &gamepad_);
+    if (err != 0) 
+        TraceLog(LOG_ERROR, STR("Unable to setup gamepad (result " << err << ", errno: " << errno << ")"));
+}
+
+#if (defined ARCH_MOCK)
+void RCKidLocked::checkMockButtons() {
+    // need to poll the events since we may have 0 framerate when updates to the screen are not necessary
+    PollInputEvents();
+#define CHECK_KEY(KEY, BTN) if (IsKeyDown(KEY) != BTN.actualState) if (BTN.update(! BTN.actualState)) buttonAction(BTN);
+    CHECK_KEY(KeyboardKey::KEY_A, btnA_);
+    CHECK_KEY(KeyboardKey::KEY_B, btnB_);
+    CHECK_KEY(KeyboardKey::KEY_X, btnX_);
+    CHECK_KEY(KeyboardKey::KEY_Y, btnY_);
+    CHECK_KEY(KeyboardKey::KEY_L, btnL_);
+    CHECK_KEY(KeyboardKey::KEY_R, btnR_);
+    CHECK_KEY(KeyboardKey::KEY_D, btnJoy_);
+    CHECK_KEY(KeyboardKey::KEY_ENTER, btnSelect_);
+    CHECK_KEY(KeyboardKey::KEY_SPACE, btnStart_);
+    CHECK_KEY(KeyboardKey::KEY_LEFT, btnDpadLeft_);
+    CHECK_KEY(KeyboardKey::KEY_RIGHT, btnDpadRight_);
+    CHECK_KEY(KeyboardKey::KEY_UP, btnDpadUp_);
+    CHECK_KEY(KeyboardKey::KEY_DOWN, btnDpadDown_);
+    CHECK_KEY(KeyboardKey::KEY_H, btnHome_);
+#undef CHECK_KEY
+}
+#endif
+
+
+// ----------------------------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------------------------
+
 RCKid & RCKid::create() {
     singleton_ = std::unique_ptr<RCKid>{new RCKid{}};
     return *singleton_;
@@ -144,8 +654,8 @@ std::optional<Event> RCKid::nextEvent() {
     if (e.has_value()) {
         std::visit(overloaded{
             [this](AccelEvent ea) {
-                if (setIfDiffers(status_.accelTemp, ea.temp))
-                    {} // TODO
+                //if (setIfDiffers(status_.accelTemp, ea.temp))
+                //    {} // TODO
             }, 
             [this](ModeEvent & e) {
                 status_.changed = true;
@@ -339,15 +849,6 @@ void RCKid::checkMockButtons() {
 }
 #endif
 
-uint8_t accelTo1GUnsigned(int16_t v) {
-    if (v < -16384)
-        v = -16384;
-    if (v >= 16384)
-        v = 16383;
-    v += 16384;
-    return (v >> 7);    
-}
-
 void RCKid::accelQueryStatus() {
     MPU6050::AccelData d = accel_.readAccel();
     int16_t t = accel_.readTemp();
@@ -356,8 +857,8 @@ void RCKid::accelQueryStatus() {
     bool report = axisChange(accelTo1GUnsigned(-d.x), accelX_);
     report = axisChange(accelTo1GUnsigned(-d.y), accelY_) || report;
     // TODO convert the temperature and update it as well
-    if (report)
-        events_.send(AccelEvent{accelX_.current, accelY_.current, accelTo1GUnsigned(-d.z), t});
+    //if (report)
+    //    events_.send(AccelEvent{accelX_.current, accelY_.current, accelTo1GUnsigned(-d.z), t});
 }
 
 comms::Status RCKid::avrQueryStatus() {
@@ -442,7 +943,7 @@ void RCKid::processAvrControls(comms::Controls const & controls) {
 }
 
 void RCKid::processAvrExtendedInfo(comms::ExtendedInfo const & einfo) {
-    if (setIfDiffers(voltage_, VoltageEvent{einfo.vbatt(), einfo.vcc()}))
+    if (setIfDiffers(voltage_, VoltageEvent{einfo.vBatt(), einfo.vcc()}))
         events_.send(voltage_);
     if (setIfDiffers(temp_, TempEvent{einfo.temp()}))
         events_.send(temp_);

@@ -7,6 +7,7 @@
 #include <memory>
 #include <atomic>
 #include <filesystem>
+#include <utils/locks.h>
 
 #include "libevdev/libevdev.h"
 #include "libevdev/libevdev-uinput.h"
@@ -61,6 +62,11 @@
 #define PIN_BTN_RVOL 1
 #define PIN_BTN_JOY 26
 
+#define PIN_BTN_DPAD_UP 255
+#define PIN_BTN_DPAD_DOWN 255
+#define PIN_BTN_DPAD_LEFT 255
+#define PIN_BTN_DPAD_RIGHT 255
+
 #define UI_THREAD
 #define DRIVER_THREAD
 #define ISR_THREAD
@@ -69,6 +75,430 @@ class Window;
 class RCKid;
 
 RCKid & rckid(); 
+
+class RCKidLocked {
+public:
+
+    static constexpr unsigned int RETROARCH_HOTKEY_ENABLE = BTN_THUMBR;
+    static constexpr unsigned int RETROARCH_HOTKEY_PAUSE = BTN_SOUTH; // B
+    static constexpr unsigned int RETROARCH_HOTKEY_SAVE_STATE = BTN_NORTH; // A
+    static constexpr unsigned int RETROARCH_HOTKEY_LOAD_STATE = BTN_WEST; // X
+    static constexpr unsigned int RETROATCH_HOTKEY_SCREENSHOT = BTN_EAST; // Y
+
+    // TODO delete when renamed
+    using Event = EventLocked; 
+
+    enum class NRFState {
+        Error, // Not present
+        PowerDown, 
+        Standby, 
+        Rx,
+        Tx,
+    };
+
+    static RCKidLocked & create();
+
+    /** Terminate the driver & event threads and release the gamepad resources. 
+     */
+    ~RCKidLocked() {
+        shouldTerminate_.store(true);
+        driverEvents_.send(Terminate{});
+        tHwLoop_.join();
+        tTicks_.join();
+        tSeconds_.join();
+        libevdev_uinput_destroy(gamepad_);
+        libevdev_free(gamepadDev_);
+    }
+
+    /** Returns the status RCKid's status alone. 
+     */
+    comms::Status status() const { std::lock_guard<std::mutex> g{mState_}; return state_.status; }
+
+    /** Returns the full RCKid's extended state. 
+     */
+    comms::ExtendedState extendedState() const { std::lock_guard<std::mutex> g{mState_}; return state_; }
+
+    /** Turns RCKid off. 
+     
+        Tells the AVR to enter the power down mode. AVR does this and then waits for the RPI_POWEROFF signal, while when we detect the transition to powerOff state actually happening, we do rpi shutdown in the main loop.  
+    */
+    void powerOff() {
+        TraceLog(LOG_INFO, "Power down initiated from RPi");
+        driverEvents_.send(msg::PowerDown{});
+    }
+
+    void setBrightness(uint8_t brightness) { driverEvents_.send(msg::SetBrightness{brightness}); }
+
+    /** \name Input controls
+     */
+    //@{
+    bool gamepadActive() const { std::lock_guard<std::mutex> g{mState_}; return gamepadActive_; }
+
+    void setGamepadActive(bool value = true) { std::lock_guard<std::mutex> g{mState_}; gamepadActive_ = value; }
+    //@}
+
+
+    /** \name RGB LED Control 
+     */
+    //@{
+
+    void rgbOn() { driverEvents_.send(msg::RGBOn{}); }
+    void rgbOff() { driverEvents_.send(msg::RGBOff{}); }
+    void rgbColor(platform::Color color) { driverEvents_.send(msg::RGBColor{color}); }
+
+    //@}
+    /** \name Audio & Recording 
+     */
+    //@{
+    bool headphones() { std::lock_guard<std::mutex> g{mState_}; return headphones_; }
+
+    /** Returns the current audio volume. 
+     */
+    int volume() const { return volume_; }
+
+    /** Sets the current audio volume
+     */
+    void setVolume(int value) {
+        if (value < 0)
+            value = 0;
+        if (value > AUDIO_MAX_VOLUME)
+            value = AUDIO_MAX_VOLUME;
+        volume_ = value;
+        system(STR("amixer sset -q Headphone -M " << volume_ << "%").c_str());
+    }
+
+
+
+    void startAudioRecording() {
+        TraceLog(LOG_DEBUG, "Recording start");
+        driverEvents_.send(msg::StartAudioRecording{});
+#if (defined ARCH_MOCK)
+        mockRecBatch_ = 0;
+        mockRecording_ = true;
+#endif
+    }
+
+    void stopAudioRecording() {
+        TraceLog(LOG_DEBUG, "Recording stopped");
+        driverEvents_.send(msg::StopAudioRecording{}); 
+#if (defined ARCH_MOCK)
+        mockRecording_ = false;
+#endif
+    }
+    //@}
+
+    /** \name NRF Radio 
+     
+        
+
+     */
+    //@{
+    void nrfInitialize(char const * rxAddr, char const * txAddr, uint8_t channel) {
+        driverEvents_.send(NRFInitialize{rxAddr, txAddr, channel});
+    }
+
+    void nrfPowerDown() {
+        driverEvents_.send(NRFState::PowerDown);
+    }
+
+    /** Enables the radio in receiver mode.
+     */
+    void nrfEnableReceiver() {
+        driverEvents_.send(NRFState::Rx);
+    }
+
+    /** Enable the radio in transmitter mode, without transmitting any messages. 
+     */
+    void nrfEnableTransmitter() {
+        driverEvents_.send(NRFState::Tx);
+    }
+
+    /** Transmits a message. If used in received mode, briefly stops the receiver, enters the transmitter mode and then transmits the message, returning to receiver mode afterwards. 
+     */
+    void nrfTransmit(uint8_t const * packet, uint8_t length = 32) {
+        std::lock_guard<std::mutex> g{mRadio_};
+        nrfTxQueue_.push_back(NRFPacket{packet, length});
+        // if we are the first in the queue, we need to notify the driver thread to start sending
+        if (nrfTxQueue_.size() == 1)
+            driverEvents_.send(NRFTransmit{});
+    }
+
+    /** Transmits the given packet in immediate mode, to minimalize the time spent in tx mode not receiving. 
+     */
+    void nrfTransmitImmediate(uint8_t const * packet, uint8_t length = 32) {
+        driverEvents_.send(NRFPacket{packet, length});
+    }
+
+    //@}
+
+private:
+
+    struct ButtonState {
+        Button const btn;
+        unsigned const evdevId;
+        size_t debounceTimer{0};
+        bool actualState{false};
+        bool reportedState{false}; // protected by mState_
+        int reportValue;
+
+        ButtonState(Button btn, unsigned evdevId, int reportValue = 0): btn{btn}, evdevId{evdevId}, reportValue{reportValue} {}
+
+        bool update(bool state) {
+            actualState = state;
+            if (debounceTimer == 0) {
+                if (reportedState != actualState) {
+                    debounceTimer = BTN_DEBOUNCE_DURATION_TICKS;
+                    return true;
+                }
+            }
+            return false;
+        }
+    };
+
+    struct AxisState {
+        unsigned const evdevId;
+        uint8_t actualValue{0};
+        uint8_t reportedValue{0}; // protected by mState_
+
+        AxisState(unsigned evdevId): evdevId{evdevId} {}
+
+        bool update(uint8_t state) {
+            actualValue = state;
+            return actualValue != reportedValue;
+        }
+    }; 
+
+    struct Terminate{};
+    struct Tick {};
+    struct SecondTick {};
+    struct AvrIrq {};
+    struct NRFIrq {};
+    struct NRFTransmit {};
+    struct HeadphonesIrq { bool value; };
+    struct ButtonIrq { ButtonState & btn; bool state; };
+    struct KeyPress{ int key; bool state; };
+
+
+    struct NRFInitialize{ 
+        char rxAddr[5]; 
+        char txAddr[5]; 
+        uint8_t channel; 
+        NRFInitialize(char const * rxAddr, char const * txAddr, uint8_t channel):
+            channel{channel} {
+            memcpy(this->rxAddr, rxAddr, 5);
+            memcpy(this->txAddr, txAddr, 5);
+        }
+    };
+
+    struct NRFPacket {
+        uint8_t packet[32]; 
+        NRFPacket(uint8_t const * packet, uint8_t length) {
+            memcpy(this->packet, packet, length);
+        }
+    };
+
+    using DriverEvent = std::variant<
+        Terminate,
+        Tick, 
+        SecondTick,
+        AvrIrq,
+        NRFIrq, 
+        HeadphonesIrq,
+        ButtonIrq,
+        KeyPress,
+        NRFInitialize, 
+        NRFTransmit,
+        NRFPacket,
+        NRFState,
+        msg::AvrReset, 
+        msg::Info, 
+        msg::StartAudioRecording, 
+        msg::StopAudioRecording,
+        msg::SetBrightness,
+        msg::SetTime, 
+        msg::SetAlarm,
+        msg::RumblerOk, 
+        msg::RumblerFail, 
+        msg::Rumbler,
+        msg::RGBOn,
+        msg::RGBOff,
+        msg::RGBColor,
+        msg::PowerOn,
+        msg::PowerDown
+    >;
+
+    /** Private constructor for the singleton object. */
+    RCKidLocked();
+
+    void processDriverEvent(DriverEvent e);
+
+    void initializeAvr();
+    /** Transmits the given command to the AVR. 
+     */
+    template<typename T>
+    void sendAvrCommand(T const & cmd) DRIVER_THREAD {
+        static_assert(std::is_base_of<msg::Message, T>::value, "only applicable for mesages");
+        platform::i2c::transmit(AVR_I2C_ADDRESS, reinterpret_cast<uint8_t const *>(& cmd), sizeof(T), nullptr, 0);
+    }
+    comms::Status queryAvrStatus() {
+        comms::Status status;
+        platform::i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& status, sizeof(status));
+        return status;
+    }
+
+    comms::State queryAvrState() {
+        comms::State state;
+        platform::i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
+        return state;
+    }
+
+    comms::ExtendedState queryAvrExtendedState() {
+        comms::ExtendedState state;
+        platform::i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
+        return state;
+    }
+
+    void getAvrRecording() {
+        RecordingEvent r;
+        platform::i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)(&r), sizeof(RecordingEvent));
+        // do the normal status processing as we would in non-recording mode
+        processAvrStatus(r.status);
+        if (r.status.recording() && !r.status.batchIncomplete())
+            uiEvents_.send(r);
+    }
+
+    void processAvrStatus(comms::Status status, bool alreadyLocked = false);
+    void processAvrControls(comms::Controls controls, bool alreadyLocked = false);
+    void processAvrExtendedState(comms::ExtendedState & state);
+
+    void initializeAccel();
+    void queryAccelStatus();
+
+    void initializeNrf();
+    
+    void initializeISRs();
+    static void isrAvrIrq() { RCKidLocked::instance()->driverEvents_.send(AvrIrq{}); }
+    static void isrNrfIrq() { RCKidLocked::instance()->driverEvents_.send(NRFIrq{}); }
+    static void isrHeadphones() { RCKidLocked::instance()->driverEvents_.send(HeadphonesIrq{platform::gpio::read(PIN_HEADPHONES)}); }
+    static void isrButtonA() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnA_, ! platform::gpio::read(PIN_BTN_A)}); }
+    static void isrButtonB() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnB_, ! platform::gpio::read(PIN_BTN_B)}); }
+    static void isrButtonX() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnX_, ! platform::gpio::read(PIN_BTN_X)}); }
+    static void isrButtonY() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnY_, ! platform::gpio::read(PIN_BTN_Y)}); }
+    static void isrButtonDpadUp() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadUp_, ! platform::gpio::read(PIN_BTN_DPAD_UP)}); }
+    static void isrButtonDpadDown() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadDown_, ! platform::gpio::read(PIN_BTN_DPAD_DOWN)}); }
+    static void isrButtonDpadLeft() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadLeft_, ! platform::gpio::read(PIN_BTN_DPAD_LEFT)}); }
+    static void isrButtonDpadRight() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadRight_, ! platform::gpio::read(PIN_BTN_DPAD_RIGHT)}); }
+    static void isrButtonJoy() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnJoy_, ! platform::gpio::read(PIN_BTN_JOY)}); }
+
+    void initializeLibevdev();
+
+    void buttonTick(ButtonState & btn) {
+        if (btn.debounceTimer > 0 && --btn.debounceTimer == 0)
+            if (btn.reportedState != btn.actualState)
+                buttonAction(btn);
+    }
+
+    void buttonAction(ButtonState & btn) {
+        bool gamepadActive;
+        {
+            std::lock_guard<std::mutex> g{mState_};
+            btn.reportedState = btn.actualState;
+            gamepadActive = gamepadActive_;
+        }
+        // send the event to libevdev, if required
+        if (gamepadActive && btn.evdevId != KEY_RESERVED) {
+            if (btn.reportValue == 0)
+                libevdev_uinput_write_event(gamepad_, EV_KEY, btn.evdevId, btn.actualState ? 1 : 0);
+            else
+                libevdev_uinput_write_event(gamepad_, EV_ABS, btn.evdevId, btn.actualState ? btn.reportValue : 0);
+            libevdev_uinput_write_event(gamepad_, EV_SYN, SYN_REPORT, 0);
+        }
+        // send the event to the UI thread
+        uiEvents_.send(ButtonEvent{btn.btn, btn.reportedState});
+    }
+
+    void axisAction(AxisState & axis, bool alreadyLocked = false) {
+        bool gamepadActive;
+        {
+            utils::cond_lock_guard g{mState_, alreadyLocked};
+            axis.reportedValue = axis.actualValue;
+            gamepadActive = gamepadActive_;
+        }
+        // send the event to libevdev, if required
+        if (gamepadActive && axis.evdevId != KEY_RESERVED) {
+            libevdev_uinput_write_event(gamepad_, EV_ABS, axis.evdevId, axis.actualValue);
+            libevdev_uinput_write_event(gamepad_, EV_SYN, SYN_REPORT, 0);
+        }
+        // note we can't send the ui event since the ui events are handled differently (thumb vs accel)
+    }
+
+    /** Hardware events sent to the driver's thread main loop from other threads. */
+    EventQueue<DriverEvent> driverEvents_;
+
+    /** Events sent from the  ISR and comm threads to the main thread. */
+    EventQueue<Event> uiEvents_;
+
+    /** Last known state of the AVR so that we can determine any changes and emit events. Protected by a mutex. */
+    comms::ExtendedState state_;
+    mutable std::mutex mState_;
+    int16_t accelTemperature_; 
+    bool headphones_{false};
+
+    /** Audio volume. Only accessible from the UI thread. */
+    uint8_t volume_;
+
+    struct libevdev * gamepadDev_{nullptr};
+    struct libevdev_uinput * gamepad_{nullptr};
+    bool gamepadActive_{false}; // protected by mState_
+
+    ButtonState btnA_{Button::A, BTN_EAST};
+    ButtonState btnB_{Button::B, BTN_SOUTH};
+    ButtonState btnX_{Button::X, BTN_NORTH};
+    ButtonState btnY_{Button::Y, BTN_WEST};
+    ButtonState btnL_{Button::L, BTN_TL};
+    ButtonState btnR_{Button::R, BTN_TR};
+    ButtonState btnSelect_{Button::Select, BTN_SELECT};
+    ButtonState btnStart_{Button::Start, BTN_START};
+    ButtonState btnHome_{Button::Home, BTN_MODE};
+    ButtonState btnDpadUp_{Button::Up, ABS_HAT0Y, -1};
+    ButtonState btnDpadDown_{Button::Down, ABS_HAT0Y, 1};
+    ButtonState btnDpadLeft_{Button::Left, ABS_HAT0X, -1};
+    ButtonState btnDpadRight_{Button::Right, ABS_HAT0X, 1};
+    ButtonState btnJoy_{Button::Joy, BTN_THUMBL};
+
+    AxisState joyX_{ABS_X};
+    AxisState joyY_{ABS_Y};
+    AxisState accelX_{ABS_RX};
+    AxisState accelY_{ABS_RY};
+
+    platform::MPU6050 accel_;
+
+    platform::NRF24L01 nrf_{PIN_NRF_CS, PIN_NRF_RXTX};
+    bool nrfTx_{false};
+    NRFState nrfState_{NRFState::PowerDown};
+    std::deque<NRFPacket> nrfTxQueue_;
+    std::mutex mRadio_;
+
+
+    std::thread tHwLoop_;
+    std::thread tTicks_;
+    std::thread tSeconds_;
+    std::atomic<bool> shouldTerminate_{false};
+
+    static inline std::unique_ptr<RCKidLocked> & instance() {
+        static std::unique_ptr<RCKidLocked> instance_;
+        return instance_;
+    };
+
+#if (defined ARCH_MOCK)
+    volatile bool mockRecording_ = false;
+    volatile uint8_t mockRecBatch_ = 0;
+
+    void checkMockButtons();
+#endif
+
+}; // RCKid
+
 
 /** RCKid Driver
 
@@ -85,7 +515,7 @@ public:
     static constexpr unsigned int RETROARCH_HOTKEY_LOAD_STATE = BTN_WEST; // X
     static constexpr unsigned int RETROATCH_HOTKEY_SCREENSHOT = BTN_EAST; // Y
     
-    static constexpr char const * LIBEVDEV_GAMEPAD_NAME = "rckid-gamepad";
+    //static constexpr char const * LIBEVDEV_GAMEPAD_NAME = "rckid-gamepad";
     static constexpr char const * LIBEVDEV_KEYBOARD_NAME = "rckid-keyboard";
 
     static constexpr uint8_t BTN_DEBOUNCE_DURATION = 2;

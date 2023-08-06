@@ -66,8 +66,6 @@ struct ThumbEvent {
 struct AccelEvent {
     uint8_t x;
     uint8_t y;
-    uint8_t z;
-    int16_t temp;
 };
 
 struct ModeEvent {
@@ -139,6 +137,26 @@ using Event = std::variant<
     NRFPacketEvent,
     NRFTxIrq
 >;
+
+struct AlarmEvent {};
+struct LowBatteryEvent {};
+struct JoyEvent { uint8_t h; uint8_t v; };
+struct NRFTxEvent {};
+
+
+using EventLocked = std::variant<
+    comms::Mode, 
+    AlarmEvent,
+    LowBatteryEvent, 
+    ButtonEvent, 
+    JoyEvent, 
+    AccelEvent,
+    HeadphonesEvent,
+    RecordingEvent,
+    NRFPacketEvent,
+    NRFTxEvent
+>;
+
 
 /** Event queue.
  */

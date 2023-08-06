@@ -233,7 +233,7 @@ namespace comms {
             Battery voltage. Measured in 0.01[V] in rangle from 1.7V to 4.2V. 420 means 4.2V or more, 0 means 1.7V or less.
          */
         //@{
-        uint16_t vbatt() const { return (vbatt_ == 0) ? 0 : vbatt_ + 165; }
+        uint16_t vBatt() const { return (vbatt_ == 0) ? 0 : vbatt_ + 165; }
 
         void setVBatt(uint16_t vx100) {
             if (vx100 >= 420)

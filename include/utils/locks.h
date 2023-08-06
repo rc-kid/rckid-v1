@@ -7,6 +7,25 @@
 
 namespace utils {
 
+    /** Conditionally locking lock guard that can be used for already acquired locks where the std::adopt_lock is not acceptable (we know at runtime)
+    */
+    template<typename T>
+    class cond_lock_guard {
+    public:
+        explicit cond_lock_guard(T & t, bool already_locked = false):
+            l_{already_locked ? nullptr : & t} {
+            if (l_)
+                l_->lock();
+        }
+
+        ~cond_lock_guard() {
+            if (l_)
+                l_->unlock();
+        }
+    private:
+        T * l_;  
+    }; // cond_lock_guard    
+
     /** A simple spinlock. 
      
         These are useful in ISRs where a normal blocking mutex cannot be used. 

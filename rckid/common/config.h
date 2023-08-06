@@ -9,6 +9,8 @@
     
  */
 
+#define LIBEVDEV_GAMEPAD_NAME "rckid-gamepad"
+
 #define BTN_HOME_POWERON_PRESS 400
 
 #define BTN_HOME_POWEROFF_PRESS 800
@@ -16,6 +18,11 @@
 #define DEFAULT_RUMBLER_STRENGTH 64
 
 #define CHARGING_COLOR Color::RGB(0, 64, 0)
+
+
+/** Debounce interval for the buttons on RPI side in ticks (10ms). 
+ */
+#define BTN_DEBOUNCE_DURATION_TICKS 2
 
 /** \section UI 
  */
