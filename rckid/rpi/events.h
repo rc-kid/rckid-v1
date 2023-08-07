@@ -15,11 +15,11 @@
 /** State of the NRF chip. 
  */
 enum class NRFState {
-    Error,
+    Error, // Not present
     PowerDown, 
-    Standby,
-    Receiver,
-    Transmitting,
+    Standby, 
+    Rx,
+    Tx,
 };
 
 // helper type for the std::visit deconstruction
@@ -49,106 +49,36 @@ enum class Button {
     Joy, 
 }; // Button
 
-/** An event triggered when there is a button change. 
- */
-struct ButtonEvent {
-    Button btn;
-    bool state;
-}; // ButtonEvent
+struct AlarmEvent {};
+struct LowBatteryEvent {};
+struct StateChangeEvent {};
 
-struct ThumbEvent {
-    uint8_t x;
-    uint8_t y;
-}; // ThumbEvent
+/** An event triggered when there is a button change. */
+struct ButtonEvent { Button btn; bool state; }; 
 
-/** The accelerometer readouts.
-*/
-struct AccelEvent {
-    uint8_t x;
-    uint8_t y;
-};
+struct JoyEvent { uint8_t h; uint8_t v; };
 
-struct ModeEvent {
-    comms::Mode mode;
-};
+/** The accelerometer readouts. */
+struct AccelEvent { uint8_t h; uint8_t v; };
 
-struct ChargingEvent {
-    bool usb;
-    bool charging;
-
-    bool operator == (ChargingEvent const & other) const { return usb == other.usb && charging == other.charging; }
-};
-
-struct VoltageEvent {
-    uint16_t vBatt;
-    uint16_t vcc;
-
-    bool operator == (VoltageEvent const & other) const { return vBatt == other.vBatt && vcc == other.vcc; }
-};
-
-struct TempEvent {
-    int16_t temp;
-
-    bool operator == (TempEvent const & other) const { return temp == other.temp; }
-};
-
-struct BrightnessEvent {
-    uint8_t brightness;
-    bool operator == (BrightnessEvent const & other) const { return brightness == other.brightness; }
-};
-
-struct HeadphonesEvent {
-    bool connected;
-}; 
-
-struct UptimeEvent {
-    uint32_t uptime;
-}; 
+struct HeadphonesEvent { bool connected; }; 
 
 /** Audio recording event. 
  
     Contains the status word which can be used to determine the batch and 32 data bytes of the actual recording. 
  */
-struct RecordingEvent {
-    comms::Status status;
-    uint8_t data[32];
-};
+struct RecordingEvent { comms::Status status; uint8_t data[32]; };
 static_assert(sizeof(RecordingEvent) == 33); 
 
-struct NRFPacketEvent {
-    uint8_t packet[32];
-};
+struct NRFPacketEvent { uint8_t packet[32]; };
 
-struct NRFTxIrq { platform::NRF24L01::Status nrfStatus; NRFState newState; size_t txQueueSize; };
-
-/*
-using Event = std::variant<
-    ButtonEvent,
-    ThumbEvent, 
-    AccelEvent,
-    ModeEvent,
-    ChargingEvent,
-    VoltageEvent,
-    TempEvent, 
-    BrightnessEvent,
-    HeadphonesEvent,
-    UptimeEvent,
-    RecordingEvent,
-    NRFPacketEvent,
-    NRFTxIrq
->;
-*/
-
-struct AlarmEvent {};
-struct LowBatteryEvent {};
-struct JoyEvent { uint8_t h; uint8_t v; };
 struct NRFTxEvent {};
-
 
 using Event = std::variant<
     comms::Mode, 
     AlarmEvent,
     LowBatteryEvent, 
+    StateChangeEvent,
     ButtonEvent, 
     JoyEvent, 
     AccelEvent,
@@ -157,7 +87,6 @@ using Event = std::variant<
     NRFPacketEvent,
     NRFTxEvent
 >;
-
 
 /** Event queue.
  */
@@ -213,3 +142,68 @@ private:
     std::mutex m_;
     std::condition_variable cv_;
 }; // EventQueue
+
+
+
+
+/*
+struct NRFTxIrq { platform::NRF24L01::Status nrfStatus; NRFState newState; size_t txQueueSize; };
+
+struct ThumbEvent {
+    uint8_t x;
+    uint8_t y;
+}; // ThumbEvent
+
+
+
+struct ModeEvent {
+    comms::Mode mode;
+};
+
+struct ChargingEvent {
+    bool usb;
+    bool charging;
+
+    bool operator == (ChargingEvent const & other) const { return usb == other.usb && charging == other.charging; }
+};
+
+struct VoltageEvent {
+    uint16_t vBatt;
+    uint16_t vcc;
+
+    bool operator == (VoltageEvent const & other) const { return vBatt == other.vBatt && vcc == other.vcc; }
+};
+
+struct TempEvent {
+    int16_t temp;
+
+    bool operator == (TempEvent const & other) const { return temp == other.temp; }
+};
+
+struct BrightnessEvent {
+    uint8_t brightness;
+    bool operator == (BrightnessEvent const & other) const { return brightness == other.brightness; }
+};
+
+
+struct UptimeEvent {
+    uint32_t uptime;
+}; 
+
+
+using Event = std::variant<
+    ButtonEvent,
+    ThumbEvent, 
+    AccelEvent,
+    ModeEvent,
+    ChargingEvent,
+    VoltageEvent,
+    TempEvent, 
+    BrightnessEvent,
+    HeadphonesEvent,
+    UptimeEvent,
+    RecordingEvent,
+    NRFPacketEvent,
+    NRFTxIrq
+>;
+*/

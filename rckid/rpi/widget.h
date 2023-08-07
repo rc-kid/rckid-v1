@@ -59,8 +59,8 @@ protected:
     virtual void dpadRight(bool state) {}
     virtual void dpadUp(bool state) {}
     virtual void dpadDown(bool state) {}
-    virtual void joy(uint8_t x, uint8_t y) {}
-    virtual void accel(uint8_t x, uint8_t y) {}
+    virtual void joy(uint8_t h, uint8_t v) {}
+    virtual void accel(uint8_t h, uint8_t v) {}
     virtual void btnHome(bool state);
 
     /** Called when audio packet (32 bytes) has been recorded by the AVR. 
@@ -73,7 +73,7 @@ protected:
     
     /** Packet transmit callback. 
      */
-    virtual void nrfTxCallback(bool ok) {}
+    virtual void nrfTxDone() {}
 
 
     /** Updates the widget's footer shortcut information. 

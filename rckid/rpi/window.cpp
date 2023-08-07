@@ -217,6 +217,18 @@ void Window::loop() {
             Widget * w = activeWidget();
             if (w) {
                 std::visit(overloaded{
+                    [this](comms::Mode) {
+                        redrawHeader_ = true;
+                    },
+                    [this](AlarmEvent) {
+                        // TODO
+                    },
+                    [this](LowBatteryEvent) {
+                        // TODO
+                    },
+                    [this](StateChangeEvent) {
+                        redrawHeader_ = true;
+                    },
                     [this, w](ButtonEvent eb) {
                         TraceLog(LOG_DEBUG, STR("Button state change. Button: " << (int)eb.btn << ", state: " << eb.state));
                         switch (eb.btn) {
@@ -264,12 +276,15 @@ void Window::loop() {
                                 break;
                         }
                     }, 
-                    [this, w](ThumbEvent et) {
-                        w->joy(et.x, et.y);
+                    [this, w](JoyEvent et) {
+                        w->joy(et.h, et.v);
                     },
                     [this, w](AccelEvent ea) {
-                        w->accel(ea.x, ea.y);
+                        w->accel(ea.h, ea.v);
                     }, 
+                    [this](HeadphonesEvent) {
+                        redrawHeader_ = true;
+                    },
                     // simply process the recorded data - we know the function must exist since it must be supplied very time we start recording
                     [this, w](RecordingEvent e) {
                         w->audioRecorded(e);
@@ -277,19 +292,9 @@ void Window::loop() {
                     [this, w](NRFPacketEvent e) {
                         w->nrfPacketReceived(e);
                     },
-                    [this, w](NRFTxIrq e) {
-                        w->nrfTxCallback(! e.nrfStatus.txDataFailIrq());
+                    [this, w](NRFTxEvent e) {
+                        w->nrfTxDone();
                     },
-                    // events that change the header displayed information simply set header redraw to true
-                    [this](LowBatteryEvent) {
-                        redrawHeader_ = true;
-                    },
-                    [this](HeadphonesEvent) {
-                        redrawHeader_ = true;
-                    },
-                    // don't do anything for other events
-                    [this](auto e) { }
-
                 }, event.value());
             }    
         }
@@ -589,15 +594,15 @@ void Window::drawHeader() {
     */
     // NRF Radio
     switch (rckid().nrfState()) {
-        case RCKid::NRFState::Error:
+        case NRFState::Error:
             x -= 20;
             canvas_->drawText(x, 0, "󱄙", RED);
             break;
-        case RCKid::NRFState::Rx:
+        case NRFState::Rx:
             x -= 20;
             canvas_->drawText(x, 0, "󱄙", GREEN);
             break;
-        case RCKid::NRFState::Tx:
+        case NRFState::Tx:
             x -= 20;
             canvas_->drawText(x, 0, "󱄙", BLUE);
             break;

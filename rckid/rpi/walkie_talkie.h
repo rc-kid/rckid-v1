@@ -133,12 +133,8 @@ protected:
     }
 
 
-    void nrfTxCallback(bool ok) override {
-        // should be always ok
-        if (ok) 
-            ++packetsSent_;
-        else 
-            ++packetErrors_;
+    void nrfTxDone() override {
+        ++packetsSent_;
     }
 
 private:

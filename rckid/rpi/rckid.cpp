@@ -377,7 +377,6 @@ void RCKid::processAvrStatus(comms::Status status, bool alreadyLocked) {
 
 void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
     utils::cond_lock_guard g{mState_, alreadyLocked};
-    /*
     if (state_.controls.select() != controls.select()) {
         state_.controls.setSelect(controls.select());
         uiEvents_.send(ButtonEvent{Button::Select, controls.select()});
@@ -385,14 +384,30 @@ void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
     if (state_.controls.start() != controls.start()) {
         state_.controls.setStart(controls.start());
         uiEvents_.send(ButtonEvent{Button::Start, controls.start()});
-
-    } */
+    }
     if (state_.controls.home() != controls.home()) {
         state_.controls.setButtonHome(controls.home());
         uiEvents_.send(ButtonEvent{Button::Home, controls.home()});
     }
+
+    // TODO remove this and replace with L & R buttons in new revision
+    if (state_.controls.dpadUp() != controls.dpadUp()) {
+        state_.controls.setDpadUp(controls.dpadUp());
+        uiEvents_.send(ButtonEvent{Button::Up, controls.dpadUp()});
+    }
+    if (state_.controls.dpadDown() != controls.dpadDown()) {
+        state_.controls.setDpadDown(controls.dpadDown());
+        uiEvents_.send(ButtonEvent{Button::Down, controls.dpadDown()});
+    }
+    if (state_.controls.dpadLeft() != controls.dpadLeft()) {
+        state_.controls.setDpadLeft(controls.dpadLeft());
+        uiEvents_.send(ButtonEvent{Button::Left, controls.dpadLeft()});
+    }
+    if (state_.controls.dpadRight() != controls.dpadRight()) {
+        state_.controls.setDpadRight(controls.dpadRight());
+        uiEvents_.send(ButtonEvent{Button::Right, controls.dpadRight()});
+    }
    
-    // TODO Left & Right buttons in the new pinout
     // joystick reading
     bool report = false;
     if (joyX_.update(controls.joyH())) {
@@ -413,19 +428,26 @@ void RCKid::processAvrExtendedState(comms::ExtendedState & state) {
     std::lock_guard g{mState_};
     processAvrStatus(state.status, true);
     processAvrControls(state.controls, true);
+    bool report = false;
     if (state_.einfo.vcc() != state.einfo.vcc()) {
-
-    }
+        report = true;
+        state_.einfo.setVcc(state.einfo.vcc());
+    }   
     if (state_.einfo.vBatt() != state.einfo.vBatt()) {
-
+        report = true;
+        state_.einfo.setVBatt(state.einfo.vBatt());
     }
     if (state_.einfo.temp() != state.einfo.temp()) {
-
+        report = true;
+        state_.einfo.setTemp(state.einfo.temp());
     }
     if (state_.einfo.brightness() != state.einfo.brightness()) {
-        
+        report = true;
+        state_.einfo.setBrightness(state.einfo.brightness());
     } 
     // TODO process the rest 
+    if (report)
+        uiEvents_.send(StateChangeEvent{});
 }
 
 
@@ -499,10 +521,12 @@ void RCKid::initializeISRs() {
     gpio::attachInterrupt(PIN_BTN_B, gpio::Edge::Both, & isrButtonB);
     gpio::attachInterrupt(PIN_BTN_X, gpio::Edge::Both, & isrButtonX);
     gpio::attachInterrupt(PIN_BTN_Y, gpio::Edge::Both, & isrButtonY);
+    /* TODO re-enable for new revision
     gpio::attachInterrupt(PIN_BTN_DPAD_UP, gpio::Edge::Both, & isrButtonDpadUp);
     gpio::attachInterrupt(PIN_BTN_DPAD_DOWN, gpio::Edge::Both, & isrButtonDpadDown);
     gpio::attachInterrupt(PIN_BTN_DPAD_LEFT, gpio::Edge::Both, & isrButtonDpadLeft);
     gpio::attachInterrupt(PIN_BTN_DPAD_RIGHT, gpio::Edge::Both, & isrButtonDpadRight);
+    */
     gpio::attachInterrupt(PIN_BTN_JOY, gpio::Edge::Both, & isrButtonJoy);
 }
 

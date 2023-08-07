@@ -85,14 +85,6 @@ public:
     static constexpr unsigned int RETROARCH_HOTKEY_LOAD_STATE = BTN_WEST; // X
     static constexpr unsigned int RETROATCH_HOTKEY_SCREENSHOT = BTN_EAST; // Y
 
-    enum class NRFState {
-        Error, // Not present
-        PowerDown, 
-        Standby, 
-        Rx,
-        Tx,
-    };
-
     static RCKid & create();
 
     /** Terminate the driver & event threads and release the gamepad resources. 

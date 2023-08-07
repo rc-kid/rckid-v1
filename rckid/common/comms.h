@@ -161,7 +161,14 @@ namespace comms {
 
         bool setButtons2(uint8_t btns2) { return setButtonsRaw((btns2 & 0x07) << 3, 0x07 << 3); }
 
-        bool setButtonHome(bool value) { return setButtonsRaw(value ? HOME : 0, HOME); }    
+        bool setButtonHome(bool value) { return setButtonsRaw(value ? HOME : 0, HOME); }  
+
+        void setSelect(bool value = true) { value ? buttons_ |= SELECT : buttons_ &= ~SELECT; }  
+        void setStart(bool value = true) { value ? buttons_ |= START : buttons_ &= ~START; }  
+        void setDpadUp(bool value = true) { value ? buttons_ |= DPAD_UP : buttons_ &= ~DPAD_UP; }  
+        void setDpadDown(bool value = true) { value ? buttons_ |= DPAD_DOWN : buttons_ &= ~DPAD_DOWN; }  
+        void setDpadLeft(bool value = true) { value ? buttons_ |= DPAD_LEFT : buttons_ &= ~DPAD_LEFT; }  
+        void setDpadRight(bool value = true) { value ? buttons_ |= DPAD_RIGHT : buttons_ &= ~DPAD_RIGHT; }  
         //@}
 
         uint8_t joyH() const { return joyH_; }
