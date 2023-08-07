@@ -1,3 +1,37 @@
+> This is the high-level plan on tasks, prioritized, to make the RCKid ready for xmas:
+
+- order more displays (3)
+- order M1.4 screws for the thumbstick
+- test the locking rckid with old revision
+- update avr and rckid's for the new revision pins
+- solder the new board
+- design the bottom and top frames around the pcb and test print the stack
+- add AVR basics (charging, thumbstick reporting)
+- add rckid basics (proper header, hearts & configuration and settings)
+- print ASA enclosures
+- order plexiglass covers (https://plasticexpress.cz/)
+- test build the assembly
+- strip down in-game menu to barebones, add volume controls
+- add volume controls to audio & video players
+- add walkie-talkie and test it
+
+> At this point, I'll have a barebones, but working rckid that can play some games, play music & video and act as walkie talkie. This can be presented as xmas gift. Then there are two things I can do:
+
+- fix lego remote schematics & pcb layout
+- build
+- add remote controller to rckid
+- build rc car from lego
+
+> or I can focus on improvements to the user stuff, such as:
+
+- reoreding and renaming elements in menus
+- icon selector, video & game still captures
+- game savepoits
+- alarm / other niceties
+- telegram configuration
+- samba
+- wifi settings
+
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 
 https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm

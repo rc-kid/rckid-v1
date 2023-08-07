@@ -311,7 +311,6 @@ private:
         size_t next() const { return current != numItems - 1 ? current + 1 : 0; }
     }; 
 
-
     /** Returns the current position in the stack. 
      */
     CachedPosition & pos() {
