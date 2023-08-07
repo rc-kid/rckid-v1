@@ -13,16 +13,11 @@
 
 #include "utils/time.h"
 
-#include "raylib_cpp.h"
 #include "events.h"
 #include "animation.h"
 #include "widget.h"
 #include "rckid.h"
 #include "canvas.h"
-
-
-#include "canvas.h"
-
 
 static constexpr int Window_WIDTH = 320;
 static constexpr int Window_HEIGHT = 240;

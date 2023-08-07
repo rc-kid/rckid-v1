@@ -3,37 +3,10 @@
 #include <memory>
 
 
-#include "raylib.h"
-
 #include "utils/utils.h"
-
+#include "raylib_wrapper.h"
 #include "animation.h"
 
-#ifdef FOO
-
-/** Allows log function to take std::string as well. 
- */
-inline void TraceLog(int loglevel, std::string const & str) {
-    TraceLog(loglevel, str.c_str());
-}
-
-/** Creates an opaque color from its constituent parts. 
- */
-inline constexpr Color RGB(uint8_t r, uint8_t g, uint8_t b) {
-    return ::Color{r, g, b, 255};
-}
-
-/** Creates an RGB color with given opacity (0 == fully transparent, 255 = fully opaque). 
- */
-inline constexpr Color RGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-    return ::Color{r, g, b, a};
-}
-
-inline constexpr Vector2 V2(float x, float y) { return Vector2{x, y}; }
-inline constexpr Vector2 V2(int x, int y) { return Vector2{static_cast<float>(x), static_cast<float>(y)}; }
-
-
-#endif
 
 /** Wrapper around the GUI interface. 
  

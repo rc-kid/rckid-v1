@@ -2,8 +2,10 @@
 
 #include <cmath>
 #include <functional>
+#include <cmath>
 
 #include "platform/platform.h"
+
 
 enum class Interpolation {
     Linear, 
@@ -89,7 +91,7 @@ private:
             case Interpolation::Linear:
                 return static_cast<T>((end - start) * f + start); 
             case Interpolation::Sin:
-                return static_cast<T>((end - start) * sin(PI / 2 * (f + start)));
+                return static_cast<T>((end - start) * sin(M_PI / 2 * (f + start)));
             default:
                 UNREACHABLE;
         }

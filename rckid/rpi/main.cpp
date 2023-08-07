@@ -12,7 +12,7 @@ struct DispmanXBackgroundLayer {
 #include <unordered_map>
 #include <filesystem>
 
-#include "raylib_cpp.h"
+#include "raylib_wrapper.h"
 
 #include "platform/platform.h"
 
