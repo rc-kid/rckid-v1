@@ -10,7 +10,7 @@ public:
 protected:
 
     void onBlur() override {
-        rckid().stopRecording();
+        rckid().stopAudioRecording();
         recording_ = false;
     }
 
@@ -43,11 +43,11 @@ protected:
                 memset(max_, 128, 320);
                 memset(min_, 128, 320);
                 avis_.reset();
-                rckid().startRecording();
+                rckid().startAudioRecording();
             }
         } else {
             recording_ = false;
-            rckid().stopRecording();
+            rckid().stopAudioRecording();
             f_.close();
         }
     }

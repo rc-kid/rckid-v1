@@ -72,9 +72,9 @@ protected:
 
     void onBlur() override {
         tHeartbeat_.stop();
-        rckid().stopRecording();
+        rckid().stopAudioRecording();
         recording_ = false;
-        rckid().nrfStandby();
+        rckid().nrfPowerDown();
     }
 
     /** Starts / stops the PTT Transmission. 
@@ -89,12 +89,12 @@ protected:
                 packetsSent_ = 0;
                 packetErrors_ = 0;
                 // tell everyone we will begin PTT
-                rckid().startRecording();
+                rckid().startAudioRecording();
             }
         } else {
             if (recording_) {
                 recording_ = false;
-                rckid().stopRecording();
+                rckid().stopAudioRecording();
             }
         }
 

@@ -76,7 +76,7 @@ class RCKid;
 
 RCKid & rckid(); 
 
-class RCKidLocked {
+class RCKid {
 public:
 
     static constexpr unsigned int RETROARCH_HOTKEY_ENABLE = BTN_THUMBR;
@@ -84,9 +84,6 @@ public:
     static constexpr unsigned int RETROARCH_HOTKEY_SAVE_STATE = BTN_NORTH; // A
     static constexpr unsigned int RETROARCH_HOTKEY_LOAD_STATE = BTN_WEST; // X
     static constexpr unsigned int RETROATCH_HOTKEY_SCREENSHOT = BTN_EAST; // Y
-
-    // TODO delete when renamed
-    using Event = EventLocked; 
 
     enum class NRFState {
         Error, // Not present
@@ -96,11 +93,11 @@ public:
         Tx,
     };
 
-    static RCKidLocked & create();
+    static RCKid & create();
 
     /** Terminate the driver & event threads and release the gamepad resources. 
      */
-    ~RCKidLocked() {
+    ~RCKid() {
         shouldTerminate_.store(true);
         driverEvents_.send(Terminate{});
         tHwLoop_.join();
@@ -118,6 +115,12 @@ public:
      */
     comms::ExtendedState extendedState() const { std::lock_guard<std::mutex> g{mState_}; return state_; }
 
+    int16_t accelTemp() const { std::lock_guard<std::mutex> g{mState_}; return accelTemp_; }
+
+    /** Returns the next UI event waiting to be processed, if any. 
+     */
+    std::optional<Event> nextEvent();
+
     /** Turns RCKid off. 
      
         Tells the AVR to enter the power down mode. AVR does this and then waits for the RPI_POWEROFF signal, while when we detect the transition to powerOff state actually happening, we do rpi shutdown in the main loop.  
@@ -127,6 +130,8 @@ public:
         driverEvents_.send(msg::PowerDown{});
     }
 
+    uint8_t brightness() { std::lock_guard<std::mutex> g{mState_}; return state_.einfo.brightness(); }
+
     void setBrightness(uint8_t brightness) { driverEvents_.send(msg::SetBrightness{brightness}); }
 
     /** \name Input controls
@@ -135,6 +140,9 @@ public:
     bool gamepadActive() const { std::lock_guard<std::mutex> g{mState_}; return gamepadActive_; }
 
     void setGamepadActive(bool value = true) { std::lock_guard<std::mutex> g{mState_}; gamepadActive_ = value; }
+
+    void keyPress(int key, bool state) { driverEvents_.send(KeyPress{key, state}); }
+
     //@}
 
 
@@ -227,6 +235,16 @@ public:
      */
     void nrfTransmitImmediate(uint8_t const * packet, uint8_t length = 32) {
         driverEvents_.send(NRFPacket{packet, length});
+    }
+
+    size_t nrfTxQueueSize() const {
+        std::lock_guard<std::mutex> g{mRadio_};
+        return nrfTxQueue_.size();
+    }
+
+    NRFState nrfState() const {
+        std::lock_guard<std::mutex> g{mRadio_};
+        return nrfState_;
     }
 
     //@}
@@ -328,7 +346,7 @@ private:
     >;
 
     /** Private constructor for the singleton object. */
-    RCKidLocked();
+    RCKid();
 
     void processDriverEvent(DriverEvent e);
 
@@ -377,18 +395,18 @@ private:
     void initializeNrf();
     
     void initializeISRs();
-    static void isrAvrIrq() { RCKidLocked::instance()->driverEvents_.send(AvrIrq{}); }
-    static void isrNrfIrq() { RCKidLocked::instance()->driverEvents_.send(NRFIrq{}); }
-    static void isrHeadphones() { RCKidLocked::instance()->driverEvents_.send(HeadphonesIrq{platform::gpio::read(PIN_HEADPHONES)}); }
-    static void isrButtonA() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnA_, ! platform::gpio::read(PIN_BTN_A)}); }
-    static void isrButtonB() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnB_, ! platform::gpio::read(PIN_BTN_B)}); }
-    static void isrButtonX() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnX_, ! platform::gpio::read(PIN_BTN_X)}); }
-    static void isrButtonY() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnY_, ! platform::gpio::read(PIN_BTN_Y)}); }
-    static void isrButtonDpadUp() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadUp_, ! platform::gpio::read(PIN_BTN_DPAD_UP)}); }
-    static void isrButtonDpadDown() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadDown_, ! platform::gpio::read(PIN_BTN_DPAD_DOWN)}); }
-    static void isrButtonDpadLeft() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadLeft_, ! platform::gpio::read(PIN_BTN_DPAD_LEFT)}); }
-    static void isrButtonDpadRight() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadRight_, ! platform::gpio::read(PIN_BTN_DPAD_RIGHT)}); }
-    static void isrButtonJoy() { auto & i = RCKidLocked::instance(); i->driverEvents_.send(ButtonIrq{i->btnJoy_, ! platform::gpio::read(PIN_BTN_JOY)}); }
+    static void isrAvrIrq() { RCKid::instance()->driverEvents_.send(AvrIrq{}); }
+    static void isrNrfIrq() { RCKid::instance()->driverEvents_.send(NRFIrq{}); }
+    static void isrHeadphones() { RCKid::instance()->driverEvents_.send(HeadphonesIrq{platform::gpio::read(PIN_HEADPHONES)}); }
+    static void isrButtonA() { auto & i = RCKid::instance(); i->driverEvents_.send(ButtonIrq{i->btnA_, ! platform::gpio::read(PIN_BTN_A)}); }
+    static void isrButtonB() { auto & i = RCKid::instance(); i->driverEvents_.send(ButtonIrq{i->btnB_, ! platform::gpio::read(PIN_BTN_B)}); }
+    static void isrButtonX() { auto & i = RCKid::instance(); i->driverEvents_.send(ButtonIrq{i->btnX_, ! platform::gpio::read(PIN_BTN_X)}); }
+    static void isrButtonY() { auto & i = RCKid::instance(); i->driverEvents_.send(ButtonIrq{i->btnY_, ! platform::gpio::read(PIN_BTN_Y)}); }
+    static void isrButtonDpadUp() { auto & i = RCKid::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadUp_, ! platform::gpio::read(PIN_BTN_DPAD_UP)}); }
+    static void isrButtonDpadDown() { auto & i = RCKid::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadDown_, ! platform::gpio::read(PIN_BTN_DPAD_DOWN)}); }
+    static void isrButtonDpadLeft() { auto & i = RCKid::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadLeft_, ! platform::gpio::read(PIN_BTN_DPAD_LEFT)}); }
+    static void isrButtonDpadRight() { auto & i = RCKid::instance(); i->driverEvents_.send(ButtonIrq{i->btnDpadRight_, ! platform::gpio::read(PIN_BTN_DPAD_RIGHT)}); }
+    static void isrButtonJoy() { auto & i = RCKid::instance(); i->driverEvents_.send(ButtonIrq{i->btnJoy_, ! platform::gpio::read(PIN_BTN_JOY)}); }
 
     void initializeLibevdev();
 
@@ -406,7 +424,7 @@ private:
             gamepadActive = gamepadActive_;
         }
         // send the event to libevdev, if required
-        if (gamepadActive && btn.evdevId != KEY_RESERVED) {
+        if (gamepadActive && btn.evdevId != KEY_RESERVED && gamepad_ != nullptr) {
             if (btn.reportValue == 0)
                 libevdev_uinput_write_event(gamepad_, EV_KEY, btn.evdevId, btn.actualState ? 1 : 0);
             else
@@ -425,7 +443,7 @@ private:
             gamepadActive = gamepadActive_;
         }
         // send the event to libevdev, if required
-        if (gamepadActive && axis.evdevId != KEY_RESERVED) {
+        if (gamepadActive && axis.evdevId != KEY_RESERVED && gamepad_ != nullptr) {
             libevdev_uinput_write_event(gamepad_, EV_ABS, axis.evdevId, axis.actualValue);
             libevdev_uinput_write_event(gamepad_, EV_SYN, SYN_REPORT, 0);
         }
@@ -441,7 +459,7 @@ private:
     /** Last known state of the AVR so that we can determine any changes and emit events. Protected by a mutex. */
     comms::ExtendedState state_;
     mutable std::mutex mState_;
-    int16_t accelTemperature_; 
+    int16_t accelTemp_; 
     bool headphones_{false};
 
     /** Audio volume. Only accessible from the UI thread. */
@@ -477,7 +495,7 @@ private:
     bool nrfTx_{false};
     NRFState nrfState_{NRFState::PowerDown};
     std::deque<NRFPacket> nrfTxQueue_;
-    std::mutex mRadio_;
+    mutable std::mutex mRadio_;
 
 
     std::thread tHwLoop_;
@@ -485,10 +503,14 @@ private:
     std::thread tSeconds_;
     std::atomic<bool> shouldTerminate_{false};
 
-    static inline std::unique_ptr<RCKidLocked> & instance() {
-        static std::unique_ptr<RCKidLocked> instance_;
+    static inline std::unique_ptr<RCKid> & instance() {
+        static std::unique_ptr<RCKid> instance_;
         return instance_;
     };
+
+    friend RCKid & rckid() {
+        return * RCKid::instance();
+    }
 
 #if (defined ARCH_MOCK)
     volatile bool mockRecording_ = false;
@@ -499,7 +521,7 @@ private:
 
 }; // RCKid
 
-
+#ifdef HAHA
 /** RCKid Driver
 
     Communicates with the attached hardware - AVR, NRF, accelerometer and photoresistor.
@@ -1086,3 +1108,6 @@ private:
     static inline std::unique_ptr<RCKid> singleton_;
 
 }; // RCKid
+
+
+#endif

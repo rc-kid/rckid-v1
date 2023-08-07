@@ -15,29 +15,30 @@ public:
 protected:
 
     void onFocus() override {
-        rckid().enableGamepad(true);
+        rckid().setGamepadActive(true);
     }
 
     void onBlur() override {
-        rckid().enableGamepad(false);
+        rckid().setGamepadActive(false);
     }
 
     void draw() override{
+        comms::ExtendedState state{rckid().extendedState()};
         Canvas & c = window().canvas();
         BeginBlendMode(BLEND_ADD_COLORS);
         // now draw the displayed information
         c.drawText(160, 20, "VCC:", DARKGRAY);
-        c.drawText(210, 20, STR(rckid().vcc()), WHITE);
+        c.drawText(210, 20, STR(state.einfo.vcc()), WHITE);
         c.drawText(240, 20, "VBATT:", DARKGRAY);
-        c.drawText(290, 20, STR(rckid().vBatt()), WHITE);
+        c.drawText(290, 20, STR(state.einfo.vBatt()), WHITE);
         c.drawText(160, 40, "TEMP:", DARKGRAY);
-        c.drawText(210, 40, STR(rckid().avrTemp()), WHITE);
+        c.drawText(210, 40, STR(state.einfo.temp()), WHITE);
         c.drawText(240, 40, "ATEMP:", DARKGRAY);
         c.drawText(290, 40, STR(rckid().accelTemp()), WHITE);
         c.drawText(160, 60, "CHRG:", DARKGRAY);
-        c.drawText(210, 60, rckid().charging() ? "1" : "0", WHITE);
+        c.drawText(210, 60, state.einfo.charging() ? "1" : "0", WHITE);
         c.drawText(160, 80, "UP:", DARKGRAY);
-        c.drawText(210, 80, STR(rckid().avrUptime()), WHITE);
+        c.drawText(210, 80, STR(state.uptime), WHITE);
 
         //DrawTextEx(window().helpFont(), "VCC:", 160, 20, 16, 1.0, DARKGRAY);
         //DrawTextEx(window().helpFont(), STR(rckid().vcc()).c_str(), 210, 20, 16, 1.0, WHITE);

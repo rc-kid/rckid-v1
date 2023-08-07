@@ -73,14 +73,14 @@
 
 using namespace platform;
 
-RCKidLocked & RCKidLocked::create() {
+RCKid & RCKid::create() {
     auto & i = instance();
     ASSERT(i.get() == nullptr && "RCKid must be a singleton");
-    i = std::unique_ptr<RCKidLocked>(new RCKidLocked{});
+    i = std::unique_ptr<RCKid>(new RCKid{});
     return *i.get();
 }
 
-RCKidLocked::RCKidLocked() {
+RCKid::RCKid() {
     gpio::initialize();
     if (!spi::initialize()) 
         TraceLog(LOG_ERROR, STR("Unable to initialize spi (errno " << errno << ")"));
@@ -147,7 +147,14 @@ RCKidLocked::RCKidLocked() {
 #endif
 }
 
-void RCKidLocked::processDriverEvent(DriverEvent e) {
+std::optional<Event> RCKid::nextEvent() {
+    auto e = uiEvents_.receive();
+    // TODO process events we are interested in for statistics
+    return e;
+}
+
+
+void RCKid::processDriverEvent(DriverEvent e) {
     std::visit(overloaded{
         // do nothing for termination, it's sent just to ensure the thread will wake up and can react to shouldTerminate flag
         [this](Terminate) {},
@@ -303,7 +310,7 @@ void RCKidLocked::processDriverEvent(DriverEvent e) {
 }
 
 
-void RCKidLocked::initializeAvr() {
+void RCKid::initializeAvr() {
     // check if the AVR is present at all
     if (!i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, nullptr, 0))
         TraceLog(LOG_ERROR, STR("AVR not found:" << errno));
@@ -336,7 +343,7 @@ void RCKidLocked::initializeAvr() {
     gpio::attachInterrupt(PIN_AVR_IRQ, gpio::Edge::Falling, & isrAvrIrq);
 }
 
-void RCKidLocked::processAvrStatus(comms::Status status, bool alreadyLocked) {
+void RCKid::processAvrStatus(comms::Status status, bool alreadyLocked) {
     utils::cond_lock_guard g{mState_, alreadyLocked};
     if (state_.status.mode() != status.mode()) {
         switch (state_.status.mode()) {
@@ -368,7 +375,7 @@ void RCKidLocked::processAvrStatus(comms::Status status, bool alreadyLocked) {
     }
 }
 
-void RCKidLocked::processAvrControls(comms::Controls controls, bool alreadyLocked) {
+void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
     utils::cond_lock_guard g{mState_, alreadyLocked};
     /*
     if (state_.controls.select() != controls.select()) {
@@ -402,7 +409,7 @@ void RCKidLocked::processAvrControls(comms::Controls controls, bool alreadyLocke
         uiEvents_.send(JoyEvent{joyX_.reportedValue, joyY_.reportedValue});
 }
 
-void RCKidLocked::processAvrExtendedState(comms::ExtendedState & state) {
+void RCKid::processAvrExtendedState(comms::ExtendedState & state) {
     std::lock_guard g{mState_};
     processAvrStatus(state.status, true);
     processAvrControls(state.controls, true);
@@ -423,7 +430,7 @@ void RCKidLocked::processAvrExtendedState(comms::ExtendedState & state) {
 
 
 
-void RCKidLocked::initializeAccel() {
+void RCKid::initializeAccel() {
     if (accel_.deviceIdentification() == 104) {
         accel_.reset();
     } else {
@@ -440,7 +447,7 @@ uint8_t accelTo1GUnsigned(int16_t v) {
     return (v >> 7);    
 }
 
-void RCKidLocked::queryAccelStatus() {
+void RCKid::queryAccelStatus() {
     MPU6050::AccelData d = accel_.readAccel();
     int16_t t = accel_.readTemp();
     uint8_t x = accelTo1GUnsigned(-d.x);
@@ -454,15 +461,15 @@ void RCKidLocked::queryAccelStatus() {
         report = true;
         axisAction(accelY_);
     }
-    if (accelTemperature_ != t) {
+    if (accelTemp_ != t) {
         std::lock_guard<std::mutex> g{mState_};
-        accelTemperature_ = t;
+        accelTemp_ = t;
     }
     if (report)
         uiEvents_.send(AccelEvent{accelX_.reportedValue, accelY_.reportedValue});
 }
 
-void RCKidLocked::initializeNrf() {
+void RCKid::initializeNrf() {
     if (nrf_.initialize("RCKID", "RCKID")) {
         nrf_.standby();
         nrfState_ = NRFState::Standby;
@@ -475,7 +482,7 @@ void RCKidLocked::initializeNrf() {
     gpio::attachInterrupt(PIN_NRF_IRQ, gpio::Edge::Falling, & isrNrfIrq);
 }
 
-void RCKidLocked::initializeISRs() {
+void RCKid::initializeISRs() {
     gpio::input(PIN_HEADPHONES);
     gpio::attachInterrupt(PIN_HEADPHONES, gpio::Edge::Both, & isrHeadphones);
 
@@ -499,7 +506,7 @@ void RCKidLocked::initializeISRs() {
     gpio::attachInterrupt(PIN_BTN_JOY, gpio::Edge::Both, & isrButtonJoy);
 }
 
-void RCKidLocked::initializeLibevdev() {
+void RCKid::initializeLibevdev() {
     gamepadDev_ = libevdev_new();
     libevdev_set_name(gamepadDev_, LIBEVDEV_GAMEPAD_NAME);
     libevdev_set_id_bustype(gamepadDev_, BUS_USB);
@@ -556,7 +563,7 @@ void RCKidLocked::initializeLibevdev() {
 }
 
 #if (defined ARCH_MOCK)
-void RCKidLocked::checkMockButtons() {
+void RCKid::checkMockButtons() {
     // need to poll the events since we may have 0 framerate when updates to the screen are not necessary
     PollInputEvents();
 #define CHECK_KEY(KEY, BTN) if (IsKeyDown(KEY) != BTN.actualState) if (BTN.update(! BTN.actualState)) buttonAction(BTN);
@@ -578,6 +585,8 @@ void RCKidLocked::checkMockButtons() {
 }
 #endif
 
+
+#ifdef HAHA
 
 // ----------------------------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------------------------
@@ -1149,3 +1158,6 @@ void RCKid::buttonAction(ButtonState & btn) ISR_THREAD DRIVER_THREAD {
 
 
 
+
+
+#endif

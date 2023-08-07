@@ -168,7 +168,7 @@ protected:
         This is pretty costly function as it executes 2 extra processes per successful image extraction, but since it's only ever going to be called for a few files at a time when new music is added it probably does not matter. We take the album art and convert it to 320x240 max so that it fits the screen nicely. 
     */
     void extractAndUpdateArtwork(std::string const & track, json::Value & item) {
-        std::string imgPath = RCKid::MUSIC_ARTWORK_DIR / newUuid(); 
+        std::string imgPath = std::filesystem::path{AUDIO_MUSIC_ARTWORK_DIR} / newUuid(); 
         system(STR("ffmpeg -i \"" << track << "\" -an -vcodec copy \"" << imgPath << ".jpg\"").c_str());
         if (std::filesystem::exists(imgPath + ".jpg")) {
             system(STR("convert \"" << imgPath << ".jpg\" -resize 320x240 \"" << imgPath << ".png\"").c_str());

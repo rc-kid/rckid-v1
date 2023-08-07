@@ -45,14 +45,14 @@ protected:
     }
 
     void onNavigationPop() override {
-        rckid().nrfStandby();
+        rckid().nrfPowerDown();
     }
 
     void btnA(bool state) override {
         if (state) {
             if (running_) {
                 running_ = false;
-                rckid().nrfStandby();
+                rckid().nrfPowerDown();
             } else {
                 running_ = true;
                 rckid().nrfInitialize(rxAddr_.c_str(), txAddr_.c_str(), channel_);

@@ -126,7 +126,7 @@ private:
  */
 int main(int argc, char * argv[]) {
     // ensure the required paths
-    std::filesystem::create_directories(RCKid::MUSIC_ARTWORK_DIR);
+    std::filesystem::create_directories(AUDIO_MUSIC_ARTWORK_DIR);
     system("cp /rckid/log.txt /rckid/log.old.txt");
     SetTraceLogLevel(LOG_ALL);
     SetTraceLogCallback(logCallback);

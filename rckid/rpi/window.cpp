@@ -280,6 +280,13 @@ void Window::loop() {
                     [this, w](NRFTxIrq e) {
                         w->nrfTxCallback(! e.nrfStatus.txDataFailIrq());
                     },
+                    // events that change the header displayed information simply set header redraw to true
+                    [this](LowBatteryEvent) {
+                        redrawHeader_ = true;
+                    },
+                    [this](HeadphonesEvent) {
+                        redrawHeader_ = true;
+                    },
                     // don't do anything for other events
                     [this](auto e) { }
 
@@ -371,8 +378,6 @@ void Window::draw() {
 #if (defined RENDERING_STATS)
     tt = now();
 #endif
-    if (rckid().statusChanged()) 
-        redrawHeader_ = true;
     if (redrawHeader_) {
         redraw = true;
         redrawHeader_ = false;
@@ -513,6 +518,8 @@ void Window::drawHeader() {
     //BeginTextureMode(buffer_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
 
+    comms::ExtendedState state{rckid().extendedState()};
+
     canvas_->setDefaultFont();
     // The heart, or time left
     canvas_->drawText(0, 0, "", DARKGRAY);
@@ -523,24 +530,24 @@ void Window::drawHeader() {
     BeginBlendMode(BLEND_ADD_COLORS);
     int x = 320;
     // charging and usb power indicator 
-    if (rckid().usb()) {
+    if (state.einfo.usb()) {
         x -= 10;
-        canvas_->drawText(x, 0, "", rckid().charging() ? WHITE : GRAY);
+        canvas_->drawText(x, 0, "", state.einfo.charging() ? WHITE : GRAY);
     }
     // the battery level and percentage
     if (homeMenu_->onNavStack()) {
-        std::string pct = STR((rckid().vBatt() - 330) << "%");
+        std::string pct = STR((state.einfo.vBatt() - 330) << "%");
         x -= canvas_->textWidth(pct, canvas_->helpFont()) + 5;
         canvas_->drawText(x, 2, pct, GRAY, canvas_->helpFont());
     }
     x -= 20;
-    if (rckid().vBatt() > 415)
+    if (state.einfo.vBatt() > 415)
         canvas_->drawText(x, 0, "", GREEN);
-    else if (rckid().vBatt() > 390)
+    else if (state.einfo.vBatt() > 390)
         canvas_->drawText(x, 0, "", DARKGREEN);
-    else if (rckid().vBatt() > 375)
+    else if (state.einfo.vBatt() > 375)
         canvas_->drawText(x, 0, "", ORANGE);
-    else if (rckid().vBatt() > 340)    
+    else if (state.einfo.vBatt() > 340)    
         canvas_->drawText(x, 0, "", RED);
     else 
         canvas_->drawText(x, 0, "", RED);
@@ -564,6 +571,7 @@ void Window::drawHeader() {
     else
         canvas_->drawText(x, 0, "󰕾", ORANGE);
     // WiFi
+    /* TODO
     if (! rckid().wifi() ) {
         x -= 20;
         canvas_->drawText(x, 0, "󰖪", GRAY);
@@ -578,17 +586,18 @@ void Window::drawHeader() {
         else
             canvas_->drawText(x, 0, "󰖩", BLUE);
     }
+    */
     // NRF Radio
     switch (rckid().nrfState()) {
-        case NRFState::Error:
+        case RCKid::NRFState::Error:
             x -= 20;
             canvas_->drawText(x, 0, "󱄙", RED);
             break;
-        case NRFState::Receiver:
+        case RCKid::NRFState::Rx:
             x -= 20;
             canvas_->drawText(x, 0, "󱄙", GREEN);
             break;
-        case NRFState::Transmitting:
+        case RCKid::NRFState::Tx:
             x -= 20;
             canvas_->drawText(x, 0, "󱄙", BLUE);
             break;

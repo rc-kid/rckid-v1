@@ -45,6 +45,8 @@
 #define AUDIO_DEFAULT_VOLUME 50
 #define AUDIO_VOLUME_STEP 10
 
+#define AUDIO_MUSIC_ARTWORK_DIR "/rckid/images/music artwork"
+
 /** \section Device Build Configuration 
  
     The following settings can enable or disable certain features based on the option RCKid hardware being present or not. 

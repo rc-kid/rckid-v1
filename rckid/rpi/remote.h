@@ -47,7 +47,7 @@ protected:
         mode_ = Mode::Searching;
         // get device information
         new (msg_) RequestDeviceInfo{"RCKID"};
-        rckid().nrfTransmitWithImmediateReturn(msg_);
+        rckid().nrfTransmitImmediate(msg_);
         std::cout << "Searching for devices" << std::endl;
         devices_.clear();
         t_.start(100);
@@ -59,7 +59,7 @@ protected:
         std::cout << "Pairing" << std::endl;
         new (msg_) Pair{"RCKid", deviceAddress, 80, deviceId, deviceName};
         for (size_t i = 0; i < 10; ++i)
-            rckid().nrfTransmitWithImmediateReturn(msg_);
+            rckid().nrfTransmitImmediate(msg_);
         rckid().nrfInitialize("RCKid", deviceAddress, 80);
         rckid().nrfEnableReceiver();
         t_.startContinuous(50);
@@ -82,14 +82,14 @@ protected:
                         }
                     } else {
                         new (msg_) RequestDeviceInfo{"RCKID"};
-                        rckid().nrfTransmitWithImmediateReturn(msg_);
+                        rckid().nrfTransmitImmediate(msg_);
                         t_.start(100);
                     }
                     break;
                 case Mode::Pairing:
                 case Mode::Connected:
                     new (msg_) Nop{};
-                    rckid().nrfTransmitWithImmediateReturn(msg_);
+                    rckid().nrfTransmitImmediate(msg_);
                     break;
                 default:
                     // nothing to do
@@ -111,7 +111,7 @@ protected:
     }
 
     void onBlur() override {
-        rckid().nrfStandby();
+        rckid().nrfPowerDown();
     }
 
     void btnA(bool state) override {

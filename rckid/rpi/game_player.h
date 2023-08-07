@@ -106,7 +106,7 @@ protected:
             rckid().keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
             rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
         }
-        rckid().enableGamepad(true);
+        rckid().setGamepadActive(true);
     }
 
     void onBlur() {
@@ -118,7 +118,7 @@ protected:
             rckid().keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
             rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
         }
-        rckid().enableGamepad(false);
+        rckid().setGamepadActive(false);
     }
 
     // don't do anything here, prevents the back behavior

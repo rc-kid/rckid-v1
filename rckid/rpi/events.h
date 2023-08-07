@@ -121,7 +121,7 @@ struct NRFPacketEvent {
 
 struct NRFTxIrq { platform::NRF24L01::Status nrfStatus; NRFState newState; size_t txQueueSize; };
 
-
+/*
 using Event = std::variant<
     ButtonEvent,
     ThumbEvent, 
@@ -137,6 +137,7 @@ using Event = std::variant<
     NRFPacketEvent,
     NRFTxIrq
 >;
+*/
 
 struct AlarmEvent {};
 struct LowBatteryEvent {};
@@ -144,7 +145,7 @@ struct JoyEvent { uint8_t h; uint8_t v; };
 struct NRFTxEvent {};
 
 
-using EventLocked = std::variant<
+using Event = std::variant<
     comms::Mode, 
     AlarmEvent,
     LowBatteryEvent, 
