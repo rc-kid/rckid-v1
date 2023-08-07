@@ -1,6 +1,7 @@
 #pragma once
 
 #include "events.h"
+#include "canvas.h"
 
 class Window;
 class RCKid;
@@ -25,7 +26,7 @@ protected:
 
     /** Override this to draw the widget.
      */
-    virtual void draw() = 0;
+    virtual void draw(Canvas & canvas) = 0;
 
     /** Called when the widget gains focus (becomes visible). 
      */

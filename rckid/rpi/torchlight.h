@@ -16,7 +16,7 @@ public:
 
 protected:
 
-    void draw() override { 
+    void draw(Canvas &) override { 
         DrawCircle(160, 90, 60, Color{r_, 0, 0, r_});
         DrawCircle(130, 140, 60, Color{0, g_, 0, g_});
         DrawCircle(190, 140, 60, Color{0, 0, b_, b_});

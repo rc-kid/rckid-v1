@@ -22,9 +22,8 @@ protected:
         rckid().setGamepadActive(false);
     }
 
-    void draw() override{
+    void draw(Canvas & c) override{
         comms::ExtendedState state{rckid().extendedState()};
-        Canvas & c = window().canvas();
         BeginBlendMode(BLEND_ADD_COLORS);
         // now draw the displayed information
         c.drawText(160, 20, "VCC:", DARKGRAY);

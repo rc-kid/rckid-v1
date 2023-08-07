@@ -13,8 +13,7 @@ public:
 
 protected:
 
-    void draw() override {
-        Canvas & c = window().canvas();
+    void draw(Canvas & c) override {
         c.drawText(0, 200, STR("TX: " << tx_ << " RX: " << rx_), WHITE);
         BeginBlendMode(BLEND_ADD_COLORS);
         for (size_t i = 0; i < msgs_.size(); ++i) {

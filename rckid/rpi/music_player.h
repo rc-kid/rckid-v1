@@ -177,9 +177,8 @@ protected:
         }
     }
 
-    void draw() override {
-        Canvas & c = window().canvas();
-        DirSyncedCarousel::draw();
+    void draw(Canvas & c) override {
+        DirSyncedCarousel::draw(c);
         // if we are playing, display the extra 
         if (! browsing_) {
             // se if we should move to next song / start playing again

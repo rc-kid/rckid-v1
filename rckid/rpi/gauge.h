@@ -44,8 +44,7 @@ protected:
     /** Calls the onRefresh method so that we can update the value when enabled */
     void onNavigationPush() override { onRefresh_(this); }
 
-    void draw() override {
-        Canvas & c = window().canvas();
+    void draw(Canvas & c) override {
         c.drawTexture((Window_WIDTH - icon_.width()) / 2, (Window_HEIGHT - icon_.height() - MENU_FONT_SIZE) / 2 + 5, icon_);
 
         c.drawTexture(0, Window_HEIGHT - FOOTER_HEIGHT - MENU_FONT_SIZE + 5, gauge_, backgroundColor_);

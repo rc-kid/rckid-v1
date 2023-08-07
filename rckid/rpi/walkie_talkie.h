@@ -49,7 +49,7 @@ protected:
         }
     }
 
-    void draw() override {
+    void draw(Canvas &) override {
         if (recording_) {
             avis_.draw(10, 150, 300, 70);
             DrawRectangleLines(10, 150, 300, 70, WHITE);

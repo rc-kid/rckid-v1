@@ -127,8 +127,7 @@ protected:
         window().addFooterItem(FooterItem::A("Select"));
     }
 
-    void draw() override {
-        Canvas & canvas = window().canvas();
+    void draw(Canvas & canvas) override {
         a_.update();
         if (pos().numItems == 0) {
             drawEmpty();
@@ -364,9 +363,9 @@ private:
             return;
         Color color{RGBA(255, 255, 255, alpha)};
         if (item->iScale == 1.0)
-            window().canvas().drawTexture(item->iX + offset, item->iY, item->useDefaultIcon() ? defaultIcon_ : item->icon, color);    
+            c.drawTexture(item->iX + offset, item->iY, item->useDefaultIcon() ? defaultIcon_ : item->icon, color);    
         else
-            window().canvas().drawTextureScaled(item->iX + offset, item->iY, item->icon, item->iScale, color);    
+            c.drawTextureScaled(item->iX + offset, item->iY, item->icon, item->iScale, color);    
         // switch to alpha-blending to make the text visible over full screen-ish images
         if (showTitle_) {
             if (item->alphaBlend)

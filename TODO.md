@@ -1,5 +1,7 @@
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 
+https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
+
 - !!!!!!!! PINS are different, no more volume keys DPAD handled by RPi, L/R not !!!!!!!!
 
 - battery on: 9:30

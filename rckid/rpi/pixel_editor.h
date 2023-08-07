@@ -23,7 +23,7 @@ public:
 
 protected:
 
-    void draw() override {
+    void draw(Canvas &) override {
         cursor_.update();
         int pixelSize = std::min(Window_WIDTH / ICON_WIDTH, Window_HEIGHT / ICON_HEIGHT);
         int startx = (Window_WIDTH - (ICON_WIDTH * pixelSize)) / 2 ;

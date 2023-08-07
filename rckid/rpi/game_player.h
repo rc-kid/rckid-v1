@@ -84,7 +84,7 @@ protected:
             window().back();
     }
 
-    void draw() override {
+    void draw(Canvas &) override {
         cancelRedraw();
     }
 

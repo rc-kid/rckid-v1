@@ -217,7 +217,6 @@ public:
 
     int textWidth(std::string const & text, Font const & font) {
         return static_cast<int>(MeasureTextEx(font.f_->font, text.c_str(), font.size(), 1.0).x);
-
     }
 
     void drawText(int x, int y, std::string const & text) {
@@ -253,8 +252,27 @@ public:
 
     //@}
 
+    void fillFrame(int x, int y, int w, int h, ::Color color) {
+        int r = 10;
+        DrawCircleSector(V2(x + r, y + r), r, 180, 270, 8, color);
+        DrawCircleSector(V2(x + r, y + h - r), r, 270, 360, 8, color);
+        DrawCircleSector(V2(x + w - r, y + r), r, 90, 180, 8, color);
+        DrawCircleSector(V2(x + w - 2 * r, y + h - 2 * r), 2 * r, 0, 90, 8, color);
+        DrawRectangle(x, y + r, r, h - 2 *r, color);
+        DrawRectangle(x + r, y, w - 3 * r, h, color);
+        DrawRectangle(x + w - 2 * r, y, r, r, color);
+        DrawRectangle(x + w - 2 * r, y + r, 2 * r, h - 3 * r, color);
+    }
+
+    void drawFrame(int x, int y, int width, int height, ::Color color, int thickness = 2) {
+        fillFrame(x, y, width, height, color);
+        fillFrame(x + thickness, y + thickness, width - 2 * thickness, height -  2 * thickness, BLACK);
+    }
+
+
     // YE OLDE STUFF THAT MIGHT BE USEFUL ONE DAY
 
+/*
     void drawFrame(int x, int y, int width, int height, std::string const & title, ::Color color) {
 
         BeginBlendMode(BLEND_ALPHA);
@@ -271,7 +289,6 @@ public:
 
 
 
-/*
         DrawCircleSector(Vector2{125,40}, 20, 90, 180, 8, DARKGRAY);
         DrawCircleSector(Vector2{105, 195}, 40, 0, 90, 16, DARKGRAY);
 
@@ -286,8 +303,6 @@ public:
         DrawRectangleRounded(Rectangle{x - 32.f, y - 32.f, 64.f, 64.f}, 0.5, 8, color);
 //        static auto t = LoadTexture("assets/images/014-info.png");
 //        DrawTextureEx(t, Vector2{x - 32.f, y - 32.f}, 0, 0.5, WHITE);
-*/
-    }
 
     void drawShapedFrame(float x, float y, float w, float h, float r, ::Color color) {
         DrawCircleSector(Vector2{x + r, y + r}, r, 180, 270, 8, color);
@@ -310,7 +325,8 @@ public:
         DrawRectangle(x + radius, y, width - height, height, fg);
         DrawCircleSector(Vector2{x + width - radius, y + radius}, radius, 0, 180, 16, fg);
         EndScissorMode();        
-    }        
+    }     
+    */   
 
 
 

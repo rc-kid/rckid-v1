@@ -14,8 +14,7 @@ protected:
         recording_ = false;
     }
 
-    void draw() override {
-        Canvas & c = window().canvas();
+    void draw(Canvas & c) override {
         /*
         int i = 0;
         int x = maxIndex_;

@@ -363,11 +363,11 @@ void Window::draw() {
             ClearBackground(ColorAlpha(BLACK, 0.0));
             BeginBlendMode(BLEND_ADD_COLORS);
             canvas_->resetDefaults();
-            w->draw();
+            w->draw(*canvas_);
             // draw the modal widget, if any
             if (modal_) {
                 canvas_->resetDefaults();
-                modal_->draw();
+                modal_->draw(*canvas_);
             }
             // and we are done
             EndBlendMode();

@@ -98,7 +98,7 @@ protected:
         }
     }
 
-    void draw() override {
+    void draw(Canvas &) override {
     }
 
     /** When pushed on the nav stack, start looking for devices to pair with. 
