@@ -33,10 +33,8 @@
 
 # Bugs to be fixed
 
-- when started after normal power-on, on mode seems not to be activated and rckid kills itself 
-
-
-
+- initial volume setting is weird (80000)
+- rework & simplify the startup mode (display brightness, RGB notification, etc)
 
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 

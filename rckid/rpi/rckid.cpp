@@ -306,7 +306,7 @@ void RCKid::initializeAvr() {
 void RCKid::processAvrStatus(comms::Status status, bool alreadyLocked) {
     utils::cond_lock_guard g{mState_, alreadyLocked};
     if (state_.status.mode() != status.mode()) {
-        switch (state_.status.mode()) {
+        switch (status.mode()) {
             case comms::Mode::PowerDown: 
                 TraceLog(LOG_INFO, "Power down requested");
                 system("sudo poweroff");
