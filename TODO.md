@@ -6,13 +6,12 @@
 - charging: 9:45 - 11:22
 
 - (3) order spare displays
-- (4) order extra buttons & stuff so that I can build all three devices
 
 - change icon can be done by having all images under one root and that way items can be selected from the pics easily
 - rename via keyboard ofc
 
 - allow configurable item action for items (not folders)
-- unresponsive-ish buttons on the device in low FPS? 
+- unresponsive-ish buttons on the device in low FPS? (!!!!!!!)
 
 
 - repairing after connection lost does not work (channel & name is different) Add a pairing timeout on the device and wait for pairing indefinitely on the rckid side
@@ -31,19 +30,14 @@
 - https://martybugs.net/wireless/rubberducky.cgi -- site that seems to have decent info on antennas
 - M1.4 screws for thumbstick
 - better 3.0V LDO (cleaner, higher voltage better for mic & speed, such as https://cz.mouser.com/ProductDetail/Texas-Instruments/TPS7A2030PDBVR?qs=hd1VzrDQEGgZMtQinkbhYw%3D%3D)
-- solder tips, solder flux
 - 5pin 0.5mm pitch connector (https://cz.mouser.com/ProductDetail/Molex/505278-0533?qs=c8NFF48pVsCY0CQNgl3Xjw%3D%3D or https://cz.mouser.com/ProductDetail/Molex/505110-0592?qs=RawsiUxJOFR577kELw3Dww%3D%3D)
-- ATTiny1616
 - buy extra RPi Zero 2W's (2-3), that way I have parts to build almost 6 RCKids (modulo joysticks)
-- buy extra SPI Displays (3-4)
 
 > TODOs for the various projects that RCkid consists of. Each project has its own todo list.
 
 ## RCKid PCB & Case
 
 - make more room for the battery (verify)
-- add mounting holes and fixes for supports
-- verify joycon solder pad placement before ordering
 - check charging detection works, can perhaps ignore the pullup/downs? into middle and use just one pullup/down? Needs external pull-up. Only works when USB is present - need better USB checking
 
 ## RCKid AVR
@@ -57,15 +51,11 @@
 ## RCKid RPi
 
 - DIFFERENT PIN MAPPING FOR NEW VERSION
-- audio player
 - game player menu implementation (load/save, etc.)
 - torchlight widget
 - walkie talkie widget
 - heart bar for time spent, track time spent when widgets are in foreground
 - photores
-
-- key repeat is too fast
-- debounce buttons
 
 ## RCKid RPi - SDCard
 
@@ -100,9 +90,7 @@
 - recorder app
 - piano app> (but how to do keys?)
 - Baby monitor app (MIC threshold wakeup levels on AVR, app on RPi)
-- photoresistor
 
-- should button repeat be user-configurable? 
 - add == to Value and double parsing
 - add JSON ostream << for array and struct
 - add JSON backed menu that allows reordering
