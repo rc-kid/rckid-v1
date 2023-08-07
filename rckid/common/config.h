@@ -27,6 +27,7 @@
 /** \section UI 
  */
 
+#define FORCE_FULL_REDRAW false
 //#define RENDERING_STATS
 //#define RENDERING_STATS_DETAILED
 #define RENDERING_STATS_FPS

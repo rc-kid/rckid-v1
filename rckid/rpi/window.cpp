@@ -337,7 +337,7 @@ void Window::draw() {
     frames_[fti_].delta = redrawDelta_;
     Timepoint tt = now();
 #endif
-    if (redrawBackground_) {
+    if (redrawBackground_ || FORCE_FULL_REDRAW) {
         redraw = true;
         redrawBackground_ = false;
     }
@@ -357,7 +357,7 @@ void Window::draw() {
     if (w != nullptr) {
         bool wredraw = w->redraw_ || (modal_ != nullptr && modal_->redraw_);
         w->tick();
-        if (wredraw) {
+        if (wredraw || FORCE_FULL_REDRAW) {
             redraw = true;
             BeginTextureMode(widgetCanvas_);
             ClearBackground(ColorAlpha(BLACK, 0.0));
@@ -383,7 +383,7 @@ void Window::draw() {
 #if (defined RENDERING_STATS)
     tt = now();
 #endif
-    if (redrawHeader_) {
+    if (redrawHeader_ || FORCE_FULL_REDRAW) {
         redraw = true;
         redrawHeader_ = false;
         BeginTextureMode(headerCanvas_);
@@ -399,7 +399,7 @@ void Window::draw() {
 #if (defined RENDERING_STATS)
     tt = now();
 #endif
-    if (redrawFooter_) {
+    if (redrawFooter_ || FORCE_FULL_REDRAW) {
         redraw = true;
         redrawFooter_ = false;
         BeginTextureMode(footerCanvas_);
@@ -608,6 +608,7 @@ void Window::drawHeader() {
             break;
     }
     EndBlendMode();
+
 }
 
 void Window::drawFooter() {
