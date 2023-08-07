@@ -215,13 +215,11 @@ public:
 
     /** Returns the current audio volume. 
      */
-    int volume() const { return volume_; }
+    unsigned volume() const { return volume_; }
 
     /** Sets the current audio volume
      */
-    void setVolume(int value) {
-        if (value < 0)
-            value = 0;
+    void setVolume(unsigned value) {
         if (value > AUDIO_MAX_VOLUME)
             value = AUDIO_MAX_VOLUME;
         volume_ = value;
@@ -454,10 +452,10 @@ private:
                 buttonAction(btn);
     }
 
-    void buttonAction(ButtonState & btn) {
+    void buttonAction(ButtonState & btn, bool alreadyLocked = false) {
         bool gamepadActive;
         {
-            std::lock_guard<std::mutex> g{mState_};
+            utils::cond_lock_guard g{mState_, alreadyLocked};
             btn.reportedState = btn.actualState;
             gamepadActive = gamepadActive_;
         }
@@ -501,7 +499,7 @@ private:
     bool headphones_{false};
 
     /** Audio volume. Only accessible from the UI thread. */
-    uint8_t volume_;
+    unsigned volume_;
 
     struct libevdev * gamepadDev_{nullptr};
     struct libevdev_uinput * gamepad_{nullptr};

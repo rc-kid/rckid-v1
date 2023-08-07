@@ -31,12 +31,12 @@ RCKid::RCKid() {
 
     // start the hw loop thread
     tHwLoop_ = std::thread{[this](){
-        // get the extended state first and initialize 
-        // TODO the below is wrong
         {
-            comms::ExtendedState state;
-            i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state, sizeof(state));
-            processAvrExtendedState(state);
+            std::lock_guard<std::mutex> g{mState_};
+            i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, (uint8_t*)& state_, sizeof(state_));
+            // don't process the state - it's the first state and hence the initial value. Setting the mode to on and then processing the status calls ensures the transition to on state will be completed if necessary
+            state_.status.setMode(comms::Mode::On);
+            processAvrStatus(state_.status, true);
         }
         setBrightness(255);
         while (!shouldTerminate_.load()) {
@@ -339,46 +339,57 @@ void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
     utils::cond_lock_guard g{mState_, alreadyLocked};
     if (state_.controls.select() != controls.select()) {
         state_.controls.setSelect(controls.select());
-        uiEvents_.send(ButtonEvent{Button::Select, controls.select()});
+        if (btnSelect_.update(state_.controls.select()))
+            buttonAction(btnSelect_, true);
     }
     if (state_.controls.start() != controls.start()) {
         state_.controls.setStart(controls.start());
-        uiEvents_.send(ButtonEvent{Button::Start, controls.start()});
+        if (btnStart_.update(state_.controls.start()))
+            buttonAction(btnStart_, true);
     }
     if (state_.controls.home() != controls.home()) {
         state_.controls.setButtonHome(controls.home());
-        uiEvents_.send(ButtonEvent{Button::Home, controls.home()});
+        if (btnHome_.update(state_.controls.home()))
+            buttonAction(btnHome_, true);
     }
 
     // TODO remove this and replace with L & R buttons in new revision
     if (state_.controls.dpadUp() != controls.dpadUp()) {
         state_.controls.setDpadUp(controls.dpadUp());
-        uiEvents_.send(ButtonEvent{Button::Up, controls.dpadUp()});
+        if (btnDpadUp_.update(state_.controls.dpadUp()))
+            buttonAction(btnDpadUp_, true);
     }
     if (state_.controls.dpadDown() != controls.dpadDown()) {
         state_.controls.setDpadDown(controls.dpadDown());
-        uiEvents_.send(ButtonEvent{Button::Down, controls.dpadDown()});
+        if (btnDpadDown_.update(state_.controls.dpadDown()))
+            buttonAction(btnDpadDown_, true);
     }
     if (state_.controls.dpadLeft() != controls.dpadLeft()) {
         state_.controls.setDpadLeft(controls.dpadLeft());
-        uiEvents_.send(ButtonEvent{Button::Left, controls.dpadLeft()});
+        if (btnDpadLeft_.update(state_.controls.dpadLeft()))
+            buttonAction(btnDpadLeft_, true);
     }
     if (state_.controls.dpadRight() != controls.dpadRight()) {
         state_.controls.setDpadRight(controls.dpadRight());
-        uiEvents_.send(ButtonEvent{Button::Right, controls.dpadRight()});
+        if (btnDpadRight_.update(state_.controls.dpadRight()))
+            buttonAction(btnDpadRight_, true);
     }
    
     // joystick reading
     bool report = false;
     if (joyX_.update(controls.joyH())) {
         state_.controls.setJoyH(controls.joyH());
-        axisAction(joyX_, true);
-        report = true;
+        if (joyX_.update(controls.joyH())) {
+            report = true;
+            axisAction(joyX_, true);
+        }
     }
     if (joyY_.update(controls.joyV())) {
         state_.controls.setJoyV(controls.joyV());
-        axisAction(joyY_, true);
-        report = true;
+        if (joyY_.update(controls.joyV())) {
+            report = true;
+            axisAction(joyY_, true);
+        }
     }
     if (report)
         uiEvents_.send(JoyEvent{joyX_.reportedValue, joyY_.reportedValue});

@@ -2,13 +2,12 @@
 
 - order more displays (3)
 - order M1.4 screws for the thumbstick
-- test the locking rckid with old revision
 - update avr and rckid's for the new revision pins
 - solder the new board
 - design the bottom and top frames around the pcb and test print the stack
 - add AVR basics (charging, thumbstick reporting)
 - add rckid basics (proper header, hearts & configuration and settings)
-- print ASA enclosures
+- print ASA enclosures - ASA samples from here (it actually glows in the dark even): https://www.na3d.cz/p/2621/vzorek-fiber3d-asa-svitici-ve-tme-175-mm-10-m?variant[117]=1071
 - order plexiglass covers (https://plasticexpress.cz/)
 - test build the assembly
 - strip down in-game menu to barebones, add volume controls
@@ -31,6 +30,13 @@
 - telegram configuration
 - samba
 - wifi settings
+
+# Bugs to be fixed
+
+- when started after normal power-on, on mode seems not to be activated and rckid kills itself 
+
+
+
 
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 
