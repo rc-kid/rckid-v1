@@ -2,7 +2,6 @@
 
 #include <memory>
 
-
 #include "utils/utils.h"
 #include "raylib_wrapper.h"
 #include "animation.h"
@@ -86,7 +85,8 @@ public:
             0xf02cb, // 󰋋
             0xf1119, // 󱄙
             0xf0e08, 0xf057f, 0xf0580, 0xf057e, // 󰸈 󰕿 󰖀 󰕾
-            0xf04d, 0xf04c, 0xf04b, 0xf01e //     
+            0xf04d, 0xf04c, 0xf04b, 0xf01e, //     
+            0xf0e7a, 0xf0e74, 0xf047 // 󰹺󰹴 
         };
 
     }; 
@@ -162,6 +162,8 @@ public:
     Font const & defaultFont() const { return defaultFont_; }
     Font const & titleFont() const { return titleFont_; }
     Font const & helpFont() const { return helpFont_; }
+
+    Color hwAccentColor() const { return hwAccentColor_; }
 
     void resetDefaults() {
         font_ = defaultFont_;
@@ -353,4 +355,10 @@ private:
 
     Animation aScrolledText_{5000};
     int scrolledTextDir_ = 1;
+
+
+
+
+
+    Color hwAccentColor_{PINK};
 }; // Canvas

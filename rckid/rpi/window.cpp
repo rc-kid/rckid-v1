@@ -7,7 +7,7 @@
 
 #include "window.h"
 
-int FooterItem::draw(Window * window, int x, int y) const {
+int FooterItem::draw(Canvas & canvas, int x, int y) const {
     switch (control_) {
         case Control::A:
             DrawCircle(x + 10, y + 10, 6, RED);
@@ -29,8 +29,20 @@ int FooterItem::draw(Window * window, int x, int y) const {
             DrawRectangleRounded(RECT(x + 7, y + 4, 6, 12), 1, 6, WHITE);
             x += 20;
             break;
+        case Control::UpDown:
+            canvas.drawText(x + 5, y, "󰹺", canvas.hwAccentColor(), canvas.defaultFont());
+            x += 20;
+            break;
+        case Control::LeftRight:
+            canvas.drawText(x + 5, y, "󰹴", canvas.hwAccentColor(), canvas.defaultFont());
+            x += 20;
+            break;
+        case Control::DPad:
+            canvas.drawText(x + 5, y, "", canvas.hwAccentColor(), canvas.defaultFont());
+            x += 20;
+            break;
     }
-    window->canvas().drawText(x, y + 2, text_, WHITE, window->canvas().helpFont());
+    canvas.drawText(x, y + 2, text_, WHITE, canvas.helpFont());
     x += textWidth_ + 5;
     return x;
 }
@@ -616,6 +628,6 @@ void Window::drawFooter() {
     int  x = 0;
     BeginBlendMode(BLEND_ADD_COLORS);
     for (FooterItem const & item: footer_)
-        x = item.draw(this, x, 220);
+        x = item.draw(*canvas_, x, 220);
     EndBlendMode();
 }

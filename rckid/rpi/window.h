@@ -38,6 +38,7 @@ class FooterItem {
 public:
     enum class Control {
         A, B, X, Y, L, R, Left,Right, Up, Down, Select, Start, Home, 
+        LeftRight, UpDown, DPad,
     };
 
     Control control() const { return control_; }
@@ -53,12 +54,14 @@ public:
     static FooterItem X(std::string const & text) { return FooterItem{Control::X, text}; }
     static FooterItem Y(std::string const & text) { return FooterItem{Control::Y, text}; }
     static FooterItem Select(std::string const & text) { return FooterItem{Control::Select, text}; }
+    static FooterItem UpDown(std::string const & text) { return FooterItem{Control::UpDown, text}; }
+    static FooterItem LeftRight(std::string const & text) { return FooterItem{Control::LeftRight, text}; }
 
 private:
 
     friend class Window;
 
-    int draw(Window * window, int x, int y) const ;
+    int draw(Canvas & canvas, int x, int y) const;
 
     Control control_;
     std::string text_;

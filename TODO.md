@@ -2,7 +2,6 @@
 
 - order more displays (3)
 - order M1.4 screws for the thumbstick
-- update avr and rckid's for the new revision pins
 - solder the new board
 - design the bottom and top frames around the pcb and test print the stack
 - add AVR basics (charging, thumbstick reporting)
@@ -11,7 +10,6 @@
 - order plexiglass covers (https://plasticexpress.cz/)
 - test build the assembly
 - strip down in-game menu to barebones, add volume controls
-- add volume controls to audio & video players
 - add walkie-talkie and test it
 
 > At this point, I'll have a barebones, but working rckid that can play some games, play music & video and act as walkie talkie. This can be presented as xmas gift. Then there are two things I can do:

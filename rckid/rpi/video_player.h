@@ -9,8 +9,10 @@
 /** A video player, frontend to cvlc controlled the same way as retroarch is. 
  
     Play/Paue = btnA
-    Dpad Left/Right = 10 seconds back/forward
-    Left/Right = 1 minute back/forward
+    Dpad Left/Right = 60 seconds back/forward
+    DPad Up/Down = volume up/down
+    Left/Right = 5 minute back/forward
+    
  */
 class VideoPlayer : public Widget {
 public:
@@ -72,29 +74,40 @@ protected:
             }
         }
     }
+    // volume up
+    void dpadUp(bool state) override {
+        if (state)
+            rckid().setVolume(rckid().volume() + 10);
+    }
 
-    // back 10 seconds
+    // volume down
+    void dpadDown(bool state) override {
+        if (state)
+            rckid().setVolume(rckid().volume() + 10);
+    }
+
+    // back 60 seconds
     void dpadLeft(bool state) override {
-        if (state)
-            player_.tx("seek -10\n");
-    }
-
-    // forward 10 seconds
-    void dpadRight(bool state) override {
-        if (state)
-            player_.tx("seek +10\n");
-    }
-
-    // back one minute
-    void btnL(bool state) override {
         if (state)
             player_.tx("seek -60\n");
     }
 
-    // forward one minute
-    void btnR(bool state) override {
+    // forward 60 seconds
+    void dpadRight(bool state) override {
         if (state)
             player_.tx("seek +60\n");
+    }
+
+    // back 5 minutes
+    void btnL(bool state) override {
+        if (state)
+            player_.tx("seek -300\n");
+    }
+
+    // forward 5 minutes
+    void btnR(bool state) override {
+        if (state)
+            player_.tx("seek +300\n");
     }
 
     utils::Process player_;

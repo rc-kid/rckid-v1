@@ -208,13 +208,15 @@ public:
     //@{
     bool headphones() { std::lock_guard<std::mutex> g{mState_}; return headphones_; }
 
-    /** Returns the current audio volume. 
+    /** Returns the current audio volume. Returns volume as signed, but will always be 0..AUDIO_MAX_VOLUME
      */
-    unsigned volume() const { return volume_; }
+    int volume() const { return volume_; }
 
-    /** Sets the current audio volume
+    /** Sets the current audio volume. Takes integer so that both too low and too high volumes outside the range can be clipped.  
      */
-    void setVolume(unsigned value) {
+    void setVolume(int value) {
+        if (value < 0)
+            value = 0;
         if (value > AUDIO_MAX_VOLUME)
             value = AUDIO_MAX_VOLUME;
         volume_ = value;

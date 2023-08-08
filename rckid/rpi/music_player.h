@@ -159,6 +159,7 @@ protected:
             window().addFooterItem(FooterItem::B(" "));
             window().addFooterItem(FooterItem::A("  "));
             window().addFooterItem(FooterItem::X(" "));
+            window().addFooterItem(FooterItem::UpDown("󰕾"));
         }
     }
 
@@ -278,6 +279,16 @@ protected:
                 browsing_ = true;
             }
         }
+    }
+
+    void dpadUp(bool state) override {
+        if (state && ! browsing_)
+            rckid().setVolume(rckid().volume() + 10);
+    }
+
+    void dpadDown(bool state) override {
+        if (state && ! browsing_)
+            rckid().setVolume(rckid().volume() + 10);
     }
 
     bool browsing_ = true;
