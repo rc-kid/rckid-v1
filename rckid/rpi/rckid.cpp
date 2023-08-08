@@ -347,34 +347,21 @@ void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
         if (btnStart_.update(state_.controls.start()))
             buttonAction(btnStart_, true);
     }
+    if (state_.controls.triggerLeft() != controls.triggerLeft()) {
+        state_.controls.setTriggerLeft(controls.triggerLeft());
+        if (btnL_.update(state_.controls.triggerLeft()))
+            buttonAction(btnL_, true);
+    }
+    if (state_.controls.triggerRight() != controls.triggerRight()) {
+        state_.controls.setTriggerRight(controls.triggerRight());
+        if (btnR_.update(state_.controls.triggerRight()))
+            buttonAction(btnR_, true);
+    }
     if (state_.controls.home() != controls.home()) {
         state_.controls.setButtonHome(controls.home());
         if (btnHome_.update(state_.controls.home()))
             buttonAction(btnHome_, true);
     }
-
-    // TODO remove this and replace with L & R buttons in new revision
-    if (state_.controls.dpadUp() != controls.dpadUp()) {
-        state_.controls.setDpadUp(controls.dpadUp());
-        if (btnDpadUp_.update(state_.controls.dpadUp()))
-            buttonAction(btnDpadUp_, true);
-    }
-    if (state_.controls.dpadDown() != controls.dpadDown()) {
-        state_.controls.setDpadDown(controls.dpadDown());
-        if (btnDpadDown_.update(state_.controls.dpadDown()))
-            buttonAction(btnDpadDown_, true);
-    }
-    if (state_.controls.dpadLeft() != controls.dpadLeft()) {
-        state_.controls.setDpadLeft(controls.dpadLeft());
-        if (btnDpadLeft_.update(state_.controls.dpadLeft()))
-            buttonAction(btnDpadLeft_, true);
-    }
-    if (state_.controls.dpadRight() != controls.dpadRight()) {
-        state_.controls.setDpadRight(controls.dpadRight());
-        if (btnDpadRight_.update(state_.controls.dpadRight()))
-            buttonAction(btnDpadRight_, true);
-    }
-   
     // joystick reading
     bool report = false;
     if (joyX_.update(controls.joyH())) {
@@ -492,12 +479,10 @@ void RCKid::initializeISRs() {
     gpio::attachInterrupt(PIN_BTN_B, gpio::Edge::Both, & isrButtonB);
     gpio::attachInterrupt(PIN_BTN_X, gpio::Edge::Both, & isrButtonX);
     gpio::attachInterrupt(PIN_BTN_Y, gpio::Edge::Both, & isrButtonY);
-    /* TODO re-enable for new revision
     gpio::attachInterrupt(PIN_BTN_DPAD_UP, gpio::Edge::Both, & isrButtonDpadUp);
     gpio::attachInterrupt(PIN_BTN_DPAD_DOWN, gpio::Edge::Both, & isrButtonDpadDown);
     gpio::attachInterrupt(PIN_BTN_DPAD_LEFT, gpio::Edge::Both, & isrButtonDpadLeft);
     gpio::attachInterrupt(PIN_BTN_DPAD_RIGHT, gpio::Edge::Both, & isrButtonDpadRight);
-    */
     gpio::attachInterrupt(PIN_BTN_JOY, gpio::Edge::Both, & isrButtonJoy);
 }
 
