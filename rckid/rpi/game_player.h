@@ -1,14 +1,16 @@
 #pragma once
 
-#include "widget.h"
-#include "window.h"
-#include "carousel.h"
-#include "carousel_json.h"
-
 #include "platform/platform.h"
 
 #include "utils/process.h"
 #include "utils/json.h"
+
+#include "widget.h"
+#include "window.h"
+#include "carousel.h"
+#include "carousel_json.h"
+#include "gauge.h"
+
 
 
 /** Retroarch client for a single game. 
@@ -36,8 +38,16 @@ public:
 
     GamePlayer(): 
         gameMenu_{new Carousel::Menu{"", "", {
-            new Carousel::Item{"Resume", "assets/images/065-play.png", [](){
-                window().back();
+            new Carousel::Item{"Volume", "assets/images/010-high-volume.png", [](){
+                static Gauge gauge{"assets/images/010-high-volume.png", 0, 100, 10,
+                    [](int value){
+                        rckid().setVolume(value);
+                    },
+                    [](Gauge * g) {
+                        g->setValue(rckid().volume());
+                    }
+                };
+                window().showWidget(&gauge);
             }},
             new Carousel::Item{"Save", "assets/images/071-diskette.png", [](){
                 // TODO
@@ -47,6 +57,9 @@ public:
             }},
             new Carousel::Item{"Screenshot", "assets/images/063-screenshot.png", [](){
                 // TODO
+            }},
+            new Carousel::Item{"Resume", "assets/images/065-play.png", [](){
+                window().back();
             }},
             new Carousel::Item{"Exit", "assets/images/064-stop.png", [](){
                 window().back(2);

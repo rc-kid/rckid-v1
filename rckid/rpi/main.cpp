@@ -181,7 +181,7 @@ int main(int argc, char * argv[]) {
                 JSONCarousel::item("Video", "assets/images/005-film-slate.png", "{widget : video}"),
                 JSONCarousel::item("Music", "assets/images/003-music.png", "{widget : music}"),
                 JSONCarousel::item("Remote", "assets/images/002-rc-car.png", "{widget : remote}"),
-                JSONCarousel::item("Walkie-Talkie", "assets/images/007-baby-monitor.png", "{widget : \"walkie-talkkie\"}"),
+                JSONCarousel::item("Walkie-Talkie", "assets/images/007-baby-monitor.png", "{widget : \"walkie-talkie\"}"),
                 JSONCarousel::menu("Apps", "assets/images/022-presents.png", {
                     JSONCarousel::item("Torchlight", "assets/images/004-flashlight.png", "{widget : torchlight}"),
                     JSONCarousel::item("Paint", "assets/images/053-paint-palette.png", "{widget : paint}"),

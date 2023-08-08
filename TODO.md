@@ -9,7 +9,7 @@
 - print ASA enclosures - ASA samples from here (it actually glows in the dark even): https://www.na3d.cz/p/2621/vzorek-fiber3d-asa-svitici-ve-tme-175-mm-10-m?variant[117]=1071
 - order plexiglass covers (https://plasticexpress.cz/)
 - test build the assembly
-- strip down in-game menu to barebones, add volume controls
+- strip down in-game menu to barebones
 - add walkie-talkie and test it
 
 > At this point, I'll have a barebones, but working rckid that can play some games, play music & video and act as walkie talkie. This can be presented as xmas gift. Then there are two things I can do:
