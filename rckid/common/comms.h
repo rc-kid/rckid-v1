@@ -144,31 +144,32 @@ namespace comms {
     class Controls {
     public:
 
-        bool dpadLeft() const { return buttons_ & DPAD_LEFT; }
-        bool dpadRight() const { return buttons_ & DPAD_RIGHT; }
-        bool dpadUp() const { return buttons_ & DPAD_UP; }
-        bool dpadDown() const { return buttons_ & DPAD_DOWN; }
+        bool home() const { return buttons_ & HOME; }
         bool select() const { return buttons_ & SELECT; }
         bool start() const { return buttons_ & START; }
-        bool home() const { return buttons_ & HOME; }
+        bool triggerLeft() const { return buttons_ & TRIGGER_LEFT; }
+        bool triggerRight() const { return buttons_ & TRIGGER_RIGHT; }
 
         /** \name Sets the button values. 
          
             Note that these "hacky" functions require the button's bits to align with the bits reported by the analog button decoder. 
         */
         //@{
-        bool setButtons1(uint8_t btns1) { return setButtonsRaw(btns1 & 0x07, 0x07); }
+        bool setButtons1(uint8_t btns1) { return setButtonsRaw(btns1 & 0x03, 0x03); }
 
-        bool setButtons2(uint8_t btns2) { return setButtonsRaw((btns2 & 0x07) << 3, 0x07 << 3); }
+        bool setButtons2(uint8_t btns2) { return setButtonsRaw((btns2 & 0x03) << 2, 0x03 << 2); }
 
-        bool setButtonHome(bool value) { return setButtonsRaw(value ? HOME : 0, HOME); }  
+        bool setButtonHome(bool value) { 
+            if (value == home())
+                return false;
+            value ? buttons_ |= HOME : buttons_ &= ~HOME;
+            return true;
+        }  
 
         void setSelect(bool value = true) { value ? buttons_ |= SELECT : buttons_ &= ~SELECT; }  
         void setStart(bool value = true) { value ? buttons_ |= START : buttons_ &= ~START; }  
-        void setDpadUp(bool value = true) { value ? buttons_ |= DPAD_UP : buttons_ &= ~DPAD_UP; }  
-        void setDpadDown(bool value = true) { value ? buttons_ |= DPAD_DOWN : buttons_ &= ~DPAD_DOWN; }  
-        void setDpadLeft(bool value = true) { value ? buttons_ |= DPAD_LEFT : buttons_ &= ~DPAD_LEFT; }  
-        void setDpadRight(bool value = true) { value ? buttons_ |= DPAD_RIGHT : buttons_ &= ~DPAD_RIGHT; }  
+        void setTriggerLeft(bool value = true) { value ? buttons_ |= TRIGGER_LEFT : buttons_ &= ~TRIGGER_LEFT; }  
+        void setTriggerRight(bool value = true) { value ? buttons_ |= TRIGGER_RIGHT : buttons_ &= ~TRIGGER_RIGHT; }  
         //@}
 
         uint8_t joyH() const { return joyH_; }
@@ -200,15 +201,11 @@ namespace comms {
             return true;
         }
 
-        static constexpr uint8_t DPAD_DOWN = 1 << 0;
-        static constexpr uint8_t DPAD_UP = 1 << 1;
-        static constexpr uint8_t DPAD_LEFT = 1 << 2;
-
-        static constexpr uint8_t START = 1 << 3;
-        static constexpr uint8_t SELECT = 1 << 4;
-        static constexpr uint8_t DPAD_RIGHT = 1 << 5;
-
-        static constexpr uint8_t HOME = 1 << 6;
+        static constexpr uint8_t SELECT = 1 << 0;
+        static constexpr uint8_t TRIGGER_LEFT = 1 << 1;
+        static constexpr uint8_t START = 1 << 2;
+        static constexpr uint8_t TRIGGER_RIGHT = 1 << 3;
+        static constexpr uint8_t HOME = 1 << 4;
 
         uint8_t buttons_;
         uint8_t joyH_;

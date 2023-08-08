@@ -20,8 +20,8 @@ using namespace comms;
                    -- VDD             GND --
              VBATT -- (00) PA4   PA3 (16) -- VIB_EN
            MIC_OUT -- (01) PA5   PA2 (15) -- SCL (I2C)
-            BTNS_2 -- (02) PA6   PA1 (14) -- SDA (I2C)
-            BTNS_1 -- (03) PA7   PA0 (17) -- (reserved for UPDI)
+            BTNS_1 -- (02) PA6   PA1 (14) -- SDA (I2C)
+            BTNS_2 -- (03) PA7   PA0 (17) -- (reserved for UPDI)
              JOY_V -- (04) PB5   PC3 (13) -- BTN_HOME
              JOY_H -- (05) PB4   PC2 (12) -- RGB
             RGB_EN -- (06) PB3   PC1 (11) -- RPI_POWEROFF
@@ -49,8 +49,8 @@ class RCKid {
 public:
     static constexpr gpio::Pin VBATT = 0; // ADC0, channel 4
     static constexpr gpio::Pin MIC_OUT = 1; // ADC1, channel 1
-    static constexpr gpio::Pin BTNS_2 = 2; // ADC0, channel 6
-    static constexpr gpio::Pin BTNS_1 = 3; // ADC0, channel 7
+    static constexpr gpio::Pin BTNS_1 = 2; // ADC0, channel 6
+    static constexpr gpio::Pin BTNS_2 = 3; // ADC0, channel 7
     static constexpr gpio::Pin JOY_V = 4; // ADC0, channel 8
     static constexpr gpio::Pin JOY_H = 5; // ADC0, channel 9
     static constexpr gpio::Pin RGB_EN = 6; // digital, floating
@@ -121,11 +121,11 @@ public:
         PORTA.PIN5CTRL &= ~PORT_ISC_gm;
         PORTA.PIN5CTRL |= PORT_ISC_INPUT_DISABLE_gc;
         PORTA.PIN5CTRL &= ~PORT_PULLUPEN_bm;
-        static_assert(BTNS_2 == 2); // PA6
+        static_assert(BTNS_1 == 2); // PA6
         PORTA.PIN6CTRL &= ~PORT_ISC_gm;
         PORTA.PIN6CTRL |= PORT_ISC_INPUT_DISABLE_gc;
         PORTA.PIN6CTRL &= ~PORT_PULLUPEN_bm;
-        static_assert(BTNS_1 == 3); // PA7
+        static_assert(BTNS_2 == 3); // PA7
         PORTA.PIN7CTRL &= ~PORT_ISC_gm;
         PORTA.PIN7CTRL |= PORT_ISC_INPUT_DISABLE_gc;
         PORTA.PIN7CTRL &= ~PORT_PULLUPEN_bm;
@@ -868,13 +868,13 @@ public:
                         rgbOff();
                 }
                 break;
-            // BTNS_2 
-            case ADC_MUXPOS_AIN6_gc:
-                flags_.irq = state_.controls.setButtons2(decodeAnalogButtons((value >> 2) & 0xff)) | flags_.irq;
-                break;
             // BTNS_1 
-            case ADC_MUXPOS_AIN7_gc:
+            case ADC_MUXPOS_AIN6_gc:
                 flags_.irq = state_.controls.setButtons1(decodeAnalogButtons((value >> 2) & 0xff)) | flags_.irq;
+                break;
+            // BTNS_2 
+            case ADC_MUXPOS_AIN7_gc:
+                flags_.irq = state_.controls.setButtons2(decodeAnalogButtons((value >> 2) & 0xff)) | flags_.irq;
                 flags_.irq = state_.controls.setButtonHome(gpio::read(BTN_HOME)) | flags_.irq;
                 break;
             // JOY_V 
@@ -891,23 +891,21 @@ public:
         return false;
     }
 
-    /** Decodes the raw analog value read into the states of three buttons returned as LSB bits. The analog value is a result of a custom voltage divider ladder so that simultaneous button presses can be detected.
+    /** Decodes the raw analog value read into the states of two buttons returned as LSB bits. The analog value is a result of a custom voltage divider ladder so that simultaneous button presses can be detected. The following are the expected values:
+     
+    00 : 255
+    02 : 183
+    10 : 153
+    12 : 124
+        
      */
     static uint8_t decodeAnalogButtons(uint8_t raw) {
-        if (raw <= 94)
-            return 0b111; 
-        if (raw <= 105)
-            return 0b110;
-        if (raw <= 118)
-            return 0b101;
-        if (raw <= 132)
-            return 0b100;
-        if (raw <= 150)
-            return 0b011;
-        if (raw <= 179)
-            return 0b010;
-        if (raw <= 225)
-            return 0b001;
+        if (raw <= 138)
+            return 0b11;
+        if (raw <= 168)
+            return 0b10;
+        if (raw <= 198)
+            return 0b01;
         return 0;
     }
 
