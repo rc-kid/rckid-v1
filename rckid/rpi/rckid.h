@@ -178,9 +178,12 @@ public:
     */
     void powerOff();
 
-    uint8_t brightness() { std::lock_guard<std::mutex> g{mState_}; return state_.einfo.brightness(); }
+    uint8_t brightness() { return pState_.brightness; }
 
-    void setBrightness(uint8_t brightness) { driverEvents_.send(msg::SetBrightness{brightness}); }
+    void setBrightness(uint8_t brightness) { 
+        pState_.brightness = brightness;
+        driverEvents_.send(msg::SetBrightness{brightness}); 
+    }
 
     /** \name Input controls
      */
@@ -210,7 +213,7 @@ public:
 
     /** Returns the current audio volume. Returns volume as signed, but will always be 0..AUDIO_MAX_VOLUME
      */
-    int volume() const { return volume_; }
+    int volume() const { return pState_.volume; }
 
     /** Sets the current audio volume. Takes integer so that both too low and too high volumes outside the range can be clipped.  
      */
@@ -219,8 +222,8 @@ public:
             value = 0;
         if (value > AUDIO_MAX_VOLUME)
             value = AUDIO_MAX_VOLUME;
-        volume_ = value;
-        system(STR("amixer sset -q Headphone -M " << volume_ << "%").c_str());
+        pState_.volume = value;
+        system(STR("amixer sset -q Headphone -M " << value << "%").c_str());
     }
 
     void startAudioRecording();
@@ -367,7 +370,8 @@ private:
         msg::StopAudioRecording,
         msg::SetBrightness,
         msg::SetTime, 
-        msg::SetAlarm,
+        msg::GetPersistentState,
+        msg::SetPersistentState,
         msg::RumblerOk, 
         msg::RumblerFail, 
         msg::Rumbler,
@@ -495,8 +499,10 @@ private:
     int16_t accelTemp_; 
     bool headphones_{false};
 
+
+
     /** Audio volume. Only accessible from the UI thread. */
-    unsigned volume_;
+    comms::PersistentState pState_;
 
     struct libevdev * gamepadDev_{nullptr};
     struct libevdev_uinput * gamepad_{nullptr};

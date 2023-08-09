@@ -163,7 +163,7 @@ public:
     Font const & titleFont() const { return titleFont_; }
     Font const & helpFont() const { return helpFont_; }
 
-    Color hwAccentColor() const { return hwAccentColor_; }
+    Color accentColor() const { return accentColor_; }
 
     void resetDefaults() {
         font_ = defaultFont_;
@@ -360,5 +360,5 @@ private:
 
 
 
-    Color hwAccentColor_{PINK};
+    Color accentColor_{PINK};
 }; // Canvas

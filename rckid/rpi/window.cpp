@@ -30,15 +30,15 @@ int FooterItem::draw(Canvas & canvas, int x, int y) const {
             x += 20;
             break;
         case Control::UpDown:
-            canvas.drawText(x + 5, y, "󰹺", canvas.hwAccentColor(), canvas.defaultFont());
+            canvas.drawText(x + 5, y, "󰹺", canvas.accentColor(), canvas.defaultFont());
             x += 20;
             break;
         case Control::LeftRight:
-            canvas.drawText(x + 5, y, "󰹴", canvas.hwAccentColor(), canvas.defaultFont());
+            canvas.drawText(x + 5, y, "󰹴", canvas.accentColor(), canvas.defaultFont());
             x += 20;
             break;
         case Control::DPad:
-            canvas.drawText(x + 5, y, "", canvas.hwAccentColor(), canvas.defaultFont());
+            canvas.drawText(x + 5, y, "", canvas.accentColor(), canvas.defaultFont());
             x += 20;
             break;
     }

@@ -73,6 +73,9 @@ public:
     // Device state
     static inline ExtendedState state_;
 
+    // Persistent state
+    static inline PersistentState pState_;
+
     // Extra flags that are not meant to be shared with RPi as much
     static inline struct {
         /// true if the end next tick should raise IRQ
@@ -371,7 +374,7 @@ public:
         switch (mode) {
             case Mode::On:
                 setTimeout(0); // disable the timeout
-                setBrightness(state_.einfo.brightness());
+                setBrightness(pState_.brightness);
                 // and initialize the ADC1 we use for sound recording
                 ADC1.CTRLA = ADC_RESSEL_8BIT_gc;
                 ADC1.CTRLB = ADC_SAMPNUM_ACC32_gc; 
@@ -404,7 +407,7 @@ public:
             case Mode::PowerUp:
                 // if select is pressed as well, enter power on mode immediately to bypass the timer and enforce display brightness 
                 if (state_.controls.select()) {
-                    state_.einfo.setBrightness(128);
+                    pState_.brightness = 128;
                     setMode(Mode::On);
                     rumblerOk();
                     return;
@@ -598,7 +601,7 @@ public:
             // sets the display brightness
             case SetBrightness::ID: {
                 auto & m = SetBrightness::fromBuffer(i2cBuffer_);
-                state_.einfo.setBrightness(m.value);
+                pState_.brightness = m.value;
                 setBrightness(m.value);
                 break;
             }
@@ -610,10 +613,15 @@ public:
                 sei();
                 break;
             }
-            // sets the alarm time
-            case SetAlarm::ID: {
-                auto & m = SetAlarm::fromBuffer(i2cBuffer_);
-                state_.alarm = m.value;
+            case GetPersistentState::ID: {
+                i2cTxAddress_ = (uint8_t *)(& pState_);
+                // let the RPi know we have processed the command
+                setIrq();
+                break;
+            }
+            case SetPersistentState::ID: {
+                auto & m = SetPersistentState::fromBuffer(i2cBuffer_);
+                pState_ = m.pState;
                 break;
             }
             case RumblerOk::ID: {

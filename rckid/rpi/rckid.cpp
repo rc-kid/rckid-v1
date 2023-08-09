@@ -399,10 +399,6 @@ void RCKid::processAvrExtendedState(comms::ExtendedState & state) {
         report = true;
         state_.einfo.setTemp(state.einfo.temp());
     }
-    if (state_.einfo.brightness() != state.einfo.brightness()) {
-        report = true;
-        state_.einfo.setBrightness(state.einfo.brightness());
-    } 
     // TODO process the rest 
     if (report)
         uiEvents_.send(StateChangeEvent{});

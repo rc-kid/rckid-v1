@@ -266,14 +266,6 @@ namespace comms {
         }
         //@}
 
-        /** \name LCD Brightness. 
-         */
-        //@{
-        uint8_t brightness() const { return brightness_; }
-
-        void setBrightness(uint8_t value) { brightness_ = value; }
-        //@}
-
         bool usb() const { return flags_ & USB_DC; }
 
         bool setUsb(bool value) {
@@ -298,7 +290,6 @@ namespace comms {
         uint8_t vcc_;
         uint8_t vbatt_;
         uint8_t temp_;
-        uint8_t brightness_ = 128;
         uint8_t flags_;
     } __attribute__((packed)); // comms::ExtendedInfo;
 
@@ -344,11 +335,21 @@ namespace comms {
         ExtendedInfo einfo;
         DebugInfo dinfo;
         utils::DateTime time;
-        utils::DateTime alarm;
         uint32_t uptime = 0;
     } __attribute__((packed));// comms::ExtendedState
 
     static_assert(sizeof(ExtendedState) <= 32);
+
+    /** Persistent data that we back up in the AVR between RPi runs, but which the RPi itself is in charge of wrt changes. 
+     */
+    struct PersistentState {
+        utils::DateTime alarm;
+        uint8_t brightness{128};
+        uint8_t volume{50};
+        uint16_t hearts{1200};
+    } __attribute__((packed)); // comms::PersistentState
+
+    static_assert(sizeof(PersistentState) <= 31); // needs to be 31 so that we can have it as arg to message when saving to AVR (1 byte taken up by the msg id)
 
 } // namespace comms
 
@@ -424,9 +425,11 @@ namespace msg {
         SetTime(utils::DateTime value): value{value} {}
     );
 
-    MESSAGE(SetAlarm, 
-        utils::DateTime value;
-        SetAlarm(utils::DateTime value): value{value} {}
+    MESSAGE(GetPersistentState);
+
+    MESSAGE(SetPersistentState,
+        comms::PersistentState pState; 
+        SetPersistentState(comms::PersistentState const & pState): pState{pState} {}
     );
 
     MESSAGE(RumblerOk);
