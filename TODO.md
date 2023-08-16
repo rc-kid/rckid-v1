@@ -1,8 +1,6 @@
 > This is the high-level plan on tasks, prioritized, to make the RCKid ready for xmas:
 
-- order more displays (3)
 - order M1.4 screws for the thumbstick
-- solder the new board
 - design the bottom and top frames around the pcb and test print the stack
 - add AVR basics (charging, thumbstick reporting)
 - add rckid basics (proper header, hearts & configuration and settings)
