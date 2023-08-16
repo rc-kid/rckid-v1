@@ -49,9 +49,11 @@ enum class Button {
     Joy, 
 }; // Button
 
+struct SecondTick {};
 struct AlarmEvent {};
 struct LowBatteryEvent {};
 struct StateChangeEvent {};
+struct Hearts { uint16_t value; };
 
 /** An event triggered when there is a button change. */
 struct ButtonEvent { Button btn; bool state; }; 
@@ -76,9 +78,11 @@ struct NRFTxEvent {};
 
 using Event = std::variant<
     comms::Mode, 
+    SecondTick,
     AlarmEvent,
     LowBatteryEvent, 
     StateChangeEvent,
+    Hearts,
     ButtonEvent, 
     JoyEvent, 
     AccelEvent,

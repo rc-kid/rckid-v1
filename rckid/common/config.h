@@ -3,6 +3,8 @@
   
 */
 
+#define HEART_SIZE_SECONDS 600 
+#define HEARTS_LOW_THRESHOLD 600
 
 /** \section Input Controls
  

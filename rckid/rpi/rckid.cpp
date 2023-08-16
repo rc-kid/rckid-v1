@@ -54,6 +54,7 @@ RCKid::RCKid() {
         while (!shouldTerminate_.load()) {
             cpu::delayMs(1000);
             this->driverEvents_.send(SecondTick{});
+            this->uiEvents_.send(SecondTick{});
         }
     }};
 
@@ -87,6 +88,20 @@ RCKid::RCKid() {
 std::optional<Event> RCKid::nextEvent() {
     auto e = uiEvents_.receive();
     // TODO process events we are interested in for statistics
+    if (e) {
+        std::visit(overloaded{
+            [this](SecondTick const &) {
+                if (heartsCounterEnabled_ > 0) {
+                    if (pState_.hearts > 0)
+                        --pState_.hearts;
+                    uiEvents_.send(Hearts{pState_.hearts});
+                }
+            },
+            // defaukt case does nothing
+            [](auto const &) {}
+        }, e.value());
+
+    }
     return e;
 }
 
@@ -144,8 +159,13 @@ void RCKid::processDriverEvent(DriverEvent e) {
         },
         [this](SecondTick) {
             // only query extended state if we are not recording audio at the same time
-            if (!state_.status.recording())
-                queryAvrExtendedState();
+            if (!state_.status.recording()) {
+                comms::ExtendedState state{queryAvrExtendedState()};
+                std::lock_guard<std::mutex> g{mState_};
+                processAvrStatus(state.status, true);
+                processAvrControls(state.controls, true);
+                processAvrExtendedState(state, true);
+            }
         },
         // this could be either input interrupt, or recording interrupt. If we are not aware in the status that recording has started yet, try the input reading, which also updates the status, and if this update switches to recording, abort the input and go to recording instead. 
         [this](AvrIrq) {
@@ -382,10 +402,8 @@ void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
         uiEvents_.send(JoyEvent{joyX_.reportedValue, joyY_.reportedValue});
 }
 
-void RCKid::processAvrExtendedState(comms::ExtendedState & state) {
-    std::lock_guard g{mState_};
-    processAvrStatus(state.status, true);
-    processAvrControls(state.controls, true);
+void RCKid::processAvrExtendedState(comms::ExtendedState & state, bool alreadyLocked) {
+    utils::cond_lock_guard g{mState_, alreadyLocked};
     bool report = false;
     if (state_.einfo.vcc() != state.einfo.vcc()) {
         report = true;

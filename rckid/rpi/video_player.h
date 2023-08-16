@@ -83,7 +83,7 @@ protected:
     // volume down
     void dpadDown(bool state) override {
         if (state)
-            rckid().setVolume(rckid().volume() + 10);
+            rckid().setVolume(rckid().volume() - 10);
     }
 
     // back 60 seconds

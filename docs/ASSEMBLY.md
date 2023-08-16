@@ -4,19 +4,64 @@ Please note that building _RCKid_ is likely not a beginner project. At the very 
 
 ## PCB
 
-Have the PCB printed. Simple 2 layer stackup is used with relatively large tolerances. Use either the [diptrace project](../hardware/rckid.dip) itself, or the [gerber files](../hardware/rckid.zip) that are part of this repository.
+Have the PCB printed. Simple 2 layer stackup is used with relatively large tolerances. Use either the [diptrace project](../hardware/rckid.dip) itself, or the [gerber files](../hardware/rckid.zip) that are part of this repository. The board thickness is expected to be 1.6mm. 
 
 > I do recommend [aisler](https://aisler.net) if your are in Europe. 
 
-The PCB has multiple test points that can be used to verify its functionality, while building:
+Break out the small left and right trigger button PCBs located at the top of the board, sand any rough edges from mousebites and ensure the joystick fits through the joystick hole, sanding the round corners from milling to right angles. 
 
-- AVR Programming via UPDI : UPDI (27)
-- voltage & power : VRPI (6), VRADIO (15), VUSB (16), VRGB (17), RGB_EN (18), CHARGE (19), RPI_EN (20), GND (28), VRPI_3V3 (29), VCLEAN (30)
-- I2C comms: SDA (3), SCL (4)
-- Radio comms: NRF_IRQ (1), NRF_RXTX (2), SPI_CE0 (21), SPI_CLK (22), SPI_MISO (23), SPI_MOSI (24)
-- thumbstick: JOY_H (25), JOY_V(26)
-- audio: PWM1 (9), PWM0 (10), HEADPHONES (11), MIC_OUT (12), SPKR- (13), SPKR+ (14)
-- inputs: BTN_X (5), BTNS_1 (7), BTNS_2 (8)
+### Accelerometer
+
+> Accelerometer is optional. 
+
+Sand the rounded edges of the accelerometer hole to right angles to ensure accelerometer fit. Then press the accelerometer in with its components on the bottom side. Ensure the bottom side of the accelerometer pcb lines up perfectly with the top side of the RCKid pcb. Then cover from the top side with kapton tape, flip RCKid pcb so that you can see the bottom side (with accel components now visible) and solder the accelerometer in the castellated holes provided on both sides. 
+
+### Top-side PCB components
+
+Flip the RCKid so that the top side is visible (with logo & display connector) and solder all items except the display, microphone module and the 3V3 module for the radio. 
+
+### 3V3 Buck Converter
+
+Trip the module to the required size by making the pin holes into castellations and cutting the top piece roughly in the middle of the mounting hole. Then solder to place. 
+
+### Basic tests
+
+Do the following basic tests to ensure the board is in good condtition:
+
+- verify that GND and VCC / VBATT is not shorted
+- connect 5V power to the USB-C breakout pins (the breakout itself is not yet soldered) and verify the voltages at RPi, AVR, NRF radio and the 3V clean LDO for microphone and audio
+
+### AVR Bootloader
+
+Solder the downward facing precission sockets for the GND and UPDI programming and then program the AVR's bootloader. Make sure to connect the GND first (!). 
+
+> You can use either a dedicated UPDI programmer (a detailed description of how to make one can be found [here]())  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Soldering PCB 
+
 
 ## Instructions
 

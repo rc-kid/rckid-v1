@@ -36,3 +36,14 @@ inline std::string toHMS(int seconds) {
     s << seconds;
     return s.str();
 }
+
+inline std::string toHorMorS(int seconds) {
+    std::stringstream s;
+    if (seconds < 60) 
+        s << seconds << "s";
+    else if (seconds < 3600)
+        s << (seconds + 59) / 60 << "m"; // rounding
+    else 
+        s << (seconds + 3599) / 3600 << "h"; // rounding
+    return s.str();
+}

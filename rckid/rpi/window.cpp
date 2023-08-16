@@ -1,5 +1,6 @@
 
 #include "platform/platform.h"
+#include "utils/time.h"
 
 #include "carousel.h"
 #include "debug_view.h"
@@ -232,6 +233,9 @@ void Window::loop() {
                     [this](comms::Mode) {
                         redrawHeader_ = true;
                     },
+                    [this](SecondTick) {
+                        // TODO do we want to do anything here? 
+                    }, 
                     [this](AlarmEvent) {
                         // TODO
                     },
@@ -241,6 +245,18 @@ void Window::loop() {
                     [this](StateChangeEvent) {
                         redrawHeader_ = true;
                     },
+                    [this](Hearts h) {
+                        redrawHeader_ = true;
+                        // if there are no more hearts, unroll any widgets that cause their counting
+                        if (h.value == 0) {
+                            while (rckid().heartsCounterEnabled() && nav_.size() > 1)
+                                back();
+                            // and display the warning
+                            // TODO
+                        } else if (h.value < HEARTS_LOW_THRESHOLD && !headerVisible_) {
+                            showHeader();
+                        }
+                    }, 
                     [this, w](ButtonEvent eb) {
                         TraceLog(LOG_DEBUG, STR("Button state change. Button: " << (int)eb.btn << ", state: " << eb.state));
                         switch (eb.btn) {
@@ -531,20 +547,51 @@ void Window::draw() {
     }
 }
 
+
 void Window::drawHeader() {
     //BeginTextureMode(buffer_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
+    canvas_->setDefaultFont();
+
+    // draw the hearts. If we have enough left, just the red hearts is displayed, regardless of the value. If we have fewer hearts, then the red outline, filled with appropriate pink is displayed and unless the current widget is in fullscreen mode, its accompanied by a text countdown (h m s, one of). If in fullscreen mode then just the hearts are shown and the rest of the header is actually not rendered at all since for full screen widgets with hidden header, when we get too few hearts, the header is always shown 
+    ::Color hOutline = rckid().heartsCounterEnabled() ? RED : GRAY;
+    ::Color hFill = rckid().heartsCounterEnabled() ? PINK : LIGHTGRAY;
+    if (rckid().hearts() >= 3 * HEART_SIZE_SECONDS) {
+        canvas_->drawText(0, 0, "  ", hOutline);
+    } else {
+        // int x = canvas_->textWidth("   ");
+        BeginScissorMode(0, 0, 53 * rckid().hearts() / (3 * HEART_SIZE_SECONDS), 20);
+        canvas_->drawText(0, 0, "  ", hFill);
+        EndScissorMode();
+        canvas_->drawText(0, 0, "  ", hOutline);
+        // TODO check if we should display the text too
+        BeginBlendMode(BLEND_ADD_COLORS);
+        std::string remaining = toHorMorS(rckid().hearts());
+        canvas_->drawText(56, 2, remaining, WHITE, canvas_->helpFont());
+        EndBlendMode();
+    }
+
 
     comms::ExtendedState state{rckid().extendedState()};
 
-    canvas_->setDefaultFont();
+    
+    BeginBlendMode(BLEND_ADD_COLORS);
+    
+    /*
+    canvas_->drawText(0, 0, "  ", RED);
+    BeginScissorMode(0, 10, 20, 20);
+    canvas_->drawText(0, 0, "", PINK);
+    EndScissorMode();
+    */
+
     // The heart, or time left
+    /*
     canvas_->drawText(0, 0, "", DARKGRAY);
     BeginScissorMode(0, 10, 20, 20);
     canvas_->drawText(0, 0, "", PINK);
     EndScissorMode();
+    */
 
-    BeginBlendMode(BLEND_ADD_COLORS);
     int x = 320;
     // charging and usb power indicator 
     if (state.einfo.usb()) {

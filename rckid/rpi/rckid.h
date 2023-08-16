@@ -168,6 +168,21 @@ public:
 
     int16_t accelTemp() const { std::lock_guard<std::mutex> g{mState_}; return accelTemp_; }
 
+    uint16_t hearts() const { return pState_.hearts; }
+
+    void setHearts(uint16_t value) { pState_.hearts = value; }
+
+    bool heartsCounterEnabled() const { return heartsCounterEnabled_ > 0; }
+
+    void enableHeartsCounter(bool value = true) { 
+        if (value) {
+            ++heartsCounterEnabled_;
+        } else {
+            if (heartsCounterEnabled_ > 0)
+                --heartsCounterEnabled_;
+        }
+    }
+
     /** Returns the next UI event waiting to be processed, if any. 
      */
     std::optional<Event> nextEvent();
@@ -324,7 +339,6 @@ private:
 
     struct Terminate{};
     struct Tick {};
-    struct SecondTick {};
     struct AvrIrq {};
     struct NRFIrq {};
     struct NRFTransmit {};
@@ -354,7 +368,7 @@ private:
     using DriverEvent = std::variant<
         Terminate,
         Tick, 
-        SecondTick,
+        SecondTick, // ::SecondTick
         AvrIrq,
         NRFIrq, 
         HeadphonesIrq,
@@ -424,7 +438,7 @@ private:
 
     void processAvrStatus(comms::Status status, bool alreadyLocked = false);
     void processAvrControls(comms::Controls controls, bool alreadyLocked = false);
-    void processAvrExtendedState(comms::ExtendedState & state);
+    void processAvrExtendedState(comms::ExtendedState & state, bool alreadyLocked = false);
 
     void initializeAccel();
     void queryAccelStatus();
@@ -503,6 +517,7 @@ private:
 
     /** Audio volume. Only accessible from the UI thread. */
     comms::PersistentState pState_;
+    size_t heartsCounterEnabled_ = 0;
 
     struct libevdev * gamepadDev_{nullptr};
     struct libevdev_uinput * gamepad_{nullptr};

@@ -12,6 +12,7 @@ class Widget {
 public:
     bool focused() const;
     bool onNavStack() const { return onNavStack_; }
+
 protected:
 
     friend class RCKid;

@@ -288,7 +288,7 @@ protected:
 
     void dpadDown(bool state) override {
         if (state && ! browsing_)
-            rckid().setVolume(rckid().volume() + 10);
+            rckid().setVolume(rckid().volume() - 10);
     }
 
     bool browsing_ = true;

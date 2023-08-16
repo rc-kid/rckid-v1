@@ -101,13 +101,15 @@ protected:
         cancelRedraw();
     }
 
-    // handled by the play method above
-    //void onNavigationPush() override { }
+    void onNavigationPush() override { 
+        rckid().enableHeartsCounter(true);
+    }
 
     void onNavigationPop() override {
         if (!emulator_.done())
             emulator_.kill();
         window().enableBackground(true);
+        rckid().enableHeartsCounter(false);
     }
 
     void onFocus() {
@@ -155,6 +157,19 @@ public:
     GameBrowser(std::string const & rootDir): DirSyncedCarousel{rootDir, "assets/icons/ghost.png", "assets/icons/arcade.png"} {}
 
 protected:
+
+    /*
+    void onNavigationPush() override { 
+        DirSyncedCarousel::onNavigationPush();
+        rckid().enableHeartsCounter(true);
+    }
+
+    void onNavigationPop() override {
+        DirSyncedCarousel::onNavigationPop();
+        rckid().enableHeartsCounter(false);
+    }
+    */
+
 
     std::optional<json::Value> getItemForFile(DirEntry const & entry) override {
         std::string ext = entry.path().extension();
