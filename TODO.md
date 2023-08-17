@@ -1,6 +1,5 @@
 > This is the high-level plan on tasks, prioritized, to make the RCKid ready for xmas:
 
-- order M1.4 screws for the thumbstick
 - design the bottom and top frames around the pcb and test print the stack
 - add AVR basics (charging, thumbstick reporting)
 - add rckid basics (proper header, hearts & configuration and settings)
@@ -37,18 +36,14 @@
 
 https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 
-- !!!!!!!! PINS are different, no more volume keys DPAD handled by RPi, L/R not !!!!!!!!
-
 - battery on: 9:30
 - charging: 9:45 - 11:22
-
-- (3) order spare displays
 
 - change icon can be done by having all images under one root and that way items can be selected from the pics easily
 - rename via keyboard ofc
 
 - allow configurable item action for items (not folders)
-- unresponsive-ish buttons on the device in low FPS? (!!!!!!!)
+- unresponsive-ish buttons on the device in low FPS? (!!!!!!!) -- not an issue anymore it seems
 
 
 - repairing after connection lost does not work (channel & name is different) Add a pairing timeout on the device and wait for pairing indefinitely on the rckid side
@@ -79,19 +74,16 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 
 ## RCKid AVR
 
-- DIFFERENT PIN MAPPING FOR NEW VERSION
 - flash the LED when charging & idle, add LED effects
 - rumbler effects
 - joystick calibration (maybe do this in RPi instead together with the accel?) 
-- ensure home button long press cannot be spurious (either in SW, or button with more force?)
+- ensure home button long press cannot be spurious (either in SW, or button with more force?) -- is this an issue still? 
 
 ## RCKid RPi
 
-- DIFFERENT PIN MAPPING FOR NEW VERSION
 - game player menu implementation (load/save, etc.)
 - torchlight widget
 - walkie talkie widget
-- heart bar for time spent, track time spent when widgets are in foreground
 - photores
 
 ## RCKid RPi - SDCard
