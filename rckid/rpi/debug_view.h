@@ -34,8 +34,21 @@ protected:
         c.drawText(210, 40, STR(state.einfo.temp()), WHITE);
         c.drawText(240, 40, "ATEMP:", DARKGRAY);
         c.drawText(290, 40, STR(rckid().accelTemp()), WHITE);
-        c.drawText(160, 60, "CHRG:", DARKGRAY);
-        c.drawText(210, 60, state.einfo.charging() ? "1" : "0", WHITE);
+        c.drawText(160, 60, "PWR:", DARKGRAY);
+        switch (state.status.powerStatus()) {
+            case comms::PowerStatus::Battery:
+                c.drawText(210, 60, "BATT", WHITE);
+                break;
+            case comms::PowerStatus::LowBattery:
+                c.drawText(210, 60, "LOW_BATT", WHITE);
+                break;
+            case comms::PowerStatus::Charging:
+                c.drawText(210, 60, "CHRG", WHITE);
+                break;
+            case comms::PowerStatus::USB:
+                c.drawText(210, 60, "USB", WHITE);
+                break;
+        }
         c.drawText(160, 80, "UP:", DARKGRAY);
         c.drawText(210, 80, STR(state.uptime), WHITE);
 

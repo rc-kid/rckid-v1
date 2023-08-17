@@ -349,9 +349,9 @@ void RCKid::processAvrStatus(comms::Status status, bool alreadyLocked) {
         state_.status.setAlarm(status.alarm());
         uiEvents_.send(AlarmEvent{});
     }
-    if (state_.status.lowBattery() != status.lowBattery()) {
-        state_.status.setLowBattery(status.lowBattery());
-        uiEvents_.send(LowBatteryEvent{});
+    if (state_.status.powerStatus() != status.powerStatus()) {
+        state_.status.setPowerStatus(status.powerStatus());
+        uiEvents_.send(status.powerStatus());
     }
 }
 

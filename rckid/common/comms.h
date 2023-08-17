@@ -32,6 +32,14 @@ namespace comms {
         Bootloader = bootloader::BOOTLOADER_MODE,
     }; // comms::Mode
 
+    /** Current power mode of the device. 
+     */
+    enum class PowerStatus : uint8_t {
+        Battery = 0, 
+        LowBattery = 64, 
+        Charging = 128, 
+        USB = 196,
+    }; // comms::PowerStatus
 
     /** Error codes. 
      
@@ -104,14 +112,14 @@ namespace comms {
             return true;
         }
 
-        bool lowBattery() const {
-            return status_ & LOW_BATT;
+        PowerStatus powerStatus() const { 
+            return static_cast<PowerStatus>(status_ & POWER_MASK); 
         }
 
-        bool setLowBattery(bool value) {
-            if (value == lowBattery())
+        bool setPowerStatus(PowerStatus value) {
+            if (value == powerStatus())
                 return false;
-            value ? (status_ |= LOW_BATT) : (status_ &= ~LOW_BATT);
+            status_ = (status_ & ~POWER_MASK) | static_cast<uint8_t>(value);
             return true;
         }
 
@@ -121,8 +129,7 @@ namespace comms {
         static constexpr uint8_t ALARM = 1 << 3;
         static constexpr uint8_t RECORDING = 1 << 4;
         static constexpr uint8_t BATCH_INCOMPLETE = 1 << 5;
-        static constexpr uint8_t LOW_BATT = 1 << 6;
-
+        static constexpr uint8_t POWER_MASK = 3 << 6;
         uint8_t status_ = 0;
 
 
@@ -266,31 +273,10 @@ namespace comms {
         }
         //@}
 
-        bool usb() const { return flags_ & USB_DC; }
-
-        bool setUsb(bool value) {
-            if (value == usb())
-                return false;
-            value ? (flags_ |= USB_DC) : (flags_ &= ~USB_DC);
-            return true;
-        }
-
-        bool charging() const { return flags_ & CHARGING; }
-
-        bool setCharging(bool value) { 
-            if (value == charging())
-                return false;
-            value ? (flags_ |= CHARGING) : (flags_ &= ~CHARGING);
-            return true;
-        }
-
     private:
-        static constexpr uint8_t USB_DC = 1 << 0; 
-        static constexpr uint8_t CHARGING = 1 << 1;
         uint8_t vcc_;
         uint8_t vbatt_;
         uint8_t temp_;
-        uint8_t flags_;
     } __attribute__((packed)); // comms::ExtendedInfo;
 
     /** State consists  */

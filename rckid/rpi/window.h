@@ -208,6 +208,7 @@ private:
     void draw();
 
     void drawHeader();
+    void drawBatteryGauge(int & x, uint16_t vbatt);
     void drawFooter();
 
     void enter(Widget * widget);

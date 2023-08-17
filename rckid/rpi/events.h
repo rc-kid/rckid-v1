@@ -78,9 +78,9 @@ struct NRFTxEvent {};
 
 using Event = std::variant<
     comms::Mode, 
+    comms::PowerStatus,
     SecondTick,
     AlarmEvent,
-    LowBatteryEvent, 
     StateChangeEvent,
     Hearts,
     ButtonEvent, 

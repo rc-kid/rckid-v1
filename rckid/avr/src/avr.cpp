@@ -837,8 +837,6 @@ public:
                 } else {
                     batteryDebounceTimer_ = 10;
                 }
-                flags_.irq = state_.einfo.setUsb(value >= VCC_THRESHOLD_VUSB) | flags_.irq;
-                flags_.irq = state_.status.setLowBattery(value <= BATTERY_THRESHOLD_LOW) | flags_.irq;
                 break;
             // convert temperature reading to temperature, the code is taken from the ATTiny datasheet example
             case ADC_MUXPOS_TEMPSENSE_gc: {
@@ -863,18 +861,18 @@ public:
                 value = (state_.einfo.vcc() / 2 * value)  / 128; 
                 state_.einfo.setVBatt(value);
                 break;
-            // CHARGE 
+            // CHARGE - sent by the charger chip via a pull-up and pull-down resistors. Only works if VUSB is present. Close to 0 means charging, close to 1 means charging complete and around 0.5 means no battery present (which we for all purposes ignore)
             case ADC_MUXPOS_AIN10_gc:
                 value = (value >> 2) & 0xff;
-                value = value < 32;
-                if (state_.einfo.setCharging(value)) {
-                    flags_.irq = true;
-                    // update the RGB output accordingly
-                    if (value) 
-                        rgbOn();
-                    else if (rgbIdle_)
-                        rgbOff();
+                // now we have the VCC and VBATT voltages as well as charging info so we can set the power status
+                PowerStatus pstatus{PowerStatus::Battery};
+                if (state_.einfo.vcc() > VCC_THRESHOLD_VUSB) {
+                    pstatus = (value < 64) ? PowerStatus::Charging : PowerStatus::USB; 
+                } else {
+                    if (state_.einfo.vcc() < BATTERY_THRESHOLD_LOW)
+                        pstatus = PowerStatus::LowBattery;
                 }
+                flags_.irq = state_.status.setPowerStatus(pstatus) | flags_.irq;
                 break;
             // BTNS_1 
             case ADC_MUXPOS_AIN6_gc:
@@ -1046,29 +1044,24 @@ public:
 
     static inline NeopixelStrip<1> rgb_{RGB};
     static inline ColorStrip<1> rgbTarget_;
-    static inline bool rgbIdle_ = true;
 
     static void rgbOn() {
         gpio::output(RGB_EN);
         gpio::low(RGB_EN);
         gpio::output(RGB);
         gpio::low(RGB);
-        rgbIdle_ = true;
     }
 
     /** Turns the RGB led off. 
      */
     static void rgbOff() {
         showColor(Color::Black());
-        if (! state_.einfo.charging()) {
-            gpio::input(RGB_EN);
-            gpio::input(RGB);
-        }
+        gpio::input(RGB_EN);
+        gpio::input(RGB);
     }
 
     static void showColor(Color c) {
         rgbTarget_[0] = c;
-        rgbIdle_ = c.isBlack();
     }
 
     /** Flashes the critical battery warning, 5 short red flashes. 
@@ -1111,13 +1104,6 @@ public:
         // update the RGB based on effect
         if (rgb_.moveTowards(rgbTarget_, 1))
             rgb_.update();
-        // if the rgb is idle, show the charging animation instead
-        if (rgbIdle_ && state_.einfo.charging()) {
-            if (rgb_[0] == Color::Black())
-                rgbTarget_[0] = CHARGING_COLOR;
-            else if (rgb_[0] == CHARGING_COLOR)
-                rgbTarget_[0] = Color::Black();
-        }
     }
     //@}
 

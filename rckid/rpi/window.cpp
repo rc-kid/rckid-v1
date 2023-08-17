@@ -233,13 +233,14 @@ void Window::loop() {
                     [this](comms::Mode) {
                         redrawHeader_ = true;
                     },
+                    [this](comms::PowerStatus) {
+                        redrawHeader_ = true;
+                        // TODO
+                    }, 
                     [this](SecondTick) {
                         // TODO do we want to do anything here? 
                     }, 
                     [this](AlarmEvent) {
-                        // TODO
-                    },
-                    [this](LowBatteryEvent) {
                         // TODO
                     },
                     [this](StateChangeEvent) {
@@ -549,6 +550,7 @@ void Window::draw() {
 
 
 void Window::drawHeader() {
+    using namespace comms;
     //BeginTextureMode(buffer_);
     ClearBackground(ColorAlpha(BLACK, 0.0));
     canvas_->setDefaultFont();
@@ -572,7 +574,7 @@ void Window::drawHeader() {
     }
 
 
-    comms::ExtendedState state{rckid().extendedState()};
+    ExtendedState state{rckid().extendedState()};
 
     
     BeginBlendMode(BLEND_ADD_COLORS);
@@ -593,28 +595,26 @@ void Window::drawHeader() {
     */
 
     int x = 320;
-    // charging and usb power indicator 
-    if (state.einfo.usb()) {
-        x -= 10;
-        canvas_->drawText(x, 0, "", state.einfo.charging() ? WHITE : GRAY);
+    // power status (battery level, charging, etc.)
+    switch (state.status.powerStatus()) {
+        case PowerStatus::LowBattery:
+            x -= 10;
+            canvas_->drawText(x, 0, "!", RED);
+            // fallthorugh to battery
+        case PowerStatus::Battery:
+            drawBatteryGauge(x, state.einfo.vBatt());
+            break;
+        case PowerStatus::Charging:
+            x -= 10;
+            canvas_->drawText(x, 0, "", BLUE);
+            drawBatteryGauge(x, state.einfo.vBatt());
+            break;            
+        case PowerStatus::USB:
+            x -= 10;
+            canvas_->drawText(x, 0, "", GREEN);
+            drawBatteryGauge(x, state.einfo.vBatt()); 
+            break;
     }
-    // the battery level and percentage
-    if (homeMenu_->onNavStack()) {
-        std::string pct = STR((state.einfo.vBatt() - 330) << "%");
-        x -= canvas_->textWidth(pct, canvas_->helpFont()) + 5;
-        canvas_->drawText(x, 2, pct, GRAY, canvas_->helpFont());
-    }
-    x -= 20;
-    if (state.einfo.vBatt() > 415)
-        canvas_->drawText(x, 0, "", GREEN);
-    else if (state.einfo.vBatt() > 390)
-        canvas_->drawText(x, 0, "", DARKGREEN);
-    else if (state.einfo.vBatt() > 375)
-        canvas_->drawText(x, 0, "", ORANGE);
-    else if (state.einfo.vBatt() > 340)    
-        canvas_->drawText(x, 0, "", RED);
-    else 
-        canvas_->drawText(x, 0, "", RED);
     // volume & headphones
     if (rckid().headphones()) {
         x -= 20;
@@ -668,6 +668,28 @@ void Window::drawHeader() {
     }
     EndBlendMode();
 
+}
+
+void Window::drawBatteryGauge(int & x, uint16_t vbatt) {
+    // since the valid battery level is anything from 3.3 to 4.3 volts, getting percentage is super easy
+    size_t vpct = vbatt <= 330 ? 0 : (vbatt >= 430) ? 100 : vbatt - 330;
+    // the battery level and percentage
+    if (homeMenu_->onNavStack()) {
+        std::string pct = STR(vpct << "%");
+        x -= canvas_->textWidth(pct, canvas_->helpFont()) + 5;
+        canvas_->drawText(x, 2, pct, GRAY, canvas_->helpFont());
+    }
+    x -= 23;
+    if (vpct >= 80)
+        canvas_->drawText(x, 0, "", GREEN);
+    else if (vpct >= 60)
+        canvas_->drawText(x, 0, "", DARKGREEN);
+    else if (vpct >= 40)
+        canvas_->drawText(x, 0, "", ORANGE);
+    else if (vpct >= 20)    
+        canvas_->drawText(x, 0, "", RED);
+    else 
+        canvas_->drawText(x, 0, "", RED);
 }
 
 void Window::drawFooter() {
