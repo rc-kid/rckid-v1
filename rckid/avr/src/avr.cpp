@@ -325,14 +325,49 @@ public:
         // sleep, we'll periodically wake up for second ticks and for btnHome press 
         while (true) {
             cpu::sleep();
-            if (flags_.secondTick) {
-                secondTick();
-                flags_.secondTick = false;
-            }
             if (flags_.btnHome && gpio::read(BTN_HOME)) {
                 flags_.btnHome = false;
                 if (canWakeUp())
                     break;
+            }
+            if (flags_.secondTick) {
+                rgbOn(); // turn the RGB on, rading charger state will give us some slack time for voltages to average
+                secondTick();
+                flags_.secondTick = false;
+                showColor(Color::White());                
+                // when sleeping, we look at the voltage & charging indicator every second to determine if we should show something on the rgb (blue = charging, green = charging done)
+                //rgbOn(); // turn the RGB on, rading charger state will give us some slack time for voltages to average
+                // voltage reference to 1.1V (internal for the temperature sensor)
+                VREF.CTRLA &= ~ VREF_ADC0REFSEL_gm;
+                VREF.CTRLA |= VREF_ADC0REFSEL_1V1_gc;
+                ADC0.CTRLB = ADC_SAMPNUM_ACC64_gc;
+                ADC0.MUXPOS = ADC_MUXPOS_INTREF_gc;
+                // remove sampcap as per the info
+                ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc; // use VDD as reference for VCC sensing, 1.25MHz
+                ADC0.CTRLD = ADC_INITDLY_DLY256_gc;
+                ADC0.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_10BIT_gc;
+                // start new conversion
+                ADC0.COMMAND = ADC_STCONV_bm;
+                while (! (ADC0.INTFLAGS & ADC_RESRDY_bm));
+                uint16_t vcc = ADC0.RES / 64;
+                vcc = 110 * 512 / vcc;
+                vcc = vcc * 2;
+                // if we have VUSB, check the charger's status
+                if (vcc >= VCC_THRESHOLD_VUSB) {
+                    rgbOn(); // turn the RGB on, rading charger state will give us some slack time for voltages to average
+                    ADC0.MUXPOS = ADC_MUXPOS_AIN10_gc;
+                    ADC0.COMMAND = ADC_STCONV_bm;
+                    while (! (ADC0.INTFLAGS & ADC_RESRDY_bm));
+                    bool charging = ((ADC0.RES >> 2) && 0xff) < 64;
+                    rgb_[0] = charging ? Color::RGB(0, 0, 32) : Color::RGB(0, 32, 0);
+                    rgb_.update();
+                } else {
+                    // ensure rgb is off 
+                    rgbOff();
+                } 
+                // turn the ADC off and go to sleep again
+                ADC0.CTRLA = 0;
+
             }
         }
         setMode(Mode::WakeUp);
@@ -396,25 +431,19 @@ public:
                 // turn rpi on
                 gpio::input(RPI_EN);
                 setTimeout(BTN_HOME_POWERON_PRESS);
-                // if we have error condition show that on the RGB led
-                if (state_.dinfo.errorCode() != ErrorCode::NoError) {
-                    rgbOn();
-                    showColor(errorCodeColor(state_.dinfo.errorCode()));
-                } 
                 // reset the comms state for the power up
                 setDefaultTxAddress();
                 break;
+            // transitioning from wakeup to powerup when the home key was pressed long enough
             case Mode::PowerUp:
                 // if select is pressed as well, enter power on mode immediately to bypass the timer and enforce display brightness 
                 if (state_.controls.select()) {
                     pState_.brightness = 128;
                     setMode(Mode::On);
-                    rumblerOk();
+                    // indicate forced power on by 2 medium rumbles
+                    rumblerEffect(DEFAULT_RUMBLER_STRENGTH, 30, 23, 2);
                     return;
                 }
-                // if any other than no-error state, make display visible immediately
-                if (state_.dinfo.errorCode() != ErrorCode::NoError)
-                    setBrightness(128);
                 // rumble to indicate true power on and set the timeout for RPI poweron 
                 rumblerOk();
                 // disable the timeout if Select button is pressed
@@ -452,27 +481,31 @@ public:
      */
     static void timeoutError() {
         switch (state_.status.mode()) {
+            // in wakeup, transition to power up (home button has been pressed for long enough)
             case Mode::WakeUp:
                 setMode(Mode::PowerUp);
                 return;
+            // in powerup mode, this indicates RPi failed to power up in time, we'll go to sleep
             case Mode::PowerUp:
                 state_.dinfo.setErrorCode(ErrorCode::RPiBootTimeout);
                 break;
+            // in powerdown, this means that RPi failed to indicate safe power off in time, go to sleep
             case Mode::PowerDown:
                 state_.dinfo.setErrorCode(ErrorCode::RPiPowerDownTimeout);
                 break;
-            // timeout in mode::on is HOME button long press
+            // timeout in mode::on is HOME button long press - give RPI chance to turn itself off nicely first
             case Mode::On:
                 // double check that the button is indeed still pressed so that we do not accidentally poweroff
                 if (gpio::read(BTN_HOME) == false)
                     return;
-                rumblerFail();
+                rumblerOk();
                 setMode(Mode::PowerDown);
                 setIrq();
                 return;
         }
+        // do error signal, then sleep
         rgbOn();
-        showColor(errorCodeColor(state_.dinfo.errorCode()));
+        showColor(Color::Red().withBrightness(32));
         // we need blocking failure here since we go to sleep immediately 
         rumblerFailBlocking();
         setMode(Mode::Sleep);
@@ -492,23 +525,6 @@ public:
             gpio::output(BACKLIGHT);
             TCA0.SPLIT.CTRLB |= TCA_SPLIT_LCMP0EN_bm;
             TCA0.SPLIT.LCMP0 = value;
-        }
-    }
-
-    /** Converts the error code to a color. 
-     */
-    static Color errorCodeColor(ErrorCode e) {
-        switch (e) {
-            case ErrorCode::InitialPowerOn:
-                return Color::White().withBrightness(10);
-            case ErrorCode::WatchdogTimeout:
-                return Color::Cyan().withBrightness(10);
-            case ErrorCode::RPiBootTimeout:
-                return Color::Blue().withBrightness(10);
-            case ErrorCode::RPiPowerDownTimeout:
-                return Color::Green().withBrightness(10);
-            default:
-                return Color::Black();
         }
     }
 
@@ -651,7 +667,8 @@ public:
                 break;
             }
             case PowerOn::ID: {
-                if (state_.status.mode() == Mode::PowerUp)
+                // to be on the safe side, the power on command works in both PowerUp and WakeUp modes as there is a theoretical path to safe on mode from either of those modes
+                if (state_.status.mode() == Mode::PowerUp || state_.status.mode() == Mode::WakeUp)
                     setMode(Mode::On);
                 break;
             }
@@ -761,7 +778,7 @@ public:
         // delay 32us and sampctrl of 32 us for the temperature sensor, do averaging over 64 values, full precission
         ADC0.CTRLB = ADC_SAMPNUM_ACC64_gc;
         ADC0.MUXPOS = ADC_MUXPOS_INTREF_gc;
-        ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc | ADC_SAMPCAP_bm; // use VDD as reference for VCC sensing, 1.25MHz
+        ADC0.CTRLC = ADC_PRESC_DIV8_gc | ADC_REFSEL_VDDREF_gc; // | ADC_SAMPCAP_bm; // use VDD as reference for VCC sensing, 1.25MHz
         ADC0.CTRLD = ADC_INITDLY_DLY32_gc;
         ADC0.CTRLA = ADC_ENABLE_bm | ADC_RESSEL_10BIT_gc;
          // start new conversion
@@ -822,7 +839,7 @@ public:
         // process the last measurement while reading the next measurement
         switch (muxpos) {
             // convert the reading to voltage and update the state 
-            case ADC_MUXPOS_INTREF_gc:
+            case ADC_MUXPOS_INTREF_gc: {
                 value = 110 * 512 / value;
                 value = value * 2;
                 state_.einfo.setVcc(value);
@@ -838,6 +855,7 @@ public:
                     batteryDebounceTimer_ = 10;
                 }
                 break;
+            }
             // convert temperature reading to temperature, the code is taken from the ATTiny datasheet example
             case ADC_MUXPOS_TEMPSENSE_gc: {
                 int8_t sigrow_offset = SIGROW.TEMPSENSE1; 
@@ -852,7 +870,7 @@ public:
                 break;
             }
             // VBATT
-            case ADC_MUXPOS_AIN4_gc:
+            case ADC_MUXPOS_AIN4_gc: {
                 // convert the battery reading to voltage. The battery reading is relative to vcc, which we already have
                 // TODO will this work? when we run on batteries, there might be a voltage drop on the switch? 
                 // VBATT = VCC * VBATT / 255 
@@ -861,12 +879,13 @@ public:
                 value = (state_.einfo.vcc() / 2 * value)  / 128; 
                 state_.einfo.setVBatt(value);
                 break;
+            }
             // CHARGE - sent by the charger chip via a pull-up and pull-down resistors. Only works if VUSB is present. Close to 0 means charging, close to 1 means charging complete and around 0.5 means no battery present (which we for all purposes ignore)
-            case ADC_MUXPOS_AIN10_gc:
+            case ADC_MUXPOS_AIN10_gc: {
                 value = (value >> 2) & 0xff;
                 // now we have the VCC and VBATT voltages as well as charging info so we can set the power status
                 PowerStatus pstatus{PowerStatus::Battery};
-                if (state_.einfo.vcc() > VCC_THRESHOLD_VUSB) {
+                if (state_.einfo.vcc() >= VCC_THRESHOLD_VUSB) {
                     pstatus = (value < 64) ? PowerStatus::Charging : PowerStatus::USB; 
                 } else {
                     if (state_.einfo.vcc() < BATTERY_THRESHOLD_LOW)
@@ -874,6 +893,7 @@ public:
                 }
                 flags_.irq = state_.status.setPowerStatus(pstatus) | flags_.irq;
                 break;
+            }
             // BTNS_1 
             case ADC_MUXPOS_AIN6_gc:
                 flags_.irq = state_.controls.setButtons1(decodeAnalogButtons((value >> 2) & 0xff)) | flags_.irq;
@@ -1055,7 +1075,6 @@ public:
     /** Turns the RGB led off. 
      */
     static void rgbOff() {
-        showColor(Color::Black());
         gpio::input(RGB_EN);
         gpio::input(RGB);
     }

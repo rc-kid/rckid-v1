@@ -23,7 +23,7 @@ namespace {
 
 std::ostream & operator << (std::ostream & s, ChipInfo const & info) {
     s << std::setw(30) << "signature: " << printBuffer(& info.state.deviceId0, 3) << std::endl;
-    s << std::setw(30) << "mode: " << ((info.state.status & 0x7 == 0x7) ? "bootloader" : "app") << std::endl;
+    s << std::setw(30) << "mode: " << ((info.state.status & 0x7 == 0x7) ? "bootloader" : "app") << " (" << std::hex << (int) info.state.status << ")" << std::endl;
     s << std::setw(30) << "mcu: " << info.mcu << std::endl;
     s << std::setw(30) << "family: " << info.family << std::endl;
     s << std::setw(30) << "memory: " << std::dec << info.memsize << std::endl;

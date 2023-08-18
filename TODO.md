@@ -30,7 +30,6 @@
 # Bugs to be fixed
 
 - initial volume setting is weird (80000)
-- rework & simplify the startup mode (display brightness, RGB notification, etc)
 
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 
@@ -45,14 +44,7 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 - allow configurable item action for items (not folders)
 - unresponsive-ish buttons on the device in low FPS? (!!!!!!!) -- not an issue anymore it seems
 
-
 - repairing after connection lost does not work (channel & name is different) Add a pairing timeout on the device and wait for pairing indefinitely on the rckid side
-
-- charging light does not seem to work that well
-- make the charging light work even when RPi off / sleeping (check)
-- add sin based interleaving (? - would it be enough)
-- maybe do just 1sec quick bursts (easier in sleep)
-- switch charging control single pullup 
 
 > Things to buy / test. 
 
@@ -60,7 +52,6 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 
 - buy some more NRFs (not the cheapest ones)
 - https://martybugs.net/wireless/rubberducky.cgi -- site that seems to have decent info on antennas
-- M1.4 screws for thumbstick
 - better 3.0V LDO (cleaner, higher voltage better for mic & speed, such as https://cz.mouser.com/ProductDetail/Texas-Instruments/TPS7A2030PDBVR?qs=hd1VzrDQEGgZMtQinkbhYw%3D%3D)
 - 5pin 0.5mm pitch connector (https://cz.mouser.com/ProductDetail/Molex/505278-0533?qs=c8NFF48pVsCY0CQNgl3Xjw%3D%3D or https://cz.mouser.com/ProductDetail/Molex/505110-0592?qs=RawsiUxJOFR577kELw3Dww%3D%3D)
 - buy extra RPi Zero 2W's (2-3), that way I have parts to build almost 6 RCKids (modulo joysticks)
@@ -69,12 +60,9 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 
 ## RCKid PCB & Case
 
-- make more room for the battery (verify)
-- check charging detection works, can perhaps ignore the pullup/downs? into middle and use just one pullup/down? Needs external pull-up. Only works when USB is present - need better USB checking
-
 ## RCKid AVR
 
-- flash the LED when charging & idle, add LED effects
+- add LED effects
 - rumbler effects
 - joystick calibration (maybe do this in RPi instead together with the accel?) 
 - ensure home button long press cannot be spurious (either in SW, or button with more force?) -- is this an issue still? 
@@ -85,6 +73,7 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 - torchlight widget
 - walkie talkie widget
 - photores
+- tumbstick as dpad
 
 ## RCKid RPi - SDCard
 

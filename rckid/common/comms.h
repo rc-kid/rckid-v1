@@ -38,7 +38,7 @@ namespace comms {
         Battery = 0, 
         LowBattery = 64, 
         Charging = 128, 
-        USB = 196,
+        USB = 192,
     }; // comms::PowerStatus
 
     /** Error codes. 
@@ -119,17 +119,18 @@ namespace comms {
         bool setPowerStatus(PowerStatus value) {
             if (value == powerStatus())
                 return false;
-            status_ = (status_ & ~POWER_MASK) | static_cast<uint8_t>(value);
+            status_ &= ~POWER_MASK;
+            status_ |= static_cast<uint8_t>(value);
             return true;
         }
 
     private:
 
-        static constexpr uint8_t MODE = 7;
-        static constexpr uint8_t ALARM = 1 << 3;
-        static constexpr uint8_t RECORDING = 1 << 4;
-        static constexpr uint8_t BATCH_INCOMPLETE = 1 << 5;
-        static constexpr uint8_t POWER_MASK = 3 << 6;
+        static constexpr uint8_t MODE = 7; // 0..7
+        static constexpr uint8_t ALARM = 1 << 3; // 8
+        static constexpr uint8_t RECORDING = 1 << 4; // 16
+        static constexpr uint8_t BATCH_INCOMPLETE = 1 << 5; // 32
+        static constexpr uint8_t POWER_MASK = 3 << 6; // 64 + 128
         uint8_t status_ = 0;
 
 

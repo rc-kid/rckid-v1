@@ -7,31 +7,32 @@
 
 To start the device, press and hold the _Home_ button until the rumbler's _ok_ signal (one long rumble), after which the button can be released. Then wait for the device to boot and turn the screen on. 
 
-Press the _Home_ button for a long time again to turn the device off. When turned off, the backlight is disabled and the RPi is given some amount of time to make sure it will turn off safely. 
+To power down, navigate the menu to the home section and select the _Power off_ option. This is usually done by pressing the _Home_ button once, or twice when playing a game. 
 
+Alternatively, holding the _Home_ button down util the rumbler's _ok_ signal is given will instruct the RPi to power itself off as well. 
 
+## Charging
 
+RCKid can be charged by any USB-C capable charger. For increased safety, the charging is rather slow. The device can be on while charging. If on, charging status is displayed in the header bar. When off, the RGB led displays charging status, _blue_ light means the device is charging, _green_ light means RCKid is fully charged. 
 
-
-
-## Troubleshooting
+## Troubleshotting
 
 ### Initial Power Up
 
-When power is first applied to the device, the device will power on automatically after a _ok_ rumble signal. The initial power on state will be signalled by a white RGB led. 
+When power is first applied to the device (be it from attached battery, or USB), the device will power on automatically.  
 
-### Power Up Sequence
+### Critical Battery
 
-After the _Home_ button is pressed, RCKid runs various checks and uses the rumbler and the RGB led to indicate any potential problems. The table bellow summarizes the problems and their visualization: 
+Rumbler's _fail_ signal and 3 bright red LED flashes indicate critical battery level upon power on. Plug the device into USB to to recharge the battery and start again. 
 
-RGB Led    | Rumbler   | Notes
------------|-----------|--------
-none       | none      | Normal startup sequence, no errors detected. 
-3x red     | none      | Critical battery level. RCKid will not start, connect charger to the USB-C port and recharge the battery. 
-cyan       | none      | AVR Watchdog reset failure, signals that the AVR chip froze. 
-blue       | none      | RPi failed to turn itself on within the specified limit during the last run. 
-green      | none      | RPi failed to turn itself off withion the specified limit and its power was cutoff abruptly. 
+### Power On Failure
 
-### DebugMode
+If the screen stays black after powering on and in a while the rumbler's _fail_ and red led is displayed, the RPi failed to turn on in time. This could be one-time event, or might require deeper debugging using the forced-on mode. 
 
-Press the _Select_ and _Home_ button together to start the device in debug mode when the screen brightness will be powered immediately and the boot timeout will not be set, i.e. RPi can take as long as it wants to boot and the boot process, if any, will be visible on the screen. 
+### Power Off Failure
+
+If a rumbler _fail_ and red LED is displayed after powering the device off, the RPi failed to signal safe shutdown in time. The device is now off.  
+
+### Forced on mode
+
+Powering the device on with _Home_ and _Select_ buttons both pressed until the _ok_ rumbler signal will enable a forced on mode, in which case the brightness is immediately turned on and all power-on timeouts are disabled so that the state of the device on display can be observed. 
