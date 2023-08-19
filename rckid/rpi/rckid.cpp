@@ -153,6 +153,14 @@ void RCKid::processDriverEvent(DriverEvent e) {
             buttonTick(btnDpadDown_);
             buttonTick(btnJoy_);
             buttonTick(btnHome_);
+            buttonTick(btnJoyUp_);
+            buttonTick(btnJoyDown_);
+            buttonTick(btnJoyLeft_);
+            buttonTick(btnJoyRight_);
+            buttonTick(btnAccelUp_);
+            buttonTick(btnAccelDown_);
+            buttonTick(btnAccelLeft_);
+            buttonTick(btnAccelRight_);
             // only query the accell and photores status when we are not recording to keep the I2C fully for the audio recorder
             if (!state_.status.recording()) {
                 queryAccelStatus();
@@ -396,12 +404,11 @@ void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
     bool report = false;
     if (joyX_.update(controls.joyH())) {
         if (joyAsButtons_) {
-            bool state = analogButtonState(state_.controls.joyH(), controls.joyH(), 128 - ANALOG_BUTTON_THRESHOLD_ON, 128 - ANALOG_BUTTON_THRESHOLD_OFF);
-            if (btnJoyLeft_.update(state))
-                buttonAction(btnJoyLeft_);
-            state = analogButtonState(state_.controls.joyH(), controls.joyH(), 128 + ANALOG_BUTTON_THRESHOLD_ON, 128 + ANALOG_BUTTON_THRESHOLD_OFF);
-            if (btnJoyRight_.update(state))
-                buttonAction(btnJoyRight_);
+            AnalogButtonState bState{axisAsButton(controls.joyH(), ANALOG_BUTTON_THRESHOLD_OFF)};
+            if (btnJoyLeft_.update(bState == AnalogButtonState::Low))
+                buttonAction(btnJoyLeft_, true);
+            if (btnJoyRight_.update(bState == AnalogButtonState::High))
+                buttonAction(btnJoyRight_, true);
         } else {
             report = true;
             axisAction(joyX_, true);
@@ -410,12 +417,11 @@ void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
     }
     if (joyY_.update(controls.joyV())) {
         if (joyAsButtons_) {
-            bool state = analogButtonState(state_.controls.joyV(), controls.joyV(), 128 - ANALOG_BUTTON_THRESHOLD_ON, 128 - ANALOG_BUTTON_THRESHOLD_OFF);
-            if (btnJoyUp_.update(state))
-                buttonAction(btnJoyUp_);
-            state = analogButtonState(state_.controls.joyV(), controls.joyV(), 128 + ANALOG_BUTTON_THRESHOLD_ON, 128 + ANALOG_BUTTON_THRESHOLD_OFF);
-            if (btnJoyDown_.update(state))
-                buttonAction(btnJoyDown_);
+            AnalogButtonState bState{axisAsButton(controls.joyV(), ANALOG_BUTTON_THRESHOLD_OFF)};
+            if (btnJoyUp_.update(bState == AnalogButtonState::Low))
+                buttonAction(btnJoyUp_, true);
+            if (btnJoyDown_.update(bState == AnalogButtonState::High))
+                buttonAction(btnJoyDown_, true);
         } else {
             report = true;
             axisAction(joyY_, true);
@@ -474,29 +480,25 @@ void RCKid::queryAccelStatus() {
     uint8_t x = accelTo1GUnsigned(-d.x);
     uint8_t y = accelTo1GUnsigned(-d.y);
     bool report = false;
-    uint8_t last = accelX_.actualValue;
     if (accelX_.update(x)) {
         if (accelAsButtons_) {
-            bool state = analogButtonState(last, x, 128 - ANALOG_BUTTON_THRESHOLD_ON, 128 - ANALOG_BUTTON_THRESHOLD_OFF);
-            if (btnAccelLeft_.update(state))
-                buttonAction(btnAccelLeft_);
-            state = analogButtonState(last, x, 128 + ANALOG_BUTTON_THRESHOLD_ON, 128 + ANALOG_BUTTON_THRESHOLD_OFF);
-            if (btnAccelRight_.update(state))
-                buttonAction(btnAccelRight_);
+            AnalogButtonState bState{axisAsButton(x, ANALOG_BUTTON_THRESHOLD_OFF)};
+            if (btnAccelUp_.update(bState == AnalogButtonState::Low))
+                buttonAction(btnAccelUp_, true);
+            if (btnAccelDown_.update(bState == AnalogButtonState::High))
+                buttonAction(btnAccelDown_, true);
         } else {
             report = true;
             axisAction(accelX_);
         }
     }
-    last = accelY_.actualValue;
     if (accelY_.update(y)) {
         if (accelAsButtons_) {
-            bool state = analogButtonState(last, y, 128 - ANALOG_BUTTON_THRESHOLD_ON, 128 - ANALOG_BUTTON_THRESHOLD_OFF);
-            if (btnAccelUp_.update(state))
-                buttonAction(btnAccelUp_);
-            state = analogButtonState(last, y, 128 + ANALOG_BUTTON_THRESHOLD_ON, 128 + ANALOG_BUTTON_THRESHOLD_OFF);
-            if (btnAccelDown_.update(state))
-                buttonAction(btnAccelDown_);
+            AnalogButtonState bState{axisAsButton(y, ANALOG_BUTTON_THRESHOLD_OFF)};
+            if (btnAccelRight_.update(bState == AnalogButtonState::Low))
+                buttonAction(btnAccelRight_, true);
+            if (btnAccelLeft_.update(bState == AnalogButtonState::High))
+                buttonAction(btnAccelLeft_, true);
         } else {
             report = true;
             axisAction(accelY_);

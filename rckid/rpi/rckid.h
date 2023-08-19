@@ -509,12 +509,19 @@ private:
         // note we can't send the ui event since the ui events are handled differently (thumb vs accel)
     }
 
-    bool analogButtonState(uint8_t last, uint8_t value, uint8_t tOn, uint8_t tOff) {
-        if (value >= tOn)
-            return true;
-        if (last >= tOff && value >= tOff)
-            return true;
-        return false;
+    enum class AnalogButtonState {
+        None, 
+        Low, 
+        High,
+    };
+
+    AnalogButtonState axisAsButton(uint8_t value, uint8_t d) {
+        AnalogButtonState result{AnalogButtonState::None};
+        if (value > 128 + d)
+            result = AnalogButtonState::High;
+        if (value < 128 - d)
+            result = AnalogButtonState::Low;
+        return result;
     }
 
     /** Hardware events sent to the driver's thread main loop from other threads. */
@@ -539,7 +546,7 @@ private:
     struct libevdev_uinput * gamepad_{nullptr};
     bool gamepadActive_{false}; // protected by mState_
     bool joyAsButtons_{true}; 
-    bool accelAsButtons_{true};
+    bool accelAsButtons_{false};
 
     ButtonState btnA_{Button::A, BTN_EAST};
     ButtonState btnB_{Button::B, BTN_SOUTH};

@@ -1,7 +1,6 @@
 > This is the high-level plan on tasks, prioritized, to make the RCKid ready for xmas:
 
 - design the bottom and top frames around the pcb and test print the stack
-- add AVR basics (charging, thumbstick reporting)
 - add rckid basics (proper header, hearts & configuration and settings)
 - print ASA enclosures - ASA samples from here (it actually glows in the dark even): https://www.na3d.cz/p/2621/vzorek-fiber3d-asa-svitici-ve-tme-175-mm-10-m?variant[117]=1071
 - order plexiglass covers (https://plasticexpress.cz/)
@@ -31,11 +30,6 @@
 
 - battery on: 9:30
 - charging: 9:45 - 11:22
-
-
-# Bugs to be fixed
-
-- initial volume setting is weird (80000)
 
 > Currently in progress/working on. All projects combined. When removing from here make sure to check the sections below for long term items and remove them as needed. 
 
@@ -78,10 +72,9 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 ## RCKid RPi
 
 - game player menu implementation (load/save, etc.)
-- torchlight widget
+- torchlight widget (?)
 - walkie talkie widget
 - photores
-- tumbstick as dpad
 
 ## RCKid RPi - SDCard
 
