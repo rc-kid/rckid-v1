@@ -38,7 +38,6 @@ RCKid::RCKid() {
             state_.status.setMode(comms::Mode::On);
             processAvrStatus(state_.status, true);
         }
-        setBrightness(255);
         while (!shouldTerminate_.load()) {
             DriverEvent e = driverEvents_.waitReceive();
             processDriverEvent(e);
@@ -106,7 +105,8 @@ std::optional<Event> RCKid::nextEvent() {
 }
 
 void RCKid::powerOff() {
-    TraceLog(LOG_INFO, "Power down initiated from RPi");
+    TraceLog(LOG_INFO, "Power down initiated");
+    writePersistentState();
     driverEvents_.send(msg::PowerDown{});
 }
 
@@ -335,9 +335,35 @@ void RCKid::initializeAvr() {
         system("sudo poweroff");
         exit(EXIT_SUCCESS);
     }
+    // get the persistent state
+    readPersistentState();
+    // update brightness and volume
+    setBrightness(pState_.brightness);
+    setVolume(pState_.volume);
     // attach the interrupt
     gpio::inputPullup(PIN_AVR_IRQ);
     gpio::attachInterrupt(PIN_AVR_IRQ, gpio::Edge::Falling, & isrAvrIrq);
+}
+
+void RCKid::readPersistentState() {
+    i2c::transmit(AVR_I2C_ADDRESS, & msg::GetPersistentState::ID, 1, nullptr, 0);
+    uint8_t buf[sizeof(comms::PersistentState) + 1];
+    i2c::transmit(AVR_I2C_ADDRESS, nullptr, 0, buf, sizeof(buf));
+    comms::PersistentState * pState = reinterpret_cast<comms::PersistentState*>(buf + 1);
+    TraceLog(LOG_INFO, "Persistent state from AVR:");
+    TraceLog(LOG_INFO, STR("alarm:"));
+    TraceLog(LOG_INFO, STR("brightness: " << (int) pState->brightness));
+    TraceLog(LOG_INFO, STR("volume:     " << (int) pState->volume));
+    TraceLog(LOG_INFO, STR("hearts:     " << (int) pState->hearts));
+    TraceLog(LOG_INFO, STR("joyHMin:    " << (int) pState->joyHMin));
+    TraceLog(LOG_INFO, STR("joyHMax:    " << (int) pState->joyHMax));
+    TraceLog(LOG_INFO, STR("joyVMin:    " << (int) pState->joyVMin));
+    TraceLog(LOG_INFO, STR("joyVMax:    " << (int) pState->joyVMax));
+    pState_ = *pState;
+}
+
+void RCKid::writePersistentState() {
+    driverEvents_.send(msg::SetPersistentState{pState_});
 }
 
 void RCKid::processAvrStatus(comms::Status status, bool alreadyLocked) {
@@ -404,7 +430,7 @@ void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
     bool report = false;
     if (joyX_.update(controls.joyH())) {
         if (joyAsButtons_) {
-            AnalogButtonState bState{axisAsButton(controls.joyH(), ANALOG_BUTTON_THRESHOLD_OFF)};
+            AnalogButtonState bState{axisAsButton(controls.joyH(), ANALOG_BUTTON_THRESHOLD)};
             if (btnJoyLeft_.update(bState == AnalogButtonState::Low))
                 buttonAction(btnJoyLeft_, true);
             if (btnJoyRight_.update(bState == AnalogButtonState::High))
@@ -417,7 +443,7 @@ void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
     }
     if (joyY_.update(controls.joyV())) {
         if (joyAsButtons_) {
-            AnalogButtonState bState{axisAsButton(controls.joyV(), ANALOG_BUTTON_THRESHOLD_OFF)};
+            AnalogButtonState bState{axisAsButton(controls.joyV(), ANALOG_BUTTON_THRESHOLD)};
             if (btnJoyUp_.update(bState == AnalogButtonState::Low))
                 buttonAction(btnJoyUp_, true);
             if (btnJoyDown_.update(bState == AnalogButtonState::High))
@@ -482,7 +508,7 @@ void RCKid::queryAccelStatus() {
     bool report = false;
     if (accelX_.update(x)) {
         if (accelAsButtons_) {
-            AnalogButtonState bState{axisAsButton(x, ANALOG_BUTTON_THRESHOLD_OFF)};
+            AnalogButtonState bState{axisAsButton(x, ANALOG_BUTTON_THRESHOLD)};
             if (btnAccelUp_.update(bState == AnalogButtonState::Low))
                 buttonAction(btnAccelUp_, true);
             if (btnAccelDown_.update(bState == AnalogButtonState::High))
@@ -494,7 +520,7 @@ void RCKid::queryAccelStatus() {
     }
     if (accelY_.update(y)) {
         if (accelAsButtons_) {
-            AnalogButtonState bState{axisAsButton(y, ANALOG_BUTTON_THRESHOLD_OFF)};
+            AnalogButtonState bState{axisAsButton(y, ANALOG_BUTTON_THRESHOLD)};
             if (btnAccelRight_.update(bState == AnalogButtonState::Low))
                 buttonAction(btnAccelRight_, true);
             if (btnAccelLeft_.update(bState == AnalogButtonState::High))

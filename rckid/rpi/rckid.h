@@ -509,6 +509,10 @@ private:
         // note we can't send the ui event since the ui events are handled differently (thumb vs accel)
     }
 
+    void readPersistentState();
+
+    void writePersistentState();
+
     enum class AnalogButtonState {
         None, 
         Low, 

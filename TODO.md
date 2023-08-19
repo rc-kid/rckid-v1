@@ -7,7 +7,6 @@
 - test build the assembly
 - strip down in-game menu to barebones
 - add walkie-talkie and test it
-- add persistent state load / store from RPi Tp AVR
 
 > At this point, I'll have a barebones, but working rckid that can play some games, play music & video and act as walkie talkie. This can be presented as xmas gift. Then there are two things I can do:
 
@@ -63,6 +62,7 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 - move USB port a bit higher
 - center the light's hole better
 - maybe go all the way top/bottom with transparent ribbon for better visibility? 
+- is the joystick centered? 
 
 ## RCKid AVR
 
