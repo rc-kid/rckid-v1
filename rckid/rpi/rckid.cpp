@@ -113,6 +113,8 @@ void RCKid::powerOff() {
 void RCKid::startAudioRecording() {
     TraceLog(LOG_DEBUG, "Recording start");
     driverEvents_.send(msg::StartAudioRecording{});
+    // notify the main thread that there has been a state change (amongst other things refreshes the header)
+    uiEvents_.send(StateChangeEvent{});
 #if (defined ARCH_MOCK)
     mockRecBatch_ = 0;
     mockRecording_ = true;
@@ -122,12 +124,12 @@ void RCKid::startAudioRecording() {
 void RCKid::stopAudioRecording() {
     TraceLog(LOG_DEBUG, "Recording stopped");
     driverEvents_.send(msg::StopAudioRecording{}); 
+    // notify the main thread that there has been a state change (amongst other things refreshes the header)
+    uiEvents_.send(StateChangeEvent{});
 #if (defined ARCH_MOCK)
     mockRecording_ = false;
 #endif
 }
-
-
 
 void RCKid::processDriverEvent(DriverEvent e) {
     std::visit(overloaded{
@@ -254,8 +256,12 @@ void RCKid::processDriverEvent(DriverEvent e) {
                     break;
             }
             nrfTx_ = false;
-            std::lock_guard<std::mutex> g{mRadio_};
-            nrfState_ = e;
+            {
+                std::lock_guard<std::mutex> g{mRadio_};
+                nrfState_ = e;
+            }
+            // notify the main thread that there has been a state change (amongst other things refreshes the header)
+            uiEvents_.send(StateChangeEvent{});
         }, 
         [this](NRFTransmit e) {
             nrfTx_ = true;
@@ -266,13 +272,16 @@ void RCKid::processDriverEvent(DriverEvent e) {
             nrf_.transmit(p.packet, 32);
             nrf_.enableTransmitter();
         },
+        // immediate transmit
         [this](NRFPacket e) {
+            nrfTx_ = true;
             nrf_.transmit(e.packet, 32);
             nrf_.enablePolledTransmitter();
             NRF24L01::Status status = nrf_.clearTxIrqs();
             while (!status.txDataSentIrq() && !status.txDataFailIrq())
                 status = nrf_.clearTxIrqs();
             nrf_.enableReceiver();
+            nrfTx_ = false;            
             // send UI confirmation
             uiEvents_.send(NRFTxEvent{});
             // if there is tx irq, process it (means we have received a message while transmitting and enabling the receiver
@@ -417,8 +426,6 @@ void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
         uiEvents_.send(JoyEvent{joyX_.reportedValue, joyY_.reportedValue});
 }
 
-
-
 void RCKid::processAvrExtendedState(comms::ExtendedState & state, bool alreadyLocked) {
     utils::cond_lock_guard g{mState_, alreadyLocked};
     bool report = false;
@@ -434,6 +441,9 @@ void RCKid::processAvrExtendedState(comms::ExtendedState & state, bool alreadyLo
         report = true;
         state_.einfo.setTemp(state.einfo.temp());
     }
+    // simply copy the time and uptime, we mostly use them for debugging purposes
+    state_.uptime = state.uptime;
+    state_.time = state.time;
     // TODO process the rest 
     if (report)
         uiEvents_.send(StateChangeEvent{});

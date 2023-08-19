@@ -620,18 +620,20 @@ void Window::drawHeader() {
         x -= 20;
         canvas_->drawText(x, 0, "󰋋", WHITE);    
     }
+    // if inside home menu, show detailed information (percentage)
     if (homeMenu_->onNavStack()) {
         std::string vol = STR(rckid().volume());
         x -= canvas_->textWidth(vol, canvas_->helpFont()) + 5;
         canvas_->drawText(x - 3, 2, vol, GRAY, canvas_->helpFont());
     }
+    // always show the volume icon
     x -= 20;
-    if (rckid().volume() == 0)
+    if (rckid().volume() == 0) 
         canvas_->drawText(x, 0, "󰸈", RED);
-    else if (rckid().volume() < 6)
-        canvas_->drawText(x, 0, "󰕿", BLUE);
-    else if (rckid().volume() < 12)
-        canvas_->drawText(x, 0, "󰖀", BLUE);
+    else if (rckid().volume() <= 30)
+        canvas_->drawText(x, 0, "󰕿", DARKGREEN);
+    else if (rckid().volume() < 70)
+        canvas_->drawText(x, 0, "󰖀", GREEN);
     else
         canvas_->drawText(x, 0, "󰕾", ORANGE);
     // WiFi

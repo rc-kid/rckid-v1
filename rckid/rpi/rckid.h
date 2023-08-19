@@ -246,6 +246,8 @@ public:
             value = AUDIO_MAX_VOLUME;
         pState_.volume = value;
         system(STR("amixer sset -q Headphone -M " << value << "%").c_str());
+        // notify the main thread that there has been a state change (amongst other things refreshes the header)
+        uiEvents_.send(StateChangeEvent{});
     }
 
     void startAudioRecording();
@@ -302,7 +304,7 @@ public:
 
     NRFState nrfState() const {
         std::lock_guard<std::mutex> g{mRadio_};
-        return nrfState_;
+        return nrfTx_ ? NRFState::Tx : nrfState_;
     }
 
     //@}

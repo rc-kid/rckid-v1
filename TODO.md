@@ -27,6 +27,12 @@
 - samba
 - wifi settings
 
+# Things to check
+
+- battery on: 9:30
+- charging: 9:45 - 11:22
+
+
 # Bugs to be fixed
 
 - initial volume setting is weird (80000)
@@ -35,8 +41,6 @@
 
 https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 
-- battery on: 9:30
-- charging: 9:45 - 11:22
 
 - change icon can be done by having all images under one root and that way items can be selected from the pics easily
 - rename via keyboard ofc
@@ -57,6 +61,14 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 > TODOs for the various projects that RCkid consists of. Each project has its own todo list.
 
 ## RCKid PCB & Case
+
+- make the bottom taller to remove the 0.1mm gap between top and bottom pieces
+- make them lock better together, maybe bottom smaller to fit nicely in the case
+- can the PCB with joystick soldered on be slided into the case? 
+- enlarge the headphone jack a bit
+- move USB port a bit higher
+- center the light's hole better
+- maybe go all the way top/bottom with transparent ribbon for better visibility? 
 
 ## RCKid AVR
 
@@ -112,6 +124,8 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 - samba on demand? etc.
 - webserver from the app - see https://github.com/yhirose/cpp-httplib ?
 - telegram remote control 
+
+- allow games to set the accelerometer or joystick as different buttons
 
 ## Raylib 
 
