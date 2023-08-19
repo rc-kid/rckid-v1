@@ -21,6 +21,10 @@
 
 #define CHARGING_COLOR Color::RGB(0, 64, 0)
 
+#define ANALOG_BUTTON_THRESHOLD_ON 64
+
+#define ANALOG_BUTTON_THRESHOLD_OFF 32
+
 
 /** Debounce interval for the buttons on RPI side in ticks (10ms). 
  */

@@ -382,25 +382,42 @@ void RCKid::processAvrControls(comms::Controls controls, bool alreadyLocked) {
         if (btnHome_.update(state_.controls.home()))
             buttonAction(btnHome_, true);
     }
+
     // joystick reading
     bool report = false;
     if (joyX_.update(controls.joyH())) {
-        state_.controls.setJoyH(controls.joyH());
-        if (joyX_.update(controls.joyH())) {
+        if (joyAsButtons_) {
+            bool state = analogButtonState(state_.controls.joyH(), controls.joyH(), 128 - ANALOG_BUTTON_THRESHOLD_ON, 128 - ANALOG_BUTTON_THRESHOLD_OFF);
+            if (btnJoyLeft_.update(state))
+                buttonAction(btnJoyLeft_);
+            state = analogButtonState(state_.controls.joyH(), controls.joyH(), 128 + ANALOG_BUTTON_THRESHOLD_ON, 128 + ANALOG_BUTTON_THRESHOLD_OFF);
+            if (btnJoyRight_.update(state))
+                buttonAction(btnJoyRight_);
+        } else {
             report = true;
             axisAction(joyX_, true);
         }
+        state_.controls.setJoyH(controls.joyH());
     }
     if (joyY_.update(controls.joyV())) {
-        state_.controls.setJoyV(controls.joyV());
-        if (joyY_.update(controls.joyV())) {
+        if (joyAsButtons_) {
+            bool state = analogButtonState(state_.controls.joyV(), controls.joyV(), 128 - ANALOG_BUTTON_THRESHOLD_ON, 128 - ANALOG_BUTTON_THRESHOLD_OFF);
+            if (btnJoyUp_.update(state))
+                buttonAction(btnJoyUp_);
+            state = analogButtonState(state_.controls.joyV(), controls.joyV(), 128 + ANALOG_BUTTON_THRESHOLD_ON, 128 + ANALOG_BUTTON_THRESHOLD_OFF);
+            if (btnJoyDown_.update(state))
+                buttonAction(btnJoyDown_);
+        } else {
             report = true;
             axisAction(joyY_, true);
         }
+        state_.controls.setJoyV(controls.joyV());
     }
     if (report)
         uiEvents_.send(JoyEvent{joyX_.reportedValue, joyY_.reportedValue});
 }
+
+
 
 void RCKid::processAvrExtendedState(comms::ExtendedState & state, bool alreadyLocked) {
     utils::cond_lock_guard g{mState_, alreadyLocked};
@@ -447,13 +464,33 @@ void RCKid::queryAccelStatus() {
     uint8_t x = accelTo1GUnsigned(-d.x);
     uint8_t y = accelTo1GUnsigned(-d.y);
     bool report = false;
+    uint8_t last = accelX_.actualValue;
     if (accelX_.update(x)) {
-        report = true;
-        axisAction(accelX_);
+        if (accelAsButtons_) {
+            bool state = analogButtonState(last, x, 128 - ANALOG_BUTTON_THRESHOLD_ON, 128 - ANALOG_BUTTON_THRESHOLD_OFF);
+            if (btnAccelLeft_.update(state))
+                buttonAction(btnAccelLeft_);
+            state = analogButtonState(last, x, 128 + ANALOG_BUTTON_THRESHOLD_ON, 128 + ANALOG_BUTTON_THRESHOLD_OFF);
+            if (btnAccelRight_.update(state))
+                buttonAction(btnAccelRight_);
+        } else {
+            report = true;
+            axisAction(accelX_);
+        }
     }
+    last = accelY_.actualValue;
     if (accelY_.update(y)) {
-        report = true;
-        axisAction(accelY_);
+        if (accelAsButtons_) {
+            bool state = analogButtonState(last, y, 128 - ANALOG_BUTTON_THRESHOLD_ON, 128 - ANALOG_BUTTON_THRESHOLD_OFF);
+            if (btnAccelUp_.update(state))
+                buttonAction(btnAccelUp_);
+            state = analogButtonState(last, y, 128 + ANALOG_BUTTON_THRESHOLD_ON, 128 + ANALOG_BUTTON_THRESHOLD_OFF);
+            if (btnAccelDown_.update(state))
+                buttonAction(btnAccelDown_);
+        } else {
+            report = true;
+            axisAction(accelY_);
+        }
     }
     if (accelTemp_ != t) {
         std::lock_guard<std::mutex> g{mState_};

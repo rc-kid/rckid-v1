@@ -42,7 +42,6 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 - rename via keyboard ofc
 
 - allow configurable item action for items (not folders)
-- unresponsive-ish buttons on the device in low FPS? (!!!!!!!) -- not an issue anymore it seems
 
 - repairing after connection lost does not work (channel & name is different) Add a pairing timeout on the device and wait for pairing indefinitely on the rckid side
 
@@ -53,7 +52,6 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 - buy some more NRFs (not the cheapest ones)
 - https://martybugs.net/wireless/rubberducky.cgi -- site that seems to have decent info on antennas
 - better 3.0V LDO (cleaner, higher voltage better for mic & speed, such as https://cz.mouser.com/ProductDetail/Texas-Instruments/TPS7A2030PDBVR?qs=hd1VzrDQEGgZMtQinkbhYw%3D%3D)
-- 5pin 0.5mm pitch connector (https://cz.mouser.com/ProductDetail/Molex/505278-0533?qs=c8NFF48pVsCY0CQNgl3Xjw%3D%3D or https://cz.mouser.com/ProductDetail/Molex/505110-0592?qs=RawsiUxJOFR577kELw3Dww%3D%3D)
 - buy extra RPi Zero 2W's (2-3), that way I have parts to build almost 6 RCKids (modulo joysticks)
 
 > TODOs for the various projects that RCkid consists of. Each project has its own todo list.
@@ -64,8 +62,6 @@ https://plasticexpress.cz/configurator/1-plexisklo-ir-/2-extrudovan-/3-1-5-mm
 
 - add LED effects
 - rumbler effects
-- joystick calibration (maybe do this in RPi instead together with the accel?) 
-- ensure home button long press cannot be spurious (either in SW, or button with more force?) -- is this an issue still? 
 
 ## RCKid RPi
 

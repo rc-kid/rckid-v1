@@ -209,6 +209,13 @@ public:
 
     void keyPress(int key, bool state) { driverEvents_.send(KeyPress{key, state}); }
 
+    bool joyAsButtons() const { std::lock_guard<std::mutex> g{mState_}; return joyAsButtons_; }
+
+    void setJoyAsButtons(bool value) { std::lock_guard<std::mutex> g{mState_}; joyAsButtons_ = value;}
+
+    bool accelAsButtons() const { std::lock_guard<std::mutex> g{mState_}; return accelAsButtons_; }
+
+    void setAccelAsButtons(bool value) { std::lock_guard<std::mutex> g{mState_}; accelAsButtons_ = value;}
     //@}
 
 
@@ -345,7 +352,6 @@ private:
     struct HeadphonesIrq { bool value; };
     struct ButtonIrq { ButtonState & btn; bool state; };
     struct KeyPress{ int key; bool state; };
-
 
     struct NRFInitialize{ 
         char rxAddr[5]; 
@@ -501,6 +507,14 @@ private:
         // note we can't send the ui event since the ui events are handled differently (thumb vs accel)
     }
 
+    bool analogButtonState(uint8_t last, uint8_t value, uint8_t tOn, uint8_t tOff) {
+        if (value >= tOn)
+            return true;
+        if (last >= tOff && value >= tOff)
+            return true;
+        return false;
+    }
+
     /** Hardware events sent to the driver's thread main loop from other threads. */
     EventQueue<DriverEvent> driverEvents_;
 
@@ -522,6 +536,8 @@ private:
     struct libevdev * gamepadDev_{nullptr};
     struct libevdev_uinput * gamepad_{nullptr};
     bool gamepadActive_{false}; // protected by mState_
+    bool joyAsButtons_{true}; 
+    bool accelAsButtons_{true};
 
     ButtonState btnA_{Button::A, BTN_EAST};
     ButtonState btnB_{Button::B, BTN_SOUTH};
@@ -537,6 +553,18 @@ private:
     ButtonState btnDpadLeft_{Button::Left, ABS_HAT0X, -1};
     ButtonState btnDpadRight_{Button::Right, ABS_HAT0X, 1};
     ButtonState btnJoy_{Button::Joy, BTN_THUMBL};
+    
+    // virtual buttons used for the joystick
+    ButtonState btnJoyUp_{Button::Up, ABS_HAT0Y, -1};
+    ButtonState btnJoyDown_{Button::Down, ABS_HAT0Y, 1};
+    ButtonState btnJoyLeft_{Button::Left, ABS_HAT0X, -1};
+    ButtonState btnJoyRight_{Button::Right, ABS_HAT0X, 1};
+
+    // virtual buttons for accelerometer 
+    ButtonState btnAccelUp_{Button::Up, ABS_HAT0Y, -1};
+    ButtonState btnAccelDown_{Button::Down, ABS_HAT0Y, 1};
+    ButtonState btnAccelLeft_{Button::Left, ABS_HAT0X, -1};
+    ButtonState btnAccelRight_{Button::Right, ABS_HAT0X, 1};
 
     AxisState joyX_{ABS_X};
     AxisState joyY_{ABS_Y};

@@ -334,6 +334,11 @@ namespace comms {
         uint8_t brightness{128};
         uint8_t volume{50};
         uint16_t hearts{630};
+        // joystick calibration - min and max raw values for the horizontal and vertical axes
+        uint8_t joyHMin{49};
+        uint8_t joyHMax{215};
+        uint8_t joyVMin{59};
+        uint8_t joyVMax{225};
     } __attribute__((packed)); // comms::PersistentState
 
     static_assert(sizeof(PersistentState) <= 31); // needs to be 31 so that we can have it as arg to message when saving to AVR (1 byte taken up by the msg id)

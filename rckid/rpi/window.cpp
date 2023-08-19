@@ -672,7 +672,7 @@ void Window::drawHeader() {
 
 void Window::drawBatteryGauge(int & x, uint16_t vbatt) {
     // since the valid battery level is anything from 3.3 to 4.3 volts, getting percentage is super easy
-    size_t vpct = vbatt <= 330 ? 0 : (vbatt >= 430) ? 100 : vbatt - 330;
+    size_t vpct = vbatt <= 330 ? 0 : (vbatt >= 420) ? 100 : (vbatt - 330) * 100 / 90;
     // the battery level and percentage
     if (homeMenu_->onNavStack()) {
         std::string pct = STR(vpct << "%");

@@ -358,7 +358,8 @@ public:
                     ADC0.MUXPOS = ADC_MUXPOS_AIN10_gc;
                     ADC0.COMMAND = ADC_STCONV_bm;
                     while (! (ADC0.INTFLAGS & ADC_RESRDY_bm));
-                    bool charging = ((ADC0.RES >> 2) && 0xff) < 64;
+                    // 64 accumulate, 2 from 10 to 8bits resolution
+                    bool charging = (((ADC0.RES / 64) >> 2) & 0xff) < 64;
                     rgb_[0] = charging ? Color::RGB(0, 0, 32) : Color::RGB(0, 32, 0);
                     rgb_.update();
                 } else {
@@ -425,6 +426,8 @@ public:
             case Mode::Sleep:
                 break;
             case Mode::WakeUp:
+                // turn off RGB just to be on the safe side
+                rgbOff();
                 // clear flags so that there are no leftovers from previous run
                 flags_.irq = false;
                 flags_.i2cReady = false;
@@ -905,12 +908,12 @@ public:
                 break;
             // JOY_V 
             case ADC_MUXPOS_AIN8_gc:
-                value = (value >> 2) & 0xff;
+                value = adjustJoystickValue(value, pState_.joyVMin, pState_.joyVMax);
                 flags_.irq = state_.controls.setJoyV(value) | flags_.irq;
                 break;
             // JOY_H 
             case ADC_MUXPOS_AIN9_gc:
-                value = (value >> 2) & 0xff;
+                value = adjustJoystickValue(value, pState_.joyHMin, pState_.joyHMax);
                 flags_.irq = state_.controls.setJoyH(value) | flags_.irq;
                 return true;
         }
@@ -933,6 +936,17 @@ public:
         if (raw <= 198)
             return 0b01;
         return 0;
+    }
+
+    /** Adjusts the joystick axis value - since the joystick is powered by 3V3, but measured using the VCC, its value needs to be scaled appropriately. 
+     */
+    static uint8_t adjustJoystickValue(uint32_t value, uint8_t min, uint8_t max) {
+        value = value * state_.einfo.vcc() / 132;
+        value = (value > min * 10) ? value - min * 10 : 0;
+        uint16_t scale = (max - min) * 10;
+        value = (value > scale) ? scale : value;
+        value = value * 255 / scale; 
+        return value > 255 ? 255 : static_cast<uint8_t>(value);
     }
 
     //@}
@@ -1077,6 +1091,9 @@ public:
     static void rgbOff() {
         gpio::input(RGB_EN);
         gpio::input(RGB);
+        // clear the effect
+        rgbTarget_[0] = Color::Black();
+        rgb_[0] = Color::Black();
     }
 
     static void showColor(Color c) {
