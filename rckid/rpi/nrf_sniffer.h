@@ -15,7 +15,7 @@ protected:
 
     void draw(Canvas & c) override {
         BeginBlendMode(BLEND_ADD_COLORS);
-        c.drawText(0, 200, STR("TX: " << tx_ << " RX: " << rx_), WHITE);
+        c.drawText(0, 200, STR("TX: " << tx_ << " RX: " << rx_ << " /s: " << packetsPerLastSecond_), WHITE);
         c.setFont(c.helpFont());
         for (size_t i = 0; i < msgs_.size(); ++i) {
             size_t id = (rx_ - msgs_.size() + i) % 1000;
@@ -34,6 +34,8 @@ protected:
     }
 
     void onNavigationPush() override {
+        lastSecond_ = now();
+        packetsPerSecond_ = 0;
 
         rckid().nrfInitialize(rxAddr_.c_str(), txAddr_.c_str(), channel_);
         rckid().nrfEnableReceiver();
@@ -72,8 +74,17 @@ protected:
     void nrfPacketReceived(NRFPacketEvent & e) override {
         ++rx_;
         msgs_.push_back(Message{e.packet});
-        while (msgs_.size() > 8)
+        while (msgs_.size() > 8) {
+            ++ packetsPerSecond_;
             msgs_.pop_front();
+        }
+        Timepoint t = now();
+
+        if (asMillis(t - lastSecond_) >= 1000 ) {
+            lastSecond_ = t;
+            packetsPerLastSecond_ = packetsPerSecond_;
+            packetsPerSecond_ = 0;
+        }
     }
 
 private:
@@ -106,6 +117,9 @@ private:
     uint8_t channel_ = 86;
     size_t rx_ = 0;
     size_t tx_ = 0;
+    size_t packetsPerSecond_ = 0;
+    size_t packetsPerLastSecond_ = 0;
+    Timepoint lastSecond_;
 
     std::deque<Message> msgs_;
 
