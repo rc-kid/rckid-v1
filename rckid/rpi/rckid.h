@@ -283,9 +283,11 @@ public:
 
     /** Transmits a message. If used in received mode, briefly stops the receiver, enters the transmitter mode and then transmits the message, returning to receiver mode afterwards. 
      */
-    void nrfTransmit(uint8_t const * packet, uint8_t length = 32) {
+    template<typename T>
+    void nrfTransmit(T const * packet, uint8_t length = 32) {
+        uint8_t const * buffer = reinterpret_cast<uint8_t const *>(packet);
         std::lock_guard<std::mutex> g{mRadio_};
-        nrfTxQueue_.push_back(NRFPacket{packet, length});
+        nrfTxQueue_.push_back(NRFPacket{buffer, length});
         // if we are the first in the queue, we need to notify the driver thread to start sending
         if (nrfTxQueue_.size() == 1)
             driverEvents_.send(NRFTransmit{});

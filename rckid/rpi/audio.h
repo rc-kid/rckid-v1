@@ -18,12 +18,12 @@ class Window;
 class AudioVisualizer {
 public:
 
-    AudioVisualizer(size_t sampleRate, size_t numBars = 30, size_t time = 1):
+    AudioVisualizer(size_t sampleRate, size_t numBars = 30, float time = 1):
         mins_{ new uint8_t[numBars]},
         maxs_{ new uint8_t[numBars]},
         pos_{0},
         numBars_{numBars},
-        maxBufferSize_{sampleRate * time / numBars} {
+        maxBufferSize_{static_cast<size_t>(sampleRate * time / numBars)} {
             reset();
     }
 
@@ -63,7 +63,7 @@ public:
 
     /** Draws the visualized audio using current draw settings. 
      */
-    void draw(int left, int top, int width, int height);
+    void draw(Canvas & c, int left, int top, int width, int height);
 
 private:
 

@@ -189,6 +189,15 @@ public:
     Font const & font() const { return font_; }
     //@}
 
+    /** \name Blending. 
+     */
+    void blendAlpha() {
+        BeginBlendMode(BLEND_ALPHA);
+    }
+
+    void blendAdditive() {
+        BeginBlendMode(BLEND_ADDITIVE);
+    }
 
     /** \name Texture drawing support. 
      */

@@ -10,6 +10,12 @@
  
     A simple NRF24L01 based walkie talkie. The primary purpose of the walkie talkie is to send and receive real-time raw opus encoded audio (no headers) similar to a PTT walkie-talkie.  
 
+    000 = PTT data
+    ... = reserved
+    111 = Control messages
+
+
+
     ! Have images as well
 
     000xxxxx yyyyyyyy = opus data packet, x = packet size, y = packet index
@@ -38,10 +44,16 @@ public:
 
 protected:
 
+    enum class Mode {
+        Listening, 
+        Recording, 
+        Playing,
+    }; 
+
     void tick() override {
         if (tHeartbeat_.update()) {
             tHeartbeat_.startRandom(WALKIE_TALKIE_HEARTBEAT_INTERVAL_MIN, WALKIE_TALKIE_HEARTBEAT_INTERVAL_MAX);
-            if (!recording_ && !receiving_) {
+            if (mode_ == Mode::Listening) {
                 uint8_t packet[32];
                 new (packet) Heartbeat{heartbeatIndex_++, name_};
                 rckid().nrfTransmit(packet);
@@ -49,55 +61,87 @@ protected:
         }
     }
 
-    void draw(Canvas &) override {
-        if (recording_) {
-            avis_.draw(10, 150, 300, 70);
-            DrawRectangleLines(10, 150, 300, 70, WHITE);
+    void draw(Canvas & c) override {
+        c.drawTexture(0, 20, icon_);
+        c.drawText(70, 25, name_, WHITE, c.titleFont());
+        switch (mode_) {
+            case Mode::Listening: {
+                c.drawTexture(25, 100, friends_);
+                int y = 105;
+                for (auto & i : conns_) {
+                    size_t q = i.second.quality();
+                    c.drawText(70, y, STR(i.first << " (" << q << "%)"), LIGHTGRAY, c.defaultFont());
+                    y += c.defaultFont().size();
+                }
+                break;
+            }
+            case Mode::Recording: {
+                c.blendAlpha();
+                c.drawFrame(5, 90, 310, 125, c.accentColor());
+                c.blendAdditive();
+                avis_.draw(c, 12, 150, 200, 70);
+                c.drawTexture(225, 120, mic_);
+                size_t sec = asMillis(now() - tStart_) / 1000;
+                c.drawText(20, 105, STR("Recording... (" << sec << "s)"), WHITE, c.defaultFont());
+                c.drawText(20, 125, STR("Up: " << packetsSent_ << ", Qs: " << rckid().nrfTxQueueSize()), LIGHTGRAY, c.helpFont());
+                c.drawText(20, 140, STR("Sr: " << rawLength_ << ", Sc: " << compressedLength_), LIGHTGRAY, c.helpFont());
+                break;
+            }
+            case Mode::Playing: {
+                break;
+
+            }
         }
-        DrawText(STR(rawLength_).c_str(), 0, 30, 20, WHITE);
-        DrawText(STR(compressedLength_).c_str(), 0, 50, 20, WHITE);
-        DrawText(STR(packetsSent_).c_str(), 0, 70, 20, WHITE);
-        DrawText(STR(packetErrors_).c_str(), 0, 90, 20, RED);
-        DrawText(STR(rckid().nrfTxQueueSize()).c_str(), 0, 110, 20, BLUE);
-        DrawText(STR(packetsReceived_).c_str(), 0, 130, 20, GREEN);
     }
 
 
     void onFocus() override {
-        rckid().nrfInitialize("AAAAA", "AAAAA", 86);
+        rckid().nrfInitialize("RCKid", "RCKid", channel_);
+        conns_.clear();
         rckid().nrfEnableReceiver();
-        recording_ = false;
+        mode_ = Mode::Listening;
         tHeartbeat_.startRandom(WALKIE_TALKIE_HEARTBEAT_INTERVAL_MIN, WALKIE_TALKIE_HEARTBEAT_INTERVAL_MAX);
+        /*
+        Heartbeat h{0, "Franta"};
+        for (int i = 0; i < 16; ++i) {
+            h.index = i * 2;
+            processIncomingHeartbeat(h);
+        }
+        */
     }
 
     void onBlur() override {
         tHeartbeat_.stop();
         rckid().stopAudioRecording();
-        recording_ = false;
+        mode_ = Mode::Listening;
         rckid().nrfPowerDown();
     }
 
     /** Starts / stops the PTT Transmission. 
      */
     void btnA(bool state) override {
-        if (state) {
-            if (! recording_) {
-                avis_.reset();
-                recording_ = true;
-                rawLength_ = 0;
-                compressedLength_ = 0;
-                packetsSent_ = 0;
-                packetErrors_ = 0;
-                // tell everyone we will begin PTT
-                rckid().startAudioRecording();
+        if (mode_ == Mode::Listening && state) {
+            {
+                auto msg = CmdWithName::PTTStart(name_);
+                rckid().nrfTransmit( & msg, 32);
             }
-        } else {
-            if (recording_) {
-                recording_ = false;
-                rckid().stopAudioRecording();
+            avis_.reset();
+            rawLength_ = 0;
+            compressedLength_ = 0;
+            packetsSent_ = 0;
+            packetErrors_ = 0;
+            // tell everyone we will begin PTT
+            rckid().startAudioRecording();
+            tStart_ = now();
+            mode_ = Mode::Recording;
+        } else if (mode_ == Mode::Recording && !state) {
+            mode_ = Mode::Listening;
+            rckid().stopAudioRecording();
+            {
+                auto msg = CmdWithName::PTTEnd(name_);
+                rckid().nrfTransmit( & msg, 32);
             }
         }
-
     }
 
     /** Sends the BEEP msg. 
@@ -123,6 +167,8 @@ protected:
             case MSG_HEARTBEAT:
                 processIncomingHeartbeat(*reinterpret_cast<Heartbeat*>(e.packet));
                 break;
+            case MSG_PTT_START:
+            case MSG_PTT_END:
             case MSG_BEEP:
                 // TODO
                 break; 
@@ -139,35 +185,89 @@ protected:
 
 private:
 
-    static constexpr uint8_t MSG_VOICE_MASK = 0x1f;
-    static constexpr uint8_t MSG_HEARTBEAT = 0x80;
-    static constexpr uint8_t MSG_BEEP = 0xff; 
+    static constexpr uint8_t MSG_VOICE_MASK = 0b00011111;
+    static constexpr uint8_t MSG_HEARTBEAT  = 0b11100000;
+    static constexpr uint8_t MSG_PTT_START  = 0b11100001;
+    static constexpr uint8_t MSG_PTT_END    = 0b11100010;
+    static constexpr uint8_t MSG_BEEP       = 0b11100011; 
+
+    struct CmdWithName {
+        uint8_t const id;
+        char name[31];
+
+        static CmdWithName PTTStart(std::string const & name) { return CmdWithName{MSG_PTT_START, name}; }
+
+        static CmdWithName PTTEnd(std::string const & name) { return CmdWithName{MSG_PTT_END, name}; }
+
+    private:
+        CmdWithName(uint8_t id, std::string const & name):
+            id{id} {
+            memcpy(this->name, name.c_str(), std::min(name.size() + 1, (size_t)31));
+            this->name[30] = 0; // ensure null termination of the name string
+        }
+    } __attribute__((packed));
+
+    static_assert(sizeof(CmdWithName) == 32);
 
     struct Heartbeat {
         uint8_t const id = MSG_HEARTBEAT;
         uint8_t index;
-        char name[];
+        char name[30];
 
         Heartbeat(uint8_t index, std::string const & name):
             index{index} {
-            memcpy(this->name, name.c_str(), std::min(name.size(), (size_t)30));
-            this->name[30] = 0; // ensure null termination of the heartbeat string
+            memcpy(this->name, name.c_str(), std::min(name.size() + 1, (size_t)30));
+            this->name[29] = 0; // ensure null termination of the heartbeat string
         }
 
     } __attribute__((packed)); 
 
+    static_assert(sizeof(Heartbeat) == 32);
+
     /** For each device in range we keep the number of heartbeats we have received */
     struct ConnectionInfo {
-        std::vector<bool> seen_;
+        static constexpr size_t DEPTH = 16;
+        std::deque<bool> seen;
+        size_t valid = 0;
+        uint8_t lastIndex;
+        Timepoint lastUpdate;
+        
+        void addIndex(uint8_t index) {
+            lastUpdate = now();
+            ++lastIndex;
+            while (lastIndex != index) {
+                seen.push_back(false);
+                ++lastIndex;
+            }
+            seen.push_back(true);
+            ++valid;
+            while (seen.size() > DEPTH) {
+                if (seen.front())
+                    --valid;
+                seen.pop_front();
+            }
+        }
 
+        size_t quality() {
+            Timepoint t = now();
+            size_t adj = asMillis(t - lastUpdate) / WALKIE_TALKIE_HEARTBEAT_INTERVAL_MAX;
+            if (adj > valid)
+                return 0;
+            return (valid - adj) * 100 / DEPTH;
+        }
     }; 
 
     void processIncomingHeartbeat(Heartbeat const & msg) {
-
+        std::string name{msg.name};
+        auto i = conns_.find(name);
+        if (i == conns_.end())
+            i = conns_.insert(std::make_pair(name, ConnectionInfo{})).first;
+        i->second.addIndex(msg.index);
     }
 
 
-    std::string name_{"RCKid"};
+    uint8_t channel_{86};
+    std::string name_{"Ada"};
 
     // heartbeat timer so that we send our heartbeats in semi-regular intervals
     Timer tHeartbeat_;
@@ -176,17 +276,22 @@ private:
     // list of devices we have received heartbeat from
     std::unordered_map<std::string, ConnectionInfo> conns_;
 
+    Mode mode_{Mode::Listening};
+
+    Timepoint tStart_;
 
 
-    bool recording_ = false;
-    bool receiving_ = false;
     size_t rawLength_;
     size_t compressedLength_;
     size_t packetsSent_; 
     size_t packetErrors_;
     size_t packetsReceived_ = 0; 
-    AudioVisualizer avis_{8000, 60, 1};
+    AudioVisualizer avis_{8000, 30, 0.5};
     opus::RawEncoder enc_;
     opus::RawDecoder dec_;
+
+    Canvas::Texture icon_{"assets/icons/baby-monitor-64.png"};
+    Canvas::Texture friends_{"assets/icons/people-32.png"};
+    Canvas::Texture mic_{"assets/icons/microphone-64.png"};
 
 }; // WalkieTalkie

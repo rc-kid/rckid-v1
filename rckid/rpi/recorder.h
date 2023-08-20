@@ -26,7 +26,7 @@ protected:
             ++i;
         } */
 
-        avis_.draw(0, 50, 320, 140);
+        avis_.draw(c, 0, 50, 320, 140);
 
         if (recording_)
             c.drawText(0, 25, "Recording...", WHITE);
