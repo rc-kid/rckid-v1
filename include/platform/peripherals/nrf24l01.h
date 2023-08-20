@@ -213,8 +213,12 @@ namespace platform {
             gpio::high(RXTX);
         }
 
-        void clearIrq() {
-            writeRegister(STATUS, STATUS_MAX_RT | STATUS_RX_DR | STATUS_TX_DS);
+        Status clearIrq() {
+            begin();
+            Status status = spi::transfer(WRITEREGISTER | STATUS);
+            spi::transfer(STATUS_MAX_RT | STATUS_RX_DR | STATUS_TX_DS); // clear the IRQs
+            end();
+            return status;
         }
 
 

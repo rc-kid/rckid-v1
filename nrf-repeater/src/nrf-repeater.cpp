@@ -49,13 +49,13 @@ public:
         // initialize the RTC that fires every second for a semi-accurate real time clock keeping on the AVR, also start the timer
         RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
         //RTC.PITCTRLA = RTC_PERIOD_CYC32768_gc | RTC_PITEN_bm;
-        //RTC.PITCTRLA = RTC_PERIOD_CYC512_gc | RTC_PITEN_bm;
+        RTC.PITCTRLA = RTC_PERIOD_CYC512_gc | RTC_PITEN_bm;
 
         // initialize the OLED display
         oled_.initialize128x32();
         oled_.normalMode();
         oled_.clear32();
-        oled_.write(0,0,"NRF REPEATER");
+        oled_.write(0,0,"NRF RPTR");
         oled_.write(0,2, "Total:");
         oled_.write(0,3, "Last:");
         oled_.write(64, 2, "Errors:");
@@ -65,7 +65,7 @@ public:
 
 
 
-        if (nrf_.initialize("AAAAA", "AAAAA", 86)) 
+        if (nrf_.initialize("RCKid", "RCKid", 86)) 
            oled_.write(64, 0, "NRF OK");
         else 
             oled_.write(64, 0, "NRF FAIL"); 
@@ -76,6 +76,7 @@ public:
         gpio::high(4);
     }
 
+    /*
     static void myTone(uint16_t freq) {
         TCB0.CCMP = 2500000 / freq;
         TCB0.CTRLA |= TCB_ENABLE_bm;
@@ -89,6 +90,7 @@ public:
     static inline uint16_t freq = 0;
     static inline int8_t siren_ = 0;
     static inline bool xx ;
+    */
 
     static void loop() {
         if (gpio::read(NRF_IRQ_PIN) == 0) {
@@ -102,10 +104,12 @@ public:
             if (status.txDataFailIrq())
                 ++errors_;
             nrf_.clearIrq();
+            /*
             while (nrf_.receive(buffer_, 32)) {
                 ++msgs_;
                 ++msgsNow_;
             }
+            */
         }
         if (RTC.PITINTFLAGS == RTC_PI_bm) {
             RTC.PITINTFLAGS = RTC_PI_bm;
@@ -118,6 +122,7 @@ public:
             oled_.write(80,2, errors_);
             // send the heartbeat
             walkieTalkieHeartbeat();
+            /*
             if (freq != 0) {
                 if (siren_) {
                     freq += 3;
@@ -132,7 +137,7 @@ public:
                         siren_ = 1;
                     }
                 }
-            } 
+            }*/ 
 
             /* hi-low 0.5s
              if (freq == 450) {
@@ -141,19 +146,19 @@ public:
                 if (freq == 600)
                     freq = 450;
             } 
-            */
             if (freq != 0)
                 myTone(freq);
+            */
         }
 
     }
 
     static void walkieTalkieHeartbeat() {
         uint8_t packet[32];
-        packet[0] = 0x80; // heartbeat id
+        packet[0] = 0b11100000; // heartbeat id
         packet[1] = heartbeatIndex_++;
-        packet[2] = 12;
-        memcpy(packet + 3, "NRF_REPEATER", 12);
+        //packet[2] = 12;
+        memcpy(packet + 2, "NRF_REPEATER", 13);
         nrf_.standby();
         nrf_.transmit(packet, 32);
         nrf_.enableTransmitter();

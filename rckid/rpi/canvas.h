@@ -199,6 +199,10 @@ public:
         BeginBlendMode(BLEND_ADDITIVE);
     }
 
+    void blendAddColors() {
+        BeginBlendMode(BLEND_ADD_COLORS);
+    }
+
     /** \name Texture drawing support. 
      */
     void drawTexture(int x, int y, Texture const & t) {

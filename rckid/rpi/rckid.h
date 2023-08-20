@@ -269,6 +269,14 @@ public:
         driverEvents_.send(NRFState::PowerDown);
     }
 
+    /** Resets the NRF chip state and enters standby mode. Clears the on-chip rx and tx buffers as well as the internal tx buffer for RC kid. 
+     */
+    void nrfReset() {
+        std::lock_guard<std::mutex> g{mRadio_};
+        nrfTxQueue_.clear();
+        driverEvents_.send(NRFState::Standby);
+    }
+
     /** Enables the radio in receiver mode.
      */
     void nrfEnableReceiver() {
@@ -278,7 +286,15 @@ public:
     /** Enable the radio in transmitter mode, without transmitting any messages. 
      */
     void nrfEnableTransmitter() {
+        bool txEmpty;
+        {
+            std::lock_guard<std::mutex> g{mRadio_};
+            txEmpty = nrfTxQueue_.empty();
+        }
         driverEvents_.send(NRFState::Tx);
+        // if there is something in the Tx queue, initiate a transmit message immediately after switching to tx mode
+        if (!txEmpty)
+            driverEvents_.send(NRFTransmit{});
     }
 
     /** Transmits a message. If used in received mode, briefly stops the receiver, enters the transmitter mode and then transmits the message, returning to receiver mode afterwards. 
@@ -295,13 +311,20 @@ public:
 
     /** Transmits the given packet in immediate mode, to minimalize the time spent in tx mode not receiving. 
      */
-    void nrfTransmitImmediate(uint8_t const * packet, uint8_t length = 32) {
-        driverEvents_.send(NRFPacket{packet, length});
+    template<typename T>
+    void nrfTransmitImmediate(T const * packet, uint8_t length = 32) {
+        uint8_t const * buffer = reinterpret_cast<uint8_t const *>(packet);
+        driverEvents_.send(NRFPacket{buffer, length});
     }
 
     size_t nrfTxQueueSize() const {
         std::lock_guard<std::mutex> g{mRadio_};
         return nrfTxQueue_.size();
+    }
+
+    void nrfClearTxQueue() {
+        std::lock_guard<std::mutex> g{mRadio_};
+        nrfTxQueue_.clear();
     }
 
     NRFState nrfState() const {

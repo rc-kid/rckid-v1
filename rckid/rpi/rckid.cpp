@@ -213,6 +213,33 @@ void RCKid::processDriverEvent(DriverEvent e) {
             }
         },
         [this](NRFIrq) {
+            NRF24L01::Status status{nrf_.clearIrq()};
+            if (status.rxDataReady()) {
+                NRFPacketEvent e;
+                while (nrf_.receive(e.packet, 32))
+                    uiEvents_.send(e);
+            }
+            if (status.txDataSentIrq()) {
+                uiEvents_.send(NRFTxEvent{});
+                // we are now in standby 1 mode (assuming we transmit one message per invocation). Check if there is more messages, and if yes, trasnmit them immediately w/o going to real standby
+                mRadio_.lock();
+                if (! nrfTxQueue_.empty()) {
+                    NRFPacket p{nrfTxQueue_.front()};
+                    nrfTxQueue_.pop_front();
+                    mRadio_.unlock();
+                    nrf_.transmit(p.packet, 32); // since in standby-1, will be transmitted immediately
+                // if no more messages, go to either standby (if Tx) or enable receiver if this was a tx burst from rx mode
+                } else {
+                    mRadio_.unlock();
+                    if (nrfState_ == NRFState::Rx)
+                        nrf_.enableReceiver();
+                    else
+                        nrf_.standby();
+                    nrfTx_ = false;
+                }
+            }
+            /*
+
             // if not in transmit mode, the IRQ must be received packet, read any received packets and send them to the UI 
             if (!nrfTx_) {
                 NRFPacketEvent e;
@@ -239,7 +266,7 @@ void RCKid::processDriverEvent(DriverEvent e) {
                         nrf_.standby();
                     nrfTx_ = false;
                 }
-            }
+            } */
         }, 
         [this](NRFInitialize e) {
             // TODO process error

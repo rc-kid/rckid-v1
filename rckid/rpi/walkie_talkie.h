@@ -56,7 +56,7 @@ protected:
             if (mode_ == Mode::Listening) {
                 uint8_t packet[32];
                 new (packet) Heartbeat{heartbeatIndex_++, name_};
-                rckid().nrfTransmit(packet);
+                rckid().nrfTransmitImmediate(packet);
             }
         }
     }
@@ -68,10 +68,27 @@ protected:
             case Mode::Listening: {
                 c.drawTexture(25, 100, friends_);
                 int y = 105;
-                for (auto & i : conns_) {
-                    size_t q = i.second.quality();
-                    c.drawText(70, y, STR(i.first << " (" << q << "%)"), LIGHTGRAY, c.defaultFont());
-                    y += c.defaultFont().size();
+                auto i = conns_.begin();
+                while (i != conns_.end()) {
+                    c.blendAdditive();
+                    size_t q = i->second.quality();
+                    if (q == 0) {
+                        i = conns_.erase(i);
+                    } else {
+                        if (q > 80) {
+                            c.drawText(70, y, "  ", c.accentColor());
+                        } else if (q > 60) {
+                            c.drawText(70, y, "  ", c.accentColor());
+                        } else if (q > 40) {
+                            c.drawText(70, y, "", c.accentColor());
+                        } else {
+                            c.drawText(70, y, "", c.accentColor());
+                        }
+                        c.blendAddColors();
+                        c.drawText(130, y, i->first, LIGHTGRAY);
+                        y += 20;
+                        ++i;
+                    }
                 }
                 break;
             }
@@ -83,7 +100,7 @@ protected:
                 c.drawTexture(225, 120, mic_);
                 size_t sec = asMillis(now() - tStart_) / 1000;
                 c.drawText(20, 105, STR("Recording... (" << sec << "s)"), WHITE, c.defaultFont());
-                c.drawText(20, 125, STR("Up: " << packetsSent_ << ", Qs: " << rckid().nrfTxQueueSize()), LIGHTGRAY, c.helpFont());
+                c.drawText(20, 125, STR("Up: " << packetsTx_ << ", Qs: " << rckid().nrfTxQueueSize()), LIGHTGRAY, c.helpFont());
                 c.drawText(20, 140, STR("Sr: " << rawLength_ << ", Sc: " << compressedLength_), LIGHTGRAY, c.helpFont());
                 break;
             }
@@ -121,25 +138,27 @@ protected:
      */
     void btnA(bool state) override {
         if (mode_ == Mode::Listening && state) {
+            mode_ = Mode::Recording;
+            rawLength_ = 0;
+            compressedLength_ = 0;
+            packetsTx_ = 0;
             {
+                rckid().nrfEnableTransmitter();
                 auto msg = CmdWithName::PTTStart(name_);
                 rckid().nrfTransmit( & msg, 32);
             }
             avis_.reset();
-            rawLength_ = 0;
-            compressedLength_ = 0;
-            packetsSent_ = 0;
-            packetErrors_ = 0;
             // tell everyone we will begin PTT
             rckid().startAudioRecording();
             tStart_ = now();
-            mode_ = Mode::Recording;
         } else if (mode_ == Mode::Recording && !state) {
-            mode_ = Mode::Listening;
             rckid().stopAudioRecording();
+            rckid().nrfReset();
+            mode_ = Mode::Listening;
+            rckid().nrfEnableReceiver();
             {
                 auto msg = CmdWithName::PTTEnd(name_);
-                rckid().nrfTransmit( & msg, 32);
+                rckid().nrfTransmitImmediate( & msg, 32);
             }
         }
     }
@@ -157,12 +176,12 @@ protected:
         rawLength_ += 32;
         if (enc_.encode(e.data, 32))
             compressedLength_ += enc_.currentFrameSize();
-        if (enc_.currentFrameValid())
+        if (enc_.currentFrameValid()) {
             rckid().nrfTransmit(enc_.currentFrame(), 32);
+        }
     }
 
     void nrfPacketReceived(NRFPacketEvent & e) override {
-        ++packetsReceived_; 
         switch (e.packet[0]) {
             case MSG_HEARTBEAT:
                 processIncomingHeartbeat(*reinterpret_cast<Heartbeat*>(e.packet));
@@ -180,7 +199,8 @@ protected:
 
 
     void nrfTxDone() override {
-        ++packetsSent_;
+        if (mode_ == Mode::Recording)
+            ++packetsTx_;
     }
 
 private:
@@ -277,15 +297,13 @@ private:
     std::unordered_map<std::string, ConnectionInfo> conns_;
 
     Mode mode_{Mode::Listening};
-
     Timepoint tStart_;
 
 
     size_t rawLength_;
     size_t compressedLength_;
-    size_t packetsSent_; 
-    size_t packetErrors_;
-    size_t packetsReceived_ = 0; 
+    size_t packetsTx_; 
+    size_t packetsRx_ = 0; 
     AudioVisualizer avis_{8000, 30, 0.5};
     opus::RawEncoder enc_;
     opus::RawDecoder dec_;
