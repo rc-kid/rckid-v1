@@ -6,7 +6,8 @@
 - order plexiglass covers (https://plasticexpress.cz/)
 - test build the assembly
 - strip down in-game menu to barebones
-- add walkie-talkie and test it
+- test walkie talkie, add beeps & icon for playing
+- repeater mode? 
 
 > At this point, I'll have a barebones, but working rckid that can play some games, play music & video and act as walkie talkie. This can be presented as xmas gift. Then there are two things I can do:
 

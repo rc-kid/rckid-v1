@@ -38,6 +38,8 @@ public:
 
 protected:
 
+    bool fullscreen() const { return true; }
+
     /** Resets the NRF to default remote addresses and channel and starts searching for devices.
      */
     void searchForDevices() {
@@ -70,6 +72,7 @@ protected:
     }
 
     void tick() override {
+        /*
         using namespace remote::msg;
         if (t_.update()) {
             switch (mode_) {
@@ -95,23 +98,27 @@ protected:
                     // nothing to do
                     break;
             }
-        }
+        } */
     }
 
-    void draw(Canvas &) override {
+    void draw(Canvas & c) override {
+        c.drawTexture(96, 56, wheel_);
+        c.drawTexture(270, 30, lights_);
+        c.drawTexture(270, 90, siren_);
+        c.drawTexture(270, 150, horn_);
     }
 
     /** When pushed on the nav stack, start looking for devices to pair with. 
      */
     void onNavigationPush() override {
-        searchForDevices();
+        //searchForDevices();
     }
 
     void onFocus() override {
     }
 
     void onBlur() override {
-        rckid().nrfPowerDown();
+        //rckid().nrfPowerDown();
     }
 
     void btnA(bool state) override {
@@ -186,6 +193,11 @@ private:
     } __attribute__((packed)) msg_; */
 
     //static_assert(sizeof(msg_) == 4);
+
+    Canvas::Texture wheel_{"assets/icons/steering-wheel.png"};
+    Canvas::Texture lights_{"assets/icons/car-light-32.png"};
+    Canvas::Texture siren_{"assets/icons/siren-32.png"};
+    Canvas::Texture horn_{"assets/icons/horn-32.png"};
 
 
 }; // Remote

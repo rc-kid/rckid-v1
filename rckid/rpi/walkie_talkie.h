@@ -219,6 +219,15 @@ protected:
         }
     }
 
+    void dpadUp(bool state) override {
+        if (state && ! browsing_)
+            rckid().setVolume(rckid().volume() + 10);
+    }
+
+    void dpadDown(bool state) override {
+        if (state && ! browsing_)
+            rckid().setVolume(rckid().volume() - 10);
+    }
 
 #if (defined WALKIE_TALKIE_STORE_PTT)
     /** Debug only, starts fake playback */

@@ -49,14 +49,15 @@ public:
                 };
                 window().showWidget(&gauge);
             }},
-            new Carousel::Item{"Save", "assets/images/071-diskette.png", [](){
+            new Carousel::Item{"Save", "assets/images/071-diskette.png", [this](){
+                retroarchHotkey(RCKid::RETROARCH_HOTKEY_SAVE_STATE);
+            }},
+            new Carousel::Item{"Load", "assets/images/069-open.png", [this](){
                 // TODO
             }},
-            new Carousel::Item{"Load", "assets/images/069-open.png", [](){
-                // TODO
-            }},
-            new Carousel::Item{"Screenshot", "assets/images/063-screenshot.png", [](){
-                // TODO
+            new Carousel::Item{"Screenshot", "assets/images/063-screenshot.png", [this](){
+                // simply instructs retroarch to store the screenshot in the game screenshot folder (/rckid/screenshots/games)
+                retroarchHotkey(RCKid::RETROARCH_HOTKEY_SCREENSHOT);
             }},
             new Carousel::Item{"Resume", "assets/images/065-play.png", [](){
                 window().back();
@@ -114,25 +115,15 @@ protected:
 
     void onFocus() {
         window().enableBackground(false);
-        if (! emulator_.done()) {
-            rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
-            rckid().keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
-            platform::cpu::delayMs(50);
-            rckid().keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
-            rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
-        }
+        if (! emulator_.done())
+            retroarchHotkey(RCKid::RETROARCH_HOTKEY_PAUSE);
         rckid().setGamepadActive(true);
     }
 
     void onBlur() {
         window().enableBackgroundDark(GAME_PLAYER_BACKGROUND_OPACITY);
-        if (! emulator_.done()) {
-            rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
-            rckid().keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, true);
-            platform::cpu::delayMs(50);
-            rckid().keyPress(RCKid::RETROARCH_HOTKEY_PAUSE, false);
-            rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
-        }
+        if (! emulator_.done())
+            retroarchHotkey(RCKid::RETROARCH_HOTKEY_PAUSE);
         rckid().setGamepadActive(false);
     }
 
@@ -143,6 +134,14 @@ protected:
     void btnHome(bool state) {
         if (state)
             window().showWidget(& gameMenu_);
+    }
+
+    void retroarchHotkey(unsigned int hkey) {
+        rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, true);
+        rckid().keyPress(hkey, true);
+        platform::cpu::delayMs(50);
+        rckid().keyPress(hkey, false);
+        rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
     }
 
     utils::Process emulator_;

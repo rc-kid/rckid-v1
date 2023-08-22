@@ -140,9 +140,9 @@ public:
 
     static constexpr unsigned int RETROARCH_HOTKEY_ENABLE = BTN_THUMBR;
     static constexpr unsigned int RETROARCH_HOTKEY_PAUSE = BTN_SOUTH; // B
-    static constexpr unsigned int RETROARCH_HOTKEY_SAVE_STATE = BTN_NORTH; // A
-    static constexpr unsigned int RETROARCH_HOTKEY_LOAD_STATE = BTN_WEST; // X
-    static constexpr unsigned int RETROATCH_HOTKEY_SCREENSHOT = BTN_EAST; // Y
+    static constexpr unsigned int RETROARCH_HOTKEY_SAVE_STATE = BTN_NORTH; // X
+    static constexpr unsigned int RETROARCH_HOTKEY_LOAD_STATE = BTN_WEST; // Y
+    static constexpr unsigned int RETROARCH_HOTKEY_SCREENSHOT = BTN_EAST; // A
 
     static RCKid & create();
 
