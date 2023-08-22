@@ -130,7 +130,7 @@ protected:
                 size_t sec = asMillis(now() - tStart_) / 1000;
                 c.drawText(20, 105, STR("Playing... (" << sec << "s)"), WHITE, c.defaultFont());
                 c.drawText(20, 125, STR("Down: " << packetsRx_ << ", Qs: " << rxAudioBuffers_.size()), LIGHTGRAY, c.helpFont());
-                //c.drawText(20, 140, STR("Sr: " << rawLength_ << ", Sc: " << compressedLength_), LIGHTGRAY, c.helpFont());
+                c.drawText(20, 140, STR("Pc: " << dec_.packets() <<  ", Pe: " << dec_.missingPackets()), LIGHTGRAY, c.helpFont());
                 if (IsAudioStreamProcessed(pttRx_) && ! rxAudioBuffers_.empty()) {
                     UpdateAudioStream(pttRx_, rxAudioBuffers_.front(), 960);
                     delete [] rxAudioBuffers_.front();

@@ -142,6 +142,7 @@ namespace opus {
             opus_encoder_ctl(encoder_, OPUS_SET_BITRATE(6000));                
             frame_[0] = 0;
             frame_[1] = 0;
+            buffer_.clear();
         }
 
         /** Encodes the provided buffer. 
@@ -223,6 +224,9 @@ namespace opus {
             decoder_ = opus_decoder_create(8000, 1, &err);
             if (err != OPUS_OK)
                 throw OpusError{STR("Unable to create opus decoder, code: " << err)};
+            lastIndex_ = 0xff;
+            missingPackets_ = 0;
+            packets_ = 0;
         }
 
         size_t decodePacket(unsigned char const * rawPacket) {
@@ -236,20 +240,27 @@ namespace opus {
             int result = opus_decode(decoder_, rawPacket + 2, rawPacket[0], buffer_, 320, false);
             if (result < 0)
                 throw OpusError{STR("Unable to decode packet, code: " << result)};
+            ++packets_;
             return result;
         }
 
         opus_int16 const * buffer() const { return buffer_; }
 
+        size_t missingPackets() const { return missingPackets_; }
+        size_t packets() const { return packets_; }
+
     private:
 
         void reportPacketLoss() {
+            ++missingPackets_;
             int result = opus_decode(decoder_, nullptr, 0, buffer_, 320, false);
             if (result < 0)
                 throw OpusError{STR("Unable to decode missing packet, code: " << result)};
         }
 
         OpusDecoder * decoder_;
+        size_t missingPackets_{0};
+        size_t packets_{0};
         opus_int16 buffer_[320];
         uint8_t lastIndex_{0xff};
     }; 
