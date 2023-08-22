@@ -50,6 +50,13 @@ protected:
         Playing,
     }; 
 
+    void setFooterHints() override {
+        Widget::setFooterHints();
+        window().addFooterItem(FooterItem::A("Talk"));
+        window().addFooterItem(FooterItem::X("Beep"));
+        window().addFooterItem(FooterItem::UpDown("󰕾"));
+    }
+
     void tick() override {
         if (tHeartbeat_.update()) {
             tHeartbeat_.startRandom(WALKIE_TALKIE_HEARTBEAT_INTERVAL_MIN, WALKIE_TALKIE_HEARTBEAT_INTERVAL_MAX);
@@ -220,12 +227,12 @@ protected:
     }
 
     void dpadUp(bool state) override {
-        if (state && ! browsing_)
+        if (state)
             rckid().setVolume(rckid().volume() + 10);
     }
 
     void dpadDown(bool state) override {
-        if (state && ! browsing_)
+        if (state)
             rckid().setVolume(rckid().volume() - 10);
     }
 
