@@ -273,7 +273,8 @@ void RCKid::processDriverEvent(DriverEvent e) {
             nrf_.initialize(e.rxAddr, e.txAddr, e.channel);
             nrf_.standby();
             std::lock_guard<std::mutex> g{mRadio_};
-            nrfState_ = NRFState::Standby;
+            if (nrfState_ != NRFState::Error)
+                nrfState_ = NRFState::Standby;
         },
         [this](NRFState e) {
             switch (e) {
@@ -293,7 +294,8 @@ void RCKid::processDriverEvent(DriverEvent e) {
             nrfTx_ = false;
             {
                 std::lock_guard<std::mutex> g{mRadio_};
-                nrfState_ = e;
+                if (nrfState_ != NRFState::Error)
+                    nrfState_ = e;
             }
             // notify the main thread that there has been a state change (amongst other things refreshes the header)
             uiEvents_.send(StateChangeEvent{});
@@ -356,6 +358,11 @@ void RCKid::initializeAvr() {
     // we are now in non-bootloader mode, check all is good
     comms::Status status = queryAvrStatus();
     TraceLog(LOG_INFO, STR("Power-on AVR status: " << status).c_str());
+    if (status.recording()) {
+        TraceLog(LOG_ERROR, "Unfinished recording on rckid power on");
+        msg::StopAudioRecording m{};
+        i2c::transmit(AVR_I2C_ADDRESS, reinterpret_cast<uint8_t*>(& m), sizeof(m), nullptr, 0);
+    }
     // if we are to terminate immediately because the current status is power down, shutdown and terminate itself immediately
     if (status.mode() == comms::Mode::PowerDown) {
         TraceLog(LOG_INFO, "Spurious power-up. Powering down immediately");

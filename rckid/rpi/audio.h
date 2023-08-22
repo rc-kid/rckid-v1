@@ -129,7 +129,19 @@ namespace opus {
         }
 
         ~RawEncoder() {
+            std::cout << "Destroying opus encoder" << std::endl;
             opus_encoder_destroy(encoder_);
+        }
+
+        void reset() {
+            opus_encoder_destroy(encoder_);
+            int err;
+            encoder_ = opus_encoder_create(8000, 1, OPUS_APPLICATION_VOIP, &err);
+            if (err != OPUS_OK)
+                throw OpusError{STR("Unable to create opus encoder, code: " << err)};
+            opus_encoder_ctl(encoder_, OPUS_SET_BITRATE(6000));                
+            frame_[0] = 0;
+            frame_[1] = 0;
         }
 
         /** Encodes the provided buffer. 
@@ -203,6 +215,14 @@ namespace opus {
 
         ~RawDecoder() {
             opus_decoder_destroy(decoder_);
+        }
+
+        void reset() {
+            opus_decoder_destroy(decoder_);
+            int err;
+            decoder_ = opus_decoder_create(8000, 1, &err);
+            if (err != OPUS_OK)
+                throw OpusError{STR("Unable to create opus decoder, code: " << err)};
         }
 
         size_t decodePacket(unsigned char const * rawPacket) {

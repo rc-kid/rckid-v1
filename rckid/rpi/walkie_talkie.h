@@ -178,7 +178,7 @@ protected:
     void btnA(bool state) override {
         if (mode_ == Mode::Listening && state) {
             mode_ = Mode::Recording;
-            enc_ = opus::RawEncoder{};
+            enc_.reset();
             rawLength_ = 0;
             compressedLength_ = 0;
             packetsTx_ = 0;
@@ -193,6 +193,8 @@ protected:
             tStart_ = now();
 #if (defined WALKIE_TALKIE_STORE_PTT)
             pttOut_ = std::ofstream{"/rckid/ptt.dat", std::ios::binary};
+            if (!pttOut_.good())
+                std::cout << "Error creating oustream" << std::endl;
 #endif
         } else if (mode_ == Mode::Recording && !state) {
             rckid().stopAudioRecording();
@@ -379,7 +381,7 @@ private:
         pttRx_ = LoadAudioStream(8000, 16, 1);
         SetAudioStreamBufferSizeDefault(0); // reset
         PlayAudioStream(pttRx_);
-        dec_ = opus::RawDecoder{};
+        dec_.reset();
         rxAudioBuffers_.clear();
         tStart_ = now();
         packetsRx_ = 0;
@@ -397,6 +399,7 @@ private:
         pttRxDone_ = true;
         if (rxAudioBuffer_ != nullptr) {
             delete [] rxAudioBuffer_;
+            rxAudioBuffer_ = nullptr;
             rxAudioBufferSize_ = 0;
         }
     }
