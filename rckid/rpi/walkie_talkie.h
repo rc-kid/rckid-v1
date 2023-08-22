@@ -105,8 +105,47 @@ protected:
                 break;
             }
             case Mode::Playing: {
-                break;
-
+#if (defined WALKIE_TALKIE_STORE_PTT)
+                static int x = 0;
+                if (pttIn_.eof()) {
+                    if (!pttRxDone_) {
+                        auto pttEnd = CmdWithName::PTTEnd("Foobar");
+                        leavePlayingMode(pttEnd);
+                        x = 0;
+                        pttIn_.close();
+                    }
+                } else {
+                    uint8_t buf[32];
+                    for (int i = 0; i < 50 && !pttIn_.eof(); ++i) {
+                        pttIn_.read(reinterpret_cast<char*>(buf), 32);
+                        processPTTData(buf);
+                        ++x;
+                    }
+                    std::cout << "We are at packet " << x << ", index " << (int)buf[1] << std::endl;
+                }
+#endif
+                c.blendAlpha();
+                c.drawFrame(5, 90, 310, 125, c.accentColor());
+                c.blendAdditive();
+                size_t sec = asMillis(now() - tStart_) / 1000;
+                c.drawText(20, 105, STR("Playing... (" << sec << "s)"), WHITE, c.defaultFont());
+                c.drawText(20, 125, STR("Down: " << packetsRx_ << ", Qs: " << rxAudioBuffers_.size()), LIGHTGRAY, c.helpFont());
+                //c.drawText(20, 140, STR("Sr: " << rawLength_ << ", Sc: " << compressedLength_), LIGHTGRAY, c.helpFont());
+                if (IsAudioStreamProcessed(pttRx_) && ! rxAudioBuffers_.empty()) {
+                    UpdateAudioStream(pttRx_, rxAudioBuffers_.front(), 960);
+                    delete [] rxAudioBuffers_.front();
+                    rxAudioBuffers_.pop_front();
+                }
+                if (pttRxDone_) {
+                    if (IsAudioStreamProcessed(pttRx_) && rxAudioBuffers_.empty()) {
+                        mode_ = Mode::Listening;
+                        StopAudioStream(pttRx_);
+                        std::cout << " Stream stopped" << std::endl;
+                        UnloadAudioStream(pttRx_);
+                        std::cout << " Stream unloaded" << std::endl;
+                    }
+                } 
+               break;
             }
         }
     }
@@ -139,6 +178,7 @@ protected:
     void btnA(bool state) override {
         if (mode_ == Mode::Listening && state) {
             mode_ = Mode::Recording;
+            enc_ = opus::RawEncoder{};
             rawLength_ = 0;
             compressedLength_ = 0;
             packetsTx_ = 0;
@@ -151,6 +191,9 @@ protected:
             // tell everyone we will begin PTT
             rckid().startAudioRecording();
             tStart_ = now();
+#if (defined WALKIE_TALKIE_STORE_PTT)
+            pttOut_ = std::ofstream{"/rckid/ptt.dat", std::ios::binary};
+#endif
         } else if (mode_ == Mode::Recording && !state) {
             rckid().stopAudioRecording();
             rckid().nrfReset();
@@ -160,6 +203,9 @@ protected:
                 auto msg = CmdWithName::PTTEnd(name_);
                 rckid().nrfTransmitImmediate( & msg, 32);
             }
+#if (defined WALKIE_TALKIE_STORE_PTT)
+            pttOut_.close();
+#endif
         }
     }
 
@@ -171,6 +217,18 @@ protected:
         }
     }
 
+
+#if (defined WALKIE_TALKIE_STORE_PTT)
+    /** Debug only, starts fake playback */
+    void btnStart(bool state) override {
+        if (state && mode_ == Mode::Listening) {
+            auto pttStart = CmdWithName::PTTStart("Foobar");
+            enterPlayingMode(pttStart);
+            pttIn_ = std::ifstream{"/rckid/ptt.dat", std::ios::binary};
+        }
+    }
+#endif
+
     void audioRecorded(RecordingEvent & e) override {
         avis_.addData(e.data, 32);
         rawLength_ += 32;
@@ -178,6 +236,9 @@ protected:
             compressedLength_ += enc_.currentFrameSize();
         if (enc_.currentFrameValid()) {
             rckid().nrfTransmit(enc_.currentFrame(), 32);
+#if (defined WALKIE_TALKIE_STORE_PTT)
+            pttOut_.write(reinterpret_cast<char const *>(enc_.currentFrame()), 32);
+#endif
         }
     }
 
@@ -187,12 +248,17 @@ protected:
                 processIncomingHeartbeat(*reinterpret_cast<Heartbeat*>(e.packet));
                 break;
             case MSG_PTT_START:
+                enterPlayingMode(*reinterpret_cast<CmdWithName*>(e.packet));
+                break;
             case MSG_PTT_END:
+                leavePlayingMode(*reinterpret_cast<CmdWithName*>(e.packet));
+                break;
             case MSG_BEEP:
                 // TODO
                 break; 
             default:
-                // TODO voice PTT
+                // TODO if not playing, enter playing mode
+                processPTTData(e.packet);
                 break;
         }
     }
@@ -285,9 +351,67 @@ private:
         i->second.addIndex(msg.index);
     }
 
+    void processPTTData(uint8_t * data) {
+        ++packetsRx_;
+        size_t n = dec_.decodePacket(data);
+        if (n != 0) {
+            if (rxAudioBufferSize_ == 0)
+                rxAudioBuffer_ = new int16_t[960];
+            memcpy(rxAudioBuffer_ + rxAudioBufferSize_, dec_.buffer(), 320 * 2);
+            rxAudioBufferSize_ += 320;
+            if (rxAudioBufferSize_ == 960) {
+                rxAudioBufferSize_ = 0;
+                rxAudioBuffers_.push_back(rxAudioBuffer_);
+                rxAudioBuffer_ = nullptr;
+            }
+        }
+    }
+
+    void enterPlayingMode(CmdWithName const & cmd) {
+        // ignore if we are already in playing mode
+        if (mode_ == Mode::Playing)
+            return;
+        mode_ = Mode::Playing;
+        senderName_ = cmd.name;
+        pttRxDone_ = false;
+        // start audio playback
+        SetAudioStreamBufferSizeDefault(960); // 3 frames for 12.5 fps minimum 
+        pttRx_ = LoadAudioStream(8000, 16, 1);
+        SetAudioStreamBufferSizeDefault(0); // reset
+        PlayAudioStream(pttRx_);
+        dec_ = opus::RawDecoder{};
+        rxAudioBuffers_.clear();
+        tStart_ = now();
+        packetsRx_ = 0;
+    }
+
+    void leavePlayingMode(CmdWithName const & cmd) {
+        // don't do anything if we are not playing in the first place
+        if (mode_ != Mode::Playing)
+            return;
+        // if the message is from someone else, ignore it too
+        std::string sender{cmd.name};
+        if (sender != senderName_)
+            return;
+        // otherwise we are done receiving, wait for the playback to be finished and then stop
+        pttRxDone_ = true;
+        if (rxAudioBuffer_ != nullptr) {
+            delete [] rxAudioBuffer_;
+            rxAudioBufferSize_ = 0;
+        }
+    }
+
 
     uint8_t channel_{86};
     std::string name_{"Ada"};
+
+    // Name from which we are currently receiving. Only useful in playing mode 
+    std::string senderName_{};
+    bool pttRxDone_;
+    AudioStream pttRx_;
+    int16_t * rxAudioBuffer_{nullptr};
+    size_t rxAudioBufferSize_{0};
+    std::deque<int16_t*> rxAudioBuffers_;
 
     // heartbeat timer so that we send our heartbeats in semi-regular intervals
     Timer tHeartbeat_;
@@ -311,5 +435,12 @@ private:
     Canvas::Texture icon_{"assets/icons/baby-monitor-64.png"};
     Canvas::Texture friends_{"assets/icons/people-32.png"};
     Canvas::Texture mic_{"assets/icons/microphone-64.png"};
+
+
+
+#if (defined WALKIE_TALKIE_STORE_PTT)
+    std::ofstream pttOut_;
+    std::ifstream pttIn_;
+#endif
 
 }; // WalkieTalkie

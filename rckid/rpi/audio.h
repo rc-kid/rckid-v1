@@ -125,6 +125,7 @@ namespace opus {
                 throw OpusError{STR("Unable to create opus encoder, code: " << err)};
             opus_encoder_ctl(encoder_, OPUS_SET_BITRATE(6000));                
             frame_[0] = 0;
+            frame_[1] = 0;
         }
 
         ~RawEncoder() {
@@ -138,7 +139,7 @@ namespace opus {
         bool encode(uint8_t const * data, size_t len) {
             bool newFrame = false;
             while (len-- > 0) {
-                buffer_.push_back(static_cast<opus_int16>(*(data++)) - 128 * 256);
+                buffer_.push_back((static_cast<opus_int16>(*(data++)) - 128) * 256);
                 if (buffer_.size() == RAW_FRAME_LENGTH) {
                     ++frame_[1];
                     int result = opus_encode(encoder_, buffer_.data(), buffer_.size(), frame_ + 2, sizeof(frame_) - 2);
@@ -193,8 +194,7 @@ namespace opus {
      */
     class RawDecoder {
     public:
-        RawDecoder(size_t expectedRetransmit = 1):
-            expectedRetransmit_{expectedRetransmit} {
+        RawDecoder() {
             int err;
             decoder_ = opus_decoder_create(8000, 1, &err);
             if (err != OPUS_OK)
@@ -205,15 +205,14 @@ namespace opus {
             opus_decoder_destroy(decoder_);
         }
 
-        void reportPacketLoss(size_t numPackets = 1) {
-            while (numPackets-- != 0) {
-                int result = opus_decode(decoder_, nullptr, 0, buffer_, 320, false);
-                if (result < 0)
-                    throw OpusError{STR("Unable to decode missing packet, code: " << result)};
-            }
-        }
-
         size_t decodePacket(unsigned char const * rawPacket) {
+            // if the packet index is the same as last one, it's a packet retransmit and there is nothing we need to do
+            if (rawPacket[1] == lastIndex_)
+                return 0;
+            // if we have missed any packet, report it as lost
+            while (++lastIndex_ != rawPacket[1])
+                reportPacketLoss();
+            // decode the packet and return the decoded size
             int result = opus_decode(decoder_, rawPacket + 2, rawPacket[0], buffer_, 320, false);
             if (result < 0)
                 throw OpusError{STR("Unable to decode packet, code: " << result)};
@@ -223,10 +222,16 @@ namespace opus {
         opus_int16 const * buffer() const { return buffer_; }
 
     private:
-        OpusDecoder * decoder_;
-        size_t expectedRetransmit_;
 
+        void reportPacketLoss() {
+            int result = opus_decode(decoder_, nullptr, 0, buffer_, 320, false);
+            if (result < 0)
+                throw OpusError{STR("Unable to decode missing packet, code: " << result)};
+        }
+
+        OpusDecoder * decoder_;
         opus_int16 buffer_[320];
+        uint8_t lastIndex_{0xff};
     }; 
 
 } // namespace opus
