@@ -31,6 +31,8 @@
 /** Remote controller widget. 
  
     Contains basic connection stuff, but is really intended to be specialized for a more tailored remote experience. Likely. 
+
+    The remote car itself. 
  */
 class Remote : public Widget {
 public:
