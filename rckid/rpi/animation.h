@@ -16,7 +16,7 @@ enum class Interpolation {
 class Animation {
 public:
 
-    Animation(float duration):
+    Animation(float duration = 1000):
         duration_{duration} {
     }
 

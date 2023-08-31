@@ -10,6 +10,7 @@
 #include "carousel.h"
 #include "carousel_json.h"
 #include "gauge.h"
+#include "wait.h"
 
 
 
@@ -51,13 +52,44 @@ public:
             }},
             new Carousel::Item{"Save", "assets/images/071-diskette.png", [this](){
                 retroarchHotkey(RCKid::RETROARCH_HOTKEY_SAVE_STATE);
+                retroarchHotKey(RCKid::RETROARCH_HOTKEY_SCREENSHOT);
+                wait_.showDelay(1000, [this](Wait *) {
+                    std::filesystem::create_directories(saveDir_);
+                    std::filesystem::path tmpName{getTmpScreenshotName()};
+                    if (!tmpName.empty()) {
+                        // move the screenshot
+                        std::filesystem::rename(tmpName, saveDir_ / tmpName.filename());
+                        // move the game save state
+                            
+                        std::filesystem::rename(tmpName, saveDir_ / tmpName.)
+                        return true;
+                    } else {
+                        return false;
+                    }
+
+                }
+                rckid().rumbler(128, 10);
             }},
             new Carousel::Item{"Load", "assets/images/069-open.png", [this](){
-                // TODO
+                retroarchHotkey(RCKid::RETROARCH_HOTKEY_LOAD_STATE);
+                rckid().rumbler(128,10);
             }},
             new Carousel::Item{"Screenshot", "assets/images/063-screenshot.png", [this](){
-                // simply instructs retroarch to store the screenshot in the game screenshot folder (/rckid/screenshots/games)
+                // instruct retroarch to create the screenshot
                 retroarchHotkey(RCKid::RETROARCH_HOTKEY_SCREENSHOT);
+                rckid().rumbler(128,10);
+                // wait for 2 seconds
+                wait_.showDelay(1000, [this](Wait *) {
+                    // since screenshots are generated to a tmp directory and with random-ish names, check the dir contents now and move it to the target folder
+                    std::filesystem::create_directories(snapshotDir_);
+                    std::filesystem::path tmpName{getTmpScreenshotName()};
+                    if (!tmpName.empty()) {
+                        std::filesystem::rename(tmpName, snapshotDir_ / tmpName.filename());
+                        return true;
+                    } else {
+                        return false;
+                    }
+                });
             }},
             new Carousel::Item{"Resume", "assets/images/065-play.png", [](){
                 window().back();
@@ -74,9 +106,21 @@ public:
         std::string emulator = game[GAME_EMULATOR].value<std::string>();
         utils::Command cmd;
         if (emulator == EMULATOR_RETROARCH) {
+            /*
             std::string path = dir / game[DirSyncedCarousel::MENU_FILENAME].value<std::string>();
             std::string core = game[GAME_LRCORE].value<std::string>();
             cmd = utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "--config", "/home/pi/rckid/retroarch/retroarch.cfg", "-L", core.c_str(), path.c_str()}};
+            //cmd = utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "--config", "/home/pi/rckid/retroarch/retroarch.cfg"}};
+            */
+            std::string path = dir / game[DirSyncedCarousel::MENU_FILENAME].value<std::string>();
+            std::string core = game[GAME_LRCORE].value<std::string>();
+            cmd = utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "--config", "/home/pi/rckid/retroarch/retroarch.cfg", "-L", core.c_str(), path.c_str()}, "/home/pi/.config/retroarch/cores"};
+            //cmd = utils::Command{"/opt/retropie/emulators/retroarch/bin/retroarch", { "--config", "/home/pi/rckid/retroarch/retroarch.cfg"}};
+            std::cout << cmd.command();
+            for (auto i : cmd.args()) 
+                std::cout << i << std::endl;
+            std::cout << cmd.workingDirectory() << std::endl;
+
         } else if (emulator == EMULATOR_DOSBOX) {
             std::string config = game[GAME_DOSBOX_CONFIG].value<std::string>();
             // /opt/retropie/emulators/dosbox/bin/dosbox -v -conf /rckid/games/dos/WackyWhe/dosbox.conf
@@ -89,6 +133,15 @@ public:
 #else
         emulator_ = utils::Process::start(utils::Command{"glxgears"});
 #endif
+        // determine the save and snapshot directories to be used for the game. This is the position of the game in the /rckid/games folder 
+        auto p = dir / game[DirSyncedCarousel::MENU_FILENAME].value<std::string>();
+        TraceLog(LOG_DEBUG, STR("Running game " << p));
+        name_ = p.stem();
+        p = std::filesystem::relative(p.parent_path() / name_, "/rckid/games");
+        snapshotDir_ = std::filesystem::path{"/rckid/.rckid/snapshots/games/"} / p;
+        saveDir_ = std::filesystem::path{"/rckid/.rckid/saves/"} / p;
+        TraceLog(LOG_DEBUG, STR("  snapshot dir: " << snapshotDir_));        
+        TraceLog(LOG_DEBUG, STR("  save dir: " << saveDir_));        
         window().showWidget(this);
     }
 
@@ -144,10 +197,27 @@ protected:
         rckid().keyPress(RCKid::RETROARCH_HOTKEY_ENABLE, false);
     }
 
+    /** Checks the tmp folder for corresponding screenshot name and returns its full path, or empty string when no screenshot found. 
+     */
+    std::filesystem::path getTmpScreenshotName() {
+        using namespace std::filesystem;
+        for (auto const & e : directory_iterator(SCREENSHOT_TMP_DIRECTORY)) {
+            if (e.is_regular_file() && e.path().extension() == ".png") {
+                if (str::startsWith(e.path().stem(), name_.c_str()))
+                    return e.path();
+            } 
+        }   
+        return std::filesystem::path{}; 
+    }
+
     utils::Process emulator_;
 
     Carousel gameMenu_;
-    
+    Wait wait_;
+
+    std::string name_;
+    std::filesystem::path snapshotDir_;
+    std::filesystem::path saveDir_;
 
 }; // GamePlayer
 
@@ -199,7 +269,8 @@ protected:
     }
 
     json::Value && createGameBoyColorProfile(json::Value && item) {
-        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so");
+        //return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so");
+        return createRetroarchProfile(std::move(item), "mgba");
     }
 
     json::Value && createGameBoyAdvanceProfile(json::Value && item) {
@@ -223,5 +294,5 @@ protected:
     }
 
     GamePlayer player_;
-    
 };
+

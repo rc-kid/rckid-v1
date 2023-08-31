@@ -16,6 +16,8 @@ protected:
 
     void onFocus() override {
         rckid().setGamepadActive(true);
+        // TODO for now, entering debug mode tops up the number of hearts
+        rckid().setHearts(3600);
     }
 
     void onBlur() override {

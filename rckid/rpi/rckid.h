@@ -334,6 +334,18 @@ public:
 
     //@}
 
+    void rumblerOk() {
+        driverEvents_.send(msg::RumblerOk{});
+    }
+
+    void rumblerFail() {
+        driverEvents_.send(msg::RumblerFail{});
+    }
+
+    void rumbler(uint8_t intensity, uint16_t duration) {
+        driverEvents_.send(msg::Rumbler{intensity, duration});
+    }
+
 private:
 
     struct ButtonState {

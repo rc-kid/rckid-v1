@@ -29,10 +29,8 @@
     };
 
 /** Remote controller widget. 
- 
-    Contains basic connection stuff, but is really intended to be specialized for a more tailored remote experience. Likely. 
 
-    The remote car itself. 
+    For xmas 2023, this is simply a controller fixed for a remote controlled car with visualizations for engine, sirens and lights.  
  */
 class Remote : public Widget {
 public:
@@ -105,9 +103,9 @@ protected:
 
     void draw(Canvas & c) override {
         c.drawTexture(96, 56, wheel_);
-        c.drawTexture(270, 30, lights_);
-        c.drawTexture(270, 90, siren_);
-        c.drawTexture(270, 150, horn_);
+        c.drawTexture(270, 38, lights_);
+        c.drawTexture(270, 88, siren_);
+        c.drawTexture(270, 138, horn_);
     }
 
     /** When pushed on the nav stack, start looking for devices to pair with. 

@@ -6,6 +6,11 @@
 #define HEART_SIZE_SECONDS 600 
 #define HEARTS_LOW_THRESHOLD 600
 
+
+
+// note this is also in retroarch directory
+#define SCREENSHOT_TMP_DIRECTORY "/rckid/.rckid/tmp/screenshots"
+
 /** \section Input Controls
  
     

@@ -260,6 +260,8 @@ void Window::loop() {
                     }, 
                     [this, w](ButtonEvent eb) {
                         TraceLog(LOG_DEBUG, STR("Button state change. Button: " << (int)eb.btn << ", state: " << eb.state));
+                        //if (eb.state && ! rckid().gamepadActive())
+                        //    rckid().rumbler(128, 10);
                         switch (eb.btn) {
                             case Button::A:
                                 w->btnA(eb.state);

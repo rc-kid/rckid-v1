@@ -13,6 +13,16 @@
     DPad Up/Down = volume up/down
     Left/Right = 5 minute back/forward
     
+
+    --snapshot-path <string>
+
+    snapshot
+
+    rate 15 = play fast
+    normal = play normally
+
+
+    press help in cvlc to see rc commands available
  */
 class VideoPlayer : public Widget {
 public:

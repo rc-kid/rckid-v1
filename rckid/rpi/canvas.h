@@ -220,6 +220,13 @@ public:
     void drawTextureScaled(int x, int y, Texture const & t, float scale, Color const & tint) {
         DrawTextureEx(t.t2d(), V2(x, y), 0, scale, tint);
     }
+
+    void drawTextureRotated(int x, int y, Texture const & t, float angle, Color const & tint) {
+
+        DrawTexturePro(t.t2d(), RECT(0, 0, t.width(), t.height()), RECT(x + t.width() / 2, y + t.height() / 2, t.width(), t.height()), V2(t.width() / 2, t.height() / 2), angle, tint);
+    }
+
+
     //@}
 
     /** \name Font drawing support. 

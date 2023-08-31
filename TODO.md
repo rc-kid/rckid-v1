@@ -1,12 +1,14 @@
+Have saved states for mgba. the trick is to put the .so of the cores to the same dir as the info files. 
+- move this to my own folder for the cores we support
+- do auto save before leaving the game (and renaming of the saved states and stuff)
+
 > This is the high-level plan on tasks, prioritized, to make the RCKid ready for xmas:
 
 - design the bottom and top frames around the pcb and test print the stack
 - add rckid basics (proper header, hearts & configuration and settings)
 - print ASA enclosures - ASA samples from here (it actually glows in the dark even): https://www.na3d.cz/p/2621/vzorek-fiber3d-asa-svitici-ve-tme-175-mm-10-m?variant[117]=1071
-- order plexiglass covers (https://plasticexpress.cz/)
 - test build the assembly
-- strip down in-game menu to barebones
-- test walkie talkie, add beeps & icon for playing
+- test walkie talkie, add beeps
 
 > At this point, I'll have a barebones, but working rckid that can play some games, play music & video and act as walkie talkie. This can be presented as xmas gift. Then there are two things I can do:
 
@@ -24,6 +26,9 @@
 - telegram configuration
 - samba
 - wifi settings
+
+- order plexiglass covers (https://plasticexpress.cz/)
+
 
 # Things to check
 

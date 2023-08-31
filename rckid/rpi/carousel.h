@@ -225,6 +225,19 @@ protected:
         }
     }
 
+    /** By default the carousel allows controlling volume using the up/down dpad keys. This behaviour can be overriden in children when appropriate. 
+     */
+    void dpadUp(bool state) override {
+        if (state)
+            rckid().setVolume(rckid().volume() + 10);
+    }
+
+    void dpadDown(bool state) override {
+        if (state)
+            rckid().setVolume(rckid().volume() - 10);
+    }
+
+
 private:
 
     /** Currently animated transition. 

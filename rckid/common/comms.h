@@ -333,7 +333,8 @@ namespace comms {
         utils::DateTime alarm;
         uint8_t brightness{128};
         uint8_t volume{50};
-        uint16_t hearts{630};
+        // number of heart seconds available for protected contents
+        uint16_t hearts{3600};
         // joystick calibration - min and max raw values for the horizontal and vertical axes
         uint8_t joyHMin{49};
         uint8_t joyHMax{215};

@@ -32,6 +32,7 @@ struct DispmanXBackgroundLayer {
 #include "carousel_json.h"
 #include "carousel_dir.h"
 #include "gauge.h"
+#include "external_app.h"
 
 #include "menu.h"
 
@@ -98,6 +99,7 @@ public:
         w_["recorder"] = new Recorder{};
         w_["nrf-sniffer"] = new NRFSniffer{};
         w_["file-explorer"] = new FileExplorer{"/rckid"};
+        w_["external-app"] = new ExternalApp{};
     }
 
     ~Widgets() {
@@ -127,6 +129,9 @@ private:
 int main(int argc, char * argv[]) {
     // ensure the required paths
     std::filesystem::create_directories(AUDIO_MUSIC_ARTWORK_DIR);
+    std::filesystem::create_directories("/rckid/images/screenshots/games");
+    std::filesystem::create_directories("/rckid/images/screenshots/video");
+    std::filesystem::create_directories(SCREENSHOT_TMP_DIRECTORY);
     system("cp /rckid/log.txt /rckid/log.old.txt");
     SetTraceLogLevel(LOG_ALL);
     SetTraceLogCallback(logCallback);
@@ -189,6 +194,7 @@ int main(int argc, char * argv[]) {
                     JSONCarousel::item("Recording", "assets/images/026-magic-wand.png", "{widget : recorder}"),
                     JSONCarousel::item("NRF Sniffer", "assets/images/084-spy.png", "{widget : \"nrf-sniffer\"}"),
                     JSONCarousel::item("File Explorer", "assets/images/070-pen-drive.png", "{widget : \"file-explorer\" }"),
+                    JSONCarousel::item("External", "assets/images/084-spy.png", "{widget : \"external-app\"}"),
                 })
             }), 
             [&](json::Value const & item) {

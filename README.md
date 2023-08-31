@@ -65,6 +65,20 @@ When the RCBoy is assembled, the AVR chip is flashed via a custom I2C bootloader
 - a variant of the above, when soldering multiple PCBs together via holes, be extra sure that all PCBs actually have proper contact
 
 
+## RCKid folder structure
+
+    /rckid
+        /music
+        /videos
+        /games
+        /screenshots
+        /images
+        /recorder
+        /saves
+
+
+
+
 # Notes
 
 
