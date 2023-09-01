@@ -52,7 +52,7 @@ public:
             }},
             new Carousel::Item{"Save", "assets/images/071-diskette.png", [this](){
                 retroarchHotkey(RCKid::RETROARCH_HOTKEY_SAVE_STATE);
-                retroarchHotKey(RCKid::RETROARCH_HOTKEY_SCREENSHOT);
+                retroarchHotkey(RCKid::RETROARCH_HOTKEY_SCREENSHOT);
                 wait_.showDelay(1000, [this](Wait *) {
                     std::filesystem::create_directories(saveDir_);
                     std::filesystem::path tmpName{getTmpScreenshotName()};
@@ -60,14 +60,16 @@ public:
                         // move the screenshot
                         std::filesystem::rename(tmpName, saveDir_ / tmpName.filename());
                         // move the game save state
-                            
-                        std::filesystem::rename(tmpName, saveDir_ / tmpName.)
+                        auto p = game_;
+                        p.replace_extension("state");
+                        tmpName.replace_extension("state");    
+                        std::filesystem::rename(p, saveDir_ / tmpName.filename());
                         return true;
                     } else {
                         return false;
                     }
 
-                }
+                });
                 rckid().rumbler(128, 10);
             }},
             new Carousel::Item{"Load", "assets/images/069-open.png", [this](){
@@ -134,10 +136,9 @@ public:
         emulator_ = utils::Process::start(utils::Command{"glxgears"});
 #endif
         // determine the save and snapshot directories to be used for the game. This is the position of the game in the /rckid/games folder 
-        auto p = dir / game[DirSyncedCarousel::MENU_FILENAME].value<std::string>();
-        TraceLog(LOG_DEBUG, STR("Running game " << p));
-        name_ = p.stem();
-        p = std::filesystem::relative(p.parent_path() / name_, "/rckid/games");
+        game_ = dir / game[DirSyncedCarousel::MENU_FILENAME].value<std::string>();
+        TraceLog(LOG_DEBUG, STR("Running game " << game_));
+        auto p = std::filesystem::relative(game_.parent_path() / game_.stem(), "/rckid/games");
         snapshotDir_ = std::filesystem::path{"/rckid/.rckid/snapshots/games/"} / p;
         saveDir_ = std::filesystem::path{"/rckid/.rckid/saves/"} / p;
         TraceLog(LOG_DEBUG, STR("  snapshot dir: " << snapshotDir_));        
@@ -201,9 +202,10 @@ protected:
      */
     std::filesystem::path getTmpScreenshotName() {
         using namespace std::filesystem;
+        std::string namePrefix = game_.stem();
         for (auto const & e : directory_iterator(SCREENSHOT_TMP_DIRECTORY)) {
             if (e.is_regular_file() && e.path().extension() == ".png") {
-                if (str::startsWith(e.path().stem(), name_.c_str()))
+                if (str::startsWith(e.path().stem(), namePrefix.c_str()))
                     return e.path();
             } 
         }   
@@ -215,7 +217,9 @@ protected:
     Carousel gameMenu_;
     Wait wait_;
 
-    std::string name_;
+    //std::string name_;
+    //std::filesystem::path game_;
+    std::filesystem::path game_;
     std::filesystem::path snapshotDir_;
     std::filesystem::path saveDir_;
 
