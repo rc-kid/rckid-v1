@@ -39,108 +39,6 @@ public:
     static inline std::string const EMULATOR_RETROARCH{"retroarch"};
     static inline std::string const EMULATOR_DOSBOX{"dosbox"};
 
-    GamePlayer(): 
-        gameMenu_{new Carousel::Menu{"", "", {
-            new Carousel::Item{"Volume", "assets/images/010-high-volume.png", [](){
-                static Gauge gauge{"assets/images/010-high-volume.png", 0, 100, 10,
-                    [](int value){
-                        rckid().setVolume(value);
-                    },
-                    [](Gauge * g) {
-                        g->setValue(rckid().volume());
-                    }
-                };
-                window().showWidget(&gauge);
-            }},
-            new Carousel::Item{"Save", "assets/images/071-diskette.png", [this](){
-                retroarchHotkey(RCKid::RETROARCH_HOTKEY_SAVE_STATE);
-                retroarchHotkey(RCKid::RETROARCH_HOTKEY_SCREENSHOT);
-                wait_.showDelay(1000, [this](Wait *) {
-                    std::filesystem::create_directories(saveDir_);
-                    std::filesystem::path tmpName{getTmpScreenshotName()};
-                    if (!tmpName.empty()) {
-                        // move the screenshot
-                        std::filesystem::rename(tmpName, saveDir_ / tmpName.filename());
-                        // move the game save state
-                        auto p = game_;
-                        p.replace_extension("state");
-                        tmpName.replace_extension("state");    
-                        std::filesystem::rename(p, saveDir_ / tmpName.filename());
-                        return true;
-                    } else {
-                        return false;
-                    }
-
-                });
-                rckid().rumbler(128, 10);
-            }},
-            new Carousel::Item{"Load", "assets/images/069-open.png", [this](){
-                // first create the load game menu by finding all saves in folder
-                using namespace std::filesystem;
-                Carousel::Menu * m = new Carousel::Menu{};
-                TraceLog(LOG_DEBUG, STR("Checking game saves"));
-                try {
-                    for (auto const & entry : directory_iterator{saveDir_}) {
-                        if (!entry.is_regular_file())
-                            continue;
-                        path p{entry.path()};
-                        if (p.extension() != ".state")
-                            continue;
-                        path icon = p;
-                        icon.replace_extension("png");
-                        TraceLog(LOG_DEBUG, STR("    " << p));
-                        m->append(new Carousel::Item{p.stem(), icon, [this, p](){
-                            // copy the selected state file to where the game expects it
-                            path savedState = game_;
-                            savedState.replace_extension("state");
-                            copy(p, savedState);
-                            TraceLog(LOG_DEBUG, STR("Loading state " << p << " copied to " << savedState));
-                            retroarchHotkey(RCKid::RETROARCH_HOTKEY_LOAD_STATE);
-                            rckid().rumbler(128,10);
-                            wait_.showDelay(1000, [this, savedState](Wait *){
-                                remove(savedState);
-                                return true;
-                            });
-                        }});
-                    } 
-                    if (! m->empty()) {
-                        saveMenu_ = Carousel{m};
-                        window().showWidget(&saveMenu_);
-                        return;
-                    }
-                } catch (std::exception const & e) {
-                    TraceLog(LOG_ERROR, STR("No saved states" << e.what()));
-                }
-                TraceLog(LOG_DEBUG, "No saved states");
-                delete m;
-                rckid().rumblerFail();
-            }},
-            new Carousel::Item{"Screenshot", "assets/images/063-screenshot.png", [this](){
-                // instruct retroarch to create the screenshot
-                retroarchHotkey(RCKid::RETROARCH_HOTKEY_SCREENSHOT);
-                rckid().rumbler(128,10);
-                // wait for 2 seconds
-                wait_.showDelay(1000, [this](Wait *) {
-                    // since screenshots are generated to a tmp directory and with random-ish names, check the dir contents now and move it to the target folder
-                    std::filesystem::create_directories(snapshotDir_);
-                    std::filesystem::path tmpName{getTmpScreenshotName()};
-                    if (!tmpName.empty()) {
-                        std::filesystem::rename(tmpName, snapshotDir_ / tmpName.filename());
-                        return true;
-                    } else {
-                        return false;
-                    }
-                });
-            }},
-            new Carousel::Item{"Resume", "assets/images/065-play.png", [](){
-                window().back();
-            }},
-            new Carousel::Item{"Exit", "assets/images/064-stop.png", [](){
-                window().back(2);
-            }}
-        }}} {
-        }
-
     bool fullscreen() const { return true; }
 
     void play(std::filesystem::path dir,  json::Value & game) {
@@ -225,8 +123,10 @@ protected:
 
 
     void btnHome(bool state) {
-        if (state)
+        if (state) {
+            gameMenu_ = Carousel{initializeGameMenu()};
             window().showWidget(& gameMenu_);
+        }
     }
 
     void retroarchHotkey(unsigned int hkey) {
@@ -251,10 +151,111 @@ protected:
         return std::filesystem::path{}; 
     }
 
+    Carousel::Menu * initializeGameMenu() {
+        Carousel::Menu * m = new Carousel::Menu{};
+        // single save state
+        m->append(new Carousel::Item{"Save", "assets/images/071-diskette.png", [this](){
+                retroarchHotkey(RCKid::RETROARCH_HOTKEY_SAVE_STATE);
+                retroarchHotkey(RCKid::RETROARCH_HOTKEY_SCREENSHOT);
+                wait_.showDelay(1000, [this](Wait *) {
+                    std::filesystem::create_directories(saveDir_);
+                    std::filesystem::path tmpName{getTmpScreenshotName()};
+                    if (!tmpName.empty()) {
+                        // move the screenshot and the save state
+                        std::filesystem::rename(tmpName, saveDir_ / "user.png");
+                        // move the saved state
+                        auto p = game_;
+                        p.replace_extension("state");
+                        std::filesystem::rename(p, saveDir_ / "user.state");
+                        return true;
+                    } else {
+                        return false;
+                    }
+                });
+                rckid().rumbler(128, 10);
+            }}
+        );
+        // if there is user saved state, add load menu
+        if (std::filesystem::exists(saveDir_ / "user.state")) {
+            m->append(new Carousel::Item{"Load", saveDir_ / "user.png", [this]() {
+                auto p = game_;
+                p.replace_extension("state");
+                if (std::filesystem::exists(p))
+                    std::filesystem::remove(p);
+                std::filesystem::copy_file(saveDir_ / "user.state", p);
+                retroarchHotkey(RCKid::RETROARCH_HOTKEY_LOAD_STATE);
+                rckid().rumbler(128,10);
+                wait_.showDelay(1000, [this, p](Wait *){
+                    remove(p);
+                    window().back();
+                    return true;
+                });
+            }});
+        }
+        // if there is latest save, add latest menu
+        if (std::filesystem::exists(saveDir_ / "latest.state")) {
+            m->append(new Carousel::Item{"Latest", saveDir_ / "latest.png", [this]() {
+                auto p = game_;
+                p.replace_extension("state");
+                if (std::filesystem::exists(p))
+                    std::filesystem::remove(p);
+                std::filesystem::copy_file(saveDir_ / "latest.state", p);
+                retroarchHotkey(RCKid::RETROARCH_HOTKEY_LOAD_STATE);
+                rckid().rumbler(128,10);
+                wait_.showDelay(1000, [this, p](Wait *){
+                    remove(p);
+                    window().back();
+                    return true;
+                });
+            }});
+        }
+        m->append(new Carousel::Item{"Screenshot", "assets/images/063-screenshot.png", [this](){
+                // instruct retroarch to create the screenshot
+                retroarchHotkey(RCKid::RETROARCH_HOTKEY_SCREENSHOT);
+                rckid().rumbler(128,10);
+                // wait for 2 seconds
+                wait_.showDelay(1000, [this](Wait *) {
+                    // since screenshots are generated to a tmp directory and with random-ish names, check the dir contents now and move it to the target folder
+                    std::filesystem::create_directories(snapshotDir_);
+                    std::filesystem::path tmpName{getTmpScreenshotName()};
+                    if (!tmpName.empty()) {
+                        std::filesystem::rename(tmpName, snapshotDir_ / tmpName.filename());
+                        return true;
+                    } else {
+                        return false;
+                    }
+                });
+            }}
+        );
+        m->append(new Carousel::Item{"Resume", "assets/images/065-play.png", [](){
+                window().back();
+            }}
+        );
+        m->append(new Carousel::Item{"Exit", "assets/images/064-stop.png", [this](){
+                retroarchHotkey(RCKid::RETROARCH_HOTKEY_SAVE_STATE);
+                retroarchHotkey(RCKid::RETROARCH_HOTKEY_SCREENSHOT);
+                wait_.showDelay(1000, [this](Wait *) {
+                    std::filesystem::create_directories(saveDir_);
+                    std::filesystem::path tmpName{getTmpScreenshotName()};
+                    if (!tmpName.empty()) {
+                        // move the screenshot and the save state
+                        std::filesystem::rename(tmpName, saveDir_ / "latest.png");
+                        // move the saved state
+                        auto p = game_;
+                        p.replace_extension("state");
+                        std::filesystem::rename(p, saveDir_ / "latest.state");
+                    }
+                    window().back(2);
+                    return true;
+                });
+           }}
+        );
+        return m;
+    }
+
     utils::Process emulator_;
 
-    Carousel gameMenu_;
-    Carousel saveMenu_{nullptr};
+    Carousel gameMenu_{nullptr};
     Wait wait_;
 
     //std::string name_;
