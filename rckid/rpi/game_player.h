@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 #include "platform/platform.h"
 
 #include "utils/process.h"
@@ -73,8 +75,45 @@ public:
                 rckid().rumbler(128, 10);
             }},
             new Carousel::Item{"Load", "assets/images/069-open.png", [this](){
-                retroarchHotkey(RCKid::RETROARCH_HOTKEY_LOAD_STATE);
-                rckid().rumbler(128,10);
+                // first create the load game menu by finding all saves in folder
+                using namespace std::filesystem;
+                Carousel::Menu * m = new Carousel::Menu{};
+                TraceLog(LOG_DEBUG, STR("Checking game saves"));
+                try {
+                    for (auto const & entry : directory_iterator{saveDir_}) {
+                        if (!entry.is_regular_file())
+                            continue;
+                        path p{entry.path()};
+                        if (p.extension() != ".state")
+                            continue;
+                        path icon = p;
+                        icon.replace_extension("png");
+                        TraceLog(LOG_DEBUG, STR("    " << p));
+                        m->append(new Carousel::Item{p.stem(), icon, [this, p](){
+                            // copy the selected state file to where the game expects it
+                            path savedState = game_;
+                            savedState.replace_extension("state");
+                            copy(p, savedState);
+                            TraceLog(LOG_DEBUG, STR("Loading state " << p << " copied to " << savedState));
+                            retroarchHotkey(RCKid::RETROARCH_HOTKEY_LOAD_STATE);
+                            rckid().rumbler(128,10);
+                            wait_.showDelay(1000, [this, savedState](Wait *){
+                                remove(savedState);
+                                return true;
+                            });
+                        }});
+                    } 
+                    if (! m->empty()) {
+                        saveMenu_ = Carousel{m};
+                        window().showWidget(&saveMenu_);
+                        return;
+                    }
+                } catch (std::exception const & e) {
+                    TraceLog(LOG_ERROR, STR("No saved states" << e.what()));
+                }
+                TraceLog(LOG_DEBUG, "No saved states");
+                delete m;
+                rckid().rumblerFail();
             }},
             new Carousel::Item{"Screenshot", "assets/images/063-screenshot.png", [this](){
                 // instruct retroarch to create the screenshot
@@ -215,6 +254,7 @@ protected:
     utils::Process emulator_;
 
     Carousel gameMenu_;
+    Carousel saveMenu_{nullptr};
     Wait wait_;
 
     //std::string name_;

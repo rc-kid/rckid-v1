@@ -416,6 +416,8 @@ public:
 
         BaseMenu(std::string title, std::string icon):
             title{title}, icon{icon} {}
+
+        BaseMenu() = default;
     }; 
 
     class Item : public BaseMenu {
@@ -434,11 +436,22 @@ public:
         Menu(std::string title, std::string icon, std::initializer_list<BaseMenu *> subitems):
             BaseMenu{title, icon} {
             for (BaseMenu * bm : subitems)
-            items.push_back(std::unique_ptr<BaseMenu>{bm});
+              items_.push_back(std::unique_ptr<BaseMenu>{bm});
         }
+
+        Menu() = default;
+
+        void append(BaseMenu * m) {
+            items_.push_back(std::unique_ptr<BaseMenu>{m});
+        }
+
+        size_t size() const { return items_.size(); }
+
+        bool empty() const { return items_.empty(); }
+
     protected:
         friend class Carousel;
-        std::vector<std::unique_ptr<BaseMenu>> items;
+        std::vector<std::unique_ptr<BaseMenu>> items_;
     }; 
 
     Carousel(Menu * root):
@@ -451,7 +464,7 @@ public:
     }
 
     void itemSelected(size_t index) override {
-        BaseMenu * item = menu_.back()->items[index].get();
+        BaseMenu * item = menu_.back()->items_[index].get();
         Item * i = dynamic_cast<Item*>(item);
         if (i)
             i->onSelect();
@@ -460,7 +473,7 @@ public:
     }
 
     BaseCarousel::Item getItemFor(size_t index) override {
-        BaseMenu * item = menu_.back()->items[index].get();
+        BaseMenu * item = menu_.back()->items_[index].get();
         if (item->icon.empty())
             return BaseCarousel::Item{item->title};
         else 
@@ -469,7 +482,7 @@ public:
 
     void enter(Menu * menu) {
         menu_.push_back(menu);
-        BaseCarousel::enter(menu->items.size());
+        BaseCarousel::enter(menu->items_.size());
     }
 
     void leave() override {
