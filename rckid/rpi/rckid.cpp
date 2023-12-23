@@ -371,6 +371,8 @@ void RCKid::initializeAvr() {
     }
     // get the persistent state
     readPersistentState();
+    // TODO remove in production - set hearts to an hour every restart for testing
+    pState_.hearts = 3600;
     // update brightness and volume
     setBrightness(pState_.brightness);
     setVolume(pState_.volume);

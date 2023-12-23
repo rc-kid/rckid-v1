@@ -28,6 +28,7 @@
 
     // game menu is: save game, load game, screenshot, exit game
 
+    Note: in order for the game to allow saving, the libretro core must be copied into ~/.config/retroarch/cores. 
 
  */
 class GamePlayer : public Widget {
@@ -310,7 +311,7 @@ protected:
     }
 
     json::Value && createGameBoyProfile(json::Value && item) {
-        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so");
+        return createRetroarchProfile(std::move(item), "mgba");
     }
 
     json::Value && createGameBoyColorProfile(json::Value && item) {
@@ -319,19 +320,19 @@ protected:
     }
 
     json::Value && createGameBoyAdvanceProfile(json::Value && item) {
-        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-mgba/mgba_libretro.so");
+        return createRetroarchProfile(std::move(item), "mgba");
     }
 
     json::Value && createSegaGenesisProfile(json::Value && item) {
-        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-genesis-plus-gx/genesis_plus_gx_libretro.so");
+        return createRetroarchProfile(std::move(item), "genesis_plus_gx.so");
     }
 
     json::Value && createNintendo64Profile(json::Value && item) {
-        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-mupen64plus/mupen64plus_libretro.so");
+        return createRetroarchProfile(std::move(item), "mupen64plus");
     }
 
     json::Value && createSuperNintendoProfile(json::Value && item) {
-        return createRetroarchProfile(std::move(item), "/opt/retropie/libretrocores/lr-snes9x2005/snes9x2005_libretro.so");
+        return createRetroarchProfile(std::move(item), "snes9x2005");
     }
 
     void itemSelected(size_t index, json::Value & json) override {
